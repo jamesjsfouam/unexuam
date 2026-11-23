@@ -1,0 +1,12 @@
+{
+  "name": "Evacua UAM · Evacuación Off-Grid",
+  "short_name": "Evacua UAM",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0f1115",
+  "theme_color": "#0f1115",
+  "lang": "es",
+  "icons": [
+    { "src": "/static/icono.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}
