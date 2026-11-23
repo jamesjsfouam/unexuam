@@ -112,7 +112,7 @@ La aplicación web móvil sincroniza el estado en tiempo real entre todos los te
 | ![Frontend](https://img.shields.io/badge/-Frontend-0B2A4A?style=flat-square&logo=javascript&logoColor=white) | **HTML5 · CSS3 · JS vanilla** | Interfaz móvil con animación de entrada Off-Grid, sin frameworks ni CDNs: funciona completamente sin internet. |
 | ![Móvil](https://img.shields.io/badge/-App_Android-3DDC84?style=flat-square&logo=android&logoColor=white) | **Capacitor + motor offline** | Empaqueta el frontend y el grafo exportado desde `backend/datos.py` en un APK autónomo (`ni.edu.uam.unexuam`) con persistencia en `localStorage`. |
 | ![Cartografía](https://img.shields.io/badge/-Mapa_UAM-7EBC6F?style=flat-square&logo=openstreetmap&logoColor=white) | **OpenStreetMap + SVG 3D** | Geometría real del campus (`frontend/static/campus-plano.json` y `frontend/static/img/mapa-campus-3d.svg`). |
-| ![Pruebas](https://img.shields.io/badge/-Pruebas-1FBF5F?style=flat-square) | **unittest** | Suite de 23 pruebas unitarias del backend sin dependencias externas. |
+| ![Pruebas](https://img.shields.io/badge/-Pruebas-1FBF5F?style=flat-square) | **unittest** | Suite de 30 pruebas (23 de backend + 7 de API y paridad frontend/backend). |
 
 ### Sistema de diseño
 
@@ -143,7 +143,8 @@ unexuam/
 │   ├── templates/index.html   # Shell de la aplicación
 │   └── static/                # app.css, app.js, campus-plano.json, manifest.json e img/
 ├── tests/
-│   └── test_backend.py        # 23 pruebas unitarias del backend
+│   ├── test_backend.py        # 23 pruebas unitarias de grafos, BFS y Dijkstra
+│   └── test_api.py            # 7 pruebas de API Flask, 5 flujos de usuario y paridad de mapa
 ├── mobile/                    # App Android autónoma (Capacitor + motor offline; genera Unexuam.apk)
 └── docs/
     ├── propuesta/             # Propuesta formal del proyecto (.docx y .md)
@@ -230,7 +231,7 @@ El APK queda en `mobile/android/app/build/outputs/apk/debug/app-debug.apk`.
 |---|---|
 | `python app.py` | Levanta el servidor web móvil en el puerto `5000` (`0.0.0.0`) |
 | `python -m backend.menu` | Abre el menú interactivo de consola para operar los grafos |
-| `python -m unittest discover -s tests -v` | Ejecuta las 23 pruebas unitarias del backend |
+| `python -m unittest discover -s tests -v` | Ejecuta las 30 pruebas (backend, API y paridad del mapa) |
 | `cd mobile && npm run sync` | Sincroniza el grafo de `backend/datos.py` y el frontend con Android |
 
 <br />
@@ -239,7 +240,7 @@ El APK queda en `mobile/android/app/build/outputs/apk/debug/app-debug.apk`.
 
 ## Pruebas y validación
 
-La suite en [`tests/test_backend.py`](tests/test_backend.py) incluye **23 pruebas unitarias** ejecutables sin dependencias externas:
+La suite en [`tests/`](tests/) incluye **30 pruebas automatizadas** (`test_backend.py` + `test_api.py`):
 
 ```powershell
 python -m unittest discover -s tests -v

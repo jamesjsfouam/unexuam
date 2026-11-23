@@ -823,7 +823,7 @@ input:focus {
   color: var(--azul);
 }
 
-/* leyenda: chips con icono, como "Incendios / Sismo / Inundación" del Figma */
+/* leyenda: chips con icono */
 .leyenda {
   display: flex;
   align-items: center;

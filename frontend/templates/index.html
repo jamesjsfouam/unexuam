@@ -27,6 +27,7 @@
     </div>
   </div>
   <header class="barra">
+    <h1 class="sr">Unexuam · Evacuación Off-Grid para el campus UAM</h1>
     <a href="#inicio" class="marca" aria-label="Unexuam, inicio">
       <img src="{{ url_for('static', filename='img/logo-x.png') }}" alt="" class="marca-x">
       <img src="{{ url_for('static', filename='img/wordmark-unexuam.png') }}" alt="Unexuam" class="marca-unexo">
@@ -118,9 +119,9 @@
         <div class="campo">
           <span>TTL (saltos máximos)</span>
           <div class="stepper">
-            <button type="button" class="btn redondo" data-ttl="-1" aria-label="Menos">−</button>
+            <button type="button" class="btn redondo" data-ttl="-1" aria-label="Disminuir TTL">−</button>
             <output id="ttl">3</output>
-            <button type="button" class="btn redondo" data-ttl="1" aria-label="Más">+</button>
+            <button type="button" class="btn redondo" data-ttl="1" aria-label="Aumentar TTL">+</button>
           </div>
         </div>
         <button id="btn-alerta" class="btn alerta ancho grande" data-accion="emitir">

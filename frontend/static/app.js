@@ -92,16 +92,6 @@ function limpiarPos(obj) {
 }
 const POS = { mesh: limpiarPos(leer("pos-mesh", {})), campus: limpiarPos(leer("pos-campus", {})) };
 
-function tipoLugar(n) {
-  if (E && E.campus.zonasSeguras.includes(n)) return "zona";
-  const l = n.toLowerCase();
-  if (/salida|exit|puerta/.test(l)) return "salida";
-  if (/escaler/.test(l)) return "escalera";
-  if (/pasillo|corredor|hall/.test(l)) return "pasillo";
-  return "lugar";
-}
-const ICONO = { zona: "Z", salida: "S", escalera: "E", pasillo: "P" };
-
 /* Campus: capas según cuántos saltos faltan para llegar a una zona segura
  * (zonas abajo, como un plano que "fluye" hacia la salida). */
 function layoutCapas(g, zonas) {
@@ -466,7 +456,7 @@ function renderMesh() {
 
   dibujar($("#svg-mesh"), "mesh", g, {
     unidad: " s",
-    // sin alerta tras una propagación: icono "sin señal" del diseño UNEXO
+    // sin alerta tras una propagación: icono "sin señal"
     icono: v => (hayAlerta && alc[v] === undefined
       ? `<image href="${IMG.sinSenal}" x="-9" y="-9" width="18" height="18"/>`
       : telIcono()),
@@ -784,9 +774,9 @@ function renderCampus() {
       <span class="destino-tiempo">${minutos(r.tiempo)} caminando · ${pasos.length} paso${pasos.length === 1 ? "" : "s"}</span>
       ${cambio}
     </div>
-    ${r.ruta.length === 1 ? `<p class="nota">Ya estás en un punto seguro.</p>` : ""}
+    ${r.ruta.length === 1 ? `<p class="nota">Ya estás en un punto seguro.</p>` : `<p class="nota">Toca un paso para resaltarlo en el mapa 3D.</p>`}
     <ol class="guia">${pasos.map((p, i) => `
-      <li class="paso t-${p.tipo}${i === pasoActivo ? " activa" : ""}" data-paso="${i}">
+      <li class="paso t-${p.tipo}${i === pasoActivo ? " activa" : ""}" data-paso="${i}" tabindex="0" aria-pressed="${i === pasoActivo}">
         <div class="paso-cab"><span class="paso-n">${i + 1}</span><p class="paso-texto">${esc(p.texto)}</p></div>
         <div class="paso-3d">${vistaPaso(r, p)}</div>
         <p class="paso-meta"><span>${ICONO_PASO[p.tipo] || "→"} ${minutos(p.segundos)}</span>
@@ -1467,6 +1457,10 @@ function eventos() {
       else if (ev.shiftKey && document.activeElement === primero) { ev.preventDefault(); ultimo.focus(); }
       else if (!ev.shiftKey && document.activeElement === ultimo) { ev.preventDefault(); primero.focus(); }
     }
+    if ((ev.key === "Enter" || ev.key === " ") && document.activeElement?.matches?.("[data-paso]")) {
+      ev.preventDefault();
+      document.activeElement.click();
+    }
   });
 
   $("#mesh-origen").addEventListener("change", () => { if (!animando) { alcanceMostrado = null; viaMostrada = {}; renderMesh(); } });
@@ -1480,7 +1474,11 @@ function eventos() {
     if (p) {
       const i = Number(p.dataset.paso);
       pasoActivo = pasoActivo === i ? -1 : i;
-      $$(".guia .paso").forEach(li => li.classList.toggle("activa", Number(li.dataset.paso) === pasoActivo));
+      $$(".guia .paso").forEach(li => {
+        const act = Number(li.dataset.paso) === pasoActivo;
+        li.classList.toggle("activa", act);
+        li.setAttribute("aria-pressed", String(act));
+      });
       if (miRuta) renderMapa3D(miRuta, pasosActuales);
     }
   });
