@@ -166,6 +166,89 @@
   }
   window.mostrarLogin = mostrarLogin;
 
+  function obtenerCoordsGPS() {
+    return new Promise((resolve) => {
+      const leerNativa = () => {
+        try {
+          if (window.UnexuamNativo && typeof window.UnexuamNativo.ubicacionNativa === "function") {
+            const raw = window.UnexuamNativo.ubicacionNativa();
+            if (raw) {
+              const p = JSON.parse(raw);
+              if (Number.isFinite(p.lat) && Number.isFinite(p.lon)) return p;
+            }
+          }
+        } catch (_) {}
+        return null;
+      };
+      if (!navigator.geolocation) return resolve(leerNativa());
+      navigator.geolocation.getCurrentPosition(
+        pos => resolve({ lat: pos.coords.latitude, lon: pos.coords.longitude, acc: pos.coords.accuracy }),
+        () => resolve(leerNativa()),
+        { enableHighAccuracy: true, timeout: 7000, maximumAge: 30000 }
+      );
+    });
+  }
+
+  async function aproximarEdificioPorGPS(manual = false) {
+    if (window.UnexuamNativo && manual && typeof window.UnexuamNativo.pedirPermisos === "function") {
+      window.UnexuamNativo.pedirPermisos();
+    }
+    const coords = await obtenerCoordsGPS();
+    if (!coords) {
+      if (manual) avisar("No se pudo obtener tu GPS. Activa la ubicación y concede el permiso.", false);
+      return null;
+    }
+    if (!window.__PLANO_CAMPUS__) {
+      try { window.__PLANO_CAMPUS__ = await (await fetch("/static/campus-plano.json")).json(); } catch (_) { window.__PLANO_CAMPUS__ = {}; }
+    }
+    const plano = window.__PLANO_CAMPUS__ || {};
+    const geo = plano.geo;
+    const pos = plano.posiciones;
+    if (!geo || !pos) return null;
+
+    const x = (coords.lon - geo.lon0) * geo.cosLat * 111320;
+    const y = (geo.lat0 - coords.lat) * 110574;
+    let mejor = null;
+    for (const [nombre, xy] of Object.entries(pos)) {
+      if (/^(Punto|Zona) Segura /i.test(nombre)) continue;
+      const d = Math.hypot(x - xy[0], y - xy[1]);
+      if (!mejor || d < mejor.d) mejor = { nombre, d };
+    }
+    if (!mejor) return null;
+
+    if (mejor.d <= 300) {
+      const sel = $("#campus-ubicacion");
+      if (sel) {
+        sel.value = mejor.nombre;
+        sel.dispatchEvent(new Event("change"));
+      }
+      if (YO) {
+        const j = await pedir("/api/yo/lugar", { lugar: mejor.nombre });
+        if (j.ok) {
+          YO = j.usuario;
+          firmaMsj = "";
+          cargarMensajes().then(renderMensajes);
+        }
+      }
+      avisar(`📍 Edificio aproximado por GPS: ${mejor.nombre} (~${Math.round(mejor.d)} m).`);
+      return mejor.nombre;
+    }
+    if (manual) {
+      const km = (mejor.d / 1000).toFixed(1);
+      avisar(`📍 Estás a ${km} km del campus UAM (más cercano: ${mejor.nombre}). Elige tu edificio manualmente.`, false);
+    }
+    return null;
+  }
+
+  function verificarBluetoothYGPS() {
+    try {
+      if (window.UnexuamNativo && typeof window.UnexuamNativo.pedirPermisos === "function") {
+        window.UnexuamNativo.pedirPermisos();
+      }
+    } catch (_) {}
+    setTimeout(() => { aproximarEdificioPorGPS(false); }, 900);
+  }
+
   function trasEntrar(j) {
     $("#login-error").textContent = "";
     $("#login-clave").value = "";
@@ -176,6 +259,7 @@
     window.iniciarUnexuam();
     iniciarSondeoMensajes();
     avisar(`Hola, ${YO.nombre}.`);
+    verificarBluetoothYGPS();
   }
 
   async function entrar(ev) {
@@ -380,6 +464,15 @@
     const acc = $("#hoja-acciones");
     acc.innerHTML = '<label class="campo"><span>Lugar</span><select id="hoja-lugar"></select></label>';
     llenarLugares($("#hoja-lugar"), YO.lugar);
+    const bGps = document.createElement("button");
+    bGps.type = "button";
+    bGps.className = "btn secundario ancho";
+    bGps.textContent = "📍 Detectar mi edificio (GPS)";
+    bGps.onclick = async () => {
+      hoja.hidden = true;
+      await aproximarEdificioPorGPS(true);
+    };
+    acc.appendChild(bGps);
     const b = document.createElement("button");
     b.className = "btn primario ancho";
     b.textContent = "Guardar";
@@ -646,6 +739,8 @@
     $$("[data-modo]").forEach(b => b.addEventListener("click", () => cambiarModo(b.dataset.modo)));
     $("#btn-cuenta").addEventListener("click", menuCuenta);
     $("#mi-red").addEventListener("click", elegirLugar);
+    const btnGps = $("#btn-gps");
+    if (btnGps) btnGps.addEventListener("click", () => aproximarEdificioPorGPS(true));
     $("#buscar-contacto").addEventListener("input", renderMensajes);
     $("#chat-form").addEventListener("submit", enviar);
     $("#chat-volver").addEventListener("click", cerrarChat);
