@@ -13,7 +13,7 @@
   ![Grafos](https://img.shields.io/badge/Grafos-Dirigidos_y_Ponderados-0B2A4A?style=for-the-badge)
   ![Mesh](https://img.shields.io/badge/Red_Mesh-BFS_%2B_TTL-CC0000?style=for-the-badge)
   ![Dijkstra](https://img.shields.io/badge/Rutas-Dijkstra_a_mano-FCD222?style=for-the-badge&labelColor=0B2A4A)
-  ![UAM](https://img.shields.io/badge/UAM-Proyecto_Final_2026-0066CC?style=for-the-badge)
+  ![UAM](https://img.shields.io/badge/UAM-Programación_Estructurada_2026-0066CC?style=for-the-badge)
 </div>
 
 <br />
@@ -38,7 +38,7 @@
 
 ## Descripción general
 
-**Unexuam** es un prototipo de sistema de emergencia y evacuación **Off-Grid** para el campus real de la **Universidad Americana (UAM)**, desarrollado como proyecto final de **Estructuras de Datos No Lineales** (noviembre 2026) por **Br. James Santiago Fernandez Obregon**.
+**Unexuam** es un prototipo de sistema de emergencia y evacuación **Off-Grid** para el campus real de la **Universidad Americana (UAM)**, desarrollado como proyecto final de **Programación Estructurada** (noviembre 2026) por **Br. James Santiago Fernandez Obregon**.
 
 Está diseñado para operar cuando se caen internet y la red celular, ejecutándose en una red Wi-Fi local (LAN) y accesible desde cualquier teléfono conectado al mismo servidor sin dependencias externas en el navegador.
 

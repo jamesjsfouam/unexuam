@@ -1,4 +1,4 @@
-# Propuesta de proyectos de implementación de estructuras de datos no lineales
+# Propuesta de proyecto · Programación Estructurada (implementación de estructuras de datos no lineales)
 
 ## Integrantes del grupo
 
