@@ -150,9 +150,66 @@ def paredes(poligono, z0, z1, claro, oscuro, borde):
     return "".join(c for _, c in caras)
 
 
-def edificio(poligono, alto, techo, claro, oscuro, borde):
-    return paredes(poligono, 0, alto, claro, oscuro, borde) + \
-        f'<polygon points="{pts(poligono, alto)}" fill="{techo}" stroke="{borde}" stroke-width="1" stroke-linejoin="round"/>'
+def fachada(poligono, alto, pisos, claro, oscuro, borde, acentos=()):
+    """Paredes visibles con una franja de ventanas azules por piso y los acentos de cada edificio
+    (ladrillo, muro de cristal, franja azul, barandas), según las fotos de la UAM."""
+    horario = sum(poligono[i][0] * poligono[(i + 1) % len(poligono)][1] - poligono[(i + 1) % len(poligono)][0] * poligono[i][1]
+                  for i in range(len(poligono))) > 0
+    caras = []
+    for i in range(len(poligono)):
+        a, b = poligono[i], poligono[(i + 1) % len(poligono)]
+        dx, dy = b[0] - a[0], b[1] - a[1]
+        l = math.hypot(dx, dy) or 1
+        nx, ny = (dy / l, -dx / l) if horario else (-dy / l, dx / l)
+        vis = nx * SA + ny * CA
+        if vis <= 0.02:
+            continue
+        t = max(0.0, min(1.0, ny * CA + nx * SA))
+        caras.append({"a": a, "b": b, "t": t, "peso": vis * l, "prof": prof((a[0] + b[0]) / 2, (a[1] + b[1]) / 2)})
+    if not caras:
+        return ""
+    frente = max(caras, key=lambda c: c["peso"])
+
+    def tramo(c, t0, t1, z0, z1):
+        (ax, ay), (bx, by) = c["a"], c["b"]
+        q = [P(ax + (bx - ax) * t0, ay + (by - ay) * t0, z0), P(ax + (bx - ax) * t1, ay + (by - ay) * t1, z0),
+             P(ax + (bx - ax) * t1, ay + (by - ay) * t1, z1), P(ax + (bx - ax) * t0, ay + (by - ay) * t0, z1)]
+        return " ".join(f"{u:.1f},{v:.1f}" for u, v in q)
+
+    g = []
+    for c in sorted(caras, key=lambda c: c["prof"]):
+        color = mezclar(oscuro, claro, c["t"] ** 0.7)
+        g.append(f'<polygon points="{tramo(c, 0, 1, 0, alto)}" fill="{color}" stroke="{borde}" stroke-width=".7" stroke-linejoin="round"/>')
+        largo = math.dist(c["a"], c["b"])
+        if largo > 2.5:
+            vidrio = mezclar("#4f82b8", "#9cc8f0", c["t"] ** 0.7)
+            for f in range(pisos):
+                z0 = f * PISO + 1.0
+                if z0 + 1.4 > alto - 0.3:
+                    break
+                g.append(f'<polygon points="{tramo(c, .07, .93, z0, z0 + 1.4)}" fill="{vidrio}"/>')
+        if c is frente:
+            for ac in acentos:
+                tipo = ac[0]
+                if tipo == "ladrillo":       # torre de escaleras revestida de ladrillo (Edificio B)
+                    g.append(f'<polygon points="{tramo(c, ac[1], ac[2], 0, alto + .4)}" fill="#b4573e" stroke="#7a3322" stroke-width=".7"/>')
+                elif tipo == "cristal":      # muro cortina de vidrio (UAM College)
+                    g.append(f'<polygon points="{tramo(c, ac[1], ac[2], .4, alto - .2)}" fill="#33b5c2" opacity=".9" stroke="#1d7f8a" stroke-width=".7"/>')
+                elif tipo == "franja":       # franja azul con letras doradas (Clínicas, «Edificio N»)
+                    g.append(f'<polygon points="{tramo(c, 0, 1, alto - 1.5, alto - .3)}" fill="{AZUL}"/>')
+                    g.append(f'<polygon points="{tramo(c, .4, .6, alto - 1.15, alto - .65)}" fill="#e6c15a"/>')
+                elif tipo == "barandas":     # pasillos abiertos con barandas grises (Edificio P Copérnico)
+                    for f in range(1, pisos + 1):
+                        z = f * PISO + 1.0
+                        (ax, ay), (bx, by) = c["a"], c["b"]
+                        a2, b2 = P(ax, ay, z), P(bx, by, z)
+                        g.append(f'<line x1="{a2[0]:.1f}" y1="{a2[1]:.1f}" x2="{b2[0]:.1f}" y2="{b2[1]:.1f}" stroke="#6b7785" stroke-width="1.8"/>')
+    return "".join(g)
+
+
+def edificio(poligono, alto, techo, claro, oscuro, borde, pisos=0, acentos=()):
+    muros = fachada(poligono, alto, pisos, claro, oscuro, borde, acentos) if pisos else paredes(poligono, 0, alto, claro, oscuro, borde)
+    return muros + f'<polygon points="{pts(poligono, alto)}" fill="{techo}" stroke="{borde}" stroke-width="1" stroke-linejoin="round"/>'
 
 
 def cubierta(poligono, alto, techo, borde, lado="#f6f7f9"):
@@ -201,6 +258,22 @@ def barril(poligono, pared, flecha, n=14):
     arco = [P(*punto(1, i / n), pared + flecha * math.sin(math.pi * i / n)) for i in range(n + 1)] + \
            [P(*punto(1, 1), pared), P(*punto(1, 0), pared)]
     g.append(f'<polygon points="{" ".join(f"{a:.1f},{b:.1f}" for a, b in arco)}" fill="#8d97a2" stroke="#5d6873" stroke-width=".8"/>')
+    return "".join(g)
+
+
+def observatorio(pol_p, alto_p):
+    """Torre con cúpula blanca en el extremo este del Edificio P Copérnico."""
+    xs = [q[0] for q in pol_p]
+    ys = [q[1] for q in pol_p]
+    x1 = max(xs) - 1
+    cy = (min(ys) + max(ys)) / 2
+    torre = caja_r(x1 - 7, cy - 3.5, x1, cy + 3.5)
+    alto = alto_p + 3.6
+    g = [edificio(torre, alto, "#fbfcfd", "#eef1f4", "#aab4bf", "#7d8a99", pisos=0)]
+    sx, sy = P(x1 - 3.5, cy, alto)
+    r = 3.3 * ESC
+    g.append(f'<path d="M{sx - r:.1f},{sy:.1f} A{r:.1f},{r:.1f} 0 0 1 {sx + r:.1f},{sy:.1f} Z" fill="#ffffff" stroke="#7d8a99" stroke-width="1"/>')
+    g.append(f'<line x1="{sx:.1f}" y1="{sy - r:.1f}" x2="{sx + r * .35:.1f}" y2="{sy - r * .55:.1f}" stroke="#5d6873" stroke-width="1.6"/>')
     return "".join(g)
 
 
@@ -264,7 +337,15 @@ INSIGNIA = {"Salón de Contenedores": "SC", "Salón Multiusos": "SM", "Salón de
 PISO = 3.6   # metros por piso
 PISOS = {"Edificio P": 3, "Edificio C": 3, "Edificio A": 2, "Edificio B": 2, "Edificio E": 2,
          "Edificio O": 2, "Clínicas Odontológicas": 2}       # dato de James; el resto se estima
-TECHADOS = {"Comedor del Jaguarcito", "El Chilamate"}         # mesas bajo un techo, sin paredes
+TECHADOS = {"Comedor del Jaguarcito", "El Chilamate"}
+# Detalles de fachada vistos en las fotos de la UAM (búsqueda de imágenes, 22/11/2026)
+ACENTOS = {
+    "Edificio B": [("ladrillo", .02, .12)],
+    "UAM College": [("cristal", .38, .62)],
+    "Clínicas Odontológicas": [("franja",)],
+    "Edificio P": [("barandas",)],
+}
+MURO = ("#fbfcfd", "#e6eaef", "#a9b4c0", "#7d8a99")   # techo, muro claro, muro en sombra, borde: blancos         # mesas bajo un techo, sin paredes
 PASILLO_B_E = "730964043"   # pasillo elevado del 2.º piso del Edificio B al Edificio E (OSM)
 
 
@@ -281,7 +362,8 @@ VOLEY_ARENA = caja_r(10, 60, 24, 80)       # pegada al borde oeste
 VOLEY = caja_r(27, 57, 41, 83)             # a la derecha de la de arena, a la izquierda de 3 y 4
 JUNGLA = [(163, 168), (179, 168), (179, 184), (181, 200), (176, 206), (163, 206)]   # a la izquierda de El Ranchero
 DETALLE = {"Edificio I": "Biblioteca Pablo Antonio Cuadra", "Edificio O": "Ingeniería y Arquitectura",
-           "Edificio P": "Copérnico · Observatorio"}
+           "Edificio P": "Copérnico · Observatorio", "Auditorio Central": "Auditorio Rubén Darío",
+           "Clínicas Odontológicas": "Rotulado «Edificio N»", "Jaguar Center": "Gimnasio techado"}
 MIN_AREA = 60   # m²: más pequeño es un kiosco o caseta, se dibuja pero no es un lugar del grafo
 VERDE = "#1e9e4a"
 
@@ -423,6 +505,23 @@ def beisbol(pol):
         fin = (home[0] + (ux * math.cos(math.radians(45)) + sgn * px * math.sin(math.radians(45))) * 105,
                home[1] + (uy * math.cos(math.radians(45)) + sgn * py * math.sin(math.radians(45))) * 105)
         g.append(f'<polyline points="{pts([home, fin])}" fill="none" stroke="{BLANCO}" stroke-width="1.5"/>')
+    # Graderías azules junto a las líneas de foul y pizarra azul en el jardín central (fotos del Jaguar Stadium)
+    c45 = math.cos(math.radians(45))
+    for sgn in (-1, 1):
+        dx, dy = ux * c45 + sgn * px * c45, uy * c45 + sgn * py * c45
+        nx, ny = -dy, dx
+        if nx * ux + ny * uy > 0:
+            nx, ny = -nx, -ny
+        grada = [(home[0] + dx * s + nx * o, home[1] + dy * s + ny * o) for s, o in ((9, 2.5), (32, 2.5), (32, 5.5), (9, 5.5))]
+        g.append(edificio(grada, 2.6, "#3f86e0", "#2a6fd0", "#164f9f", "#0f3f80"))
+    cx, cy = home[0] + ux * 108, home[1] + uy * 108
+    tablero = [(cx - px * 5 - ux * .5, cy - py * 5 - uy * .5), (cx + px * 5 - ux * .5, cy + py * 5 - uy * .5),
+               (cx + px * 5 + ux * .5, cy + py * 5 + uy * .5), (cx - px * 5 + ux * .5, cy - py * 5 + uy * .5)]
+    for k in (-3.5, 3.5):
+        a, b = P(cx + px * k, cy + py * k, 0), P(cx + px * k, cy + py * k, 4)
+        g.append(f'<line x1="{a[0]:.1f}" y1="{a[1]:.1f}" x2="{b[0]:.1f}" y2="{b[1]:.1f}" stroke="#4a5562" stroke-width="2"/>')
+    g.append(paredes(tablero, 4, 8, "#2a6fd0", "#123f86", "#0b2f66") +
+             f'<polygon points="{pts(tablero, 8)}" fill="#1f5fbf" stroke="#0b2f66" stroke-width=".8"/>')
     return "".join(g)
 
 
@@ -554,19 +653,19 @@ def construir(eds):
             svg = cubierta(pol, alto, "url(#solar)" if solar else "#f6f7f9",
                            "#4b5f78" if solar else "#8a97a6", lado="#9fb3cc" if solar else "#f6f7f9")
             alto += 1.4
-        elif nombre == "Edificio P":
-            svg = edificio(pol, alto, "url(#solar)", "#ffe680", "#d4a900", "#8f7200")
-        elif nombre in INSIGNIA:
-            svg = edificio(pol, alto, "url(#solar)" if solar else "#f7fbff", "#cfe5fc", "#7fb6ef", AZUL_OSC)
         else:
-            svg = edificio(pol, alto, "url(#solar)" if solar else "#fbfcfd", "#e3e8ee", "#b5c0cc", "#8a97a6")
+            techo, claro, oscuro, borde = MURO
+            svg = edificio(pol, alto, "url(#solar)" if solar else techo, claro, oscuro, borde,
+                           pisos=pisos if area >= MIN_AREA else 0, acentos=ACENTOS.get(nombre, ()))
+            if nombre == "Edificio P":
+                svg += observatorio(pol, alto)
         cx, cy = e["c"]
         OB.append((prof(*max(pol, key=lambda q: prof(*q))), svg))
         e["alto"] = alto
     # Edificios que no están en OSM
     for nombre, pol, pisos in EXTRA_EDIFICIOS:
         alto = pisos * PISO
-        OB.append((prof(*max(pol, key=lambda q: prof(*q))), edificio(pol, alto, "#f7fbff", "#cfe5fc", "#7fb6ef", AZUL_OSC)))
+        OB.append((prof(*max(pol, key=lambda q: prof(*q))), edificio(pol, alto, *MURO, pisos=pisos)))
         area = abs(sum(pol[i][0] * pol[(i + 1) % 4][1] - pol[(i + 1) % 4][0] * pol[i][1] for i in range(4))) / 2
         eds.append({"nombre": nombre, "c": centro(pol), "alto": alto, "id": nombre, "pol": pol, "area": round(area), "tipo": "extra"})
     # Carports: techos de celdas solares sobre parqueos
@@ -617,7 +716,7 @@ def rotulos(eds):
     vx, vy = centro(caja_r(10, 57, 41, 83))
     R.append(rotulo(vx, vy, 0, -190, -70, "Canchas de voleibol", sub="arena · normal"))
     jx, jy = centro(JUNGLA)
-    R.append(rotulo(jx, jy, 6, -215, 45, "Jungla Jaguar", fondo="#2f8f48", color=BLANCO, borde="#2f8f48", tam=14))
+    R.append(rotulo(jx, jy, 6, -20, 165, "Jungla Jaguar", fondo="#2f8f48", color=BLANCO, borde="#2f8f48", tam=14))
     R.append(rotulo(198.5, 119.5, PISO + 1.1, -120, -235, "Pasillo B–E", sub="2.º piso", tam=13))
     uam = max((c for c in DATOS["calles"] if c["nombre"] == "Universidad UAM"), key=lambda c: len(c["linea"]))
     mx, my = sorted((tuple(q) for q in uam["linea"] if dentro(tuple(q), CAMPUS)), key=lambda q: q[1])[0]

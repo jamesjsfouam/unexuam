@@ -11,6 +11,7 @@ Ilustración en 3D del campus con la marca Unexuam, hecha con el plano **real** 
 | `campus-osm.json` | Plano extraído de OpenStreetMap, en metros (x al este, y al sur) |
 | `extraer_osm.py` | Descarga el plano de OSM y genera `campus-osm.json` (es lo único que usa internet) |
 | `generar_mapa.py` | Genera el SVG, el HTML y `lugares.json` a partir de `campus-osm.json` |
+| `FOTOS.md` | Cómo se ve cada edificio según las fotos de la UAM (fachadas, colores y detalles que usa el mapa) |
 
 ## Nombres
 - **Con nombre en OSM:** Edificio I, Edificio E, Edificio A y Jaguar Center.

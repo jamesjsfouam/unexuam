@@ -6,7 +6,8 @@
     "centro_m": [
       173.8,
       106.6
-    ]
+    ],
+    "detalle": "Auditorio Rubén Darío"
   },
   {
     "nombre": "Banco Banpro",
@@ -34,6 +35,7 @@
       218.6,
       198.1
     ],
+    "detalle": "Rotulado «Edificio N»",
     "pisos": 2
   },
   {
@@ -194,7 +196,8 @@
     "centro_m": [
       82.5,
       64.1
-    ]
+    ],
+    "detalle": "Gimnasio techado"
   },
   {
     "nombre": "Kiosko del Jaguarcito",
