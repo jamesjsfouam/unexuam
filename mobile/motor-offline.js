@@ -240,6 +240,12 @@
   function reiniciarMesh() {
     S.red = construirGrafo(SEED.mesh);
     S.ultimaAlerta = null;
+    for (const k of Object.keys(UBIC)) delete UBIC[k];
+    if (SEED && SEED.ubicaciones) Object.assign(UBIC, SEED.ubicaciones);
+    const yo = cuentaActual();
+    if (yo && S.campus && S.campus.vertexs.length) {
+      conectarUsuario(yo.cif, yo.u.lugar || "Edificio E");
+    }
   }
 
   function reiniciarCampus() {
@@ -341,6 +347,7 @@
 
   function responder(ok, mensaje, extra = {}) {
     if (mensaje) registrar(mensaje, ok ? "ok" : "error");
+    if (ok) repartirCola();
     guardarEstadoLocal();
     return { ok, mensaje, estado: estado(), ...extra };
   }
@@ -486,11 +493,17 @@
     return [pasos, r, distancias[zona]];
   }
 
-  function despacharApi(ruta, d) {
+  function despacharApi(ruta, d, searchParams) {
+    const LIBRES = ["/api/yo", "/api/login", "/api/login/demo", "/api/registro", "/api/lugares"];
     const SOLO_ADMIN = ["/api/reiniciar", "/api/mesh/vertice", "/api/mesh/arista", "/api/campus/vertice", "/api/campus/arista"];
-    if (SOLO_ADMIN.includes(ruta)) {
+    if (!LIBRES.includes(ruta)) {
       const yo = cuentaActual();
-      if (!yo || !yo.u.admin) return { ok: false, mensaje: "Solo el administrador puede editar los grafos." };
+      if (!yo) {
+        return { _status: 401, ok: false, sesion: false, mensaje: "Inicia sesión con tu CIF y tu contraseña." };
+      }
+      if (SOLO_ADMIN.includes(ruta) && !yo.u.admin) {
+        return { _status: 403, ok: false, mensaje: "Solo el administrador puede editar los grafos." };
+      }
     }
     if (ruta === "/api/estado") {
       return { ok: true, mensaje: "", estado: estado() };
@@ -640,7 +653,11 @@
     if (ruta === "/api/yo") {
       const yo = cuentaActual();
       if (!yo) return { ok: false, sesion: false };
-      if (!S.red.buscarVertice(yo.u.telefono)) conectarUsuario(yo.cif, yo.u.lugar);
+      if (!S.red.buscarVertice(yo.u.telefono)) {
+        conectarUsuario(yo.cif, yo.u.lugar || "Edificio E");
+        repartirCola();
+        guardarEstadoLocal();
+      }
       return { ok: true, sesion: true, usuario: datosUsuario(yo.cif) };
     }
     if (ruta === "/api/registro" || ruta === "/api/login" || ruta === "/api/login/demo") {
@@ -667,10 +684,13 @@
         }
       }
       C.sesion = cif;
-      guardarCuentas(C);
       const u = C.usuarios[cif];
-      const vecinos = conectarUsuario(cif, u.lugar || "Edificio E");
-      registrar(`${u.nombre} entró a la red desde ${u.lugar}: ${vecinos.length} teléfono(s) a su alcance.`, "ok");
+      const lugarPedido = texto(d, "lugar", 60);
+      const lugarFinal = (lugarPedido && S.campus.buscarVertice(lugarPedido)) ? lugarPedido : (u.lugar || "Edificio E");
+      u.lugar = lugarFinal;
+      guardarCuentas(C);
+      const vecinos = conectarUsuario(cif, lugarFinal);
+      registrar(`${u.nombre} entró a la red desde ${lugarFinal}: ${vecinos.length} teléfono(s) a su alcance.`, "ok");
       repartirCola();
       guardarEstadoLocal();
       return { ok: true, usuario: datosUsuario(cif) };
@@ -680,6 +700,7 @@
       if (yo) {
         S.red.eliminarVertice(yo.u.telefono);
         delete UBIC[yo.u.telefono];
+        registrar(`${yo.u.nombre} salió: su teléfono dejó la red (eliminarVertice).`);
         const C = cuentas();
         C.sesion = null;
         guardarCuentas(C);
@@ -689,9 +710,9 @@
     }
     if (ruta.startsWith("/api/yo/") || ruta.startsWith("/api/mensajes") || ruta === "/api/algoritmo") {
       const yo = cuentaActual();
-      if (!yo) return { ok: false, sesion: false, mensaje: "Inicia sesión con tu CIF y tu carnet." };
+      if (!yo) return { _status: 401, ok: false, sesion: false, mensaje: "Inicia sesión con tu CIF y tu contraseña." };
       if (ruta === "/api/yo/lugar") {
-        const lugar = String((d && d.lugar) || "").trim().slice(0, 60);
+        const lugar = texto(d, "lugar", 60);
         if (!S.campus.buscarVertice(lugar)) return { ok: false, mensaje: `El lugar «${lugar}» no existe.` };
         const vecinos = conectarUsuario(yo.cif, lugar);
         const n = repartirCola();
@@ -711,8 +732,8 @@
       }
       if (ruta === "/api/mensajes/enviar") {
         const C = cuentas();
-        const para = String((d && d.para) || "").trim().toUpperCase();
-        const textoMsj = String((d && d.texto) || "").trim().slice(0, 500);
+        const para = texto(d, "para", 15).toUpperCase();
+        const textoMsj = texto(d, "texto", 500);
         if (!C.usuarios[para] || para === yo.cif) return { ok: false, mensaje: "Elige a quién enviarle el mensaje." };
         if (!textoMsj) return { ok: false, mensaje: "El mensaje está vacío." };
         const [r, retardo] = rutaMasCorta(S.red, yo.u.telefono, C.usuarios[para].telefono);
@@ -723,12 +744,14 @@
         C.mensajes.push(m);
         if (C.mensajes.length > 5000) C.mensajes.splice(0, C.mensajes.length - 5000);
         guardarCuentas(C);
+        registrar(`Mensaje ${yo.u.telefono} → ${C.usuarios[para].telefono}: ${m.estado}.`, r.length ? "ok" : "info");
+        guardarEstadoLocal();
         return { ok: true, enviado: m, mensaje: r.length
           ? `Entregado en ${r.length - 1} salto(s), ${num(retardo)} s de retardo.`
           : "Sin camino en la red Mesh: el mensaje queda en cola (DTN) y sale cuando aparezca uno." };
       }
       if (ruta === "/api/algoritmo") {
-        const origen = String((d && d.origen) || "C-101").trim().slice(0, 60);
+        const origen = texto(d, "origen", 60) || String((searchParams && searchParams.get("origen")) || "C-101").trim().slice(0, 60);
         if (!S.campus.buscarVertice(origen)) return { ok: false, mensaje: `El lugar «${origen}» no existe.` };
         const res = dijkstraPasos(S.campus, origen, S.zonas);
         for (const p of res[0]) {
@@ -739,15 +762,18 @@
       }
     }
 
-    return responder(false, `Ruta desconocida: ${ruta}`);
+    return { _status: 404, ...responder(false, `Ruta desconocida: ${ruta}`) };
   }
 
   // Interceptar únicamente las llamadas a /api/*
   window.fetch = async function (input, init) {
     const url = typeof input === "string" ? input : input && input.url ? input.url : "";
     let pathname = url;
+    let searchParams = null;
     try {
-      pathname = new URL(url, window.location.origin).pathname;
+      const parsed = new URL(url, window.location.origin);
+      pathname = parsed.pathname;
+      searchParams = parsed.searchParams;
     } catch (_) {}
 
     if (pathname.startsWith("/api/")) {
@@ -755,12 +781,15 @@
       let cuerpo = {};
       if (init && typeof init.body === "string" && init.body) {
         try {
-          cuerpo = JSON.parse(init.body);
+          const parsedBody = JSON.parse(init.body);
+          if (parsedBody && typeof parsedBody === "object" && !Array.isArray(parsedBody)) cuerpo = parsedBody;
         } catch (_) {}
       }
-      const res = despacharApi(pathname, cuerpo);
+      const res = despacharApi(pathname, cuerpo, searchParams);
+      const status = res && res._status ? res._status : 200;
+      if (res && "_status" in res) delete res._status;
       return new Response(JSON.stringify(res), {
-        status: 200,
+        status,
         headers: { "Content-Type": "application/json; charset=utf-8" },
       });
     }

@@ -167,10 +167,11 @@ unexuam/
 | `POST /api/campus/bloquear` / `desbloquear` | Elimina (`eliminarArista`) o restaura (`insertarArista`) pasillos o escaleras. |
 | `POST /api/campus/congestionar` | Aplica `aplicarAlerta(campus, lugar, factor)` multiplicando el peso de las aristas entrantes. |
 | `POST /api/<grafo>/vertice` · `arista` | Alta, baja y actualización de vértices y aristas en `mesh` o `campus` (solo administrador). |
+| `GET /api/lugares` · `GET /api/yo` | Lista de lugares del campus y estado de la sesión actual. |
 | `POST /api/registro` · `login` · `login/demo` · `logout` | Cuenta con CIF y contraseña (guardada con hash), acceso demo de administrador y cierre de sesión. |
 | `POST /api/yo/lugar` | Mueve tu teléfono a un lugar del campus y lo enlaza con los que están a su alcance. |
 | `GET /api/mensajes` · `POST /api/mensajes/enviar` | Contactos, conversaciones y envío por la ruta de menor retardo (o a la cola DTN). |
-| `POST /api/algoritmo` | Dijkstra paso a paso desde un lugar hasta la zona segura más cercana. |
+| `GET` / `POST /api/algoritmo` | Dijkstra paso a paso desde un lugar hasta la zona segura más cercana. |
 
 <br />
 

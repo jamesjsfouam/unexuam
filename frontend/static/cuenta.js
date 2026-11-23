@@ -586,6 +586,7 @@
 
   function reproducir() {
     if (ALG.timer) { pausar(); return; }
+    if (!ALG.datos || !ALG.datos.pasos || !ALG.datos.pasos.length) return;
     if (ALG.paso >= ALG.datos.pasos.length - 1) irPaso(0);
     $("#alg-play").textContent = "⏸";
     ALG.timer = setInterval(() => irPaso(ALG.paso + 1), 850);
@@ -670,7 +671,7 @@
       if (a === "inicio") irPaso(0);
       if (a === "atras") irPaso(ALG.paso - 1);
       if (a === "adelante") irPaso(ALG.paso + 1);
-      if (a === "fin") irPaso(ALG.datos.pasos.length - 1);
+      if (a === "fin" && ALG.datos && ALG.datos.pasos && ALG.datos.pasos.length) irPaso(ALG.datos.pasos.length - 1);
     }));
     $("#alg-zoom").addEventListener("click", ev => {
       const on = ev.currentTarget.getAttribute("aria-pressed") !== "true";

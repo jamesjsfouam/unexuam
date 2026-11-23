@@ -360,10 +360,10 @@ def abrir_sesion(cif, lugar=None):
 
 @app.post("/api/registro")
 def api_registro():
-    d = request.get_json(silent=True) or {}
+    d = cuerpo_json()
     cif = leer_cif(d)
-    nombre = " ".join(str(d.get("nombre", "")).split())[:40]
-    clave = str(d.get("contrasena", ""))[:64]
+    nombre = " ".join(texto(d, "nombre", 40).split())
+    clave = texto(d, "contrasena", 64)
     if not re.fullmatch(r"[0-9A-Z-]{4,15}", cif) or cif == CIF_DEMO:
         return jsonify({"ok": False, "mensaje": "Escribe un CIF válido (4 a 15 letras o números)."})
     if len(nombre) < 2:
@@ -371,29 +371,33 @@ def api_registro():
     if len(clave) < 6:
         return jsonify({"ok": False, "mensaje": "La contraseña debe tener al menos 6 caracteres."})
     with lock:
+        if len(USUARIOS) >= 500:
+            return jsonify({"ok": False, "mensaje": "Límite de cuentas alcanzado en este servidor."})
         if cif in USUARIOS:
             return jsonify({"ok": False, "mensaje": "Ese CIF ya tiene cuenta. Inicia sesión."})
         USUARIOS[cif] = {"nombre": nombre, "hash": generate_password_hash(clave),
                          "telefono": nombre_telefono(cif, nombre), "lugar": LUGAR_INICIAL}
         registrar(f"Nueva cuenta: {nombre} ({USUARIOS[cif]['telefono']}).", "ok")
-        return abrir_sesion(cif, d.get("lugar"))
+        return abrir_sesion(cif, texto(d, "lugar", 60) or None)
 
 
 @app.post("/api/login")
 def api_login():
-    d = request.get_json(silent=True) or {}
+    d = cuerpo_json()
     cif = leer_cif(d)
-    clave = str(d.get("contrasena", ""))[:64]
+    clave = texto(d, "contrasena", 64)
     with lock:
         u = USUARIOS.get(cif)
         if u is None or u.get("admin") or not check_password_hash(u["hash"], clave):
             return jsonify({"ok": False, "mensaje": "CIF o contraseña incorrectos."})
-        return abrir_sesion(cif, d.get("lugar"))
+        return abrir_sesion(cif, texto(d, "lugar", 60) or None)
 
 
 @app.post("/api/login/demo")
 def api_login_demo():
-    # Acceso rápido de demostración: perfil de administrador (puede editar los grafos).
+    # Acceso rápido de demostración (desactivable en producción con UNEXUAM_DISABLE_DEMO=1).
+    if os.environ.get("UNEXUAM_DISABLE_DEMO") == "1":
+        return jsonify({"ok": False, "mensaje": "El acceso demo está deshabilitado."}), 403
     with lock:
         if CIF_DEMO not in USUARIOS:
             USUARIOS[CIF_DEMO] = {"nombre": "Administrador", "hash": "", "admin": True,
@@ -414,7 +418,7 @@ def api_logout():
 
 @app.post("/api/yo/lugar")
 def api_mover():
-    lugar = str((request.get_json(silent=True) or {}).get("lugar", "")).strip()[:60]
+    lugar = texto(cuerpo_json(), "lugar", 60)
     cif = session["cif"]
     with lock:
         if S["campus"].buscarVertice(lugar) is None:
@@ -441,10 +445,10 @@ def api_mensajes():
 
 @app.post("/api/mensajes/enviar")
 def api_enviar():
-    d = request.get_json(silent=True) or {}
+    d = cuerpo_json()
     cif = session["cif"]
-    para = str(d.get("para", "")).strip().upper()
-    texto_msj = str(d.get("texto", "")).strip()[:500]
+    para = texto(d, "para", 15).upper()
+    texto_msj = texto(d, "texto", 500)
     with lock:
         if para not in USUARIOS or para == cif:
             return jsonify({"ok": False, "mensaje": "Elige a quién enviarle el mensaje."})
@@ -470,8 +474,8 @@ def api_enviar():
 
 @app.route("/api/algoritmo", methods=["GET", "POST"])
 def api_algoritmo():
-    d = request.get_json(silent=True) or {}
-    origen = str(d.get("origen") or request.args.get("origen") or "C-101").strip()[:60]
+    d = cuerpo_json()
+    origen = (texto(d, "origen", 60) or str(request.args.get("origen") or "C-101").strip()[:60])
     with lock:
         if S["campus"].buscarVertice(origen) is None:
             return jsonify({"ok": False, "mensaje": f"El lugar «{origen}» no existe."})

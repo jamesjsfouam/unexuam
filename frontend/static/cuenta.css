@@ -101,8 +101,8 @@ main { padding-bottom: calc(var(--alto-nav) + 34px + env(safe-area-inset-bottom)
 }
 body.con-chat .navbar, body.sin-sesion .navbar { display: none; }
 
-.toast { bottom: calc(var(--alto-nav) + 26px + env(safe-area-inset-bottom)); }
-body.con-chat .toast { bottom: calc(86px + env(safe-area-inset-bottom)); }
+.toast { bottom: calc(var(--alto-nav) + 26px + env(safe-area-inset-bottom)); z-index: 30; }
+body.con-chat .toast { bottom: calc(86px + env(safe-area-inset-bottom)); z-index: 30; }
 
 .badge {
   display: inline-grid;
@@ -127,7 +127,6 @@ body.sin-sesion main, body.sin-sesion .barra { visibility: hidden; }
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
   gap: 22px;
   padding: calc(24px + env(safe-area-inset-top)) 16px calc(24px + env(safe-area-inset-bottom));
   background:
@@ -136,15 +135,16 @@ body.sin-sesion main, body.sin-sesion .barra { visibility: hidden; }
   overflow-y: auto;
 }
 .login[hidden] { display: none; }
-.login-marca { text-align: center; color: var(--blanco); }
+.login-marca { text-align: center; color: var(--blanco); margin-top: auto; }
 .login-logo { width: 76px; height: 76px; border-radius: 22px; box-shadow: 0 10px 26px rgba(0, 40, 100, .35); }
 .login-wordmark { display: block; height: 26px; width: auto; margin: 14px auto 6px; }
 .login-marca p { margin: 0; font-size: 14px; opacity: .92; font-weight: 600; }
 .login-carta {
   width: 100%;
   max-width: 380px;
+  margin-bottom: auto;
   background: var(--blanco);
-  border-radius: 28px;
+  border-radius: var(--radio);
   padding: 18px 18px 20px;
   box-shadow: 0 18px 40px rgba(0, 30, 80, .28);
 }
@@ -244,7 +244,7 @@ body.sin-sesion main, body.sin-sesion .barra { visibility: hidden; }
 .chat-cab .avatar-c { width: 38px; height: 38px; font-size: 13px; border: 2px solid rgba(255, 255, 255, .85); }
 .chat-quien { min-width: 0; }
 .chat-quien h2 { margin: 0; font-size: 16px; color: var(--blanco); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.chat-quien small { font-size: 12px; opacity: .9; font-weight: 600; }
+.chat-quien small { display: block; font-size: 12px; opacity: .9; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 .chat-lista {
   flex: 1;

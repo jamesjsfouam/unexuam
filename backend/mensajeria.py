@@ -22,16 +22,24 @@ def retardoEnlace(segundosCaminando):
 def conectarTelefono(red, campus, telefono, lugar, ubicaciones):
     # ubicaciones: diccionario telefono -> lugar del campus de los demas telefonos.
     # Devuelve la lista de vecinos [(telefono, retardo), ...] con los que se enlazo.
+    if not isinstance(telefono, str) or not isinstance(lugar, str):
+        return []
     if campus.buscarVertice(lugar) is None:
         return []
+    if red.buscarVertice(telefono) is not None:
+        desconectarTelefono(red, telefono)
     red.insertarVertice(telefono)
 
-    distancias, anteriores = dijkstra(campus, lugar)
+    distancias, _ = dijkstra(campus, lugar)
     vecinos = []
+    telLower = telefono.lower()
     for otro in ubicaciones:
-        if otro == telefono or red.buscarVertice(otro) is None:
+        if not isinstance(otro, str) or otro.lower() == telLower or red.buscarVertice(otro) is None:
             continue
-        segundos = distancias.get(ubicaciones[otro], INF)
+        vOtro = campus.buscarVertice(ubicaciones[otro])
+        if vOtro is None:
+            continue
+        segundos = distancias.get(vOtro.nombre, INF)
         if segundos <= ALCANCE:
             retardo = retardoEnlace(segundos)
             red.insertarArista(telefono, otro, retardo)
@@ -57,7 +65,12 @@ def procesarCola(red, cola):
     entregados = []
     siguen = []
     for pendiente in cola:
-        ruta, retardo = rutaMensaje(red, pendiente["origen"], pendiente["destino"])
+        origen = pendiente.get("origen")
+        destino = pendiente.get("destino")
+        if not origen or not destino:
+            siguen.append(pendiente)
+            continue
+        ruta, retardo = rutaMensaje(red, origen, destino)
         if len(ruta) > 0:
             entregados.append((pendiente["id"], ruta, retardo))
         else:

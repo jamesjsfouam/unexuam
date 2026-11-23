@@ -8,11 +8,11 @@
 
 def propagarAlerta(red, origen, ttl):
     inicio = red.buscarVertice(origen)
-    if inicio is None:
+    if inicio is None or ttl < 0:
         return []
 
     alcanzados = []                 # [(nombre del telefono, salto), ...] en orden BFS
-    visitados = [inicio]
+    visitados = {inicio}
     cola = [(inicio, 0)]            # cola FIFO: se saca por delante con pop(0)
 
     while len(cola) > 0:
@@ -27,7 +27,7 @@ def propagarAlerta(red, origen, ttl):
         for vecino in actual.neig:
             destino = vecino[0]
             if destino not in visitados:
-                visitados.append(destino)
+                visitados.add(destino)
                 cola.append((destino, salto + 1))
 
     return alcanzados

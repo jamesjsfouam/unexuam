@@ -11,12 +11,17 @@ class Graph:
 
     def buscarVertice(self, nombre):
         # Recorre la lista y compara sin importar mayusculas/minusculas.
+        if not isinstance(nombre, str):
+            return None
+        buscado = nombre.lower()
         for v in self.vertexs:
-            if v.nombre.lower() == nombre.lower():
+            if v.nombre.lower() == buscado:
                 return v
         return None
 
     def insertarVertice(self, nombre):
+        if not isinstance(nombre, str) or not nombre.strip():
+            return False
         if self.buscarVertice(nombre) is not None:
             return False                    # ya existe
         nuevo = Vertex(nombre)
@@ -28,6 +33,11 @@ class Graph:
         verticeDestino = self.buscarVertice(destino)
         if verticeOrigen is None or verticeDestino is None:
             return False
+        if peso < 0 or peso != peso or peso == float("inf"):
+            return False
+        for vecino in verticeOrigen.neig:
+            if vecino[0] is verticeDestino:
+                return False                # evita aristas paralelas duplicadas
         # Dirigido: solo se agrega en el origen, nunca la vuelta.
         verticeOrigen.neig.append((verticeDestino, peso))
         return True
@@ -65,6 +75,8 @@ class Graph:
         verticeOrigen = self.buscarVertice(origen)
         verticeDestino = self.buscarVertice(destino)
         if verticeOrigen is None or verticeDestino is None:
+            return False
+        if peso < 0 or peso != peso or peso == float("inf"):
             return False
         for i in range(len(verticeOrigen.neig)):
             if verticeOrigen.neig[i][0] is verticeDestino:

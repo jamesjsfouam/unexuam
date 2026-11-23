@@ -15,7 +15,7 @@ def dijkstra(campus, origen):
         return distancias, anteriores
     distancias[inicio.nombre] = 0
 
-    visitados = []
+    visitados = set()
     while len(visitados) < len(campus.vertexs):
         # 1. Elegir el vertice NO visitado con la menor distancia.
         actual = None
@@ -24,14 +24,16 @@ def dijkstra(campus, origen):
                 if actual is None or distancias[v.nombre] < distancias[actual.nombre]:
                     actual = v
         # Si el mejor que queda es infinito, el resto es inalcanzable.
-        if distancias[actual.nombre] == INF:
+        if actual is None or distancias[actual.nombre] == INF:
             break
-        visitados.append(actual)
+        visitados.add(actual)
 
         # 2. Relajar: probar si pasando por "actual" se llega mas rapido a cada vecino.
         for vecino in actual.neig:
             destino = vecino[0]
             peso = vecino[1]
+            if destino in visitados or peso < 0:
+                continue
             nuevaDistancia = distancias[actual.nombre] + peso
             if nuevaDistancia < distancias[destino.nombre]:
                 distancias[destino.nombre] = nuevaDistancia
@@ -60,20 +62,33 @@ def rutaMasCorta(campus, origen, destino):
 
 
 def rutaEvacuacion(campus, origen, zonasSeguras):
-    # Prueba cada zona segura y se queda con la de menor tiempo.
-    mejorRuta = []
+    # Calcula Dijkstra una sola vez y elige la zona segura con menor tiempo.
+    if campus.buscarVertice(origen) is None:
+        return [], INF
+    distancias, anteriores = dijkstra(campus, origen)
+    mejorZona = None
     mejorTiempo = INF
     for zona in zonasSeguras:
-        ruta, tiempo = rutaMasCorta(campus, origen, zona)
+        vZona = campus.buscarVertice(zona)
+        if vZona is None:
+            continue
+        tiempo = distancias[vZona.nombre]
         if tiempo < mejorTiempo:
-            mejorRuta = ruta
+            mejorZona = vZona.nombre
             mejorTiempo = tiempo
-    return mejorRuta, mejorTiempo
+    if mejorZona is None:
+        return [], INF
+    ruta = []
+    lugar = mejorZona
+    while lugar is not None:
+        ruta.insert(0, lugar)
+        lugar = anteriores[lugar]
+    return ruta, mejorTiempo
 
 
 def aplicarAlerta(campus, lugar, factor):
     peligro = campus.buscarVertice(lugar)
-    if peligro is None:
+    if peligro is None or factor <= 0 or factor != factor or factor == INF:
         return False
     for v in campus.vertexs:
         for i in range(len(v.neig)):
@@ -99,8 +114,9 @@ def dijkstraPasos(campus, origen, zonasSeguras):
         return [], [], INF
     distancias[inicio.nombre] = 0
 
+    zonasLower = {z.lower() for z in zonasSeguras if isinstance(z, str)}
     pasos = []
-    visitados = []
+    visitados = set()
     zonaAlcanzada = None
     while len(visitados) < len(campus.vertexs):
         actual = None
@@ -108,12 +124,12 @@ def dijkstraPasos(campus, origen, zonasSeguras):
             if v not in visitados:
                 if actual is None or distancias[v.nombre] < distancias[actual.nombre]:
                     actual = v
-        if distancias[actual.nombre] == INF:
+        if actual is None or distancias[actual.nombre] == INF:
             break
-        visitados.append(actual)
+        visitados.add(actual)
 
         paso = {"actual": actual.nombre, "distancia": distancias[actual.nombre], "vecinos": []}
-        if actual.nombre in zonasSeguras:
+        if actual.nombre.lower() in zonasLower:
             pasos.append(paso)
             zonaAlcanzada = actual.nombre
             break
@@ -123,7 +139,7 @@ def dijkstraPasos(campus, origen, zonasSeguras):
             peso = vecino[1]
             antes = distancias[destino.nombre]
             nueva = distancias[actual.nombre] + peso
-            mejora = destino not in visitados and nueva < antes
+            mejora = destino not in visitados and peso >= 0 and nueva < antes
             if mejora:
                 distancias[destino.nombre] = nueva
                 anteriores[destino.nombre] = actual.nombre

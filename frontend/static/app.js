@@ -1729,7 +1729,7 @@ async function accion(a) {
 
 async function sondeo() {
   if (window.__UNEXUAM_OFFLINE__) return;
-  if (!document.hidden && !animando && !$("#svg-mesh").classList.contains("arrastrando")) {
+  if (!document.hidden && !document.body.classList.contains("sin-sesion") && !animando && !$("#svg-mesh").classList.contains("arrastrando")) {
     try {
       const r = await fetch("/api/estado");
       if (r.status === 401) { if (window.mostrarLogin) window.mostrarLogin(); setTimeout(sondeo, 4000); return; }
