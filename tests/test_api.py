@@ -78,7 +78,7 @@ class TestApiYParidad(unittest.TestCase):
         with self.client.get("/sw.js") as r:
             self.assertEqual(r.status_code, 200)
             self.assertEqual(r.headers.get("Service-Worker-Allowed"), "/")
-            self.assertIn(b"unexuam-v9", r.data)
+            self.assertIn(b"unexuam-v10", r.data)
 
     def test_paridad_campus_plano_json(self):
         campus, _ = crearCampus()

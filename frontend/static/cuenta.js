@@ -345,7 +345,13 @@
   function noLeidos(cif) {
     if (!YO) return 0;
     const l = leidos();
-    return CONV.mensajes.filter(m => m.para === YO.cif && m.estado === "entregado" && !l.has(m.id) && (!cif || m.de === cif)).length;
+    return CONV.mensajes.filter(m => {
+      if (m.estado !== "entregado" || l.has(m.id) || m.de === YO.cif) return false;
+      const esMio = m.para === YO.cif || m.para === "TODOS";
+      if (!esMio) return false;
+      if (!cif) return true;
+      return cif === "TODOS" ? m.para === "TODOS" : (m.para === YO.cif && m.de === cif);
+    }).length;
   }
 
   function actualizarBadge() {
@@ -374,13 +380,15 @@
     const filtro = ($("#buscar-contacto").value || "").trim().toLowerCase();
     const ultimo = {}, orden = {};
     CONV.mensajes.forEach((m, i) => {
-      const otro = m.de === YO.cif ? m.para : m.de;
+      const otro = m.para === "TODOS" ? "TODOS" : (m.de === YO.cif ? m.para : m.de);
       ultimo[otro] = m;
       orden[otro] = i;
     });
     const lista = CONV.contactos
       .filter(c => !filtro || c.nombre.toLowerCase().includes(filtro) || c.cif.toLowerCase().includes(filtro))
       .sort((a, b) => {
+        if (a.cif === "TODOS") return -1;
+        if (b.cif === "TODOS") return 1;
         const ia = orden[a.cif], ib = orden[b.cif];
         if (ia !== undefined || ib !== undefined) return (ib ?? -1) - (ia ?? -1);
         return (b.enLinea - a.enLinea) || a.nombre.localeCompare(b.nombre, "es");
@@ -421,23 +429,28 @@
     av.style.background = colorDe(c.cif);
     $("#chat-titulo").textContent = c.nombre;
     $("#chat-estado").textContent = c.enLinea ? `en la red · ${c.lugar}` : "sin conexión";
-    const lista = CONV.mensajes.filter(m => (m.de === YO.cif && m.para === c.cif) || (m.de === c.cif && m.para === YO.cif));
+    const esGrupo = c.cif === "TODOS";
+    const lista = esGrupo
+      ? CONV.mensajes.filter(m => m.para === "TODOS")
+      : CONV.mensajes.filter(m => (m.de === YO.cif && m.para === c.cif) || (m.de === c.cif && m.para === YO.cif));
     const ol = $("#chat-lista");
     const abajo = alFinal || ol.scrollHeight - ol.scrollTop - ol.clientHeight < 60;
     ol.innerHTML = lista.length ? lista.map(m => {
       const mio = m.de === YO.cif;
       const tic = m.estado === "entregado" ? '<span class="tic">✓✓</span>' : '<span class="tic espera">🕓</span>';
       const detalle = m.estado === "entregado"
-        ? `${m.ruta.length - 1} salto${m.ruta.length === 2 ? "" : "s"} · ${seg(m.retardo)}${m.viaCola ? " · salió de la cola" : ""}`
+        ? `${Math.max(1, m.ruta.length - 1)} salto${m.ruta.length === 2 ? "" : "s"} · ${seg(m.retardo)}${m.viaCola ? " · salió de la cola" : ""}`
         : "En cola: sin camino en la red";
+      const autor = esGrupo && !mio ? `<small style="display:block;font-weight:700;color:var(--azul);margin-bottom:2px">${esc(m.deNombre || m.de)}</small>` : "";
       return `<li class="${mio ? "mio" : "suyo"}">
+        ${autor}
         <p>${esc(m.texto)}</p>
         <span class="meta"><time>${esc(m.hora.slice(0, 5))}</time>${mio ? tic : ""}</span>
         <details><summary>${esc(detalle)}</summary>${m.ruta.length ? `<span>${m.ruta.map(esc).join(" → ")}</span>` : ""}</details>
       </li>`;
-    }).join("") : '<li class="vacio">Escribe el primer mensaje. Viajará de teléfono en teléfono por la red Mesh.</li>';
+    }).join("") : '<li class="vacio">Escribe el primer mensaje. Viajará de teléfono en teléfono por la red Mesh sin internet.</li>';
     if (abajo) ol.scrollTop = ol.scrollHeight;
-    marcarLeidos(lista.filter(m => m.para === YO.cif && m.estado === "entregado").map(m => m.id));
+    marcarLeidos(lista.filter(m => m.de !== YO.cif && m.estado === "entregado").map(m => m.id));
     actualizarBadge();
   }
 

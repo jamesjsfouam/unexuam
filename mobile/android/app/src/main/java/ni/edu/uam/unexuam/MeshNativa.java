@@ -175,6 +175,16 @@ public class MeshNativa {
             String cifRemoto = peer.optString("cif", "");
             String cifLocal = perfilLocal.optString("cif", "");
             if (!cifLocal.isEmpty() && cifLocal.equals(cifRemoto)) return;
+            // Desempate determinista para evitar colisiones cuando muchos teléfonos se descubren a la vez
+            if (!cifLocal.isEmpty() && !cifRemoto.isEmpty() && cifLocal.compareTo(cifRemoto) > 0) {
+                new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
+                    if (!activo || conectados.containsKey(endpointId) || pendientes.containsKey(endpointId)) return;
+                    pendientes.put(endpointId, peer);
+                    client.requestConnection(nombreEndpointLocal(), endpointId, lifecycleCallback)
+                            .addOnFailureListener(e -> pendientes.remove(endpointId));
+                }, 1200);
+                return;
+            }
             pendientes.put(endpointId, peer);
             client.requestConnection(nombreEndpointLocal(), endpointId, lifecycleCallback)
                     .addOnFailureListener(e -> {

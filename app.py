@@ -439,7 +439,10 @@ def api_mensajes():
                       "lugar": u["lugar"] if c in EN_LINEA else None}
                      for c, u in USUARIOS.items() if c != cif]
         contactos.sort(key=lambda x: (not x["enLinea"], x["nombre"].lower()))
-        mios = [m for m in MENSAJES if cif in (m["de"], m["para"])]
+        canal = {"cif": "TODOS", "nombre": "Canal General · Campus", "telefono": "Mesh-Todos",
+                 "enLinea": True, "lugar": f"{len(EN_LINEA)} en la red", "grupo": True}
+        contactos.insert(0, canal)
+        mios = [m for m in MENSAJES if cif in (m["de"], m["para"]) or m["para"] == "TODOS"]
         return jsonify({"ok": True, "yo": datos_usuario(cif), "contactos": contactos, "mensajes": mios[-300:]})
 
 
@@ -450,23 +453,30 @@ def api_enviar():
     para = texto(d, "para", 15).upper()
     texto_msj = texto(d, "texto", 500)
     with lock:
-        if para not in USUARIOS or para == cif:
+        es_todos = para == "TODOS"
+        if (not es_todos and para not in USUARIOS) or para == cif:
             return jsonify({"ok": False, "mensaje": "Elige a quién enviarle el mensaje."})
         if not texto_msj:
             return jsonify({"ok": False, "mensaje": "El mensaje está vacío."})
-        ruta, retardo = rutaMensaje(S["red"], telefono_de(cif), telefono_de(para))
         ahora = time.strftime("%H:%M:%S")
-        m = {"id": secrets.token_hex(6), "de": cif, "para": para, "texto": texto_msj, "hora": ahora,
-             "estado": "entregado" if ruta else "en cola", "ruta": list(ruta),
+        if es_todos:
+            ruta = [telefono_de(cif), "Todos"]
+            retardo = 0.5
+        else:
+            ruta, retardo = rutaMensaje(S["red"], telefono_de(cif), telefono_de(para))
+        m = {"id": secrets.token_hex(6), "de": cif, "deNombre": USUARIOS[cif]["nombre"], "para": para,
+             "texto": texto_msj, "hora": ahora, "estado": "entregado" if ruta else "en cola", "ruta": list(ruta),
              "retardo": num(retardo) if ruta else None, "entregado": ahora if ruta else None, "viaCola": False}
         MENSAJES.append(m)
         del MENSAJES[:-5000]
         guardar_json("mensajes.json", MENSAJES)
-        if ruta:
+        if es_todos:
+            msj = "Difundido en el Canal General del campus."
+        elif ruta:
             msj = f"Entregado en {len(ruta) - 1} salto(s), {num(retardo)} s de retardo."
         else:
             msj = "Sin camino en la red Mesh: el mensaje queda en cola (DTN) y sale cuando aparezca uno."
-        registrar(f"Mensaje {telefono_de(cif)} → {telefono_de(para)}: {m['estado']}.", "ok" if ruta else "info")
+        registrar(f"Mensaje {telefono_de(cif)} → {'Todos' if es_todos else telefono_de(para)}: {m['estado']}.", "ok" if ruta else "info")
         return jsonify({"ok": True, "mensaje": msj, "enviado": m})
 
 

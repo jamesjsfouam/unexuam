@@ -731,27 +731,35 @@
           lugar: S.red.buscarVertice(u.telefono) ? u.lugar : null,
         }));
         contactos.sort((a, b) => (a.enLinea === b.enLinea ? a.nombre.localeCompare(b.nombre) : a.enLinea ? -1 : 1));
-        const mios = C.mensajes.filter((m) => m.de === yo.cif || m.para === yo.cif).slice(-300);
+        const reales = vecinosRealesCount();
+        contactos.unshift({
+          cif: "TODOS", nombre: "Canal General · Campus", telefono: "Mesh-Todos",
+          enLinea: reales > 0 || contactos.some((c) => c.enLinea),
+          lugar: reales > 0 ? `${reales} teléfono(s) cercanos por Mesh` : "Difusión Mesh (sin internet)",
+          grupo: true,
+        });
+        const mios = C.mensajes.filter((m) => m.de === yo.cif || m.para === yo.cif || m.para === "TODOS").slice(-300);
         return { ok: true, yo: datosUsuario(yo.cif), contactos, mensajes: mios, modoLocal: true };
       }
       if (ruta === "/api/mensajes/enviar") {
         const C = cuentas();
         const para = texto(d, "para", 15).toUpperCase();
         const textoMsj = texto(d, "texto", 500);
-        if (!C.usuarios[para] || para === yo.cif) return { ok: false, mensaje: "Elige a quién enviarle el mensaje." };
+        const esTodos = para === "TODOS";
+        if ((!esTodos && !C.usuarios[para]) || para === yo.cif) return { ok: false, mensaje: "Elige a quién enviarle el mensaje." };
         if (!textoMsj) return { ok: false, mensaje: "El mensaje está vacío." };
         const ahora = horaActual();
         const id = Math.random().toString(16).slice(2, 14);
-        const dest = C.usuarios[para];
+        const dest = esTodos ? { telefono: "Todos" } : C.usuarios[para];
         const enviadosReal = enviarPaqueteReal({
           id, tipo: "mensaje", de: yo.cif, deNombre: yo.u.nombre, deTel: yo.u.telefono,
-          para, texto: textoMsj, hora: ahora, ttl: 5, ruta: [yo.u.telefono],
+          para, texto: textoMsj, hora: ahora, ttl: 6, ruta: [yo.u.telefono],
         });
-        const [rSim, retardoSim] = rutaMasCorta(S.red, yo.u.telefono, dest.telefono);
+        const [rSim, retardoSim] = esTodos ? [[], Infinity] : rutaMasCorta(S.red, yo.u.telefono, dest.telefono);
         const entregado = enviadosReal > 0 || rSim.length > 0;
         const rutaFinal = rSim.length ? rSim : (enviadosReal > 0 ? [yo.u.telefono, dest.telefono] : []);
         const retFinal = rSim.length ? num(retardoSim) : (enviadosReal > 0 ? 0.5 : null);
-        const m = { id, de: yo.cif, para, texto: textoMsj, hora: ahora,
+        const m = { id, de: yo.cif, deNombre: yo.u.nombre, para, texto: textoMsj, hora: ahora,
           estado: entregado ? "entregado" : "en cola", ruta: rutaFinal, retardo: retFinal,
           entregado: entregado ? ahora : null, viaCola: false };
         C.mensajes.push(m);
@@ -760,7 +768,7 @@
         registrar(`Mensaje ${yo.u.telefono} → ${dest.telefono}: ${m.estado}.`, entregado ? "ok" : "info");
         guardarEstadoLocal();
         const msgTxt = enviadosReal > 0
-          ? `Enviado por Mesh real (Bluetooth/Wi-Fi Direct) a ${enviadosReal} teléfono(s) cercano(s).`
+          ? `Difundido por Mesh real (Bluetooth/Wi-Fi Direct) a ${enviadosReal} teléfono(s) cercano(s).`
           : (rSim.length
             ? `Entregado en ${rSim.length - 1} salto(s), ${num(retardoSim)} s de retardo.`
             : "Sin teléfonos cerca: el mensaje queda en cola (DTN) y saldrá al detectar un vecino.");
@@ -840,6 +848,16 @@
         window.UnexuamNativo.detenerMesh();
       }
     } catch (_) {}
+  }
+
+  function vecinosRealesCount() {
+    try {
+      if (window.UnexuamNativo && typeof window.UnexuamNativo.vecinosMeshReales === "function") {
+        const arr = JSON.parse(window.UnexuamNativo.vecinosMeshReales() || "[]");
+        return Array.isArray(arr) ? arr.length : 0;
+      }
+    } catch (_) {}
+    return 0;
   }
 
   function enviarPaqueteReal(paquete) {
@@ -934,12 +952,12 @@
             real: true,
           };
         }
-        if (yo && para === yo.cif) {
+        if (yo && (para === yo.cif || para === "TODOS")) {
           if (!C.mensajes.some((x) => x.id === pq.id)) {
             const ahora = horaActual();
             C.mensajes.push({
               id: pq.id || Math.random().toString(16).slice(2, 14),
-              de, para, texto: String(pq.texto).slice(0, 500),
+              de, deNombre: C.usuarios[de].nombre, para, texto: String(pq.texto).slice(0, 500),
               hora: pq.hora || ahora, estado: "entregado",
               ruta: Array.isArray(pq.ruta) ? pq.ruta : [],
               retardo: 0.5, entregado: ahora, viaCola: false, real: true,
