@@ -21,6 +21,6 @@ Revisión del 22/11/2026: más de 60 fotos públicas de la UAM en 10 búsquedas 
 | Auditorio Central | Se llama «Rubén Darío». Salón amplio con cerchas verdes | Dato `"detalle"` |
 | Food Court | Locales de comida con rótulos de colores | Sin cambios |
 
-## Diferencias que hay que confirmar con James
-- **Edificio A:** en la fachada principal se ven **3 hileras de ventanas**, pero James dijo que el A tiene 2 pisos. En el mapa quedó con 2.
-- **Edificio C:** James lo nombró tanto entre los de 3 pisos como entre los de 2. En el mapa quedó con 3.
+## Pisos confirmados por James (22/11/2026)
+- **Edificio A:** 2 pisos, aunque en la fachada principal se vean 3 hileras de ventanas.
+- **Edificio C:** 3 pisos.
