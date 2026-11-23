@@ -21,7 +21,7 @@ Ilustración en 3D del campus con la marca Unexuam, hecha con el plano **real** 
   - **Lugares del noroeste:** Salón de Contenedores, Salón Multiusos, Salón de Danza y Vestidores.
   - **Comedores y kioskos:** el Comedor del Jaguarcito (con baño), el Kiosko del Jaguarcito, El Chilamate y los Kioskos de comida (son 3).
   - **Otros:** Laboratorios, El Ranchero y el Banco Banpro.
-  - **Cambios de nombre:** «Subway» es el Food Court, el antiguo «J» es el Edificio D y el J es el de al lado.
+  - **Cambios de nombre:** UAM College es el Edificio M (3 pisos), «Subway» es el Food Court, el antiguo «J» es el Edificio D y el J es el de al lado.
   - **Eliminado:** un edificio de OSM que ya no existe (`NO_EXISTE`).
 - **Añadido a mano** porque no está en OSM (ubicado con el satélite): Salón de Música, Baño del Comedor, las canchas de voleibol (de arena y normal) y la Jungla Jaguar.
 - **Formas:** el Jaguar Center es un gimnasio techado con bóveda de medio barril. El Comedor del Jaguarcito y El Chilamate son techos sin paredes, con mesas debajo. El pasillo elevado del 2.º piso une el Edificio B con el Edificio E.

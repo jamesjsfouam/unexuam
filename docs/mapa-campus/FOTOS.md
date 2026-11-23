@@ -12,7 +12,7 @@ Revisión del 22/11/2026: más de 60 fotos públicas de la UAM en 10 búsquedas 
 |---|---|---|
 | Edificio A | Fachada principal «UNIVERSIDAD AMERICANA» con el sello al centro, ventanas azules en hileras, entrada de vidrio con banners y el rótulo «EDIFICIO A» arriba | Muro blanco con franjas de ventanas |
 | Edificio B | Blanco, con balcones y una torre de escaleras revestida de ladrillo rojo con el logo UAM | Franja de ladrillo en la fachada sur. Queda tapada por el Edificio C desde este ángulo |
-| UAM College | Blanco, con un muro cortina de vidrio turquesa en la escalera y un roble de flores rosadas delante | Franja de vidrio turquesa |
+| Edificio M (UAM College) | Blanco, de 3 pisos, con un muro cortina de vidrio turquesa en la escalera y un roble de flores rosadas delante | Franja de vidrio turquesa |
 | Edificio P «Copérnico» | Nave larga blanca con pasillos abiertos y barandas grises en cada piso, una terraza en el techo, celdas solares, gradas con bordes amarillos y una torre con la cúpula blanca del observatorio en un extremo | Barandas por piso, techo solar y torre con cúpula en el extremo este |
 | Clínicas Odontológicas | Blanco, de 2 pisos, ventanales grandes, unidades de aire acondicionado y una franja azul con letras doradas que dice «EDIFICIO N» | Franja azul con detalle dorado. Dato `"detalle"` en `lugares.json` |
 | Biblioteca Pablo Antonio Cuadra (Edificio I) | Muro gris claro con un mural del poeta y ventanas en franja | Muro claro con ventanas |

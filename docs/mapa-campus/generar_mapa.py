@@ -328,20 +328,20 @@ def rotulo(ax, ay, az, dx, dy, texto, fondo=BLANCO, color=AZUL, borde=AZUL, tam=
 # ---------------------------------------------------------------- lugares
 INSIGNIA = {"Salón de Contenedores": "SC", "Salón Multiusos": "SM", "Salón de Danza": "SD",
             "Salón de Música": "MU", "Vestidores": "VE", "Jaguar Center": "JC", "Edificio I": "I",
-            "Edificio E": "E", "Edificio F": "F", "Auditorio Central": "AC", "UAM College": "UC",
+            "Edificio E": "E", "Edificio F": "F", "Auditorio Central": "AC", "Edificio M": "M",
             "Food Court": "FC", "Banco Banpro": "BP", "Edificio B": "B", "Edificio C": "C",
             "Edificio A": "A", "Laboratorios": "LB", "Edificio D": "D", "Edificio J": "J",
             "Kioskos de comida": "KC", "El Ranchero": "RA", "Clínicas Odontológicas": "CO",
             "El Chilamate": "CH", "Edificio O": "O", "Edificio P": "P", "Comedor del Jaguarcito": "CJ",
             "Baño del Comedor": "BA", "Kiosko del Jaguarcito": "KJ"}
 PISO = 3.6   # metros por piso
-PISOS = {"Edificio P": 3, "Edificio C": 3, "Edificio A": 2, "Edificio B": 2, "Edificio E": 2,
+PISOS = {"Edificio P": 3, "Edificio C": 3, "Edificio M": 3, "Edificio A": 2, "Edificio B": 2, "Edificio E": 2,
          "Edificio O": 2, "Clínicas Odontológicas": 2}       # dato de James; el resto se estima
 TECHADOS = {"Comedor del Jaguarcito", "El Chilamate"}
 # Detalles de fachada vistos en las fotos de la UAM (búsqueda de imágenes, 22/11/2026)
 ACENTOS = {
     "Edificio B": [("ladrillo", .02, .12)],
-    "UAM College": [("cristal", .38, .62)],
+    "Edificio M": [("cristal", .38, .62)],
     "Clínicas Odontológicas": [("franja",)],
     "Edificio P": [("barandas",)],
 }
@@ -363,7 +363,7 @@ VOLEY = caja_r(27, 57, 41, 83)             # a la derecha de la de arena, a la i
 JUNGLA = [(163, 168), (179, 168), (179, 184), (181, 200), (176, 206), (163, 206)]   # a la izquierda de El Ranchero
 DETALLE = {"Edificio I": "Biblioteca Pablo Antonio Cuadra", "Edificio O": "Ingeniería y Arquitectura",
            "Edificio P": "Copérnico · Observatorio", "Auditorio Central": "Auditorio Rubén Darío",
-           "Clínicas Odontológicas": "Rotulado «Edificio N»", "Jaguar Center": "Gimnasio techado"}
+           "Clínicas Odontológicas": "Rotulado «Edificio N»", "Jaguar Center": "Gimnasio techado", "Edificio M": "UAM College"}
 MIN_AREA = 60   # m²: más pequeño es un kiosco o caseta, se dibuja pero no es un lugar del grafo
 VERDE = "#1e9e4a"
 

@@ -140,6 +140,17 @@
     ]
   },
   {
+    "nombre": "Edificio M",
+    "tipo": "edificio",
+    "area_m2": 467,
+    "centro_m": [
+      166.5,
+      136.2
+    ],
+    "detalle": "UAM College",
+    "pisos": 3
+  },
+  {
     "nombre": "Edificio O",
     "tipo": "edificio",
     "area_m2": 475,
@@ -260,15 +271,6 @@
     "centro_m": [
       58.5,
       60.0
-    ]
-  },
-  {
-    "nombre": "UAM College",
-    "tipo": "edificio",
-    "area_m2": 467,
-    "centro_m": [
-      166.5,
-      136.2
     ]
   },
   {

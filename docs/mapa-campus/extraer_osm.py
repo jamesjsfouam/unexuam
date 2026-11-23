@@ -27,7 +27,7 @@ NOMBRES_EXTRA = {
     "1547515040": "Edificio P",              # Google: «Edificio P Copérnico» (con el observatorio)
     "527270733": "Edificio F",
     "527270734": "Auditorio Central",
-    "527270735": "UAM College",
+    "527270735": "Edificio M",               # UAM College (James)
     "527270724": "Edificio B",
     "730964041": "Edificio C",
     "527270727": "Edificio D",
