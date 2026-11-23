@@ -82,12 +82,12 @@ class TestEvacuacion(unittest.TestCase):
         self.assertEqual(rutaMasCorta(g, "A", "C"), (["A", "B", "C"], 7))
 
     def test_ruta_evacuacion_campus(self):
-        # Desde el aula 309 (3.er piso del P) baja por la escalera oeste hasta el parqueo oeste.
+        # Desde el aula 309 (3.er piso del P) sale a su pabellon y baja por la escalera oeste.
         campus, zonas = crearCampus()
         ruta, tiempo = rutaEvacuacion(campus, "P-309", zonas)
-        self.assertEqual(ruta, ["P-309", "P Escalera Oeste P3", "P Escalera Oeste P2", "P Escalera Oeste P1",
-                                "P Salida Oeste", "Punto Seguro Parqueo Oeste"])
-        self.assertEqual(tiempo, 67)
+        self.assertEqual(ruta, ["P-309", "P Pabellón Oeste P3", "P Escalera Oeste P3", "P Escalera Oeste P2",
+                                "P Escalera Oeste P1", "P Salida Oeste", "Punto Seguro Parqueo Oeste"])
+        self.assertEqual(tiempo, 77)
 
     def test_alerta_cambia_la_ruta(self):
         campus, zonas = crearCampus()
@@ -103,7 +103,7 @@ class TestEvacuacion(unittest.TestCase):
         ruta, tiempo = rutaEvacuacion(campus, "P-309", zonas)
         self.assertNotIn("P Escalera Oeste P2", ruta)               # busca otra escalera
         self.assertIn(ruta[-1], zonas)
-        self.assertGreater(tiempo, 67)
+        self.assertGreater(tiempo, 77)
 
 
 class TestCampusUAM(unittest.TestCase):
@@ -113,7 +113,7 @@ class TestCampusUAM(unittest.TestCase):
             self.assertIsNotNone(campus.buscarVertice(aula))
         for aula in ["B-110", "B-211", "B-301", "C-311", "P-210", "P-310"]:
             self.assertIsNone(campus.buscarVertice(aula))
-        self.assertEqual(len(campus.vertexs), 134)
+        self.assertEqual(len(campus.vertexs), 150)
 
     def test_escalera_dirigida(self):
         # Bajar un piso cuesta 12 s y subirlo 18 s: dos aristas distintas.
@@ -125,7 +125,19 @@ class TestCampusUAM(unittest.TestCase):
 
     def test_pasillo_elevado_b_e(self):
         campus, zonas = crearCampus()
-        self.assertEqual(rutaMasCorta(campus, "B-210", "Edificio E"), (["B-210", "Edificio E"], 15))
+        self.assertEqual(rutaMasCorta(campus, "B-210", "Edificio E"),
+                         (["B-210", "B Pabellón Oeste P2", "Edificio E"], 23))
+
+    def test_aula_solo_con_su_pabellon(self):
+        # A un aula no se llega desde otra aula: solo desde el pabellon de su mitad del piso.
+        campus, zonas = crearCampus()
+        for v in campus.vertexs:
+            if "-" in v.nombre[:2]:
+                self.assertEqual(len(v.neig), 1, v.nombre)
+                self.assertIn("Pabellón", v.neig[0][0].nombre)
+        self.assertEqual(campus.buscarVertice("C-305").neig[0][0].nombre, "C Pabellón Este P3")
+        self.assertEqual(campus.buscarVertice("C-306").neig[0][0].nombre, "C Pabellón Oeste P3")
+        self.assertEqual(campus.buscarVertice("P-305").neig[0][0].nombre, "P Pabellón Este P3")   # 9 aulas: 01-05 este
 
     def test_todos_tienen_ruta_segura(self):
         campus, zonas = crearCampus()

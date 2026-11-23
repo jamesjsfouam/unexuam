@@ -12,9 +12,11 @@ from backend.grafo import Graph
 #       B: 101-109 y 201-210
 #       C: 101-109, 201-210 y 301-310
 #       P: 101-109, 201-209 y 301-309
-#   Cada piso es un pasillo: un aula se une con la de al lado. En los dos extremos
-#   del pasillo (este y oeste) hay una escalera, y en la planta baja las escaleras
-#   llevan a la salida este y a la salida oeste del edificio.
+#   Cada piso se divide en dos pabellones (mitad este y mitad oeste). A un aula
+#   solo se llega desde el pabellon de su mitad, nunca desde otra aula. Los dos
+#   pabellones del piso se unen entre si. En cada extremo (este y oeste) hay una
+#   escalera que sale de ese pabellon, y en la planta baja las escaleras llevan a
+#   la salida este y a la salida oeste del edificio.
 # - Las escaleras son aristas DIRIGIDAS con distinto peso: bajar es mas rapido
 #   que subir. Por eso el grafo tiene que ser dirigido.
 # - Los demas lugares (edificios sin aulas en la demo, zonas y puntos seguros) son
@@ -22,7 +24,7 @@ from backend.grafo import Graph
 # - Peso = segundos caminando (distancia del mapa x 1.3 / 1.2 m/s).
 # ---------------------------------------------------------------------------
 
-AULA_A_ESCALERA = 6       # del aula del extremo a la escalera de ese extremo
+PABELLON_A_ESCALERA = 6   # del pabellon a la escalera de su extremo
 BAJAR_UN_PISO = 12        # escalera hacia abajo
 SUBIR_UN_PISO = 18        # escalera hacia arriba (mas lento)
 ESCALERA_A_SALIDA = 5     # de la escalera de planta baja a la salida
@@ -45,8 +47,10 @@ def agregarEdificioConAulas(campus, letra, aulasPorPiso, segundosEntreAulas):
     # aulasPorPiso = [9, 10] significa: piso 1 con 101..109 y piso 2 con 201..210.
     totalPisos = len(aulasPorPiso)
 
-    # 1. Vertices: aulas, escaleras de cada piso y las dos salidas.
+    # 1. Vertices: aulas, pabellones y escaleras de cada piso, y las dos salidas.
     for piso in range(1, totalPisos + 1):
+        campus.insertarVertice(letra + " Pabellón Este P" + str(piso))
+        campus.insertarVertice(letra + " Pabellón Oeste P" + str(piso))
         campus.insertarVertice(letra + " Escalera Este P" + str(piso))
         campus.insertarVertice(letra + " Escalera Oeste P" + str(piso))
         for numero in range(1, aulasPorPiso[piso - 1] + 1):
@@ -57,14 +61,22 @@ def agregarEdificioConAulas(campus, letra, aulasPorPiso, segundosEntreAulas):
     # 2. Aristas de cada piso.
     for piso in range(1, totalPisos + 1):
         cantidad = aulasPorPiso[piso - 1]
-        # Pasillo: cada aula con la de al lado (la 01 es la del extremo este).
-        for numero in range(1, cantidad):
-            unirDosSentidos(campus, nombreAula(letra, piso, numero),
-                            nombreAula(letra, piso, numero + 1), segundosEntreAulas)
+        mitad = (cantidad + 1) // 2          # 9 aulas -> 01..05 este, 06..09 oeste
+        pabellonEste = letra + " Pabellón Este P" + str(piso)
+        pabellonOeste = letra + " Pabellón Oeste P" + str(piso)
+        # Cada aula solo con el pabellon de su mitad (la 01 es la del extremo este).
+        for numero in range(1, cantidad + 1):
+            if numero <= mitad:
+                pabellon = pabellonEste
+            else:
+                pabellon = pabellonOeste
+            unirDosSentidos(campus, nombreAula(letra, piso, numero), pabellon, segundosEntreAulas)
+        # Los dos pabellones del piso: medio pasillo de distancia.
+        unirDosSentidos(campus, pabellonEste, pabellonOeste, mitad * segundosEntreAulas)
         escaleraEste = letra + " Escalera Este P" + str(piso)
         escaleraOeste = letra + " Escalera Oeste P" + str(piso)
-        unirDosSentidos(campus, nombreAula(letra, piso, 1), escaleraEste, AULA_A_ESCALERA)
-        unirDosSentidos(campus, nombreAula(letra, piso, cantidad), escaleraOeste, AULA_A_ESCALERA)
+        unirDosSentidos(campus, pabellonEste, escaleraEste, PABELLON_A_ESCALERA)
+        unirDosSentidos(campus, pabellonOeste, escaleraOeste, PABELLON_A_ESCALERA)
         # Escaleras al piso de abajo: bajar y subir cuestan distinto (grafo dirigido).
         if piso > 1:
             for lado in ["Este", "Oeste"]:
@@ -106,8 +118,8 @@ def crearCampus():
     for lugar in lugares + zonasSeguras:
         campus.insertarVertice(lugar)
 
-    # Pasillo elevado del 2.o piso: del extremo oeste del B (aula 210) al Edificio E.
-    unirDosSentidos(campus, "B-210", "Edificio E", 15)
+    # Pasillo elevado del 2.o piso: del pabellon oeste del B al Edificio E.
+    unirDosSentidos(campus, "B Pabellón Oeste P2", "Edificio E", 15)
 
     # Caminos a pie entre lugares vecinos (calculados con docs/mapa-campus/generar_grafo.py).
     # (lugar, lugar, segundos): cada camino se recorre en los dos sentidos.
