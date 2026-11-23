@@ -1,5 +1,5 @@
 /* Service Worker de Unexuam: caché de assets estáticos para operar offline. */
-const CACHE = "unexuam-v10";
+const CACHE = "unexuam-v11";
 const ASSETS = [
   "/",
   "/static/app.css",
@@ -21,6 +21,12 @@ const ASSETS = [
   "/static/img/ico-sin-senal.png",
   "/static/img/ico-sismo.png",
   "/static/img/mapa-campus-3d.svg",
+  "/static/img/guia-sismo.svg",
+  "/static/img/guia-inundacion.svg",
+  "/static/img/guia-incendio.svg",
+  "/static/img/guia-auxilios.svg",
+  "/static/img/guia-mesh.svg",
+  "/static/img/fondo-marca.svg",
 ];
 
 self.addEventListener("install", (ev) => {

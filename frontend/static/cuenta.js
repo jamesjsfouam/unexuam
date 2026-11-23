@@ -745,6 +745,81 @@
     else if (!$('[data-admin-panel="dijkstra"]').hidden) abrirDijkstra();
   };
 
+  const GUIAS = {
+    sismo: {
+      titulo: "Sismo o temblor",
+      sub: "Actúa en 4 pasos",
+      pasos: [
+        "Agáchate, cúbrete cabeza y cuello bajo un pupitre firme.",
+        "Aléjate de ventanas, estantes y cables. No uses elevadores.",
+        "Al terminar, sal caminando al Punto Seguro en Evacuar.",
+        "Avisa tu estado o bloqueos en Mensajes → Canal General.",
+      ],
+      btn: { txt: "Ir a Evacuar", hash: "#campus" },
+    },
+    inundacion: {
+      titulo: "Inundación o tormenta",
+      sub: "Busca zonas altas",
+      pasos: [
+        "Aléjate de parqueos bajos, drenajes y corrientes de agua.",
+        "No cruces agua en movimiento ni toques cables húmedos.",
+        "Si el agua sube, resguárdate en piso 2 o 3 (B, C o P).",
+        "Reporta personas atrapadas en Mensajes → Canal General.",
+      ],
+      btn: { txt: "Ver rutas seguras", hash: "#campus" },
+    },
+    incendio: {
+      titulo: "Incendio o humo",
+      sub: "Sal rápido y agachado",
+      pasos: [
+        "Activa la alarma y avisa en Mensajes → Canal General.",
+        "Si hay humo, avanza agachado cubriendo nariz y boca.",
+        "Toca las puertas antes de abrir; si quema, toma otra salida.",
+        "Ve a Plazoleta o Canchas y no regreses por objetos.",
+      ],
+      btn: { txt: "Ir a Evacuar", hash: "#campus" },
+    },
+    auxilios: {
+      titulo: "Primeros auxilios",
+      sub: "Estabiliza y pide ayuda",
+      pasos: [
+        "Verifica que la zona sea segura antes de acercarte.",
+        "No muevas al herido si hay golpe en cuello o cabeza.",
+        "Si sangra, haz presión firme y constante con tela limpia.",
+        "Envía tu edificio y aula en Mensajes → Canal General.",
+      ],
+      btn: { txt: "Pedir ayuda en Mensajes", hash: "#mensajes" },
+    },
+    mesh: {
+      titulo: "Sin internet ni señal",
+      sub: "Red Mesh por Bluetooth",
+      pasos: [
+        "Deja Bluetooth y Ubicación encendidos (aún en Modo Avión).",
+        "Abre Mensajes: teléfonos cercanos aparecen automáticamente.",
+        "Escribe en Canal General: salta de teléfono en teléfono.",
+        "Si nadie está cerca, tu mensaje espera y sale al acercarte.",
+      ],
+      btn: { txt: "Abrir Mensajes", hash: "#mensajes" },
+    },
+  };
+
+  function abrirGuia(clave) {
+    const g = GUIAS[clave];
+    if (!g) return;
+    const hoja = $("#hoja");
+    $("#hoja-titulo").textContent = g.titulo;
+    $("#hoja-texto").textContent = g.sub;
+    const acc = $("#hoja-acciones");
+    acc.innerHTML = `<ol class="guia-pasos">${g.pasos.map((p, i) => `<li><b>${i + 1}</b><span>${esc(p)}</span></li>`).join("")}</ol>`;
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "btn primario ancho";
+    b.textContent = g.btn.txt;
+    b.onclick = () => { hoja.hidden = true; location.hash = g.btn.hash; };
+    acc.appendChild(b);
+    hoja.hidden = false;
+  }
+
   function eventos() {
     navEventos();
     $("#login-form").addEventListener("submit", entrar);
@@ -754,6 +829,11 @@
     $("#mi-red").addEventListener("click", elegirLugar);
     const btnGps = $("#btn-gps");
     if (btnGps) btnGps.addEventListener("click", () => aproximarEdificioPorGPS(true));
+    const guiasBox = $("#guias-emergencia");
+    if (guiasBox) guiasBox.addEventListener("click", ev => {
+      const card = ev.target.closest("[data-guia]");
+      if (card) abrirGuia(card.dataset.guia);
+    });
     window.addEventListener("unexuam-mesh-update", async (ev) => {
       if (!YO) return;
       firmaMsj = "";
