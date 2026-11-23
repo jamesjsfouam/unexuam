@@ -34,3 +34,22 @@ No se encontraron fotos verificables del exterior (en Google Imágenes ni en las
 
 ## Edificios B y C
 No se encontró ninguna foto del exterior que identifique al **Edificio B** ni al **Edificio C** (Google Imágenes, uam.edu.ni y fichas de Google Maps, 23/11/2026). Por eso usan el estilo general del campus: blanco, techo plano y una franja de ventanas azuladas por piso. Si James tiene fotos propias de las fachadas, se pueden agregar.
+
+## Edificio P: fachada norte (foto de James, 23/11/2026)
+Foto tomada desde el parqueo con cubiertas de celdas solares, al **norte** del P, mirando al sur. A la izquierda (este) asoma la torre del observatorio.
+- **Pisos:** 3, con techo-terraza y baranda gris continua.
+- **Pisos 2 y 3:** **pasillos abiertos** (balcón corrido) a lo largo de toda la fachada, con barandas grises horizontales. Ese pasillo es el que en el grafo se modela con los pabellones.
+- **Planta baja:** las aulas **dan directo afuera**, al césped y al parqueo. No tienen pasillo interior.
+- **Bahías:** columnas grises separan la fachada en bahías; cada bahía es **un aula**, con **dos puertas grises** (adelante y atrás) y ventanas de marco blanco y vidrio oscuro.
+- **Colores aproximados:**
+
+| Elemento | Color |
+|---|---|
+| Muro | blanco `#f2f4f6` |
+| Losas y vigas | gris claro `#dfe3e8` |
+| Puertas y columnas | gris `#6f7c8a` |
+| Barandas | gris `#8a96a3` |
+| Marco de ventana | blanco |
+| Vidrio | oscuro `#3a4552` |
+
+- **En el mapa 3D:** esta fachada no se ve, porque el mapa mira desde el sur. Se nota en la baranda de la terraza y en la torre este.
