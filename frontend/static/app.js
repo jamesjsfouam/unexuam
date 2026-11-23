@@ -1,4 +1,4 @@
-/* Evacua UAM · lógica de la interfaz (JS sin librerías, funciona sin internet).
+/* Unexuam · lógica de la interfaz (JS sin librerías, funciona sin internet).
  * El servidor guarda los dos grafos; aquí solo se dibujan y se llaman los endpoints. */
 "use strict";
 

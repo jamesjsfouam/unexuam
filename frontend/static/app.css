@@ -1,4 +1,4 @@
-/* UNEXUAM · web móvil Off-Grid.
+/* Unexuam · web móvil Off-Grid.
  * Estilo tomado del Figma de UNEXO ("Proyecto X": marcos Mapa, Zona de riesgo y App).
  * Paleta: azul #0080ff, rojo #cc0000, amarillo #fcd222, blanco. Píldoras de radio 30 px.
  * Tipografía del diseño: Nexa. Si está instalada en el equipo se usa; si no, una sans gruesa del sistema
@@ -334,7 +334,7 @@ form.tarjeta { margin: 0; }
 }
 .pie-chico { font-size: 16px; }
 .pie-grande { font-size: 27px; font-weight: 900; line-height: 1.05; text-shadow: 0 2px 0 rgba(0, 50, 120, .35); }
-.pie-marca { position: absolute; top: 8px; right: 12px; font-size: 11px; font-weight: 900; letter-spacing: .03em; }
+.pie-marca { position: absolute; top: 8px; right: 12px; font-size: 11px; font-weight: 900; letter-spacing: .03em; text-transform: uppercase; }
 
 /* ---------- hoja inferior y toast ---------- */
 .hoja { position: fixed; inset: 0; z-index: 10; display: flex; align-items: flex-end; justify-content: center; }
