@@ -261,8 +261,29 @@ def barril(poligono, pared, flecha, n=14):
     return "".join(g)
 
 
+def terraza(pol, alto):
+    """Baranda gris de la terraza en el techo (Edificio P Copérnico, foto aérea de la UAM)."""
+    g = []
+    for i in range(len(pol)):
+        (ax, ay), (bx, by) = pol[i], pol[(i + 1) % len(pol)]
+        a, b = P(ax, ay, alto + 1.1), P(bx, by, alto + 1.1)
+        g.append(f'<line x1="{a[0]:.1f}" y1="{a[1]:.1f}" x2="{b[0]:.1f}" y2="{b[1]:.1f}" stroke="#6b7785" stroke-width="1.6"/>')
+        n = max(1, int(math.dist((ax, ay), (bx, by)) // 3))
+        for k in range(n + 1):
+            x, y = ax + (bx - ax) * k / n, ay + (by - ay) * k / n
+            u, v = P(x, y, alto), P(x, y, alto + 1.1)
+            g.append(f'<line x1="{u[0]:.1f}" y1="{u[1]:.1f}" x2="{v[0]:.1f}" y2="{v[1]:.1f}" stroke="#6b7785" stroke-width=".9"/>')
+    return "".join(g)
+
+
+def cara_plana(x0, y0, x1, y1, z0, z1, color, extra=""):
+    q = [P(x0, y0, z0), P(x1, y1, z0), P(x1, y1, z1), P(x0, y0, z1)]
+    return f'<polygon points="{" ".join(f"{a:.1f},{b:.1f}" for a, b in q)}" fill="{color}" {extra}/>'
+
+
 def observatorio(pol_p, alto_p):
-    """Torre con cúpula blanca en el extremo este del Edificio P Copérnico."""
+    """Torre del observatorio en el extremo ESTE del Edificio P Copérnico (fotos de la UAM):
+    muro blanco, franja verde arriba, sello dorado y letras UAM, ventanas oscuras y cúpula blanca."""
     xs = [q[0] for q in pol_p]
     ys = [q[1] for q in pol_p]
     x1 = max(xs) - 1
@@ -270,6 +291,17 @@ def observatorio(pol_p, alto_p):
     torre = caja_r(x1 - 7, cy - 3.5, x1, cy + 3.5)
     alto = alto_p + 3.6
     g = [edificio(torre, alto, "#fbfcfd", "#eef1f4", "#aab4bf", "#7d8a99", pisos=0)]
+    sur, este = cy + 3.5, x1
+    # franja verde en lo alto de las dos caras visibles (sur y este)
+    g.append(cara_plana(x1 - 7, sur, x1, sur, alto - 1.5, alto - .5, "#2e9b57"))
+    g.append(cara_plana(este, sur, este, cy - 3.5, alto - 1.5, alto - .5, "#23824a"))
+    # ventanas oscuras cuadradas
+    for t in (.2, .6):
+        g.append(cara_plana(x1 - 7 + 7 * t, sur, x1 - 7 + 7 * (t + .2), sur, alto - 4.2, alto - 2.8, "#2b3440"))
+        g.append(cara_plana(este, sur - 7 * t, este, sur - 7 * (t + .2), alto - 4.2, alto - 2.8, "#232b35"))
+    # sello dorado en la cara sur
+    sx0, sy0 = P(x1 - 3.5, sur, alto_p - 2.2)
+    g.append(f'<circle cx="{sx0:.1f}" cy="{sy0:.1f}" r="{1.0 * ESC:.1f}" fill="#e6c15a" stroke="#b8902b" stroke-width=".8"/>')
     sx, sy = P(x1 - 3.5, cy, alto)
     r = 3.3 * ESC
     g.append(f'<path d="M{sx - r:.1f},{sy:.1f} A{r:.1f},{r:.1f} 0 0 1 {sx + r:.1f},{sy:.1f} Z" fill="#ffffff" stroke="#7d8a99" stroke-width="1"/>')
@@ -340,10 +372,8 @@ PISOS = {"Edificio P": 3, "Edificio C": 3, "Edificio M": 3, "Edificio I": 1, "Ed
 TECHADOS = {"Comedor del Jaguarcito", "El Chilamate"}
 # Detalles de fachada vistos en las fotos de la UAM (búsqueda de imágenes, 22/11/2026)
 ACENTOS = {
-    "Edificio B": [("ladrillo", .02, .12)],
     "Edificio M": [("cristal", .38, .62)],
     "Clínicas Odontológicas": [("franja",)],
-    "Edificio P": [("barandas",)],
 }
 MURO = ("#fbfcfd", "#e6eaef", "#a9b4c0", "#7d8a99")   # techo, muro claro, muro en sombra, borde: blancos         # mesas bajo un techo, sin paredes
 PASILLO_B_E = "730964043"   # pasillo elevado del 2.º piso del Edificio B al Edificio E (OSM)
@@ -663,7 +693,7 @@ def construir(eds):
             svg = edificio(pol, alto, "url(#solar)" if solar else techo, claro, oscuro, borde,
                            pisos=pisos if area >= MIN_AREA else 0, acentos=ACENTOS.get(nombre, ()))
             if nombre == "Edificio P":
-                svg += observatorio(pol, alto)
+                svg += terraza(pol, alto) + observatorio(pol, alto)
         cx, cy = e["c"]
         OB.append((prof(*max(pol, key=lambda q: prof(*q))), svg))
         e["alto"] = alto
