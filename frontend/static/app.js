@@ -6,6 +6,11 @@ const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
 const FLECHA = "→";
 const NS = "http://www.w3.org/2000/svg";
+const IMG = {  // iconos exportados del Figma de UNEXO (frontend/static/img)
+  x: "/static/img/logo-x.png",
+  fuego: "/static/img/ico-fuego.png",
+  sinSenal: "/static/img/ico-sin-senal.png",
+};
 
 let E = null;                 // último estado recibido del servidor
 let firma = "";               // para saber si el estado cambió en el sondeo
@@ -409,6 +414,7 @@ function renderInicio() {
 
   const emergencia = ua || c.bloqueados.length || nCong;
   $("#hero").className = "hero " + (emergencia ? "emergencia" : "calma");
+  $("#hero-icono").src = emergencia ? IMG.fuego : IMG.x;
   $("#hero-titulo").textContent = emergencia ? "Emergencia en curso" : "Todo en calma";
   const partes = [];
   if (ua) partes.push(`alerta propagada a ${alc} de ${tels} teléfonos`);
@@ -417,7 +423,7 @@ function renderInicio() {
   $("#hero-texto").textContent = partes.length ? partes.join(" · ").replace(/^./, s => s.toUpperCase()) + "." : "No hay alertas activas en la red ni en el campus.";
 
   $("#historial").innerHTML = E.historial.map(h =>
-    `<li><time>${esc(h.hora)}</time><span class="${h.tipo === "error" ? "error" : ""}">${esc(h.texto)}</span></li>`).join("");
+    `<li class="${h.tipo === "error" ? "error" : ""}"><time>${esc(h.hora)}</time><span>${esc(h.texto)}</span></li>`).join("");
 
   $("#origenes").innerHTML = Object.entries(E.origen).map(([n, o]) =>
     `<li><code>${esc(n)}</code><span class="${o === "backend" ? "b" : "s"}">${o === "backend" ? "backend" : "stub"}</span></li>`).join("");
@@ -440,7 +446,10 @@ function renderMesh() {
 
   dibujar($("#svg-mesh"), "mesh", g, {
     unidad: " s",
-    icono: () => telIcono(),
+    // sin alerta tras una propagación: icono "sin señal" del diseño UNEXO
+    icono: v => (hayAlerta && alc[v] === undefined
+      ? `<image href="${IMG.sinSenal}" x="-9" y="-9" width="18" height="18"/>`
+      : telIcono()),
     claseArista: a => (vivas.has(clave(a.origen, a.destino)) ? "viva" : ""),
     claseNodo: v => [
       alc[v] === 0 ? "emisor" : alc[v] > 0 ? "con-alerta" : "",
@@ -480,10 +489,11 @@ function mostrarAlcanceFinal(ua) {
 
 function listaSaltos(lista, ua, hasta) {
   $("#saltos-tarjeta").hidden = false;
+  const fuera = hasta >= lista.length ? E.mesh.vertices.filter(v => !lista.some(([n]) => n === v)) : [];
   $("#saltos").innerHTML = lista.slice(0, hasta).map(([n, s]) =>
-    `<li><span class="n">${s === 0 ? "origen" : "salto " + s}</span><span>${esc(n)}${viaMostrada[n] ? ` <span class="via">← ${esc(viaMostrada[n])}</span>` : ""}</span></li>`).join("");
+    `<li><span class="n">${s === 0 ? "origen" : "salto " + s}</span><span class="nombre">${esc(n)}${viaMostrada[n] ? ` <span class="via">← ${esc(viaMostrada[n])}</span>` : ""}</span><img src="${IMG.fuego}" alt=""></li>`).join("") +
+    fuera.map(n => `<li class="fuera"><span class="n">sin alerta</span><span class="nombre">${esc(n)}</span><img src="${IMG.sinSenal}" alt=""></li>`).join("");
   if (hasta >= lista.length) {
-    const fuera = E.mesh.vertices.filter(v => !lista.some(([n]) => n === v));
     $("#saltos-nota").textContent = `Llegó a ${lista.length} de ${E.mesh.vertices.length} teléfonos con TTL ${ua.ttl}.` +
       (fuera.length ? ` Sin alerta: ${fuera.join(", ")} (TTL agotado o sin enlace hacia ellos).` : " Toda la red recibió la alerta.");
   } else $("#saltos-nota").textContent = "";
@@ -575,6 +585,7 @@ function renderCampus() {
     rutaAnterior.ruta.forEach((n, i) => { if (i) aristasAntes.add(clave(rutaAnterior.ruta[i - 1], n)); });
   }
   const congestionados = new Set(Object.keys(c.congestion));
+  $("#lienzo-campus").classList.toggle("emergencia", c.bloqueados.length > 0 || congestionados.size > 0);
 
   dibujar($("#svg-campus"), "campus", c, {
     unidad: "",
@@ -675,9 +686,7 @@ function irA(nombre) {
   if (!["inicio", "mesh", "campus", "admin"].includes(nombre)) nombre = "inicio";
   vista = nombre;
   $$(".vista").forEach(s => { s.hidden = s.id !== "v-" + nombre; });
-  $$(".tabs a").forEach(a => (a.dataset.tab === nombre ? a.setAttribute("aria-current", "page") : a.removeAttribute("aria-current")));
-  const sub = { inicio: "Estado de la red", mesh: "Capa 1 · comunicación", campus: "Capa 2 · navegación", admin: "Vértices y aristas" };
-  $("#subtitulo").textContent = sub[nombre];
+  $$(".nav a").forEach(a => (a.dataset.tab === nombre ? a.setAttribute("aria-current", "page") : a.removeAttribute("aria-current")));
   window.scrollTo(0, 0);
   render();
 }

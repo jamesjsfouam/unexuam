@@ -3,38 +3,43 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#0f1115">
+  <meta name="theme-color" content="#0080ff">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-title" content="Evacua UAM">
-  <title>Evacua UAM</title>
-  <link rel="icon" href="{{ url_for('static', filename='icono.svg') }}" type="image/svg+xml">
+  <meta name="apple-mobile-web-app-title" content="UNEXOUAM">
+  <title>UNEXOUAM</title>
+  <link rel="icon" href="{{ url_for('static', filename='img/icono-192.png') }}" type="image/png">
+  <link rel="apple-touch-icon" href="{{ url_for('static', filename='img/icono-192.png') }}">
   <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='app.css') }}">
 </head>
 <body>
   <header class="barra">
-    <div class="marca">
-      <img src="{{ url_for('static', filename='icono.svg') }}" alt="" width="28" height="28">
-      <div>
-        <h1>Evacua UAM</h1>
-        <p id="subtitulo">Sistema de evacuación Off-Grid</p>
-      </div>
-    </div>
+    <a href="#inicio" class="marca" aria-label="UNEXOUAM, inicio">
+      <img src="{{ url_for('static', filename='img/logo-x.png') }}" alt="" class="marca-x">
+      <img src="{{ url_for('static', filename='img/wordmark-unexo.png') }}" alt="UNEXO" class="marca-unexo"><span class="marca-uam">UAM</span>
+    </a>
     <span class="chip-offgrid" title="Funciona sin internet, solo con la red local">
       <span class="punto"></span> Off-Grid
     </span>
+    <nav class="nav" aria-label="Secciones">
+      <a href="#inicio" data-tab="inicio">Inicio</a>
+      <a href="#mesh" data-tab="mesh">Red Mesh</a>
+      <a href="#campus" data-tab="campus">Campus</a>
+      <a href="#admin" data-tab="admin">Administrar</a>
+    </nav>
   </header>
 
   <main>
     <!-- ============ 1. INICIO ============ -->
     <section id="v-inicio" class="vista" aria-labelledby="t-inicio">
-      <h2 id="t-inicio" class="sr">Inicio</h2>
+      <img class="banner" src="{{ url_for('static', filename='img/banner-mapa.png') }}" alt="">
+      <h2 id="t-inicio" class="franja">Estado de la red</h2>
 
       <div id="aviso-stub" class="aviso" hidden></div>
 
       <div id="hero" class="hero calma">
-        <div class="hero-icono" aria-hidden="true"></div>
+        <img id="hero-icono" class="hero-icono" src="{{ url_for('static', filename='img/logo-x.png') }}" alt="">
         <div>
           <p class="hero-titulo" id="hero-titulo">Todo en calma</p>
           <p class="hero-texto" id="hero-texto">No hay alertas activas.</p>
@@ -44,7 +49,7 @@
       <div class="tarjeta">
         <div class="tarjeta-cab">
           <h3>Capa 1 · Red Mesh</h3>
-          <a href="#mesh" class="enlace">Abrir ›</a>
+          <a href="#mesh" class="btn mini">Abrir</a>
         </div>
         <div class="metricas">
           <div><b id="m-tels">0</b><span>teléfonos</span></div>
@@ -57,7 +62,7 @@
       <div class="tarjeta">
         <div class="tarjeta-cab">
           <h3>Capa 2 · Campus</h3>
-          <a href="#campus" class="enlace">Abrir ›</a>
+          <a href="#campus" class="btn mini">Abrir</a>
         </div>
         <div class="metricas">
           <div><b id="c-lug">0</b><span>lugares</span></div>
@@ -72,10 +77,8 @@
         <p class="nota" id="c-nota"></p>
       </div>
 
-      <div class="tarjeta">
-        <div class="tarjeta-cab"><h3>Actividad</h3></div>
-        <ol id="historial" class="historial"></ol>
-      </div>
+      <h3 class="franja">Actividad en vivo</h3>
+      <ol id="historial" class="historial"></ol>
 
       <div class="tarjeta">
         <div class="tarjeta-cab"><h3>Backend en uso</h3></div>
@@ -86,19 +89,16 @@
 
     <!-- ============ 2. RED MESH ============ -->
     <section id="v-mesh" class="vista" aria-labelledby="t-mesh" hidden>
-      <div class="titulo-vista">
-        <h2 id="t-mesh">Red Mesh</h2>
-        <p>Cada teléfono reenvía la alerta a sus vecinos (BFS con TTL).</p>
-      </div>
+      <h2 id="t-mesh" class="franja">Red Mesh en vivo</h2>
+      <p class="intro">Cada teléfono reenvía la alerta a sus vecinos (BFS con TTL). El peso de cada enlace es el retardo en segundos.</p>
 
       <div class="lienzo">
         <svg id="svg-mesh" class="grafo" role="img" aria-label="Red de teléfonos"></svg>
-        <div class="lienzo-pie">
-          <span class="ley"><i class="l-nodo"></i>sin alerta</span>
-          <span class="ley"><i class="l-alerta"></i>con alerta</span>
-          <span class="ley">peso = retardo (s)</span>
-          <button class="btn mini" data-mover="mesh" aria-pressed="false">Mover</button>
-        </div>
+      </div>
+      <div class="leyenda">
+        <span class="chip rojo"><img src="{{ url_for('static', filename='img/ico-fuego.png') }}" alt="">Con alerta</span>
+        <span class="chip gris"><img src="{{ url_for('static', filename='img/ico-sin-senal.png') }}" alt="">Sin alerta</span>
+        <button class="btn mini" data-mover="mesh" aria-pressed="false">Mover</button>
       </div>
 
       <div class="tarjeta">
@@ -115,14 +115,14 @@
           </div>
         </div>
         <button id="btn-alerta" class="btn alerta ancho grande" data-accion="emitir">
-          Emitir alerta
+          <img src="{{ url_for('static', filename='img/ico-fuego.png') }}" alt="" class="ico-btn">Emitir alerta
         </button>
       </div>
 
-      <div class="tarjeta" id="saltos-tarjeta" hidden>
-        <div class="tarjeta-cab">
+      <div id="saltos-tarjeta" class="cola" hidden>
+        <div class="cola-cab">
           <h3>Recorrido de la alerta</h3>
-          <button class="btn mini" data-accion="repetir">Repetir</button>
+          <button class="btn mini blanco" data-accion="repetir">Repetir</button>
         </div>
         <ol id="saltos" class="saltos"></ol>
         <p class="nota" id="saltos-nota"></p>
@@ -131,12 +131,10 @@
 
     <!-- ============ 3. CAMPUS ============ -->
     <section id="v-campus" class="vista" aria-labelledby="t-campus" hidden>
-      <div class="titulo-vista">
-        <h2 id="t-campus">Campus</h2>
-        <p>Toca un lugar o un pasillo. La ruta se calcula con Dijkstra.</p>
-      </div>
+      <img class="banner" src="{{ url_for('static', filename='img/banner-zonas.png') }}" alt="">
+      <h2 id="t-campus" class="franja">Ruta de evacuación</h2>
 
-      <div class="tarjeta ruta-tarjeta" id="ruta-tarjeta">
+      <div class="tarjeta" id="ruta-tarjeta">
         <label class="campo">
           <span>Estoy en…</span>
           <select id="campus-ubicacion"></select>
@@ -144,24 +142,25 @@
         <div id="ruta-info" class="ruta-info"></div>
       </div>
 
-      <div class="lienzo">
+      <div class="lienzo" id="lienzo-campus">
         <svg id="svg-campus" class="grafo" role="img" aria-label="Mapa del campus"></svg>
-        <div class="lienzo-pie">
-          <span class="ley"><i class="l-ruta"></i>ruta</span>
-          <span class="ley"><i class="l-bloq"></i>bloqueado</span>
-          <span class="ley"><i class="l-zona"></i>zona segura</span>
-          <button class="btn mini" data-mover="campus" aria-pressed="false">Mover</button>
-        </div>
       </div>
+      <div class="leyenda">
+        <span class="chip azul"><i class="l-ruta"></i>Ruta</span>
+        <span class="chip rojo"><i class="l-bloq"></i>Bloqueado</span>
+        <span class="chip amarillo"><img src="{{ url_for('static', filename='img/ico-sismo.png') }}" alt="" class="ancha">Congestión</span>
+        <button class="btn mini" data-mover="campus" aria-pressed="false">Mover</button>
+      </div>
+      <p class="intro">Toca un lugar o un pasillo del mapa. La ruta se calcula con Dijkstra hacia la zona segura más cercana.</p>
 
+      <h3 class="franja">Incidentes</h3>
       <div class="tarjeta">
-        <div class="tarjeta-cab"><h3>Incidentes</h3></div>
         <div class="segmentado" role="tablist">
           <button role="tab" aria-selected="true" data-inc="bloquear">Bloquear pasillo</button>
           <button role="tab" aria-selected="false" data-inc="congestionar">Congestión</button>
         </div>
 
-        <div data-panel="bloquear">
+        <div data-panel="bloquear" class="panel">
           <label class="campo">
             <span>Paso (origen → destino)</span>
             <select id="bloq-paso"></select>
@@ -173,7 +172,7 @@
           <button class="btn peligro ancho" data-accion="bloquear">Bloquear (eliminarArista)</button>
         </div>
 
-        <div data-panel="congestionar" hidden>
+        <div data-panel="congestionar" class="panel" hidden>
           <label class="campo">
             <span>Lugar con congestión o peligro</span>
             <select id="cong-lugar"></select>
@@ -199,10 +198,8 @@
 
     <!-- ============ 4. ADMINISTRAR ============ -->
     <section id="v-admin" class="vista" aria-labelledby="t-admin" hidden>
-      <div class="titulo-vista">
-        <h2 id="t-admin">Administrar</h2>
-        <p>Insertar y eliminar vértices y aristas de cada grafo.</p>
-      </div>
+      <h2 id="t-admin" class="franja">Administrar grafos</h2>
+      <p class="intro">Insertar y eliminar vértices y aristas de cada grafo.</p>
 
       <div class="segmentado grande" role="tablist">
         <button role="tab" aria-selected="true" data-grafo="mesh">Red Mesh</button>
@@ -263,24 +260,11 @@
     </section>
   </main>
 
-  <nav class="tabs" aria-label="Secciones">
-    <a href="#inicio" data-tab="inicio">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11.5 12 4l9 7.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/></svg>
-      <span>Inicio</span>
-    </a>
-    <a href="#mesh" data-tab="mesh">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="6" r="2.5"/><circle cx="19" cy="6" r="2.5"/><circle cx="12" cy="18" r="2.5"/><path d="M7 7.5l3.6 8.3M17 7.5l-3.6 8.3M7.5 6h9" fill="none"/></svg>
-      <span>Red Mesh</span>
-    </a>
-    <a href="#campus" data-tab="campus">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h7v7H4zM13 13h7v7h-7zM11 7.5h4.5V13" fill="none"/><path d="M14 11l1.5 2 1.5-2" fill="none"/></svg>
-      <span>Campus</span>
-    </a>
-    <a href="#admin" data-tab="admin">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16" fill="none"/><circle cx="9" cy="6" r="2"/><circle cx="15" cy="12" r="2"/><circle cx="8" cy="18" r="2"/></svg>
-      <span>Administrar</span>
-    </a>
-  </nav>
+  <footer class="pie">
+    <p class="pie-chico">Juntos podemos</p>
+    <p class="pie-grande">superar las adversidades</p>
+    <p class="pie-marca">UNEXOUAM</p>
+  </footer>
 
   <div id="hoja" class="hoja" hidden>
     <div class="hoja-fondo" data-cerrar></div>

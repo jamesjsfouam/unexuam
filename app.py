@@ -1,5 +1,5 @@
 """
-Servidor web del Sistema de Evacuación Off-Grid (frontend del proyecto).
+Servidor web de UNEXOUAM, sistema de evacuación Off-Grid (frontend del proyecto).
 
 Uso:
     pip install flask
@@ -383,7 +383,7 @@ if __name__ == "__main__":
     puerto = 5000
     stubs = [n for n, o in ORIGEN.items() if o == "stub"]
     print("=" * 60)
-    print(" Sistema de Evacuación Off-Grid · UAM")
+    print(" UNEXOUAM · Evacuación Off-Grid")
     print(f" En este PC:        http://127.0.0.1:{puerto}")
     print(f" Desde el teléfono: http://{ip_local()}:{puerto}  (misma Wi-Fi)")
     if stubs:
