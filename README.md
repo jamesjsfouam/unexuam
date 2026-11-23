@@ -3,7 +3,7 @@
 Proyecto final de **Estructuras de Datos No Lineales**, Universidad Americana (UAM), noviembre 2026.
 Autor: **Br. James Santiago Fernandez Obregon**.
 
-Unexuam guía a la comunidad universitaria hacia las zonas seguras cuando se caen internet y la red celular. Todo funciona con **grafos dirigidos y ponderados**, implementados a mano en Python con la estructura vista en clase: `Vertex` con `city` y `neig` (lista de tuplas `(destino, peso)`) y `Graph` con `vertexs`. No usa NetworkX ni otras librerías de grafos.
+Unexuam guía a la comunidad universitaria hacia las zonas seguras cuando se caen internet y la red celular. Todo funciona con **grafos dirigidos y ponderados**, implementados a mano en Python con la estructura vista en clase: `Vertex` con `nombre` y `neig` (lista de tuplas `(destino, peso)`) y `Graph` con `vertexs`. No usa NetworkX ni otras librerías de grafos.
 
 ## Las dos capas de grafos
 
