@@ -38,7 +38,7 @@ Si sobra tiempo o el profe pide ver el CRUD: pestaña **Administrar** → Campus
 - Escalera Norte ×3 (8 → 24 y 25 → 75): Cancha 10 + 24 + 15 + 12 + 20 = 81; Parqueo por Escalera Sur **77** → gana Parqueo.
 - Además Escalera Sur ↔ Salida Este bloqueado: Parqueo por Pasillo A 10 + 24 + 15 + 40 + 25 = 114; Cancha **81** → gana Cancha.
 
-Estos números salen del stub actual (`frontend/_stub_backend.py`). Si `backend/datos.py` usa otros pesos, cambia la lista `CAMPUS.edges` al inicio del script de `deck.html`: el paso a paso, la alerta y los números de la diapositiva de demo se recalculan solos. Las cifras de este archivo y de `guion.md` sí hay que corregirlas a mano.
+Verificado el 22/11 con el backend real (`backend/datos.py`, `evacuacion.py` y `mesh.py`): da exactamente estos números. Si cambias los pesos de `backend/datos.py`, cambia la lista `CAMPUS.edges` al inicio del script de `deck.html`: el paso a paso, la alerta y los números de la diapositiva de demo se recalculan solos. Las cifras de este archivo y de `guion.md` sí hay que corregirlas a mano.
 
 ## Plan B: si algo falla
 

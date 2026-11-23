@@ -16,8 +16,9 @@ El BFS cuenta **saltos**, porque el TTL es un límite de saltos, igual que en S�
 
 ### 3. ¿Cuál es la complejidad de tus algoritmos?
 
-- **BFS:** O(V + E). Cada teléfono entra a la cola una sola vez gracias a la lista de visitados, y cada arista se mira una vez. *(Si en tu código la cola es una lista con `pop(0)`, cada `pop(0)` cuesta O(V); con `collections.deque` y `popleft()` es O(1).)*
-- **Dijkstra:** si busco el mínimo recorriendo la lista de no visitados, es **O(V² + E)**. Con un montículo (`heapq`) sería O((V + E) log V). Para un campus de decenas de lugares la diferencia no se nota; para miles sí.
+- **BFS:** el recorrido es O(V + E): cada teléfono entra a la cola una sola vez y cada arista se mira una vez. En mi código la cola es una lista con `pop(0)` y `visitados` también es una lista, y las dos operaciones cuestan O(V), así que en la práctica queda en **O(V² + E)**. Con `collections.deque` (`popleft()` es O(1)) y un `set` para visitados bajaría a O(V + E). Lo dejé con listas para seguir el estilo del curso; con 8 teléfonos no se nota.
+- **Dijkstra:** busco el mínimo recorriendo los no visitados, así que es **O(V² + E)**. Con un montículo (`heapq`) sería O((V + E) log V). Para un campus de decenas de lugares la diferencia no se nota; para miles sí.
+- **Evacuación:** `rutaEvacuacion` corre un Dijkstra por cada zona segura, o sea O(Z · (V² + E)) con Z zonas (aquí Z = 2).
 - **Memoria:** O(V + E) por usar lista de adyacencia.
 
 ### 4. ¿Por qué Dijkstra y no BFS para la ruta de evacuación?
@@ -34,7 +35,7 @@ Porque la realidad no es simétrica. En el campus, bajar la Escalera Norte cuest
 
 ### 7. ¿Cómo encuentras la zona segura más cercana si hay varias?
 
-Corro Dijkstra desde mi ubicación y me quedo con la zona segura de menor distancia. *(Ajusta según tu código: si `rutaEvacuacion` llama a `rutaMasCorta` para cada zona, di que corre Dijkstra una vez por zona y compara; funciona, pero repite trabajo.)* Como Dijkstra ya calcula la distancia a **todos** los vértices, basta una sola corrida. La versión más eficiente sería detenerse en cuanto sale de la cola la primera zona segura, porque esa ya es la más cercana.
+`rutaEvacuacion` llama a `rutaMasCorta` para cada zona segura y se queda con la de menor tiempo. Funciona, pero repite trabajo: Dijkstra ya calcula la distancia a **todos** los vértices, así que bastaría una sola corrida desde mi ubicación y comparar las zonas. Y se podría parar en cuanto sale la primera zona segura, porque esa ya es la más cercana; así lo muestra la diapositiva del paso a paso.
 
 Si preguntan cómo hacerlo para **todo el campus** a la vez: se invierte el grafo (se da vuelta cada arista) y se corre un solo Dijkstra que empieza en todas las zonas seguras con distancia 0. Así se obtiene la distancia de cada lugar a su zona más cercana en una sola pasada.
 
@@ -58,7 +59,10 @@ Con dos cosas. La lista de **visitados**: un teléfono que ya tiene la alerta no
 El objetivo del curso es implementar la estructura, así que escribí los algoritmos a mano sobre las clases `Graph` y `Vertex` del curso en vez de usar NetworkX. Bluetooth real y flujo máximo quedaron como trabajo futuro para tener una base sólida y probada en el plazo.
 
 **«¿Qué es DTN?»**
-*Delay-Tolerant Networking*, redes tolerantes a retardos: si un teléfono no tiene a quién reenviar, **guarda** la alerta y la entrega cuando aparece un vecino, en vez de descartarla. En el proyecto eso se representa como una cola que se vacía al insertar una arista nueva. *(Menciónalo solo si lo implementaste en `backend/mesh.py`.)*
+*Delay-Tolerant Networking*, redes tolerantes a retardos: si un teléfono no tiene a quién reenviar, **guarda** la alerta y la entrega cuando aparece un vecino, en vez de descartarla. SéTú lo hace con su cola. En este prototipo **no está implementado**: el BFS simula un instante, y la cola DTN queda como trabajo futuro. Se haría guardando la alerta en los teléfonos sin vecinos y reenviándola cuando `insertarArista` les cree uno.
+
+**«En clase el atributo se llama `city`. ¿Por qué el tuyo se llama `nombre`?»**
+Porque aquí los vértices no son ciudades: son teléfonos y lugares del campus. Solo cambié el nombre del atributo para que el código se lea mejor; la estructura es exactamente la del curso: `vertexs`, `neig` como lista de tuplas `(Vertex, peso)` y los mismos métodos, que devuelven `bool`.
 
 **«¿Qué hace `eliminarVertice` con las aristas que llegan a ese vértice?»**
 Recorre todos los vértices y filtra de su `neig` las tuplas cuyo destino es el vértice eliminado; luego vacía su propia lista y lo quita de `vertexs`. Si no lo hiciera, quedarían aristas apuntando a un vértice que ya no existe.

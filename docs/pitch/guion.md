@@ -56,7 +56,7 @@ Es **dirigido** porque en la realidad no es simétrico: bajar una escalera es m�
 
 Esta es la red de ejemplo: ocho teléfonos. Las flechas dobles son enlaces de ida y vuelta, y fíjense que pueden tener pesos distintos: de Ana a Sofía son 0.8 segundos y de vuelta 0.9. Carlos a Pedro, en cambio, solo va en un sentido.
 
-La lógica no la inventé de cero. Viene de **SéTú**, una app que estoy desarrollando con una red Mesh real en Flutter. Allá cada paquete lleva un TTL que baja en cada salto, una lista de paquetes ya vistos para no repetir y una cola para entregar cuando aparece un vecino. Aquí traduje esa misma lógica a Python sobre el grafo.
+La lógica no la inventé de cero. Viene de **SéTú**, una app que estoy desarrollando con una red Mesh real en Flutter. Allá cada paquete lleva un TTL que baja en cada salto y una lista de paquetes ya vistos para no repetir. Aquí traduje esa lógica a Python sobre el grafo. La cola para entregar cuando aparece un vecino nuevo quedó como trabajo futuro.
 
 ## 6 · BFS con TTL paso a paso (1:15)
 
