@@ -447,8 +447,10 @@ function telIcono() {
 }
 
 function renderMesh() {
-  const g = E.mesh;
+  const svg = $("#svg-mesh");
   const sel = $("#mesh-origen");
+  if (!svg || !sel) return;
+  const g = E.mesh;
   llenar(sel, g.vertices.map(v => ({ v, t: v })));
   const origen = sel.value;
   const alc = alcanceMostrado || {};
@@ -539,9 +541,10 @@ function pulso(svg, nombre) {
 }
 
 async function animarAlerta(ua) {
+  const svg = $("#svg-mesh");
+  if (!svg) return;
   animando = true;
   const lista = ordenar(ua.alcanzados, ua.origen);
-  const svg = $("#svg-mesh");
   alcanceMostrado = {}; viaMostrada = {};
   listaSaltos(lista, ua, 0);
   renderMesh();
@@ -1493,7 +1496,7 @@ function eventos() {
     }
   });
 
-  $("#mesh-origen").addEventListener("change", () => { if (!animando) { alcanceMostrado = null; viaMostrada = {}; renderMesh(); } });
+  if ($("#mesh-origen")) $("#mesh-origen").addEventListener("change", () => { if (!animando) { alcanceMostrado = null; viaMostrada = {}; renderMesh(); } });
   $("#campus-ubicacion").addEventListener("change", ev => {
     seleccionarLugar(ev.target.value);
   });
@@ -1531,15 +1534,17 @@ function eventos() {
     }
   });
 
-  interacciones($("#svg-mesh"), "mesh", v => {
-    if (animando) return;
-    $("#mesh-origen").value = v;
-    alcanceMostrado = null; viaMostrada = {};
-    renderMesh();
-    hoja(v, "Teléfono de la red Mesh.", [
-      { txt: `Emitir alerta desde aquí (TTL ${ttl})`, cls: "alerta", fn: () => accion("emitir") },
-    ]);
-  });
+  if ($("#svg-mesh")) {
+    interacciones($("#svg-mesh"), "mesh", v => {
+      if (animando) return;
+      $("#mesh-origen").value = v;
+      alcanceMostrado = null; viaMostrada = {};
+      renderMesh();
+      hoja(v, "Teléfono de la red Mesh.", [
+        { txt: `Emitir alerta desde aquí (TTL ${ttl})`, cls: "alerta", fn: () => accion("emitir") },
+      ]);
+    });
+  }
 
   // formularios de administrar
   $$("form[data-form]").forEach(form => form.addEventListener("submit", async ev => {
@@ -1623,13 +1628,9 @@ function leerRutaVoz() {
 async function ejecutarSimulacro(tipo) {
   if (!E) return;
   if (tipo === "alerta-mesh") {
-    ttl = 5;
-    const ttlEl = $("#ttl");
-    if (ttlEl) ttlEl.textContent = ttl;
-    if ($("#mesh-origen")) $("#mesh-origen").value = "Tel-Ana";
-    location.hash = "#mesh";
-    irA("mesh");
-    await accion("emitir");
+    await api("/api/mesh/alerta", { origen: "Tel-Ana", ttl: 5 });
+    location.hash = "#inicio";
+    irA("inicio");
     return;
   }
   await api("/api/reiniciar", { grafo: "campus" });
@@ -1729,7 +1730,7 @@ async function accion(a) {
 
 async function sondeo() {
   if (window.__UNEXUAM_OFFLINE__) return;
-  if (!document.hidden && !document.body.classList.contains("sin-sesion") && !animando && !$("#svg-mesh").classList.contains("arrastrando")) {
+  if (!document.hidden && !document.body.classList.contains("sin-sesion") && !animando && !$("#svg-mesh")?.classList.contains("arrastrando")) {
     try {
       const r = await fetch("/api/estado");
       if (r.status === 401) { if (window.mostrarLogin) window.mostrarLogin(); setTimeout(sondeo, 4000); return; }
