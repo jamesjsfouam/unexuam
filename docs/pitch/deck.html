@@ -7,7 +7,7 @@
 <!--
   Deck de la exposición (10 min). Funciona sin internet: abre este archivo en el navegador.
   Teclas: → / Espacio / PageDown = siguiente paso · ← / PageUp = anterior
-          F = pantalla completa · N = notas · T = cronómetro · B = plan B (capturas) · R = volver
+          F = pantalla completa · T = cronómetro · B = plan B (capturas) · R = volver
           Inicio / Fin = primera / última diapositiva
 -->
 <style>
@@ -136,7 +136,6 @@ aside.notes{display:none}
   <p style="font-size:40px;font-weight:700;color:#fff;margin:0 0 14px">Evacuación Off-Grid para el campus UAM</p>
   <p style="font-size:30px;max-width:900px">Dos grafos dirigidos y ponderados para avisar y evacuar cuando no hay internet ni red celular.</p>
   <p class="who">James Santiago Fernández Obregón · 23 de noviembre de 2026</p>
-  <aside class="notes">Presentarse. Una frase: «Mi proyecto se llama Unexuam y usa dos grafos para avisar de una emergencia y sacar a la gente del campus sin depender de internet».</aside>
 </section>
 
 <!-- 2 · PROBLEMA -->
@@ -149,7 +148,6 @@ aside.notes{display:none}
     <div class="card col"><span class="tag t-alert">Información</span><h3>Nadie sabe por dónde salir</h3><p>¿Qué pasillo está bloqueado? ¿Cuál es la salida más rápida desde mi aula?</p></div>
   </div>
   <div class="result alert" style="font-size:27px"><b>Pregunta del proyecto:</b> ¿cómo avisar a todos y guiarlos a una zona segura sin ninguna infraestructura?</div>
-  <aside class="notes">Nicaragua es zona sísmica. Cuando más necesitamos el teléfono es cuando la red falla. Dos problemas: avisar (comunicación) y moverse (navegación).</aside>
 </section>
 
 <!-- 3 · SOLUCIÓN -->
@@ -168,7 +166,6 @@ aside.notes{display:none}
       <p><b>Vértice:</b> aula, pasillo, escalera, salida o zona segura.<br><b>Arista:</b> un paso de A a B; <b>peso</b> = segundos caminando.<br><b>Algoritmo:</b> Dijkstra hacia la zona segura más cercana.</p></div>
   </div>
   <p class="foot">Todo está escrito a mano en Python sobre las clases <code>Graph</code> y <code>Vertex</code> del curso, sin NetworkX. Se usa desde el teléfono con una web móvil hecha con Flask.</p>
-  <aside class="notes">La capa 1 responde «¿quién se entera?». La capa 2 responde «¿por dónde salgo?». Cuando la alerta llega, cambia los pesos de la capa 2 y la ruta se recalcula.</aside>
 </section>
 
 <!-- 4 · ESTRUCTURA -->
@@ -196,7 +193,6 @@ aside.notes{display:none}
       <div class="card"><h3>Lista de adyacencia</h3><p>Memoria O(V + E). Recorrer los vecinos de un vértice cuesta lo que tiene su lista.</p></div>
     </div>
   </div>
-  <aside class="notes">Son las clases del profe. Los vecinos son tuplas con el objeto Vertex, no el nombre. Eliminar vértice también quita las aristas que entran a él.</aside>
 </section>
 
 <!-- 5 · CAPA 1 -->
@@ -217,7 +213,6 @@ aside.notes{display:none}
       <p class="small muted" style="margin-top:12px">Ida y vuelta pueden tener pesos distintos: Ana → Sofía 0.8 s, Sofía → Ana 0.9 s.</p>
     </div>
   </div>
-  <aside class="notes">Cada flecha es una arista dirigida. Donde hay dos números, el primero va en el sentido en que está escrito el enlace. Carlos → Pedro y Pedro → Valeria solo van en un sentido.</aside>
 </section>
 
 <!-- 6 · BFS CON TTL -->
@@ -231,7 +226,6 @@ aside.notes{display:none}
       <div class="steplog" id="bfs-log"></div>
     </div>
   </div>
-  <aside class="notes">BFS usa una cola: primero todos los del salto 1, luego los del salto 2. Cuando un teléfono está en el salto TTL, recibe la alerta pero ya no la reenvía. Resultado: 5 de 8. Con TTL 5 llega a los 8. El TTL evita que la alerta rebote para siempre y gaste batería.</aside>
 </section>
 
 <!-- 7 · CAPA 2 -->
@@ -248,7 +242,6 @@ aside.notes{display:none}
     </div>
   </div>
   <p class="small muted" style="margin:6px 0 0">Plano del campus: © colaboradores de OpenStreetMap.</p>
-  <aside class="notes">Esta es la capa de afuera (44 vértices). Por dentro, B, C y P tienen dos pabellones por piso (este y oeste) con sus aulas y una escalera en cada extremo; eso suma 150. A un aula solo se llega desde su pabellón. El factor 1.3 es porque los caminos no son rectos; 1.2 m/s es caminar rápido.</aside>
 </section>
 
 <!-- 8 · DIJKSTRA (la tabla se calcula con los datos de CAMPUS) -->
@@ -260,7 +253,6 @@ aside.notes{display:none}
       <div class="result route hide" id="dij-res" style="margin-top:6px;font-size:19px"></div></div>
     <div class="col" style="flex:1"><table id="dtab"></table></div>
   </div>
-  <aside class="notes">Regla: siempre sacar el vértice no visitado con menor distancia y relajar sus aristas: si dist[u] + peso &lt; dist[v], actualizar dist[v] y anotar prev[v] = u. La ruta se reconstruye con prev desde el destino hacia atrás. La primera zona segura que sale es la más cercana. El pasillo elevado del pabellón oeste al Edificio E le gana a bajar las escaleras. Funciona porque no hay pesos negativos.</aside>
 </section>
 
 <!-- 9 · CAMPUS REAL: EDIFICIO P -->
@@ -276,7 +268,6 @@ aside.notes{display:none}
       <p class="small muted" style="margin:0">Es un trozo del grafo real; solo se dibujan las aristas de estas rutas.</p>
     </div>
   </div>
-  <aside class="notes">Mismo Dijkstra que en el ejemplo, ahora sobre los 154 vértices reales. Dos formas en que la alerta cambia el mapa: eliminarArista (cerrar) y aplicarAlerta (multiplicar el costo de entrar). No hay casos especiales: Dijkstra solo ve otros pesos.</aside>
 </section>
 
 <!-- 10 · DEMO -->
@@ -296,7 +287,6 @@ aside.notes{display:none}
     </div>
   </div>
   <p class="foot">Si algo falla: tecla <b>B</b> para ver las capturas.</p>
-  <aside class="notes">Seguir docs/pitch/demo.md. Máximo 2 minutos. Si la web no carga en 15 segundos, pasar a las capturas con B sin disculparse demasiado.</aside>
 </section>
 
 <!-- 11 · LIMITACIONES Y FUTURO -->
@@ -319,7 +309,6 @@ aside.notes{display:none}
         <li>Flujo máximo para encontrar cuellos de botella.</li>
       </ul></div>
   </div>
-  <aside class="notes">Decirlo con seguridad: el objetivo del curso son los grafos, y esa parte está completa. La radio real es ingeniería aparte que ya exploré en SéTú.</aside>
 </section>
 
 <!-- 12 · CIERRE -->
@@ -329,14 +318,12 @@ aside.notes{display:none}
   <p style="font-size:30px;max-width:980px">BFS con TTL para que todos se enteren. Dijkstra para que todos salgan por la ruta más rápida. Sin depender de la red.</p>
   <p class="who" style="font-size:30px;color:#fff">Gracias. ¿Preguntas?</p>
   <p class="who" style="margin-top:18px;font-family:Consolas,Menlo,monospace">github.com/jamesjsfouam/unexuam</p>
-  <aside class="notes">Pausa. Mirar al profe. Esperar preguntas (ver docs/pitch/preguntas.md).</aside>
 </section>
 
 <!-- PLAN B: capturas (no cuentan en el tiempo) -->
 <section class="slide planb" data-time="0">
   <p class="kicker">Plan B · 1/4</p><h2>Alerta Mesh desde Tel-Ana</h2>
   <div class="shot"><img src="capturas/01-alerta-mesh.jpg" alt="Alerta Mesh"></div>
-  <aside class="notes">Explicar sobre la captura igual que en vivo. R vuelve a la demo.</aside>
 </section>
 <section class="slide planb" data-time="0">
   <p class="kicker">Plan B · 2/4</p><h2>Ruta desde P-309: 77 s al Parqueo Oeste</h2>
@@ -679,7 +666,7 @@ function toggleTimer(){
 
 /* Capturas que aún no existen */
 document.querySelectorAll(".shot img").forEach(img=>{
-  img.addEventListener("error", ()=>{ img.replaceWith(Object.assign(document.createElement("div"),{className:"ph",innerHTML:`Falta la captura <code>${img.getAttribute("src")}</code>.<br>Ver docs/pitch/demo.md, sección «Capturas».`})); });
+  img.addEventListener("error", ()=>{ img.replaceWith(Object.assign(document.createElement("div"),{className:"ph",innerHTML:`Falta la captura <code>${img.getAttribute("src")}</code>.`})); });
 });
 
 /* Escalado 1280×720 */

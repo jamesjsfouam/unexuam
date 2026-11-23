@@ -44,10 +44,11 @@ Está diseñado para operar cuando se caen internet y la red celular, ejecutánd
 
 - **Grafos hechos a mano** — implementación pura en Python con las clases `Vertex` (`nombre`, `neig`) y `Graph` (`vertexs`), sin NetworkX ni `heapq`.
 - **Comunicación tolerante a retardos** — red Mesh simulada donde una alerta salta de teléfono en teléfono mediante **BFS limitado por TTL**.
+- **Mensajes sin internet** — cada persona entra con su **CIF y contraseña**; su teléfono se vuelve un vértice de la red Mesh y los mensajes viajan por la ruta de menor retardo (**Dijkstra**). Si no hay camino, esperan en una **cola DTN** y salen solos cuando aparece uno.
 - **Evacuación dinámica sobre el campus real** — 154 vértices y 442 aristas dirigidas construidas a partir del plano real de OpenStreetMap de la UAM, con recálculo inmediato mediante **Dijkstra** ante bloqueos o congestión.
 
 > [!NOTE]
-> Este proyecto es un prototipo funcional: la red Mesh se **simula** sobre el grafo de teléfonos en memoria. La comunicación física directa por Bluetooth Low Energy o Wi-Fi Direct, así como la cola DTN persistente y flujo máximo, quedan planteadas como trabajo futuro.
+> Prototipo funcional: los teléfonos se comunican a través del servidor Unexuam en la red Wi-Fi local (sin internet) y la red Mesh entre ellos se modela como un grafo. El enlace físico directo por Bluetooth Low Energy o Wi-Fi Direct queda como trabajo futuro.
 
 <br />
 
@@ -89,14 +90,15 @@ sequenceDiagram
 
 ## Funcionalidades y pantallas
 
-La aplicación web móvil sincroniza el estado en tiempo real entre todos los teléfonos conectados a la misma LAN:
+Se entra con **CIF y contraseña** (la cuenta se crea la primera vez) o con **Demo rápida · Admin**. La navegación inferior es una píldora de vidrio cuya cápsula sigue al dedo.
 
 | Pestaña / Modo | Qué hace |
 |---|---|
-| ![Inicio](https://img.shields.io/badge/-Inicio-0080FF?style=flat-square) | Resumen del estado de las dos redes, ruta activa, **simulacros rápidos en 1 toque** (sismo, congestión, bloqueo B–C y alerta Mesh), botón de instalación PWA y actividad en vivo. |
-| ![Red Mesh](https://img.shields.io/badge/-Red_Mesh-CC0000?style=flat-square) | Visualización de teléfonos y enlaces dirigidos con su peso. Permite emitir alertas configurando el **TTL** con animación salto a salto en todos los dispositivos conectados. |
-| ![Campus](https://img.shields.io/badge/-Campus_3D-0B2A4A?style=flat-square) | **Buscador instantáneo de aulas** y accesos rápidos (`P-309`, `C-305`, `B-205`, `B-101`), guía paso a paso con **lectura por voz (TTS)** y navegación `← Anterior` / `Siguiente →`, vista 3D explotada por pisos (con escalera central B–C) y **mapa 3D interactivo** (arrastrar, pinch-to-zoom, doble toque, brújula `N ↑`, botones `+`/`−`/`◎`). |
-| ![Administrar](https://img.shields.io/badge/-Administrar-0066CC?style=flat-square) | Inserción, actualización y eliminación de vértices y aristas en ambos grafos, más inspección de la lista de adyacencia. |
+| ![Inicio](https://img.shields.io/badge/-Inicio-0080FF?style=flat-square) | Estado de las dos redes y actividad en vivo. |
+| ![Evacuar](https://img.shields.io/badge/-Evacuar-0B2A4A?style=flat-square) | Buscador de aulas, guía paso a paso con voz, vista por pisos y mapa 3D con la ruta dibujada como grafo. Cualquier persona puede reportar un bloqueo o congestión. |
+| ![Mensajes](https://img.shields.io/badge/-Mensajes-00D656?style=flat-square) | Chats tipo WhatsApp entre personas registradas. Cada mensaje muestra sus saltos y su retardo por la red Mesh; los que no tienen camino quedan en cola (DTN). |
+| ![Red Mesh](https://img.shields.io/badge/-Red_Mesh-CC0000?style=flat-square) | Teléfonos y enlaces dirigidos con su peso; alertas con **TTL** animadas salto a salto. |
+| ![Admin](https://img.shields.io/badge/-Admin-0066CC?style=flat-square) | Solo administrador: editar vértices y aristas, **Dijkstra paso a paso en 2D** (ej. desde `C-101` hasta el punto seguro más cercano) y simulacros. |
 | ![Consola](https://img.shields.io/badge/-Menú_CLI-262626?style=flat-square) | Interfaz de consola clásica del curso (`python -m backend.menu`) para probar operaciones de grafos sin levantar el servidor web. |
 
 <br />
@@ -112,7 +114,7 @@ La aplicación web móvil sincroniza el estado en tiempo real entre todos los te
 | ![Frontend](https://img.shields.io/badge/-Frontend-0B2A4A?style=flat-square&logo=javascript&logoColor=white) | **HTML5 · CSS3 · JS vanilla** | Interfaz móvil con animación de entrada Off-Grid, sin frameworks ni CDNs: funciona completamente sin internet. |
 | ![Móvil](https://img.shields.io/badge/-App_Android-3DDC84?style=flat-square&logo=android&logoColor=white) | **Capacitor + motor offline** | Empaqueta el frontend y el grafo exportado desde `backend/datos.py` en un APK autónomo (`ni.edu.uam.unexuam`) con persistencia en `localStorage`. |
 | ![Cartografía](https://img.shields.io/badge/-Mapa_UAM-7EBC6F?style=flat-square&logo=openstreetmap&logoColor=white) | **OpenStreetMap + SVG 3D** | Geometría real del campus (`frontend/static/campus-plano.json` y `frontend/static/img/mapa-campus-3d.svg`). |
-| ![Pruebas](https://img.shields.io/badge/-Pruebas-1FBF5F?style=flat-square) | **unittest** | Suite de 31 pruebas (23 de backend + 8 de API, PWA y paridad frontend/backend). |
+| ![Pruebas](https://img.shields.io/badge/-Pruebas-1FBF5F?style=flat-square) | **unittest** | Suite de 41 pruebas de backend, API, sesión, mensajería y paridad del mapa. |
 
 ### Sistema de diseño
 
@@ -138,18 +140,18 @@ unexuam/
 │   ├── datos.py               # Campus real UAM (154 vértices, 442 aristas) y red Mesh
 │   ├── evacuacion.py          # dijkstra, rutaMasCorta, rutaEvacuacion, aplicarAlerta
 │   ├── mesh.py                # propagarAlerta (BFS limitado por TTL)
+│   ├── mensajeria.py          # Teléfonos en la red, rutas de mensajes y cola DTN
 │   └── menu.py                # Menú interactivo de consola
 ├── frontend/                  # Interfaz web móvil 100% offline
 │   ├── templates/index.html   # Shell de la aplicación
-│   └── static/                # app.css, app.js, campus-plano.json, manifest.json e img/
+│   └── static/                # app.js, cuenta.js (sesión, mensajes, Dijkstra 2D), estilos e img/
 ├── tests/
-│   ├── test_backend.py        # 23 pruebas unitarias de grafos, BFS y Dijkstra
-│   └── test_api.py            # 7 pruebas de API Flask, 5 flujos de usuario y paridad de mapa
+│   ├── test_backend.py        # Grafos, BFS, Dijkstra, Dijkstra paso a paso y mensajería
+│   └── test_api.py            # API, sesión, permisos de administrador, mensajes y paridad
 ├── mobile/                    # App Android autónoma (Capacitor + motor offline; genera Unexuam.apk)
 └── docs/
-    ├── marca/                 # Manual de identidad corporativa (PDF) y familia tipográfica Nexa
     ├── propuesta/             # Propuesta formal del proyecto (.docx y .md)
-    ├── pitch/                 # Diapositivas (deck.html), guion, demo, preguntas y capturas
+    ├── pitch/                 # Diapositivas (deck.html) y capturas
     └── mapa-campus/           # Scripts de extracción OSM y generación del mapa 3D/grafo
 ```
 
@@ -164,7 +166,11 @@ unexuam/
 | `POST /api/campus/ubicacion` | Fija la ubicación compartida y calcula la ruta de evacuación más rápida. |
 | `POST /api/campus/bloquear` / `desbloquear` | Elimina (`eliminarArista`) o restaura (`insertarArista`) pasillos o escaleras. |
 | `POST /api/campus/congestionar` | Aplica `aplicarAlerta(campus, lugar, factor)` multiplicando el peso de las aristas entrantes. |
-| `POST /api/<grafo>/vertice` · `arista` | Alta, baja y actualización de vértices y aristas en `mesh` o `campus`. |
+| `POST /api/<grafo>/vertice` · `arista` | Alta, baja y actualización de vértices y aristas en `mesh` o `campus` (solo administrador). |
+| `POST /api/registro` · `login` · `login/demo` · `logout` | Cuenta con CIF y contraseña (guardada con hash), acceso demo de administrador y cierre de sesión. |
+| `POST /api/yo/lugar` | Mueve tu teléfono a un lugar del campus y lo enlaza con los que están a su alcance. |
+| `GET /api/mensajes` · `POST /api/mensajes/enviar` | Contactos, conversaciones y envío por la ruta de menor retardo (o a la cola DTN). |
+| `POST /api/algoritmo` | Dijkstra paso a paso desde un lugar hasta la zona segura más cercana. |
 
 <br />
 
@@ -205,12 +211,18 @@ La consola imprimirá las dos direcciones de acceso:
 3. Si no carga, permite Python en el **Firewall de Windows** para redes privadas.
 4. Opcional: usa **«Agregar a la pantalla de inicio»** para abrirla como aplicación móvil (`manifest.json`).
 
-> [!TIP]
-> Varios teléfonos pueden abrir Unexuam simultáneamente: todos comparten el estado de la red y del campus, y una alerta emitida desde uno se anima en tiempo real en los demás.
+### 4. Prueba de mensajes con dos teléfonos
 
-### 4. Compilar la app móvil Android (APK autónomo)
+1. Con el servidor encendido, abre la dirección «Desde el teléfono» en **los dos teléfonos**.
+2. En cada uno, toca **Crear cuenta** con un CIF distinto y una contraseña.
+3. Ve a **Mensajes**: cada persona aparece en la lista de la otra. Abre el chat y escribe.
+4. Cada mensaje indica cuántos saltos dio y su retardo. Toca la tarjeta de tu teléfono para cambiar dónde estás: si te alejas de todos, los mensajes quedan en cola 🕓 y se entregan solos al volver a acercarte.
 
-La carpeta [`mobile/`](mobile/) empaqueta la aplicación completa para que funcione en Android **sin necesidad de tener la PC encendida**:
+Las cuentas y los mensajes se guardan en la carpeta `datos/` del servidor.
+
+### 5. Compilar la app móvil Android (APK autónomo)
+
+La carpeta [`mobile/`](mobile/) empaqueta la aplicación para que funcione en Android **sin la PC encendida** (en ese modo las cuentas y los mensajes quedan en el propio teléfono):
 
 ```powershell
 cd mobile
@@ -232,7 +244,7 @@ El APK queda en `mobile/android/app/build/outputs/apk/debug/app-debug.apk`.
 |---|---|
 | `python app.py` | Levanta el servidor web móvil en el puerto `5000` (`0.0.0.0`) |
 | `python -m backend.menu` | Abre el menú interactivo de consola para operar los grafos |
-| `python -m unittest discover -s tests -v` | Ejecuta las 30 pruebas (backend, API y paridad del mapa) |
+| `python -m unittest discover -s tests -v` | Ejecuta las 41 pruebas |
 | `cd mobile && npm run sync` | Sincroniza el grafo de `backend/datos.py` y el frontend con Android |
 
 <br />
@@ -241,13 +253,13 @@ El APK queda en `mobile/android/app/build/outputs/apk/debug/app-debug.apk`.
 
 ## Pruebas y validación
 
-La suite en [`tests/`](tests/) incluye **30 pruebas automatizadas** (`test_backend.py` + `test_api.py`):
+La suite en [`tests/`](tests/) incluye **41 pruebas automatizadas** (`test_backend.py` + `test_api.py`):
 
 ```powershell
 python -m unittest discover -s tests -v
 ```
 
-Cubren las operaciones fundamentales de `Graph` (inserción, búsqueda, eliminación de vértices/aristas y actualización de pesos), la propagación BFS con límite de `TTL` y prevención de ciclos en `propagarAlerta`, el cálculo de rutas mínimas con `dijkstra` / `rutaEvacuacion`, y la reevaluación de rutas tras `aplicarAlerta` y bloqueos de escaleras o pasillos del campus UAM.
+Cubren las operaciones fundamentales de `Graph` (inserción, búsqueda, eliminación de vértices/aristas y actualización de pesos), la propagación BFS con límite de `TTL` y prevención de ciclos en `propagarAlerta`, el cálculo de rutas mínimas con `dijkstra` / `rutaEvacuacion`, la reevaluación de rutas tras `aplicarAlerta` y bloqueos, el registro e inicio de sesión, los permisos de administrador y la entrega de mensajes directa o desde la cola DTN.
 
 <br />
 
