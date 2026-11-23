@@ -30,11 +30,25 @@ NOMBRES_EXTRA = {
     "527270735": "UAM College",
     "527270724": "Edificio B",
     "730964041": "Edificio C",
-    "527270727": "Edificio J",
+    "527270727": "Edificio D",
+    "527270728": "Edificio J",
     "527270729": "Clínicas Odontológicas",
     "1333922788": "Edificio O",              # Facultad de Ingeniería y Arquitectura
-    "527270723": "Subway",
+    "527270723": "Food Court",               # Google lo marca como Subway
+    # Correcciones de James (22/11/2026)
+    "1333922793": "Salón de Contenedores",
+    "1333922794": "Salón Multiusos",
+    "678946089": "Salón de Danza",
+    "678946088": "Vestidores",
+    "1553720157": "Comedor del Jaguarcito",  # mesas bajo un techo
+    "1553720158": "Kiosko del Jaguarcito",
+    "527270731": "Laboratorios",
+    "527270730": "El Ranchero",
+    "1553720162": "El Chilamate",            # mesas bajo un techo
+    "1553720156": "Kioskos de comida",       # son 3 kioskos
+    "730964037": "Banco Banpro",
 }
+NO_EXISTE = {"527270726"}   # está en OSM pero ya no existe (James, 22/11/2026)
 
 
 def dentro(punto, poligono):
@@ -83,6 +97,8 @@ def main():
             p = p[:-1]
         c = (sum(a for a, _ in p) / len(p), sum(b for _, b in p) / len(p))
         if not (dentro(c, campus) or any(dentro(q, campus) for q in p)):
+            continue
+        if wid in NO_EXISTE:
             continue
         if "building" in tags and cerrado:
             out["edificios"].append({"id": wid, "nombre": NOMBRES_EXTRA.get(wid, tags.get("name")),

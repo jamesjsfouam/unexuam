@@ -167,6 +167,56 @@ def cubierta(poligono, alto, techo, borde, lado="#f6f7f9"):
     return "".join(g)
 
 
+def barril(poligono, pared, flecha, n=14):
+    """Techo de medio barril (Jaguar Center): paredes grises con paneles turquesa y bóveda metálica.
+    La bóveda corre de oeste a este; el arco se ve en las fachadas este y oeste."""
+    p0, p1, p2, p3 = poligono[:4]
+    if abs(p1[0] - p0[0]) < abs(p1[1] - p0[1]):      # que p0→p1 sea el lado oeste-este
+        p0, p1, p2, p3 = p1, p2, p3, p0
+
+    def punto(u, v):
+        a = (p0[0] + (p1[0] - p0[0]) * u, p0[1] + (p1[1] - p0[1]) * u)
+        b = (p3[0] + (p2[0] - p3[0]) * u, p3[1] + (p2[1] - p3[1]) * u)
+        return (a[0] + (b[0] - a[0]) * v, a[1] + (b[1] - a[1]) * v)
+
+    g = [paredes(poligono, 0, pared, "#aab4bf", "#7d8894", "#5d6873")]
+    # paneles turquesa en la fachada sur (la que mira al observador)
+    sur = max(((poligono[i], poligono[(i + 1) % 4]) for i in range(4)), key=lambda e: e[0][1] + e[1][1])
+    (ax, ay), (bx, by) = sur
+    for k in range(1, 8, 2):
+        t0, t1 = k / 8, (k + .55) / 8
+        q = [P(ax + (bx - ax) * t0, ay + (by - ay) * t0, 1), P(ax + (bx - ax) * t1, ay + (by - ay) * t1, 1),
+             P(ax + (bx - ax) * t1, ay + (by - ay) * t1, pared - 1), P(ax + (bx - ax) * t0, ay + (by - ay) * t0, pared - 1)]
+        g.append(f'<polygon points="{" ".join(f"{a:.1f},{b:.1f}" for a, b in q)}" fill="#2cc1c4" opacity=".9"/>')
+    # bóveda: franjas de norte (v=0) a sur (v=1)
+    for i in range(n):
+        v0, v1 = i / n, (i + 1) / n
+        z0 = pared + flecha * math.sin(math.pi * v0)
+        z1 = pared + flecha * math.sin(math.pi * v1)
+        pend = math.cos(math.pi * (v0 + v1) / 2)          # >0 mira al norte, <0 al sur
+        color = mezclar("#9aa6b2", "#eef2f6", max(0, min(1, .55 - pend * .45)))
+        q = [P(*punto(0, v0), z0), P(*punto(1, v0), z0), P(*punto(1, v1), z1), P(*punto(0, v1), z1)]
+        g.append(f'<polygon points="{" ".join(f"{a:.1f},{b:.1f}" for a, b in q)}" fill="{color}" stroke="{color}" stroke-width=".6"/>')
+    # arco de la fachada este (visible)
+    arco = [P(*punto(1, i / n), pared + flecha * math.sin(math.pi * i / n)) for i in range(n + 1)] + \
+           [P(*punto(1, 1), pared), P(*punto(1, 0), pared)]
+    g.append(f'<polygon points="{" ".join(f"{a:.1f},{b:.1f}" for a, b in arco)}" fill="#8d97a2" stroke="#5d6873" stroke-width=".8"/>')
+    return "".join(g)
+
+
+def techado_mesas(poligono, alto):
+    """Techo sobre columnas con mesas debajo (comedores al aire libre)."""
+    xs = [q[0] for q in poligono]
+    ys = [q[1] for q in poligono]
+    g = [f'<polygon points="{pts(poligono)}" fill="#e9dcc0" opacity=".9"/>']
+    for x in range(int(min(xs)) + 3, int(max(xs)) - 1, 5):
+        for y in range(int(min(ys)) + 3, int(max(ys)) - 1, 5):
+            if dentro((x, y), poligono):
+                g.append(f'<polygon points="{pts(caja_r(x - 1.2, y - .8, x + 1.2, y + .8), 0.8)}" fill="#a0703a"/>')
+    g.append(cubierta(poligono, alto, "#e8a33d", "#9a5f10", lado="#f0b860"))
+    return "".join(g)
+
+
 def arbol(x, y, r=3.2):
     r *= ESC
     sx, sy = P(x, y)
@@ -203,10 +253,33 @@ def rotulo(ax, ay, az, dx, dy, texto, fondo=BLANCO, color=AZUL, borde=AZUL, tam=
 
 
 # ---------------------------------------------------------------- lugares
-INSIGNIA = {"Jaguar Center": "JC", "Edificio I": "I", "Edificio E": "E", "Edificio F": "F",
-            "Auditorio Central": "AC", "UAM College": "UC", "Edificio B": "B", "Edificio C": "C",
-            "Edificio A": "A", "Edificio J": "J", "Clínicas Odontológicas": "CO", "Edificio O": "O",
-            "Edificio P": "P", "Subway": "SW"}
+INSIGNIA = {"Salón de Contenedores": "SC", "Salón Multiusos": "SM", "Salón de Danza": "SD",
+            "Salón de Música": "MU", "Vestidores": "VE", "Jaguar Center": "JC", "Edificio I": "I",
+            "Edificio E": "E", "Edificio F": "F", "Auditorio Central": "AC", "UAM College": "UC",
+            "Food Court": "FC", "Banco Banpro": "BP", "Edificio B": "B", "Edificio C": "C",
+            "Edificio A": "A", "Laboratorios": "LB", "Edificio D": "D", "Edificio J": "J",
+            "Kioskos de comida": "KC", "El Ranchero": "RA", "Clínicas Odontológicas": "CO",
+            "El Chilamate": "CH", "Edificio O": "O", "Edificio P": "P", "Comedor del Jaguarcito": "CJ",
+            "Baño del Comedor": "BA", "Kiosko del Jaguarcito": "KJ"}
+PISO = 3.6   # metros por piso
+PISOS = {"Edificio P": 3, "Edificio C": 3, "Edificio A": 2, "Edificio B": 2, "Edificio E": 2,
+         "Edificio O": 2, "Clínicas Odontológicas": 2}       # dato de James; el resto se estima
+TECHADOS = {"Comedor del Jaguarcito", "El Chilamate"}         # mesas bajo un techo, sin paredes
+PASILLO_B_E = "730964043"   # pasillo elevado del 2.º piso del Edificio B al Edificio E (OSM)
+
+
+def caja_r(x0, y0, x1, y1):
+    return [(x0, y0), (x1, y0), (x1, y1), (x0, y1)]
+
+
+# Lo que no está en OpenStreetMap, ubicado con la vista satelital y las indicaciones de James
+EXTRA_EDIFICIOS = [
+    ("Salón de Música", caja_r(55.5, 57, 61.5, 63), 1),      # pequeño, delante del Salón de Danza
+    ("Baño del Comedor", caja_r(20.5, 171, 25.5, 180), 1),   # a la izquierda del Comedor del Jaguarcito
+]
+VOLEY_ARENA = caja_r(10, 60, 24, 80)       # pegada al borde oeste
+VOLEY = caja_r(27, 57, 41, 83)             # a la derecha de la de arena, a la izquierda de 3 y 4
+JUNGLA = [(163, 168), (179, 168), (179, 184), (181, 200), (176, 206), (163, 206)]   # a la izquierda de El Ranchero
 DETALLE = {"Edificio I": "Biblioteca Pablo Antonio Cuadra", "Edificio O": "Ingeniería y Arquitectura",
            "Edificio P": "Copérnico · Observatorio"}
 MIN_AREA = 60   # m²: más pequeño es un kiosco o caseta, se dibuja pero no es un lugar del grafo
@@ -279,9 +352,22 @@ def lugares(eds):
         c = centro_varios(poligonos_punto(ids))
         out.append({"nombre": nombre, "tipo": "punto seguro", "celdas_solares": nombre in CON_SOLAR,
                     "centro_m": [round(c[0], 1), round(c[1], 1)]})
+    for nombre, tipo, pol in (("Cancha de Voleibol de Arena", "cancha", VOLEY_ARENA), ("Cancha de Voleibol", "cancha", VOLEY),
+                              ("Jungla Jaguar", "área verde", JUNGLA)):
+        c = centro(pol)
+        out.append({"nombre": nombre, "tipo": tipo, "centro_m": [round(c[0], 1), round(c[1], 1)]})
     for e in out:
         if e["nombre"] in DETALLE:
             e["detalle"] = DETALLE[e["nombre"]]
+        if e["nombre"] in PISOS:
+            e["pisos"] = PISOS[e["nombre"]]
+        if e["nombre"] in TECHADOS:
+            e["techado_sin_paredes"] = True
+    for e in out:
+        if e["nombre"] == "Edificio B":
+            e["conexiones"] = [{"a": "Edificio E", "piso": 2, "tipo": "pasillo elevado"}]
+        if e["nombre"] == "Edificio E":
+            e["conexiones"] = [{"a": "Edificio B", "piso": 2, "tipo": "pasillo elevado"}]
     return out
 
 
@@ -372,6 +458,16 @@ def construir(eds):
     for dep in ("soccer", "baseball"):
         PL.append(f'<polygon points="{pts([tuple(q) for q in cancha(dep)["pol"]])}" fill="none" stroke="{AMARILLO}" stroke-width="2.6" stroke-dasharray="10 6"/>')
 
+    # Canchas de voleibol (arena y normal) y Jungla Jaguar
+    PL.append(suelo(VOLEY_ARENA, "#ecd9a6", borde="#cdb377"))
+    PL.append(suelo(VOLEY, "#4f7fbf", borde="#2f5f9f"))
+    for cancha_v in (VOLEY_ARENA, VOLEY):
+        (x0, y0), _, (x1, y1), _ = cancha_v
+        m = 2
+        PL.append(f'<polygon points="{pts(caja_r(x0 + m, y0 + m, x1 - m, y1 - m))}" fill="none" stroke="{BLANCO}" stroke-width="1.6"/>')
+        PL.append(f'<polyline points="{pts([(x0 + m, (y0 + y1) / 2), (x1 - m, (y0 + y1) / 2)])}" fill="none" stroke="{BLANCO}" stroke-width="2.4"/>')
+    PL.append(suelo(JUNGLA, "#2f8f48", borde="#23733a"))
+
     # Calles (recortadas al campus)
     anchos = {"residential": 9, "service": 5, "footway": 2}
     calles = []
@@ -389,7 +485,8 @@ def construir(eds):
     xs = [p[0] for p in CAMPUS]
     ys = [p[1] for p in CAMPUS]
     ocupado = [e["pol"] for e in eds] + [[tuple(q) for q in c["pol"]] for c in DATOS["canchas"]] + \
-              [[tuple(q) for q in p["pol"]] for p in DATOS["parqueos"]]
+              [[tuple(q) for q in p["pol"]] for p in DATOS["parqueos"]] + [VOLEY, VOLEY_ARENA] + \
+              [pol for _, pol, _ in EXTRA_EDIFICIOS]
 
     def libre(x, y):
         if not dentro((x, y), CAMPUS) or any(dentro((x, y), poli) for poli in ocupado):
@@ -404,12 +501,13 @@ def construir(eds):
         return True
 
     arboles = []
-    for a in DATOS["arboledas"]:
+    for a in DATOS["arboledas"] + [{"pol": JUNGLA}]:
         pol = [tuple(q) for q in a["pol"]]
-        for gx in range(int(min(xs)), int(max(xs)), 9):
-            for gy in range(int(min(ys)), int(max(ys)), 9):
+        paso = 5 if pol is JUNGLA else 9
+        for gx in range(int(min(xs)), int(max(xs)), paso):
+            for gy in range(int(min(ys)), int(max(ys)), paso):
                 x, y = gx + (gy * 7 % 5), gy + (gx * 3 % 4)
-                if dentro((x, y), pol) and libre(x, y):
+                if dentro((x, y), pol) and (libre(x, y) or pol is JUNGLA):
                     arboles.append((x, y))
     # borde: puntos cerca del contorno
     for i in range(len(CAMPUS)):
@@ -429,10 +527,29 @@ def construir(eds):
     # Edificios
     for e in eds:
         pol, area = e["pol"], e["area"]
-        alto = 15 if area >= 700 else 12 if area >= 250 else 9 if area >= MIN_AREA else 5
         nombre = e["nombre"] or ""
+        pisos = PISOS.get(nombre, 2 if area >= 700 else 1)
+        alto = pisos * PISO + 0.6 if area >= MIN_AREA else 3.2
         solar = e["id"] in SOLAR
-        if e["tipo"] == "roof":
+        if e["id"] == PASILLO_B_E:
+            svg = paredes(pol, PISO, PISO + 1.1, "#cfe5fc", "#7fb6ef", AZUL_OSC) + \
+                f'<polygon points="{pts(pol, PISO + 1.1)}" fill="#f7fbff" stroke="{AZUL_OSC}" stroke-width="1"/>'
+            alto = PISO + 1.1
+        elif nombre == "Jaguar Center":
+            svg = barril(pol, 7.5, 5.5)
+            alto = 13
+        elif nombre in TECHADOS:
+            svg = techado_mesas(pol, 4.2)
+            alto = 5.6
+        elif nombre == "Kioskos de comida":
+            xs = [q[0] for q in pol]
+            ys = [q[1] for q in pol]
+            x0, x1, y0, y1 = min(xs), max(xs), min(ys), max(ys)
+            ancho = (x1 - x0) / 3
+            svg = "".join(edificio(caja_r(x0 + i * ancho + .6, y0 + 2, x0 + (i + 1) * ancho - .6, y1 - 2), 3.4,
+                                   "#fff4d6", "#ffe9a8", "#e0b84a", "#a07a10") for i in range(3))
+            alto = 3.4
+        elif e["tipo"] == "roof":
             alto = min(alto, 9 if not solar else 5)
             svg = cubierta(pol, alto, "url(#solar)" if solar else "#f6f7f9",
                            "#4b5f78" if solar else "#8a97a6", lado="#9fb3cc" if solar else "#f6f7f9")
@@ -446,6 +563,12 @@ def construir(eds):
         cx, cy = e["c"]
         OB.append((prof(*max(pol, key=lambda q: prof(*q))), svg))
         e["alto"] = alto
+    # Edificios que no están en OSM
+    for nombre, pol, pisos in EXTRA_EDIFICIOS:
+        alto = pisos * PISO
+        OB.append((prof(*max(pol, key=lambda q: prof(*q))), edificio(pol, alto, "#f7fbff", "#cfe5fc", "#7fb6ef", AZUL_OSC)))
+        area = abs(sum(pol[i][0] * pol[(i + 1) % 4][1] - pol[(i + 1) % 4][0] * pol[i][1] for i in range(4))) / 2
+        eds.append({"nombre": nombre, "c": centro(pol), "alto": alto, "id": nombre, "pol": pol, "area": round(area), "tipo": "extra"})
     # Carports: techos de celdas solares sobre parqueos
     for p in DATOS["parqueos"]:
         if p["id"] in CARPORTS:
@@ -460,7 +583,7 @@ def construir(eds):
         if e["nombre"] in INSIGNIA:
             INS.append((prof(cx, cy), insignia(cx, cy, e["alto"], INSIGNIA[e["nombre"]],
                                                color=AZUL_OSC if e["nombre"] == "Edificio P" else AZUL)))
-        elif e.get("num"):
+        elif e.get("num") and e["id"] != PASILLO_B_E:
             INS.append((prof(cx, cy), insignia(cx, cy, e["alto"], str(e["num"]), color=GRIS, r=7.5)))
     for nombre, ids in PUNTOS_SEGUROS:
         cx, cy = centro_varios(poligonos_punto(ids))
@@ -478,7 +601,7 @@ def rotulos(eds):
         return (*e["c"], e["alto"])   # la línea termina debajo de la insignia (se dibuja antes)
 
     R = []
-    R.append(rotulo(*ancla("Jaguar Center"), -140, -135, "Jaguar Center", punto=False))
+    R.append(rotulo(*ancla("Jaguar Center"), -230, -150, "Jaguar Center", punto=False, sub="Gimnasio techado"))
     R.append(rotulo(*ancla("Edificio I"), -40, -175, "Edificio I", punto=False, sub="Biblioteca Pablo Antonio Cuadra"))
     R.append(rotulo(*ancla("Edificio E"), 60, -200, "Edificio E", punto=False))
     R.append(rotulo(*ancla("Edificio A"), 205, -95, "Edificio A", punto=False))
@@ -490,10 +613,15 @@ def rotulos(eds):
     f = centro([tuple(q) for q in cancha("soccer")["pol"]])
     b = centro([tuple(q) for q in cancha("baseball")["pol"]])
     R.append(rotulo(f[0], f[1], 0, -215, -60, "Zona segura", fondo="#2f9e48", color=BLANCO, borde="#2f9e48", tam=16, sub="Cancha de fútbol"))
-    R.append(rotulo(b[0], b[1], 0, -210, 70, "Zona segura", fondo="#2f9e48", color=BLANCO, borde="#2f9e48", tam=16, sub="Campo de béisbol"))
+    R.append(rotulo(b[0], b[1], 0, -210, 70, "Zona segura", fondo="#2f9e48", color=BLANCO, borde="#2f9e48", tam=16, sub="Jaguar Stadium (béisbol)"))
+    vx, vy = centro(caja_r(10, 57, 41, 83))
+    R.append(rotulo(vx, vy, 0, -190, -70, "Canchas de voleibol", sub="arena · normal"))
+    jx, jy = centro(JUNGLA)
+    R.append(rotulo(jx, jy, 6, -215, 45, "Jungla Jaguar", fondo="#2f8f48", color=BLANCO, borde="#2f8f48", tam=14))
+    R.append(rotulo(198.5, 119.5, PISO + 1.1, -120, -235, "Pasillo B–E", sub="2.º piso", tam=13))
     uam = max((c for c in DATOS["calles"] if c["nombre"] == "Universidad UAM"), key=lambda c: len(c["linea"]))
     mx, my = sorted((tuple(q) for q in uam["linea"] if dentro(tuple(q), CAMPUS)), key=lambda q: q[1])[0]
-    R.append(rotulo(mx, my, 0, 300, 200, "Universidad UAM", sub="Vía de acceso"))
+    R.append(rotulo(mx, my, 0, 190, 200, "Universidad UAM", sub="Vía de acceso"))
     return R
 
 
@@ -513,18 +641,18 @@ def rosa(cx, cy, r=46):
     return "".join(g)
 
 
-def lista_codigos(x=1428, y=268):
+def lista_codigos(x=1416, y=246):
     """Recuadro con las insignias de los edificios con nombre."""
     filas = list(INSIGNIA.items())
-    alto = 44 + len(filas) * 25
-    g = [f'<rect x="{x}" y="{y}" width="160" height="{alto}" rx="18" fill="{BLANCO}" stroke="{AZUL}" stroke-width="2.5"/>',
-         f'<text x="{x + 80}" y="{y + 22}" font-size="15" font-weight="900" fill="{AZUL}" text-anchor="middle" dominant-baseline="central">Edificios</text>']
+    alto = 44 + len(filas) * 21
+    g = [f'<rect x="{x}" y="{y}" width="176" height="{alto}" rx="18" fill="{BLANCO}" stroke="{AZUL}" stroke-width="2.5"/>',
+         f'<text x="{x + 88}" y="{y + 22}" font-size="15" font-weight="900" fill="{AZUL}" text-anchor="middle" dominant-baseline="central">Edificios</text>']
     for i, (nombre, cod) in enumerate(filas):
-        cy = y + 50 + i * 25
+        cy = y + 48 + i * 21
         col = AZUL_OSC if nombre == "Edificio P" else AZUL
-        g.append(f'<circle cx="{x + 22}" cy="{cy}" r="10" fill="{col}"/>'
-                 f'<text x="{x + 22}" y="{cy + .5}" font-size="{12 if len(cod) == 1 else 9}" font-weight="800" fill="{BLANCO}" text-anchor="middle" dominant-baseline="central">{cod}</text>'
-                 f'<text x="{x + 38}" y="{cy + .5}" font-size="{12 if len(nombre) < 16 else 10.5}" font-weight="700" fill="{AZUL}" dominant-baseline="central">{nombre}</text>')
+        g.append(f'<circle cx="{x + 20}" cy="{cy}" r="9" fill="{col}"/>'
+                 f'<text x="{x + 20}" y="{cy + .5}" font-size="{11 if len(cod) == 1 else 8.5}" font-weight="800" fill="{BLANCO}" text-anchor="middle" dominant-baseline="central">{cod}</text>'
+                 f'<text x="{x + 34}" y="{cy + .5}" font-size="{11.5 if len(nombre) < 18 else 10}" font-weight="700" fill="{AZUL}" dominant-baseline="central">{nombre}</text>')
     return "".join(g)
 
 
@@ -546,7 +674,8 @@ def documento():
 <text x="40" y="46" font-size="40" font-weight="900" fill="{BLANCO}" dominant-baseline="central">Campus UAM</text>
 <text x="330" y="48" font-size="20" font-weight="700" fill="{BLANCO}" opacity=".9" dominant-baseline="central">Mapa 3D · evacuación Off-Grid</text>
 <text x="{W - 40}" y="46" font-size="30" font-weight="900" fill="{BLANCO}" text-anchor="end" dominant-baseline="central" letter-spacing="1">UNEXUAM</text>'''
-    items = [("#f7fbff", AZUL_OSC, "Edificio con nombre"), ("#fbfcfd", "#8a97a6", f"Sin nombre (1–{n_sin})"),
+    items = [("#f7fbff", AZUL_OSC, "Edificio")] + ([("#fbfcfd", "#8a97a6", f"Sin nombre (1–{n_sin})")] if n_sin else []) + [
+             ("#4f7fbf", "#2f5f9f", "Canchas"),
              ("#47b660", AMARILLO, "Zona segura"), (VERDE, VERDE, "Punto seguro (PS)"),
              ("url(#solar)", "#4b5f78", "Celdas solares"), ("#c5ccd6", "#a9b3c0", "Vía Universidad UAM")]
     ley = [f'<g transform="translate(40,{H - 64})"><rect x="0" y="0" width="{W - 80}" height="44" rx="22" fill="{BLANCO}" stroke="{AZUL}" stroke-width="2.5"/>']

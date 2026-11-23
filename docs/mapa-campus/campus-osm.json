@@ -86,7 +86,7 @@
  "edificios": [
   {
    "id": "527270723",
-   "nombre": "Subway",
+   "nombre": "Food Court",
    "tipo": "yes",
    "area": 435,
    "pol": [
@@ -165,32 +165,8 @@
    ]
   },
   {
-   "id": "527270726",
-   "nombre": null,
-   "tipo": "yes",
-   "area": 108,
-   "pol": [
-    [
-     183.1,
-     214.1
-    ],
-    [
-     194.2,
-     213.8
-    ],
-    [
-     194.0,
-     204.1
-    ],
-    [
-     182.9,
-     204.3
-    ]
-   ]
-  },
-  {
    "id": "527270727",
-   "nombre": "Edificio J",
+   "nombre": "Edificio D",
    "tipo": "yes",
    "area": 126,
    "pol": [
@@ -222,7 +198,7 @@
   },
   {
    "id": "527270728",
-   "nombre": null,
+   "nombre": "Edificio J",
    "tipo": "yes",
    "area": 138,
    "pol": [
@@ -290,7 +266,7 @@
   },
   {
    "id": "527270730",
-   "nombre": null,
+   "nombre": "El Ranchero",
    "tipo": "yes",
    "area": 93,
    "pol": [
@@ -314,7 +290,7 @@
   },
   {
    "id": "527270731",
-   "nombre": null,
+   "nombre": "Laboratorios",
    "tipo": "university",
    "area": 327,
    "pol": [
@@ -490,7 +466,7 @@
   },
   {
    "id": "678946088",
-   "nombre": null,
+   "nombre": "Vestidores",
    "tipo": "yes",
    "area": 81,
    "pol": [
@@ -514,7 +490,7 @@
   },
   {
    "id": "678946089",
-   "nombre": null,
+   "nombre": "Salón de Danza",
    "tipo": "yes",
    "area": 102,
    "pol": [
@@ -538,7 +514,7 @@
   },
   {
    "id": "730964037",
-   "nombre": null,
+   "nombre": "Banco Banpro",
    "tipo": "university",
    "area": 82,
    "pol": [
@@ -870,7 +846,7 @@
   },
   {
    "id": "1333922793",
-   "nombre": null,
+   "nombre": "Salón de Contenedores",
    "tipo": "university",
    "area": 703,
    "pol": [
@@ -914,7 +890,7 @@
   },
   {
    "id": "1333922794",
-   "nombre": null,
+   "nombre": "Salón Multiusos",
    "tipo": "university",
    "area": 150,
    "pol": [
@@ -1106,7 +1082,7 @@
   },
   {
    "id": "1553720156",
-   "nombre": null,
+   "nombre": "Kioskos de comida",
    "tipo": "yes",
    "area": 320,
    "pol": [
@@ -1134,7 +1110,7 @@
   },
   {
    "id": "1553720157",
-   "nombre": null,
+   "nombre": "Comedor del Jaguarcito",
    "tipo": "university",
    "area": 1278,
    "pol": [
@@ -1158,7 +1134,7 @@
   },
   {
    "id": "1553720158",
-   "nombre": null,
+   "nombre": "Kiosko del Jaguarcito",
    "tipo": "university",
    "area": 732,
    "pol": [
@@ -1182,7 +1158,7 @@
   },
   {
    "id": "1553720162",
-   "nombre": null,
+   "nombre": "El Chilamate",
    "tipo": "yes",
    "area": 516,
    "pol": [

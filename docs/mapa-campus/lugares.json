@@ -9,13 +9,42 @@
     ]
   },
   {
+    "nombre": "Banco Banpro",
+    "tipo": "edificio",
+    "area_m2": 82,
+    "centro_m": [
+      290.9,
+      97.9
+    ]
+  },
+  {
+    "nombre": "Baño del Comedor",
+    "tipo": "edificio",
+    "area_m2": 45,
+    "centro_m": [
+      23.0,
+      175.5
+    ]
+  },
+  {
     "nombre": "Clínicas Odontológicas",
     "tipo": "edificio",
     "area_m2": 1415,
     "centro_m": [
       218.6,
       198.1
-    ]
+    ],
+    "pisos": 2
+  },
+  {
+    "nombre": "Comedor del Jaguarcito",
+    "tipo": "edificio",
+    "area_m2": 1278,
+    "centro_m": [
+      54.9,
+      176.1
+    ],
+    "techado_sin_paredes": true
   },
   {
     "nombre": "Edificio A",
@@ -24,7 +53,8 @@
     "centro_m": [
       267.0,
       133.8
-    ]
+    ],
+    "pisos": 2
   },
   {
     "nombre": "Edificio B",
@@ -33,6 +63,14 @@
     "centro_m": [
       223.1,
       126.9
+    ],
+    "pisos": 2,
+    "conexiones": [
+      {
+        "a": "Edificio E",
+        "piso": 2,
+        "tipo": "pasillo elevado"
+      }
     ]
   },
   {
@@ -42,6 +80,16 @@
     "centro_m": [
       223.1,
       143.7
+    ],
+    "pisos": 3
+  },
+  {
+    "nombre": "Edificio D",
+    "tipo": "edificio",
+    "area_m2": 126,
+    "centro_m": [
+      235.9,
+      180.1
     ]
   },
   {
@@ -51,6 +99,14 @@
     "centro_m": [
       194.7,
       81.4
+    ],
+    "pisos": 2,
+    "conexiones": [
+      {
+        "a": "Edificio B",
+        "piso": 2,
+        "tipo": "pasillo elevado"
+      }
     ]
   },
   {
@@ -75,10 +131,10 @@
   {
     "nombre": "Edificio J",
     "tipo": "edificio",
-    "area_m2": 126,
+    "area_m2": 138,
     "centro_m": [
-      235.9,
-      180.1
+      251.8,
+      180.4
     ]
   },
   {
@@ -89,7 +145,8 @@
       166.2,
       221.0
     ],
-    "detalle": "Ingeniería y Arquitectura"
+    "detalle": "Ingeniería y Arquitectura",
+    "pisos": 2
   },
   {
     "nombre": "Edificio P",
@@ -99,7 +156,36 @@
       217.8,
       251.6
     ],
-    "detalle": "Copérnico · Observatorio"
+    "detalle": "Copérnico · Observatorio",
+    "pisos": 3
+  },
+  {
+    "nombre": "El Chilamate",
+    "tipo": "edificio",
+    "area_m2": 516,
+    "centro_m": [
+      273.2,
+      207.1
+    ],
+    "techado_sin_paredes": true
+  },
+  {
+    "nombre": "El Ranchero",
+    "tipo": "edificio",
+    "area_m2": 93,
+    "centro_m": [
+      186.1,
+      189.8
+    ]
+  },
+  {
+    "nombre": "Food Court",
+    "tipo": "edificio",
+    "area_m2": 435,
+    "centro_m": [
+      252.9,
+      98.5
+    ]
   },
   {
     "nombre": "Jaguar Center",
@@ -111,12 +197,66 @@
     ]
   },
   {
-    "nombre": "Subway",
+    "nombre": "Kiosko del Jaguarcito",
     "tipo": "edificio",
-    "area_m2": 435,
+    "area_m2": 732,
     "centro_m": [
-      252.9,
-      98.5
+      107.1,
+      174.0
+    ]
+  },
+  {
+    "nombre": "Kioskos de comida",
+    "tipo": "edificio",
+    "area_m2": 320,
+    "centro_m": [
+      269.5,
+      171.8
+    ]
+  },
+  {
+    "nombre": "Laboratorios",
+    "tipo": "edificio",
+    "area_m2": 327,
+    "centro_m": [
+      158.7,
+      157.1
+    ]
+  },
+  {
+    "nombre": "Salón Multiusos",
+    "tipo": "edificio",
+    "area_m2": 150,
+    "centro_m": [
+      29.1,
+      48.4
+    ]
+  },
+  {
+    "nombre": "Salón de Contenedores",
+    "tipo": "edificio",
+    "area_m2": 703,
+    "centro_m": [
+      19.6,
+      36.0
+    ]
+  },
+  {
+    "nombre": "Salón de Danza",
+    "tipo": "edificio",
+    "area_m2": 102,
+    "centro_m": [
+      50.3,
+      61.2
+    ]
+  },
+  {
+    "nombre": "Salón de Música",
+    "tipo": "edificio",
+    "area_m2": 36,
+    "centro_m": [
+      58.5,
+      60.0
     ]
   },
   {
@@ -129,120 +269,12 @@
     ]
   },
   {
-    "nombre": "Edificio sin nombre 1",
-    "tipo": "edificio",
-    "area_m2": 703,
-    "centro_m": [
-      19.6,
-      36.0
-    ]
-  },
-  {
-    "nombre": "Edificio sin nombre 2",
-    "tipo": "edificio",
-    "area_m2": 150,
-    "centro_m": [
-      29.1,
-      48.4
-    ]
-  },
-  {
-    "nombre": "Edificio sin nombre 3",
-    "tipo": "edificio",
-    "area_m2": 102,
-    "centro_m": [
-      50.3,
-      61.2
-    ]
-  },
-  {
-    "nombre": "Edificio sin nombre 4",
+    "nombre": "Vestidores",
     "tipo": "edificio",
     "area_m2": 81,
     "centro_m": [
       47.9,
       78.7
-    ]
-  },
-  {
-    "nombre": "Edificio sin nombre 5",
-    "tipo": "edificio",
-    "area_m2": 82,
-    "centro_m": [
-      290.9,
-      97.9
-    ]
-  },
-  {
-    "nombre": "Edificio sin nombre 6",
-    "tipo": "edificio",
-    "area_m2": 327,
-    "centro_m": [
-      158.7,
-      157.1
-    ]
-  },
-  {
-    "nombre": "Edificio sin nombre 7",
-    "tipo": "edificio",
-    "area_m2": 1278,
-    "centro_m": [
-      54.9,
-      176.1
-    ]
-  },
-  {
-    "nombre": "Edificio sin nombre 8",
-    "tipo": "edificio",
-    "area_m2": 732,
-    "centro_m": [
-      107.1,
-      174.0
-    ]
-  },
-  {
-    "nombre": "Edificio sin nombre 9",
-    "tipo": "edificio",
-    "area_m2": 138,
-    "centro_m": [
-      251.8,
-      180.4
-    ]
-  },
-  {
-    "nombre": "Edificio sin nombre 10",
-    "tipo": "edificio",
-    "area_m2": 320,
-    "centro_m": [
-      269.5,
-      171.8
-    ]
-  },
-  {
-    "nombre": "Edificio sin nombre 11",
-    "tipo": "edificio",
-    "area_m2": 93,
-    "centro_m": [
-      186.1,
-      189.8
-    ]
-  },
-  {
-    "nombre": "Edificio sin nombre 12",
-    "tipo": "edificio",
-    "area_m2": 516,
-    "centro_m": [
-      273.2,
-      207.1
-    ]
-  },
-  {
-    "nombre": "Edificio sin nombre 13",
-    "tipo": "edificio",
-    "area_m2": 108,
-    "centro_m": [
-      188.5,
-      209.1
     ]
   },
   {
@@ -349,6 +381,30 @@
     "centro_m": [
       88.1,
       325.5
+    ]
+  },
+  {
+    "nombre": "Cancha de Voleibol de Arena",
+    "tipo": "cancha",
+    "centro_m": [
+      17.0,
+      70.0
+    ]
+  },
+  {
+    "nombre": "Cancha de Voleibol",
+    "tipo": "cancha",
+    "centro_m": [
+      34.0,
+      70.0
+    ]
+  },
+  {
+    "nombre": "Jungla Jaguar",
+    "tipo": "área verde",
+    "centro_m": [
+      171.2,
+      187.1
     ]
   }
 ]
