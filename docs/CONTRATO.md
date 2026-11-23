@@ -62,4 +62,5 @@ Mientras el backend no esté listo, el frontend usa `frontend/_stub_backend.py`,
 - **Sin la línea `Co-Authored-By`, sin "Generated with Claude" y sin usar `bugñuelitos`** para commitear. Decisión del usuario del 22/11.
 - Cada sesión hace `git add` **solo de sus carpetas** y `git commit -- <rutas>`. Nunca `git add -A`.
 - Mensajes en español, con el formato `tipo(área): descripción`.
-- No hacer push sin que James lo pida.
+- Remoto: https://github.com/jamesjsfouam/unexuam (público). **Después de cada commit, `git pull --rebase` y `git push`** (decisión de James del 22/11).
+- `README.md` lo mantiene la sesión coordinadora; si tu parte cambia algo del README, avisa en vez de editarlo.
