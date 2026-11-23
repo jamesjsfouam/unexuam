@@ -76,7 +76,7 @@ Veamos un ejemplo. Tel-Ana emite una alerta con TTL 2: puede llegar como mucho a
 
 ## 7 · Capa 2: el campus real (0:35)
 
-Este es el campus real de la UAM como grafo, sacado del plano. Afuera hay 43 lugares: edificios, comedores, salidas y parqueos. Por dentro de los edificios B, C y P, cada aula y cada escalera es un vértice. En total son 134 vértices y 368 aristas dirigidas.
+Este es el campus real de la UAM como grafo, sacado del plano. Afuera hay 43 lugares: edificios, comedores, salidas y parqueos. Por dentro, cada piso de los edificios B, C y P tiene dos pabellones, este y oeste, con sus aulas y una escalera en cada extremo; a un aula solo se llega desde su pabellón. En total son 150 vértices y 400 aristas dirigidas.
 
 El peso son los segundos a pie: la distancia del mapa por 1.3, porque los caminos no son rectos, dividida entre 1.2 metros por segundo. Hay 12 destinos seguros, entre zonas y parqueos, y Dijkstra elige el más cercano.
 
@@ -84,26 +84,29 @@ Y aquí se ve por qué tiene que ser dirigido: bajar un piso cuesta 12 segundos 
 
 ## 8 · Dijkstra paso a paso (1:30)
 
-Con 134 vértices no se puede seguir Dijkstra a mano, así que tomo un trozo real del campus: 7 vértices alrededor del aula B-210, en el segundo piso del Edificio B. Los pesos son los mismos del backend. La pregunta: estoy en B-210, ¿cuál es el lugar seguro más cercano? Al inicio, la distancia a B-210 es 0 y a todo lo demás infinito.
+Con 150 vértices no se puede seguir Dijkstra a mano, así que tomo un trozo real del campus: 7 vértices alrededor del aula B-210, en el segundo piso del Edificio B. Los pesos son los mismos del backend. La pregunta: estoy en B-210, ¿cuál es el lugar seguro más cercano? Al inicio, la distancia a B-210 es 0 y a todo lo demás infinito.
 
 La regla de Dijkstra es una sola: tomo el vértice **no visitado con la menor distancia** y reviso sus aristas. Si llegar por él es más barato, actualizo la distancia y anoto de dónde vine.
 
-▶ B-210, con 0: la escalera oeste del piso 2 queda a 6, y el Edificio E, por el pasillo elevado, a 15.
-▶ La escalera del piso 2, con 6, es la menor: bajar al piso 1 cuesta 12, así que la escalera del piso 1 queda a 18. Fíjense que subir costaría 18: el grafo es dirigido.
-▶ Edificio E, con 15: la Plazoleta queda a 15 + 32 = 47 y el Parqueo 20 Av a 15 + 44 = 59.
-▶ Escalera del piso 1, con 18: la salida oeste del B queda a 23.
-▶ Salida oeste, con 23: por aquí la Plazoleta costaría 23 + 49 = 72, que es peor que 47, así que **no se toca**. Esto es Dijkstra: solo cambia una distancia si encuentra algo mejor.
-▶ Sale la Plazoleta con 47. Como es el primer lugar seguro que sale, es el más cercano.
+▶ B-210, con 0: su pabellón, el oeste del piso 2, queda a 8.
+▶ Pabellón oeste, con 8: la escalera del piso 2 queda a 8 + 6 = 14, y el Edificio E, por el pasillo elevado, a 8 + 15 = 23.
+▶ Escalera del piso 2, con 14: bajar al piso 1 cuesta 12, así que la escalera del piso 1 queda a 26. Subir costaría 18: el grafo es dirigido.
+▶ Edificio E, con 23: la Plazoleta queda a 23 + 32 = 55.
+▶ Escalera del piso 1, con 26: la salida oeste del B queda a 31.
+▶ Salida oeste, con 31: por aquí la Plazoleta costaría 31 + 49 = 80, peor que 55, así que **no se toca**. Esto es Dijkstra: solo cambia una distancia si encuentra algo mejor.
+▶ Sale la Plazoleta con 55. Como es el primer lugar seguro que sale, es el más cercano.
 
-La ruta se reconstruye hacia atrás con «de dónde vine»: B-210, Edificio E, Plazoleta. **47 segundos**: el pasillo elevado le gana a bajar las escaleras. Con el campus completo, el backend da exactamente lo mismo. Esto funciona porque ningún peso es negativo.
+La ruta se reconstruye hacia atrás con «de dónde vine»: B-210, pabellón oeste, Edificio E, Plazoleta. **55 segundos**: el pasillo elevado le gana a bajar las escaleras. Con el campus completo, el backend da exactamente lo mismo. Esto funciona porque ningún peso es negativo.
+
+*(Son 7 pasos: un → por cada línea con ▶.)*
 
 ## 9 · Campus real: evacuar el aula P-309 (0:45)
 
-Ahora el mismo algoritmo sobre el campus real. Estoy en el aula P-309, en el tercer piso del Edificio P. Dijkstra me baja por la escalera oeste y me manda al Parqueo Oeste: 6 más 12, más 12, más 5, más 32, **67 segundos**.
+Ahora el mismo algoritmo sobre el campus completo. Estoy en el aula P-309, en el tercer piso del Edificio P. Salgo a mi pabellón, el oeste, y Dijkstra me baja por la escalera oeste al Parqueo Oeste: 10 más 6, más 12, más 12, más 5, más 32, **77 segundos**.
 
-▶ Primera forma en que una alerta cambia el mapa: **cerrar** algo. Si la escalera oeste se bloquea entre el piso 3 y el 2, uso `eliminarArista`. Dijkstra ya no la ve: cruza todo el pasillo hasta P-301, baja por la escalera este y llega al Parqueo del Edificio P en **156 segundos**.
+▶ Primera forma en que una alerta cambia el mapa: **cerrar** algo. Si la escalera oeste se bloquea entre el piso 3 y el 2, uso `eliminarArista`. Dijkstra ya no la ve: cruza al pabellón este, baja por la escalera este y llega al Parqueo del Edificio P en **136 segundos**.
 
-▶ Segunda forma: **encarecer** algo. Reabro la escalera, y por la Mesh llega la alerta de que el Parqueo Oeste está saturado. `aplicarAlerta` multiplica por 5 el costo de entrar: de 32 pasa a 160. Dijkstra cambia de destino solo: Parqueo Sur, **89 segundos**. No programé ningún caso especial: el algoritmo simplemente ve otros pesos.
+▶ Segunda forma: **encarecer** algo. Reabro la escalera, y por la Mesh llega la alerta de que el Parqueo Oeste está saturado. `aplicarAlerta` multiplica por 5 el costo de entrar: de 32 pasa a 160. Dijkstra cambia de destino solo: Parqueo Sur, **99 segundos**. No programé ningún caso especial: el algoritmo simplemente ve otros pesos.
 
 ## 10 · Demo en vivo (2:00)
 
@@ -111,7 +114,7 @@ Ahora lo muestro funcionando. *(Seguir `demo.md`.)*
 
 ## 11 · Limitaciones y trabajo futuro (0:40)
 
-Quiero ser honesto con lo que es y no es. Es un prototipo: la red Mesh está **simulada** con el grafo, no hay radio de verdad. Los pesos salen de la distancia del mapa, no de medir con cronómetro, y supuse una escalera en cada extremo de B, C y P. Y el servidor corre en una laptop.
+Quiero ser honesto con lo que es y no es. Es un prototipo: la red Mesh está **simulada** con el grafo, no hay radio de verdad. Los pesos salen de la distancia del mapa, no de medir con cronómetro, y supuse dos pabellones por piso con una escalera en cada extremo en B, C y P. Y el servidor corre en una laptop.
 
 Lo siguiente es conectar Bluetooth real usando lo que ya diseñé en SéTú: la cola, el TTL y los acuses de que otro teléfono guardó la alerta. También, que cada teléfono calcule su propia ruta sin servidor, medir los tiempos con cronómetro y usar flujo máximo para detectar cuellos de botella.
 

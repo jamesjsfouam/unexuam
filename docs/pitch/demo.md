@@ -24,25 +24,26 @@ Narra lo que pasa en el grafo, no los botones.
 | 0:00 | Pestaña **Red Mesh** | «Esta es la red de ocho teléfonos que vimos.» | El grafo de la Mesh. |
 | 0:10 | *Emitir desde* = **Tel-Ana**. TTL con **−** hasta **2**. **Emitir alerta** | «La misma alerta del ejemplo, con TTL 2.» | Mensaje: «llegó a 5 de 8 teléfonos». Recorrido: Ana 0, Luis 1, Sofía 1, Carlos 2, María 2. |
 | 0:30 | TTL con **+** hasta **5**. **Emitir alerta** | «Si dejo que dé más saltos, llega a todos.» | «llegó a 8 de 8 teléfonos». Pedro 3, Valeria 4, Diego 5. |
-| 0:45 | Pestaña **Campus**. *Estoy en…* = **P-309** | «Ahora soy un estudiante en el aula P-309, tercer piso del Edificio P.» | Ruta: P-309 → P Escalera Oeste P3 → P2 → P1 → P Salida Oeste → Punto Seguro Parqueo Oeste, **67 s**. |
-| 1:05 | Incidentes → **Bloquear pasillo**. Paso = **P Escalera Oeste P3 → P Escalera Oeste P2 (12 s)**, con «sentido contrario» marcado. **Bloquear (eliminarArista)** | «Se bloquea la escalera oeste entre el piso 3 y el 2.» | Ruta: P-309 → P-308 → … → P-301 → P Escalera Este P3 → P2 → P1 → P Salida Este → Punto Seguro Parqueo Edificio P, **156 s**. |
-| 1:25 | **Reabrir pasos**. Luego Incidentes → **Congestión**. Lugar = **Punto Seguro Parqueo Oeste**, **×5**, **Aplicar alerta (aplicarAlerta)** | «Reabro la escalera. Ahora llega la alerta de que el Parqueo Oeste está saturado.» | Primero vuelve la ruta de 67 s; tras la alerta: … → P Salida Oeste → Punto Seguro Parqueo Sur, **89 s**. |
+| 0:45 | Pestaña **Campus**. *Estoy en…* = **P-309** | «Ahora soy un estudiante en el aula P-309, tercer piso del Edificio P.» | Ruta: P-309 → P Pabellón Oeste P3 → P Escalera Oeste P3 → P2 → P1 → P Salida Oeste → Punto Seguro Parqueo Oeste, **77 s**. |
+| 1:05 | Incidentes → **Bloquear pasillo**. Paso = **P Escalera Oeste P3 → P Escalera Oeste P2 (12 s)**, con «sentido contrario» marcado. **Bloquear (eliminarArista)** | «Se bloquea la escalera oeste entre el piso 3 y el 2.» | Ruta: P-309 → P Pabellón Oeste P3 → P Pabellón Este P3 → P Escalera Este P3 → P2 → P1 → P Salida Este → Punto Seguro Parqueo Edificio P, **136 s**. |
+| 1:25 | **Reabrir pasos**. Luego Incidentes → **Congestión**. Lugar = **Punto Seguro Parqueo Oeste**, **×5**, **Aplicar alerta (aplicarAlerta)** | «Reabro la escalera. Ahora llega la alerta de que el Parqueo Oeste está saturado.» | Primero vuelve la ruta de 77 s; tras la alerta: … → P Salida Oeste → Punto Seguro Parqueo Sur, **99 s**. |
 | 2:00 | Volver al deck (→) | | |
 
-Si sobra tiempo: *Estoy en…* = **B-210** → pasillo elevado → Edificio E → Plazoleta, **47 s**. Si se bloquea **B-210 → Edificio E**, sale por la escalera oeste del B a la Plazoleta en **72 s**.
+Si sobra tiempo: *Estoy en…* = **B-210** → B Pabellón Oeste P2 → pasillo elevado → Edificio E → Plazoleta, **55 s**. Si se bloquea **B Pabellón Oeste P2 → Edificio E** (con sentido contrario), sale por la escalera oeste del B a la Plazoleta en **80 s**.
 
 Si el profe pide ver el CRUD: pestaña **Administrar** → Campus → *insertarVertice* («Aula 203») y *insertarArista dirigida* («Aula 203 → Pasillo B», 12). La lista de adyacencia de abajo muestra la tupla nueva.
 
 ### Cuentas de la demo (para responder si preguntan)
 
-Verificado el 23/11 con el backend real (`backend/datos.py`, campus de la UAM, commit c37f5ae):
+Verificado el 23/11 con el backend real (`backend/datos.py`, campus de la UAM con pabellones, commit 3d0442e; 150 vértices y 400 aristas):
 
-- **P-309 normal:** 6 (aula → escalera) + 12 (piso 3 → 2) + 12 (piso 2 → 1) + 5 (escalera → salida) + 32 (salida → Parqueo Oeste) = **67**.
-- **Escalera oeste P3 ↔ P2 cerrada:** 8 tramos de pasillo × 10 = 80 hasta P-301, + 6 + 12 + 12 + 5 + 41 (Salida Este → Parqueo Edificio P) = **156**.
-- **Parqueo Oeste ×5:** 32 → 160, así que por ahí serían 195; Parqueo Sur 6 + 12 + 12 + 5 + 54 = **89**. Con ×2, ×3 o ×10 sale lo mismo.
-- Subir un piso cuesta 18 s y bajarlo 12 s; pasillo del P 10 s entre aulas, del B y C 8 s.
+- **P-309 normal:** 10 (aula → pabellón oeste) + 6 (pabellón → escalera) + 12 (piso 3 → 2) + 12 (piso 2 → 1) + 5 (escalera → salida) + 32 (salida → Parqueo Oeste) = **77**.
+- **Escalera oeste P3 ↔ P2 cerrada:** 10 + 50 (pabellón oeste → pabellón este) + 6 + 12 + 12 + 5 + 41 (Salida Este → Parqueo Edificio P) = **136**.
+- **Parqueo Oeste ×5:** 32 → 160, así que por ahí serían 225; Parqueo Sur 10 + 6 + 12 + 12 + 5 + 54 = **99**. Con ×2, ×3 o ×10 sale lo mismo.
+- **B-210:** 8 + 15 + 32 = **55** por el pasillo elevado; sin él, 8 + 6 + 12 + 5 + 49 = **80**.
+- Subir un piso cuesta 18 s y bajarlo 12 s.
 
-Si cambias `backend/datos.py`, corrige a mano estos números, la diapositiva 9 (`EDIF_P` en el script de `deck.html`) y `guion.md`. La diapositiva 8 usa un subgrafo real de 7 vértices alrededor de B-210 (`CAMPUS` en el script de `deck.html`): B-210 → Edificio E → Plazoleta, 47 s, igual que el backend con el campus completo.
+Si cambias `backend/datos.py`, corrige a mano estos números, las diapositivas 8 y 9 (`CAMPUS` y `EDIF_P` en el script de `deck.html`) y `guion.md`.
 
 ## Plan B: si algo falla
 
@@ -62,8 +63,8 @@ Se guardan en `docs/pitch/capturas/` con estos nombres exactos (el deck las carg
 | Archivo | Pantalla |
 |---|---|
 | `01-alerta-mesh.png` | Red Mesh tras emitir desde Tel-Ana con TTL 2 (con el recorrido visible) |
-| `02-ruta-p309.png` | Campus con *Estoy en… P-309* y la ruta de 67 s |
-| `03-bloqueo.png` | Campus tras bloquear P Escalera Oeste P3 → P2, ruta de 156 s |
-| `04-congestion.png` | Campus tras reabrir y Parqueo Oeste ×5, ruta de 89 s |
+| `02-ruta-p309.png` | Campus con *Estoy en… P-309* y la ruta de 77 s |
+| `03-bloqueo.png` | Campus tras bloquear P Escalera Oeste P3 → P2, ruta de 136 s |
+| `04-congestion.png` | Campus tras reabrir y Parqueo Oeste ×5, ruta de 99 s |
 
 Tómalas con el **backend real** (no con el stub), en vista de teléfono, después de la última versión de `backend/datos.py`.
