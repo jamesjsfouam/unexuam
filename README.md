@@ -69,7 +69,17 @@ docs/
 
 ## Avance del backend
 
-- [ ] `grafo.py`
-- [ ] `datos.py`
-- [ ] `evacuacion.py`
-- [ ] `mesh.py`
+- [x] `grafo.py`: Vertex (`nombre`, `neig`) y Graph (`vertexs`)
+- [x] `datos.py`: campus y red Mesh de ejemplo
+- [x] `evacuacion.py`: Dijkstra, ruta más corta, ruta de evacuación, aplicarAlerta
+- [x] `mesh.py`: propagarAlerta (BFS con TTL)
+- [x] `menu.py`: menú de consola al estilo del curso (`python -m backend.menu`)
+- [ ] Cola DTN y flujo máximo: trabajo futuro
+
+## Pruebas
+
+```powershell
+python -m unittest discover -s tests
+```
+
+Son 16 pruebas del backend, sin dependencias externas.
