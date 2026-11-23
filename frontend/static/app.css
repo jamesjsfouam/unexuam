@@ -404,46 +404,96 @@ form.tarjeta { margin: 0; }
 .destino .cambio { align-self: flex-start; margin-top: 6px; }
 .destino .cambio.mejor, .destino .cambio.igual { background: var(--blanco); color: var(--azul); border: 0; }
 .destino .cambio.peor { background: var(--rojo); }
-.guia { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; counter-reset: paso; }
+.guia { list-style: none; margin: 0 -8px; padding: 0; display: flex; flex-direction: column; gap: 10px; }
 .paso {
-  display: flex; gap: 10px; align-items: flex-start; cursor: pointer;
-  border: 3px solid var(--azul); border-radius: 22px; padding: 10px 12px 8px 10px;
+  display: flex; flex-direction: column; gap: 8px; cursor: pointer;
+  border: 3px solid var(--azul); border-radius: 22px; padding: 10px 10px 8px; background: var(--blanco);
 }
 .paso.activa { background: var(--azul-claro); border-color: var(--azul-osc); }
 .paso.t-zona { border-color: #1e9e4a; }
+.paso-cab { display: flex; gap: 10px; align-items: flex-start; }
 .paso-n {
   flex: none; width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center;
   background: var(--azul); color: var(--blanco); font-weight: 900; font-size: 15px;
 }
 .paso.t-zona .paso-n { background: #1e9e4a; }
-.paso-cuerpo { flex: 1; min-width: 0; }
-.paso-texto { font-size: 15px; line-height: 1.35; color: var(--texto); }
-.paso-meta { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 4px; font-size: 12px; color: var(--azul); }
+.paso-texto { font-size: 15px; line-height: 1.35; color: var(--texto); padding-top: 4px; }
+.paso-3d { border-radius: 16px; overflow: hidden; background: #eef5ff; }
+.paso-3d:empty { display: none; }
+.paso-meta { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 12px; color: var(--azul); padding: 0 4px; }
 .paso-bloq {
   font: 700 11.5px var(--fuente); color: var(--rojo); background: var(--blanco);
   border: 2px solid var(--rojo); border-radius: var(--radio); padding: 3px 10px; cursor: pointer;
 }
 .consejo { font-size: 12.5px; color: var(--rojo); font-weight: 700; text-align: center; }
 
-/* ---------- campus: la ruta como grafo sobre el mapa 3D ---------- */
+/* ---------- vistas 3D (edificio explotado por pisos y mapa del campus) ---------- */
+.vista-3d svg, .paso-3d svg { display: block; width: 100%; height: auto; }
+.lienzo.edificio3d, .lienzo.mapa3d { margin: 0 -16px; border-radius: 0; border-left: 0; border-right: 0; }
+.edificio3d { background: linear-gradient(#f3f8ff, #dcecff); }
 .mapa3d { background: #cfe5ff; }
-.mapa3d .grafo { aspect-ratio: 4 / 3; }
-.r3-velo { fill: rgba(255, 255, 255, .28); }
+
+.e3d text { font-family: var(--fuente); font-weight: 800; text-anchor: middle; dominant-baseline: central; }
+.e3-losa { fill: #e8eef6; stroke: #b9c7d8; }
+.e3-losa.activo { fill: #dcebff; stroke: var(--azul); }
+.e3-canto { fill: #c9d5e3; }
+.e3-canto.activo { fill: #9cc5f5; }
+.e3-pab { stroke: none; }
+.e3-pab.este { fill: rgba(0, 128, 255, .10); }
+.e3-pab.oeste { fill: rgba(0, 128, 255, .18); }
+.e3-pab.activo.este { fill: rgba(0, 128, 255, .18); }
+.e3-pab.activo.oeste { fill: rgba(0, 128, 255, .28); }
+.e3-muro { stroke: #b3c0cf; stroke-width: .25; }
+.e3-techo-aulas { stroke: #c5d0dc; stroke-width: .2; opacity: .95; }
+.e3-ventanas { opacity: .9; }
+.e3-puerta { fill: #5b6f86; }
+.e3-tabique { fill: none; stroke: #b3c0cf; }
+.e3-ladrillo { fill: #b5523b; opacity: .92; }
+.e3-baranda { stroke: #8f9aa6; }
+.e3-escalera { fill: #d5dde7; stroke: #a9b6c5; stroke-width: .25; }
+.e3-escalera.activo { fill: #fff3c4; stroke: #e0b400; }
+.e3-peldano { stroke: #9aa8b8; }
+.e3-pozo { stroke: #e0b400; opacity: .7; }
+.e3-solar { fill: #1f3f6e; opacity: .85; }
+.e3-cupula { fill: #ffffff; stroke: #9aa8b8; stroke-width: .4; }
+.e3-salida rect { fill: #1e9e4a; }
+.e3-salida text { fill: #1e7a3c; }
+.e3-num { fill: #5b6f86; }
+.e3d .e3-piso { fill: #7d8a99; text-anchor: end; }
+.e3-piso.activo { fill: var(--azul); }
+.e3-pabtxt { fill: var(--azul); opacity: .75; }
+.e3-arista { stroke: var(--azul); stroke-linecap: round; }
+.e3-arista.punta { fill: var(--azul); stroke: none; }
+.e3-arista.resaltada { stroke: #e05a00; }
+.e3-arista.resaltada.punta { fill: #e05a00; stroke: none; }
+.e3-arista.tenue { opacity: .25; }
+.e3-peso rect { fill: var(--blanco); stroke: var(--azul); stroke-width: .35; }
+.e3-peso text { fill: var(--azul); }
+.e3-nodo circle { fill: var(--blanco); stroke: var(--azul); }
+.e3-nodo.inicio circle { fill: var(--amarillo); }
+.e3-nodo.inicio text { fill: var(--azul); }
+.e3-nodo.tenue { opacity: .35; }
+
+.c3d text { font-family: var(--fuente); }
+.r3-velo { fill: rgba(255, 255, 255, .22); }
 .r3-arista { stroke: var(--azul); stroke-linecap: round; }
-.r3-arista.activa { stroke: var(--amarillo); }
-.r3-flecha { fill: var(--azul); }
-.r3-flecha.activa { fill: #e0b400; }
+.r3-arista.punta { fill: var(--azul); stroke: none; }
+.r3-arista.resaltada { stroke: #e05a00; }
+.r3-arista.resaltada.punta { fill: #e05a00; }
+.r3-arista.tenue { opacity: .3; }
+.r3-dentro { stroke: var(--azul); opacity: .7; }
 .r3-bloq { stroke: var(--rojo); }
 .r3-peso rect { fill: var(--blanco); stroke: var(--azul); stroke-width: 1.2; }
 .r3-peso text { fill: var(--azul); font-weight: 800; text-anchor: middle; dominant-baseline: central; }
 .r3-nodo circle { fill: var(--blanco); stroke: var(--azul); }
 .r3-nodo text { font-weight: 900; text-anchor: middle; dominant-baseline: central; fill: var(--azul); }
 .r3-nodo.parada circle { fill: var(--azul); stroke: var(--blanco); }
-.r3-nodo.parada text { fill: var(--blanco); }
 .r3-nodo.inicio circle { fill: var(--amarillo); stroke: var(--azul); }
 .r3-nodo.meta circle { fill: #1e9e4a; stroke: var(--blanco); }
 .r3-nodo.meta text { fill: var(--blanco); }
-.r3-nodo.activa circle { stroke: var(--amarillo); }
-.r3-nodo .r3-etq, .r3-nodo.meta .r3-etq, .r3-nodo.parada .r3-etq { fill: var(--azul); font-weight: 800; paint-order: stroke; stroke: var(--blanco); stroke-linejoin: round; dominant-baseline: auto; }
+.r3-nodo .r3-etq, .r3-nodo.meta .r3-etq, .r3-nodo.inicio .r3-etq { fill: var(--azul); font-weight: 800; paint-order: stroke; stroke: var(--blanco); stroke-linejoin: round; dominant-baseline: auto; }
 .chip .l-tu { width: 14px; height: 14px; border-radius: 50%; background: var(--amarillo); border: 2px solid var(--azul); }
 .chip .l-parada { width: 14px; height: 14px; border-radius: 50%; background: var(--azul); }
+.edificio3d .vista-3d { overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: thin; }
+.edificio3d .vista-3d svg { width: 230%; max-width: none; }
+.desliza { margin: 0; padding: 2px 14px 8px; font-size: 11.5px; color: var(--azul); text-align: right; }

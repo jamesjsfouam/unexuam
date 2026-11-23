@@ -664,7 +664,7 @@ function pasosDeRuta(ruta) {
     } else {
       texto = idx === 0 && a.t === "aula" ? `Sal del aula ${a.n} y ve hacia ${b.n}.` : `Ve hacia ${b.n}.`;
     }
-    return { tipo, texto, segundos, de: ruta[g.desde], a: ruta[g.desde + 1], llega: b.n };
+    return { tipo, texto, segundos, de: ruta[g.desde], a: ruta[g.desde + 1], llega: b.n, desde: g.desde, hasta: g.hasta };
   });
 }
 
@@ -738,12 +738,10 @@ function renderCampus() {
     ${r.ruta.length === 1 ? `<p class="nota">Ya estás en un punto seguro.</p>` : ""}
     <ol class="guia">${pasos.map((p, i) => `
       <li class="paso t-${p.tipo}${i === pasoActivo ? " activa" : ""}" data-paso="${i}">
-        <span class="paso-n">${i + 1}</span>
-        <div class="paso-cuerpo">
-          <p class="paso-texto">${esc(p.texto)}</p>
-          <p class="paso-meta"><span>${ICONO_PASO[p.tipo] || "→"} ${minutos(p.segundos)}</span>
-            <button type="button" class="paso-bloq" data-bloq='${esc(JSON.stringify([p.de, p.a]))}'>Simular bloqueo</button></p>
-        </div>
+        <div class="paso-cab"><span class="paso-n">${i + 1}</span><p class="paso-texto">${esc(p.texto)}</p></div>
+        <div class="paso-3d">${vistaPaso(r, p)}</div>
+        <p class="paso-meta"><span>${ICONO_PASO[p.tipo] || "→"} ${minutos(p.segundos)}</span>
+          <button type="button" class="paso-bloq" data-bloq='${esc(JSON.stringify([p.de, p.a]))}'>Simular bloqueo</button></p>
       </li>`).join("")}
     </ol>
     <p class="consejo">Camina, no corras. No uses el ascensor. Ayuda a quien lo necesite y espera indicaciones en el punto seguro.</p>`;
@@ -756,21 +754,32 @@ function bloquear(o, d, ambos) {
 }
 
 
-/* --- La ruta dibujada como GRAFO encima del mapa 3D del campus -------------------------
- * El mapa (img/mapa-campus-3d.svg) lo genera docs/mapa-campus/generar_mapa.py con una
- * proyección isométrica: giro de 16°, achatamiento 0.58 y encaje en 200..1400 x 140..935
- * de un lienzo de 1600 x 1060. Aquí se reproduce la misma proyección P(x, y, z) para poner
- * cada vértice de la ruta (en metros, de campus-plano.json) justo encima de su lugar.
- * Las aulas, pabellones y escaleras de B, C y P no tienen coordenada propia: se ubican
- * entre la salida este y la oeste de su edificio, a la altura de su piso. */
+/* --- Vistas 3D de la ruta ----------------------------------------------------------------
+ * 1) Edificio por dentro (B, C, P): los pisos separados en vertical («vista explotada») para
+ *    que se vea cada piso con sus aulas, sus dos pabellones (este y oeste), las escaleras de los
+ *    extremos y las salidas. La ruta se dibuja encima como grafo: cada vértice es un círculo y
+ *    cada arista una flecha con su peso. Cada paso de la guía trae su propia vista pequeña.
+ * 2) Campus: el mapa 3D (img/mapa-campus-3d.svg) con el tramo exterior de la ruta.
+ * Las dos vistas usan la proyección del mapa 3D (docs/mapa-campus/generar_mapa.py):
+ * giro de 16°, achatamiento 0.58, en metros de campus-plano.json (x al este, y al sur). */
 
 let PLANO = null;            // frontend/static/campus-plano.json (OpenStreetMap, en metros)
 let PROY = null;             // { esc, ox, oy } de la proyección del mapa 3D
 let mapaCompleto = false;    // false: acercado a la ruta · true: todo el campus
-let pasoActivo = -1;         // paso de la guía resaltado en el mapa
+let pasoActivo = -1;         // paso de la guía resaltado
 
-const MAPA_W = 1600, MAPA_H = 1060, PISO_M = 3.6;
+const MAPA_W = 1600, MAPA_H = 1060;
 const GIRO = 16 * Math.PI / 180, ACHATE = 0.58, COS_G = Math.cos(GIRO), SEN_G = Math.sin(GIRO);
+const ANCHO_ED = 12;         // ancho del edificio (m): aulas atrás, pabellón adelante
+const SEP_PISO = 13;         // separación entre pisos en la vista explotada (el real es 3.6 m)
+
+/* Estilo de fachada por edificio (FOTOS.md: B con torre de ladrillo; P «Copérnico» con
+ * barandas grises, techo solar y cúpula del observatorio al este; C blanco con ventanas azules). */
+const FACHADA = {
+  B: { muro: "#ffffff", ventana: "#7fb6e8", ladrillo: [0.02, 0.12], nombre: "Edificio B" },
+  C: { muro: "#ffffff", ventana: "#6aa9e6", nombre: "Edificio C" },
+  P: { muro: "#f7f9fb", ventana: "#7fb6e8", barandas: true, cupula: "este", solar: true, nombre: "Edificio P · Copérnico" },
+};
 
 function proyBase(x, y, z) {
   const xr = x * COS_G - y * SEN_G, yr = x * SEN_G + y * COS_G;
@@ -778,18 +787,14 @@ function proyBase(x, y, z) {
 }
 
 function prepararProyeccion() {
-  // igual que encajar(200, 140, 1400, 935) en generar_mapa.py
+  // igual que encajar(200, 140, 1400, 935) en generar_mapa.py (z de -6 a 20)
   const pts = [];
   for (const [x, y] of PLANO.campus) for (const z of [-6, 20]) pts.push(proyBase(x, y, z));
   const bx0 = Math.min(...pts.map(p => p[0])), bx1 = Math.max(...pts.map(p => p[0]));
   const by0 = Math.min(...pts.map(p => p[1])), by1 = Math.max(...pts.map(p => p[1]));
   const [x0, y0, x1, y1] = [200, 140, 1400, 935];
   const esc = Math.min((x1 - x0) / (bx1 - bx0), (y1 - y0) / (by1 - by0));
-  PROY = {
-    esc,
-    ox: x0 + ((x1 - x0) - (bx1 - bx0) * esc) / 2 - bx0 * esc,
-    oy: y0 + ((y1 - y0) - (by1 - by0) * esc) / 2 - by0 * esc,
-  };
+  PROY = { esc, ox: x0 + ((x1 - x0) - (bx1 - bx0) * esc) / 2 - bx0 * esc, oy: y0 + ((y1 - y0) - (by1 - by0) * esc) / 2 - by0 * esc };
 }
 
 function proyectar(x, y, z = 0) {
@@ -802,112 +807,298 @@ fetch("/static/campus-plano.json").then(r => r.json()).then(j => {
   if (E) renderCampus();
 }).catch(() => {});
 
-function posicion3D(n) {
+function corto(n) {
+  return n.replace(/^Punto Seguro /, "PS ").replace(/^Zona Segura /, "ZS ").replace(/ Pabell[oó]n /, " Pab. ")
+    .replace(/ Escalera /, " Esc. ");
+}
+
+const edificioDe = n => { const i = lugarInfo(n); return i.ed && FACHADA[i.ed] ? i.ed : null; };
+
+/* ---------- 1) el edificio por dentro ---------- */
+
+function geomEdificio(L) {
+  if (!PLANO) return null;
+  const este = PLANO.posiciones[`${L} Salida Este`], oeste = PLANO.posiciones[`${L} Salida Oeste`];
+  if (!este || !oeste) return null;
+  const dx = oeste[0] - este[0], dy = oeste[1] - este[1], len = Math.hypot(dx, dy) || 1;
+  const ux = dx / len, uy = dy / len;
+  let nx = -uy, ny = ux;
+  if (ny < 0) { nx = -nx; ny = -ny; }          // +v apunta al sur: el lado que mira al observador
+  const pisos = new Set(), aulas = {};
+  for (const v of E.campus.vertices) {
+    const i = lugarInfo(v);
+    if (i.ed !== L || !i.piso) continue;
+    pisos.add(i.piso);
+    if (i.t === "aula") aulas[i.piso] = (aulas[i.piso] || 0) + 1;
+  }
+  return { L, este, ux, uy, nx, ny, len, pisos: [...pisos].sort((a, b) => a - b), aulas };
+}
+
+function enEdificio(G, u, v, z) {
+  // u: 0 = extremo este, 1 = extremo oeste · v: metros hacia el sur desde el eje · z: altura
+  const x = G.este[0] + G.ux * G.len * u + G.nx * v, y = G.este[1] + G.uy * G.len * u + G.ny * v;
+  const [a, b] = proyBase(x, y, z);
+  return { x: a, y: b };
+}
+
+const zPiso = p => (p - 1) * SEP_PISO;
+
+function nodoEnEdificio(G, n) {
+  const i = lugarInfo(n);
+  if (i.ed !== G.L) return null;
+  const W = ANCHO_ED;
+  if (i.t === "aula") return enEdificio(G, 0.1 + 0.8 * (i.num - 0.5) / (G.aulas[i.piso] || 1), -W / 4, zPiso(i.piso) + 0.4);
+  if (i.t === "pabellon") return enEdificio(G, i.lado === "este" ? 0.3 : 0.7, W / 4, zPiso(i.piso) + 0.4);
+  if (i.t === "escalera") return enEdificio(G, i.lado === "este" ? 0.03 : 0.97, W / 4, zPiso(i.piso) + 0.4);
+  if (i.t === "salida") return enEdificio(G, i.lado === "este" ? -0.11 : 1.11, W / 4, 0.4);
+  return null;
+}
+
+function poli(pts, cls, extra = "") {
+  return `<polygon class="${cls}" ${extra} points="${pts.map(p => `${p.x.toFixed(2)},${p.y.toFixed(2)}`).join(" ")}"/>`;
+}
+
+/* Dibuja el edificio L con sus pisos separados y la ruta como grafo.
+ * o.ruta: vértices de la ruta · o.resaltar: Set de índices de aristas del paso · o.mini: vista pequeña */
+function edificio3D(L, o) {
+  const G = geomEdificio(L);
+  if (!G || !G.pisos.length) return "";
+  const F = FACHADA[L], W = ANCHO_ED, top = G.pisos[G.pisos.length - 1];
+  const P = (u, v, z) => enEdificio(G, u, v, z);
+  // caja de la vista
+  const esquinas = [];
+  for (const u of [-0.2, 1.24]) for (const v of [-W / 2 - 2, W / 2]) for (const z of [0, zPiso(top) + 5]) esquinas.push(P(u, v, z));
+  const x0 = Math.min(...esquinas.map(p => p.x)), x1 = Math.max(...esquinas.map(p => p.x));
+  const y0 = Math.min(...esquinas.map(p => p.y)) - 4, y1 = Math.max(...esquinas.map(p => p.y)) + 2;
+  const k = (x1 - x0) / 340;                       // metros de la vista por píxel
+  const ruta = o.ruta || [];
+  const pisosRuta = new Set(ruta.map(n => lugarInfo(n)).filter(i => i.ed === L && i.piso).map(i => i.piso));
+  let svg = "";
+
+  // pozos de las escaleras (unen los pisos)
+  for (const u of [0.03, 0.97]) {
+    const a = P(u, W / 4, 0), b = P(u, W / 4, zPiso(top));
+    svg += `<line class="e3-pozo" x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}" stroke-width="${2.2 * k}" stroke-dasharray="${3 * k} ${2.5 * k}"/>`;
+  }
+
+  for (const p of G.pisos) {
+    const z = zPiso(p), activo = pisosRuta.has(p);
+    const cls = activo ? " activo" : "";
+    // losa del piso (con su canto)
+    svg += poli([P(-0.02, -W / 2, z), P(1.02, -W / 2, z), P(1.02, W / 2, z), P(-0.02, W / 2, z)], "e3-losa" + cls, `stroke-width="${0.9 * k}"`);
+    svg += poli([P(-0.02, W / 2, z), P(1.02, W / 2, z), P(1.02, W / 2, z - 0.8), P(-0.02, W / 2, z - 0.8)], "e3-canto" + cls);
+    // pabellones (las dos mitades del pasillo, adelante)
+    svg += poli([P(0.06, 0, z), P(0.5, 0, z), P(0.5, W / 2, z), P(0.06, W / 2, z)], "e3-pab este" + cls);
+    svg += poli([P(0.5, 0, z), P(0.94, 0, z), P(0.94, W / 2, z), P(0.5, W / 2, z)], "e3-pab oeste" + cls);
+    // fila de aulas (atrás): muro frontal con franja de ventanas y una puerta por aula
+    const n = G.aulas[p] || 0, h = 3;
+    svg += poli([P(0.06, -W / 2, z + h), P(0.94, -W / 2, z + h), P(0.94, 0, z + h), P(0.06, 0, z + h)], "e3-techo-aulas", `fill="${F.muro}"`);
+    svg += poli([P(0.06, 0, z), P(0.94, 0, z), P(0.94, 0, z + h), P(0.06, 0, z + h)], "e3-muro", `fill="${F.muro}"`);
+    svg += poli([P(0.06, 0, z + 1.4), P(0.94, 0, z + 1.4), P(0.94, 0, z + 2.3), P(0.06, 0, z + 2.3)], "e3-ventanas", `fill="${F.ventana}"`);
+    for (let a = 1; a <= n; a++) {
+      const u = 0.1 + 0.8 * (a - 0.5) / n, d0 = P(u - 0.012, 0, z), d1 = P(u + 0.012, 0, z + 2.1);
+      svg += `<rect class="e3-puerta" x="${Math.min(d0.x, d1.x)}" y="${d1.y}" width="${Math.abs(d1.x - d0.x) + 0.4 * k}" height="${d0.y - d1.y}"/>`;
+      if (!o.mini) {
+        const t = P(u, 0, z + h + 0.3);
+        svg += `<text class="e3-num" x="${t.x}" y="${t.y}" font-size="${7 * k}">${p}${String(a).padStart(2, "0")}</text>`;
+      }
+      if (a < n) {
+        const m = 0.1 + 0.8 * a / n, s0 = P(m, -W / 2, z + h), s1 = P(m, 0, z + h), s2 = P(m, 0, z);
+        svg += `<polyline class="e3-tabique" points="${s0.x},${s0.y} ${s1.x},${s1.y} ${s2.x},${s2.y}" stroke-width="${0.6 * k}"/>`;
+      }
+    }
+    if (F.ladrillo) {        // torre de escaleras revestida de ladrillo (Edificio B)
+      const [a0, a1] = F.ladrillo;
+      svg += poli([P(a0, 0, z), P(a1, 0, z), P(a1, 0, z + h + 1), P(a0, 0, z + h + 1)], "e3-ladrillo");
+    }
+    if (F.barandas) {        // pasillos abiertos con barandas grises (Edificio P)
+      const b0 = P(0.04, W / 2, z + 1.1), b1 = P(0.96, W / 2, z + 1.1);
+      svg += `<line class="e3-baranda" x1="${b0.x}" y1="${b0.y}" x2="${b1.x}" y2="${b1.y}" stroke-width="${0.8 * k}"/>`;
+    }
+    // escaleras de los extremos
+    for (const [u0, u1] of [[0, 0.06], [0.94, 1]]) {
+      svg += poli([P(u0, -W / 2, z), P(u1, -W / 2, z), P(u1, W / 2, z), P(u0, W / 2, z)], "e3-escalera" + cls);
+      for (let s = 1; s < 5; s++) {
+        const v = -W / 2 + (W * s) / 5, l0 = P(u0, v, z + 0.05), l1 = P(u1, v, z + 0.05);
+        svg += `<line class="e3-peldano" x1="${l0.x}" y1="${l0.y}" x2="${l1.x}" y2="${l1.y}" stroke-width="${0.5 * k}"/>`;
+      }
+    }
+    // rótulos del piso y de los pabellones
+    const rp = P(-0.05, -W / 2, z + 4.2);
+    svg += `<text class="e3-piso${cls}" text-anchor="end" x="${rp.x}" y="${rp.y}" font-size="${(o.mini ? 10 : 9) * k}">${p === 1 ? "Planta baja" : "Piso " + p}</text>`;
+    if (!o.mini) {
+      for (const [u, txt] of [[0.28, "Pab. Este"], [0.72, "Pab. Oeste"]]) {
+        const t = P(u, W / 2 - 0.6, z);
+        svg += `<text class="e3-pabtxt" x="${t.x}" y="${t.y}" font-size="${6.5 * k}">${txt}</text>`;
+      }
+    }
+  }
+  // techo y detalles del último piso
+  const zt = zPiso(top) + 3;
+  if (F.solar) svg += poli([P(0.2, -W / 2 + 0.5, zt + 0.2), P(0.8, -W / 2 + 0.5, zt + 0.2), P(0.8, -1, zt + 0.2), P(0.2, -1, zt + 0.2)], "e3-solar");
+  if (F.cupula) {
+    const c = P(F.cupula === "este" ? 0.03 : 0.97, -W / 4, zt + 1.5);
+    svg += `<ellipse class="e3-cupula" cx="${c.x}" cy="${c.y}" rx="${4 * (o.mini ? 1 : 0.8)}" ry="${3.2 * (o.mini ? 1 : 0.8)}"/>`;
+  }
+  // salidas de la planta baja
+  for (const [u, txt] of [[-0.11, "Salida Este"], [1.11, "Salida Oeste"]]) {
+    const pnt = P(u, W / 4, 0);
+    svg += `<g class="e3-salida"><rect x="${pnt.x - 4 * k}" y="${pnt.y - 7 * k}" width="${8 * k}" height="${7 * k}" rx="${1.5 * k}"/>
+      ${o.mini ? "" : `<text x="${pnt.x}" y="${pnt.y + 7 * k}" font-size="${6.5 * k}">${txt}</text>`}</g>`;
+  }
+
+  // la ruta como grafo (solo los vértices de este edificio)
+  const pos = ruta.map(n => nodoEnEdificio(G, n));
+  const peso = new Map(E.campus.aristas.map(a => [clave(a.origen, a.destino), a.peso]));
+  let aristas = "", pesos = "", nodos = "";
+  for (let i = 0; i + 1 < ruta.length; i++) {
+    const A = pos[i], B = pos[i + 1];
+    if (!A || !B) continue;
+    const res = o.resaltar ? o.resaltar.has(i) : true;
+    const cls = o.resaltar ? (res ? "resaltada" : "tenue") : "";
+    aristas += flecha(A, B, k * (o.mini ? 1.25 : 1), "e3-arista " + cls, 3.4);
+    const p = peso.get(clave(ruta[i], ruta[i + 1]));
+    if (p !== undefined && res) {
+      const m = { x: (A.x + B.x) / 2, y: (A.y + B.y) / 2 };
+      pesos += `<g class="e3-peso"><rect x="${m.x - 9 * k}" y="${m.y - 5.5 * k}" width="${18 * k}" height="${11 * k}" rx="${5.5 * k}"/><text x="${m.x}" y="${m.y}" font-size="${7.5 * k}">${fmt(p)} s</text></g>`;
+    }
+  }
+  ruta.forEach((n, i) => {
+    const p = pos[i];
+    if (!p) return;
+    const ini = i === 0, rr = (ini ? 5 : 3.4) * k * (o.mini ? 1.2 : 1);
+    const tocado = !o.resaltar || o.resaltar.has(i) || o.resaltar.has(i - 1);
+    nodos += `<g class="e3-nodo${ini ? " inicio" : ""}${tocado ? "" : " tenue"}"><title>${esc(n)}</title>
+      <circle cx="${p.x}" cy="${p.y}" r="${rr}" stroke-width="${1.3 * k}"/>
+      ${ini ? `<text x="${p.x}" y="${p.y}" font-size="${5.5 * k}">Tú</text>` : ""}</g>`;
+  });
+  const alto = (y1 - y0) / (x1 - x0) * 340;
+  return `<svg class="e3d${o.mini ? " mini" : ""}" viewBox="${x0.toFixed(1)} ${y0.toFixed(1)} ${(x1 - x0).toFixed(1)} ${(y1 - y0).toFixed(1)}" style="aspect-ratio:${(x1 - x0).toFixed(1)}/${(y1 - y0).toFixed(1)}" role="img" aria-label="${esc(F.nombre)} por dentro: ${alto > 0 ? G.pisos.length : 0} pisos">
+    ${svg}<g>${aristas}</g><g>${pesos}</g><g>${nodos}</g></svg>`;
+}
+
+/* Flecha de A a B (para las aristas dirigidas) en unidades de la vista. */
+function flecha(A, B, k, cls, radioB) {
+  const dx = B.x - A.x, dy = B.y - A.y, L = Math.hypot(dx, dy) || 1, ux = dx / L, uy = dy / L;
+  const fin = { x: B.x - ux * (radioB + 0.8) * k, y: B.y - uy * (radioB + 0.8) * k };
+  const t = 4.2 * k, w = 2.6 * k;
+  return `<line class="${cls}" x1="${A.x}" y1="${A.y}" x2="${fin.x - ux * t * 0.6}" y2="${fin.y - uy * t * 0.6}" stroke-width="${1.8 * k}"/>
+    <path class="${cls} punta" d="M${fin.x},${fin.y} L${fin.x - ux * t - uy * w},${fin.y - uy * t + ux * w} L${fin.x - ux * t + uy * w},${fin.y - uy * t - ux * w}Z"/>`;
+}
+
+/* ---------- 2) el campus ---------- */
+
+function posCampus(n) {
   if (!PLANO) return null;
   const q = PLANO.posiciones[n];
   const i = lugarInfo(n);
-  if (q && i.t !== "aula" && i.t !== "pabellon" && i.t !== "escalera") return proyectar(q[0], q[1], 0);
-  if (!i.ed) return null;
-  const este = PLANO.posiciones[`${i.ed} Salida Este`], oeste = PLANO.posiciones[`${i.ed} Salida Oeste`];
-  if (!este || !oeste) return null;
-  let t = 0.5, z = 0;
-  const alturaPiso = p => (p - 1) * PISO_M + PISO_M / 2;
-  if (i.t === "salida") t = i.lado === "este" ? 0 : 1;
-  else if (i.t === "escalera") { t = i.lado === "este" ? 0.06 : 0.94; z = alturaPiso(i.piso); }
-  else if (i.t === "pabellon") { t = i.lado === "este" ? 0.3 : 0.7; z = alturaPiso(i.piso); }
-  else if (i.t === "aula") {
-    const enPiso = E.campus.vertices.filter(v => { const k = lugarInfo(v); return k.t === "aula" && k.ed === i.ed && k.piso === i.piso; }).length || 1;
-    t = 0.1 + 0.8 * (i.num - 0.5) / enPiso;   // la 01 es la del extremo este
-    z = alturaPiso(i.piso);
-  }
-  return proyectar(este[0] + (oeste[0] - este[0]) * t, este[1] + (oeste[1] - este[1]) * t, z);
+  if (q && !["aula", "pabellon", "escalera"].includes(i.t)) return proyectar(q[0], q[1], 0);
+  return null;
 }
 
-function corto(n) {
-  return n.replace(/^Punto Seguro /, "PS ").replace(/^Zona Segura /, "ZS ").replace(/ Pabell[oó]n /, " Pab. ")
-    .replace(/ Escalera /, " Esc. ").replace(/ P(\d)$/, " P$1");
-}
-
-function renderMapa3D(r, pasos) {
-  const svg = $("#svg-campus"), cab = $("#campus-cab");
-  if (!r || !r.ruta.length) {
-    cab.innerHTML = `<span>Elige dónde estás para ver tu ruta en el mapa.</span>`;
-    svg.setAttribute("viewBox", `0 0 ${MAPA_W} ${MAPA_H}`);
-    svg.innerHTML = `<image href="/static/img/mapa-campus-3d.svg" width="${MAPA_W}" height="${MAPA_H}"/>`;
-    return;
-  }
-  const pos = r.ruta.map(posicion3D);
-  if (!PLANO || pos.some(p => !p)) {
-    cab.innerHTML = `<span>El mapa 3D solo está disponible para el campus real de la UAM.</span>`;
-    svg.innerHTML = "";
-    return;
-  }
-  // caja de la vista: acercada a la ruta o todo el campus (proporción 4:3 para el celular)
+/* Mapa 3D del campus con el tramo exterior de la ruta. o.resaltar: índices de aristas; o.minW: zoom */
+function campusSvg(ruta, o) {
+  // dentro de un edificio la ruta se ve en su vista propia: aquí se une con un marcador «Tú»
+  const pos = ruta.map(posCampus);
+  const L = edificioDe(ruta[0]);
+  let pinTu = null;
+  if (L && PLANO) {
+    const e = PLANO.posiciones[`${L} Salida Este`], w = PLANO.posiciones[`${L} Salida Oeste`];
+    if (e && w) pinTu = proyectar((e[0] + w[0]) / 2, (e[1] + w[1]) / 2, 14);
+  } else if (pos[0]) pinTu = pos[0];
+  const visibles = pos.filter(Boolean).concat(pinTu ? [pinTu] : []);
+  if (!visibles.length) return "";
   let vb;
-  if (mapaCompleto) vb = [0, 60, MAPA_W, MAPA_H - 60];
+  if (o.completo) vb = [0, 92, MAPA_W, 900];
   else {
-    const xs = pos.map(p => p.x), ys = pos.map(p => p.y);
-    let x0 = Math.min(...xs) - 45, x1 = Math.max(...xs) + 45, y0 = Math.min(...ys) - 55, y1 = Math.max(...ys) + 35;
-    let w = Math.max(x1 - x0, 260), h = Math.max(y1 - y0, w * 0.75);
-    w = Math.max(w, h / 0.75);
+    const foco = o.resaltar ? pos.filter((p, i) => p && (o.resaltar.has(i) || o.resaltar.has(i - 1))) : visibles;
+    const usar = foco.length ? foco : visibles;
+    const xs = usar.map(p => p.x), ys = usar.map(p => p.y);
+    const minW = o.minW || 230;
+    let x0 = Math.min(...xs) - 40, x1 = Math.max(...xs) + 40, y0 = Math.min(...ys) - 50, y1 = Math.max(...ys) + 30;
+    let w = Math.max(x1 - x0, minW), h = Math.max(y1 - y0, w * (o.alto || 1));
+    w = Math.max(w, h / (o.alto || 1));
     const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
-    x0 = Math.min(Math.max(cx - w / 2, 0), MAPA_W - w); y0 = Math.min(Math.max(cy - h / 2, 0), MAPA_H - h);
+    x0 = Math.min(Math.max(cx - w / 2, 0), MAPA_W - w); y0 = Math.min(Math.max(cy - h / 2, 92), MAPA_H - 70 - h);
     vb = [x0, y0, w, h];
   }
-  svg.setAttribute("viewBox", vb.map(n => Math.round(n)).join(" "));
-  const s = vb[2] / 360;                   // unidades del mapa por píxel de pantalla
+  const s = vb[2] / 360;
   const peso = new Map(E.campus.aristas.map(a => [clave(a.origen, a.destino), a.peso]));
-
-  // a qué paso de la guía pertenece cada arista, y en qué vértice termina cada paso
-  const pasoDeArista = [], finDePaso = new Map();
-  let k = 0;
-  pasos.forEach((p, idx) => {
-    while (k < r.ruta.length - 1) {
-      pasoDeArista[k] = idx;
-      k++;
-      if (r.ruta[k] === p.llega) break;
-    }
-    finDePaso.set(r.ruta[k], idx);
-  });
-
-  let aristas = "", nodos = "", pesos = "";
+  let aristas = "", pesos = "", nodos = "";
+  const primerFuera = pos.findIndex(Boolean);
+  if (pinTu && primerFuera > 0) {
+    const B = pos[primerFuera];
+    aristas += `<line class="r3-dentro" x1="${pinTu.x}" y1="${pinTu.y}" x2="${B.x}" y2="${B.y}" stroke-width="${3 * s}" stroke-dasharray="${5 * s} ${4 * s}"/>`;
+  }
   for (let i = 0; i + 1 < pos.length; i++) {
     const A = pos[i], B = pos[i + 1];
-    const dx = B.x - A.x, dy = B.y - A.y, L = Math.hypot(dx, dy) || 1, ux = dx / L, uy = dy / L;
-    const rB = (finDePaso.has(r.ruta[i + 1]) || i + 1 === pos.length - 1 ? 13 : 7) * s;
-    const fin = { x: B.x - ux * (rB + 2 * s), y: B.y - uy * (rB + 2 * s) };
-    const t = 9 * s, w = 5.5 * s;
-    const activa = pasoActivo >= 0 && pasoDeArista[i] === pasoActivo;
-    aristas += `<line class="r3-arista${activa ? " activa" : ""}" x1="${A.x}" y1="${A.y}" x2="${fin.x - ux * t * 0.6}" y2="${fin.y - uy * t * 0.6}" stroke-width="${5 * s}"/>
-      <path class="r3-flecha${activa ? " activa" : ""}" d="M${fin.x},${fin.y} L${fin.x - ux * t - uy * w},${fin.y - uy * t + ux * w} L${fin.x - ux * t + uy * w},${fin.y - uy * t - ux * w}Z"/>`;
-    const p = peso.get(clave(r.ruta[i], r.ruta[i + 1]));
-    if (p !== undefined && L > 26 * s) {
-      const mx = (A.x + B.x) / 2, my = (A.y + B.y) / 2;
-      pesos += `<g class="r3-peso" transform="translate(${mx},${my})"><rect x="${-13 * s}" y="${-7.5 * s}" width="${26 * s}" height="${15 * s}" rx="${7.5 * s}"/><text font-size="${9.5 * s}">${fmt(p)} s</text></g>`;
+    if (!A || !B) continue;
+    const cls = o.resaltar ? (o.resaltar.has(i) ? "r3-arista resaltada" : "r3-arista tenue") : "r3-arista";
+    aristas += flecha(A, B, s * 2.2, cls, 6);
+    const p = peso.get(clave(ruta[i], ruta[i + 1]));
+    const Lr = Math.hypot(B.x - A.x, B.y - A.y);
+    if (p !== undefined && Lr > 30 * s) {
+      pesos += `<g class="r3-peso" transform="translate(${(A.x + B.x) / 2},${(A.y + B.y) / 2})"><rect x="${-14 * s}" y="${-8 * s}" width="${28 * s}" height="${16 * s}" rx="${8 * s}"/><text font-size="${10 * s}">${fmt(p)} s</text></g>`;
     }
   }
-  r.ruta.forEach((n, i) => {
-    const p = pos[i], ini = i === 0, fin = i === r.ruta.length - 1, idx = finDePaso.get(n);
-    const grande = ini || fin || idx !== undefined;
-    const rad = (grande ? 13 : 7) * s;
-    const cls = ini ? "inicio" : fin ? "meta" : grande ? "parada" : "intermedio";
-    const marca = ini ? "Tú" : fin ? "✓" : idx !== undefined ? String(idx + 1) : "";
-    const activa = pasoActivo >= 0 && idx === pasoActivo;
-    nodos += `<g class="r3-nodo ${cls}${activa ? " activa" : ""}"><title>${esc(n)}</title>
-      <circle cx="${p.x}" cy="${p.y}" r="${rad}" stroke-width="${2.5 * s}"/>
-      ${marca ? `<text x="${p.x}" y="${p.y}" font-size="${(marca.length > 1 ? 9.5 : 12) * s}">${marca}</text>` : ""}
-      ${ini || fin ? `<text class="r3-etq" x="${p.x}" y="${p.y - rad - 6 * s}" font-size="${12 * s}" stroke-width="${4 * s}">${esc(corto(n))}</text>` : ""}</g>`;
+  ruta.forEach((n, i) => {
+    const p = pos[i];
+    if (!p) return;
+    const fin = i === ruta.length - 1;
+    const rad = (fin ? 13 : 8) * s;
+    nodos += `<g class="r3-nodo ${fin ? "meta" : "parada"}"><title>${esc(n)}</title><circle cx="${p.x}" cy="${p.y}" r="${rad}" stroke-width="${2.5 * s}"/>
+      ${fin ? `<text x="${p.x}" y="${p.y}" font-size="${13 * s}">✓</text><text class="r3-etq" x="${p.x}" y="${p.y - rad - 6 * s}" font-size="${13 * s}" stroke-width="${4 * s}">${esc(corto(n))}</text>` : ""}</g>`;
   });
-  // pasos bloqueados cercanos a la vista (aristas que se quitaron del grafo)
+  if (pinTu) {
+    nodos += `<g class="r3-nodo inicio"><circle cx="${pinTu.x}" cy="${pinTu.y}" r="${13 * s}" stroke-width="${2.5 * s}"/><text x="${pinTu.x}" y="${pinTu.y}" font-size="${10 * s}">Tú</text>
+      <text class="r3-etq" x="${pinTu.x}" y="${pinTu.y - 19 * s}" font-size="${12 * s}" stroke-width="${4 * s}">${esc(ruta[0])}</text></g>`;
+  }
   let bloq = "";
   for (const b of E.campus.bloqueados) {
-    const A = posicion3D(b.origen), B = posicion3D(b.destino);
+    const A = posCampus(b.origen), B = posCampus(b.destino);
     if (A && B) bloq += `<line class="r3-bloq" x1="${A.x}" y1="${A.y}" x2="${B.x}" y2="${B.y}" stroke-width="${3.5 * s}" stroke-dasharray="${6 * s} ${5 * s}"/>`;
   }
-  svg.innerHTML = `<image href="/static/img/mapa-campus-3d.svg" width="${MAPA_W}" height="${MAPA_H}"/>
+  return `<svg class="c3d${o.mini ? " mini" : ""}" viewBox="${vb.map(n => n.toFixed(1)).join(" ")}" style="aspect-ratio:${vb[2].toFixed(1)}/${vb[3].toFixed(1)}" role="img" aria-label="Ruta sobre el mapa 3D del campus">
+    <image href="/static/img/mapa-campus-3d.svg" width="${MAPA_W}" height="${MAPA_H}"/>
     <rect x="${vb[0]}" y="${vb[1]}" width="${vb[2]}" height="${vb[3]}" class="r3-velo"/>
-    ${bloq}<g>${aristas}</g><g>${pesos}</g><g>${nodos}</g>`;
-  cab.innerHTML = `<span><b>${r.ruta.length} vértices · ${r.ruta.length - 1} aristas</b> de tu ruta</span>
+    ${bloq}<g>${aristas}</g><g>${pesos}</g><g>${nodos}</g></svg>`;
+}
+
+/* Vista pequeña de un paso: por dentro del edificio, o el tramo por el campus. */
+function vistaPaso(r, p) {
+  if (!PLANO) return "";
+  const resaltar = new Set();
+  for (let i = p.desde; i < p.hasta; i++) resaltar.add(i);
+  const L = edificioDe(r.ruta[p.desde]) || edificioDe(r.ruta[p.hasta]);
+  if (L && (p.tipo === "pasillo" || p.tipo === "escalera" || p.tipo === "salida")) return edificio3D(L, { ruta: r.ruta, resaltar, mini: true });
+  return campusSvg(r.ruta, { resaltar, mini: true, minW: 200, alto: 0.6 });
+}
+
+function renderMapa3D(r) {
+  const cajaEd = $("#lienzo-edificio"), cajaCampus = $("#lienzo-campus");
+  if (!r || !r.ruta.length || !PLANO) {
+    cajaEd.hidden = true; $("#t-edificio").hidden = true;
+    $("#campus-cab").innerHTML = `<span>Elige dónde estás para ver tu ruta en el mapa.</span>`;
+    $("#mapa-campus").innerHTML = PLANO ? campusSvg([], { completo: true }) || `<svg class="c3d" viewBox="0 92 ${MAPA_W} 900"><image href="/static/img/mapa-campus-3d.svg" width="${MAPA_W}" height="${MAPA_H}"/></svg>` : "";
+    return;
+  }
+  const L = edificioDe(r.ruta[0]);
+  cajaEd.hidden = !L; $("#t-edificio").hidden = !L;
+  if (L) {
+    const G = geomEdificio(L);
+    $("#t-edificio").textContent = `${FACHADA[L].nombre} por dentro`;
+    $("#edificio-cab").innerHTML = `<span><b>${G ? G.pisos.length : ""} pisos</b> · cada piso tiene sus aulas, el pabellón este y el oeste, y una escalera en cada extremo</span>`;
+    const caja = $("#vista-edificio");
+    caja.innerHTML = edificio3D(L, { ruta: r.ruta });
+    // la vista es más ancha que la pantalla: se centra en donde está el estudiante
+    const svgEd = caja.querySelector("svg"), tu = caja.querySelector(".e3-nodo.inicio circle");
+    if (svgEd && tu) requestAnimationFrame(() => {
+      const vb = svgEd.viewBox.baseVal, f = (Number(tu.getAttribute("cx")) - vb.x) / vb.width;
+      caja.scrollLeft = f * caja.scrollWidth - caja.clientWidth / 2;
+    });
+  }
+  $("#mapa-campus").innerHTML = campusSvg(r.ruta, { completo: mapaCompleto, minW: 300, alto: 1 });
+  $("#campus-cab").innerHTML = `<span><b>${r.ruta.length} vértices · ${r.ruta.length - 1} aristas</b></span>
     <button class="btn mini" data-accion="mapa-zoom">${mapaCompleto ? "Acercar a mi ruta" : "Ver todo el campus"}</button>`;
 }
 
@@ -1066,7 +1257,7 @@ async function accion(a) {
 /* -------------------------------------------------------------- inicio */
 
 async function sondeo() {
-  if (document.hidden || animando || $("#svg-mesh").classList.contains("arrastrando") || $("#svg-campus").classList.contains("arrastrando")) return;
+  if (document.hidden || animando || $("#svg-mesh").classList.contains("arrastrando") || $("#svg-campus")?.classList.contains("arrastrando")) return;
   try {
     const r = await fetch("/api/estado");
     const j = await r.json();

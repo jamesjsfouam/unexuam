@@ -142,19 +142,26 @@
         <div id="ruta-info" class="ruta-info"></div>
       </div>
 
-      <h3 class="franja">Tu ruta en el mapa 3D</h3>
+      <h3 class="franja" id="t-edificio" hidden>Tu edificio por dentro</h3>
+      <div class="lienzo edificio3d" id="lienzo-edificio" hidden>
+        <div class="lienzo-cab" id="edificio-cab"></div>
+        <div id="vista-edificio" class="vista-3d"></div>
+        <p class="desliza">Desliza a los lados para recorrer el edificio ↔</p>
+      </div>
+
+      <h3 class="franja">Tu ruta por el campus</h3>
       <div class="lienzo mapa3d" id="lienzo-campus">
         <div class="lienzo-cab" id="campus-cab"></div>
-        <svg id="svg-campus" class="grafo" role="img" aria-label="Ruta de evacuación sobre el mapa 3D del campus"></svg>
+        <div id="mapa-campus" class="vista-3d"></div>
         <p class="credito">Plano © colaboradores de <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> (ODbL)</p>
       </div>
       <div class="leyenda">
         <span class="chip amarillo"><i class="l-tu"></i>Tú</span>
         <span class="chip azul"><i class="l-ruta"></i>Arista de la ruta</span>
-        <span class="chip azul"><i class="l-parada"></i>Fin de cada paso</span>
+        <span class="chip azul"><i class="l-parada"></i>Vértice</span>
         <span class="chip rojo"><i class="l-bloq"></i>Bloqueado</span>
       </div>
-      <p class="intro">Cada círculo es un vértice del grafo (aula, pabellón, escalera, salida o punto seguro) y cada flecha una arista dirigida con su tiempo. Toca un paso de la guía para resaltarlo en el mapa.</p>
+      <p class="intro">La ruta es un camino en el grafo: cada círculo es un vértice (aula, pabellón, escalera, salida o punto seguro) y cada flecha una arista dirigida con su tiempo. Toca un paso para resaltarlo.</p>
 
       <h3 class="franja">Incidentes</h3>
       <div class="tarjeta">
