@@ -76,7 +76,7 @@ Veamos un ejemplo. Tel-Ana emite una alerta con TTL 2: puede llegar como mucho a
 
 ## 7 · Capa 2: el campus real (0:35)
 
-Este es el campus real de la UAM como grafo, sacado del plano. Afuera hay 43 lugares: edificios, comedores, salidas y parqueos. Por dentro, cada piso de los edificios B, C y P tiene dos pabellones, este y oeste, con sus aulas y una escalera en cada extremo; a un aula solo se llega desde su pabellón. En total son 150 vértices y 400 aristas dirigidas.
+Este es el campus real de la UAM como grafo, sacado del plano. Afuera hay 44 lugares: edificios, comedores, la pasarela frente al B, salidas y parqueos. Por dentro, cada piso de los edificios B, C y P tiene dos pabellones, este y oeste, con sus aulas, escaleras en los extremos y la escalera central que une B y C hasta el tercer piso; a un aula solo se llega desde su pabellón. En total son 154 vértices y 442 aristas dirigidas.
 
 El peso son los segundos a pie: la distancia del mapa por 1.3, porque los caminos no son rectos, dividida entre 1.2 metros por segundo. Hay 12 destinos seguros, entre zonas y parqueos, y Dijkstra elige el más cercano.
 
@@ -84,7 +84,7 @@ Y aquí se ve por qué tiene que ser dirigido: bajar un piso cuesta 12 segundos 
 
 ## 8 · Dijkstra paso a paso (1:30)
 
-Con 150 vértices no se puede seguir Dijkstra a mano, así que tomo un trozo real del campus: 7 vértices alrededor del aula B-210, en el segundo piso del Edificio B. Los pesos son los mismos del backend. La pregunta: estoy en B-210, ¿cuál es el lugar seguro más cercano? Al inicio, la distancia a B-210 es 0 y a todo lo demás infinito.
+Con 154 vértices no se puede seguir Dijkstra a mano, así que tomo un subgrafo simplificado del campus: 7 vértices alrededor del aula B-210, en el segundo piso del Edificio B. Los pesos son los mismos del backend. La pregunta: estoy en B-210, ¿cuál es el lugar seguro más cercano? Al inicio, la distancia a B-210 es 0 y a todo lo demás infinito.
 
 La regla de Dijkstra es una sola: tomo el vértice **no visitado con la menor distancia** y reviso sus aristas. Si llegar por él es más barato, actualizo la distancia y anoto de dónde vine.
 
@@ -96,7 +96,7 @@ La regla de Dijkstra es una sola: tomo el vértice **no visitado con la menor di
 ▶ Salida oeste, con 31: por aquí la Plazoleta costaría 31 + 49 = 80, peor que 55, así que **no se toca**. Esto es Dijkstra: solo cambia una distancia si encuentra algo mejor.
 ▶ Sale la Plazoleta con 55. Como es el primer lugar seguro que sale, es el más cercano.
 
-La ruta se reconstruye hacia atrás con «de dónde vine»: B-210, pabellón oeste, Edificio E, Plazoleta. **55 segundos**: el pasillo elevado le gana a bajar las escaleras. Con el campus completo, el backend da exactamente lo mismo. Esto funciona porque ningún peso es negativo.
+La ruta se reconstruye hacia atrás con «de dónde vine»: B-210, pabellón oeste, Edificio E, Plazoleta. **55 segundos**: en este subgrafo el pasillo elevado le gana a bajar por la escalera lateral (en el campus completo, al incluir la escalera central y la pasarela del B, baja aún más a **46 segundos**). Esto funciona porque ningún peso es negativo.
 
 *(Son 7 pasos: un → por cada línea con ▶.)*
 

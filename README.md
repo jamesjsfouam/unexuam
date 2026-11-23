@@ -43,7 +43,7 @@ Está diseñado para operar cuando se caen internet y la red celular, ejecutánd
 
 - **Grafos hechos a mano** — implementación pura en Python con las clases `Vertex` (`nombre`, `neig`) y `Graph` (`vertexs`), sin NetworkX ni `heapq`.
 - **Comunicación tolerante a retardos** — red Mesh simulada donde una alerta salta de teléfono en teléfono mediante **BFS limitado por TTL**.
-- **Evacuación dinámica sobre el campus real** — 150 vértices y 400 aristas dirigidas construidas a partir del plano real de OpenStreetMap de la UAM, con recálculo inmediato mediante **Dijkstra** ante bloqueos o congestión.
+- **Evacuación dinámica sobre el campus real** — 154 vértices y 442 aristas dirigidas construidas a partir del plano real de OpenStreetMap de la UAM, con recálculo inmediato mediante **Dijkstra** ante bloqueos o congestión.
 
 > [!NOTE]
 > Este proyecto es un prototipo funcional: la red Mesh se **simula** sobre el grafo de teléfonos en memoria. La comunicación física directa por Bluetooth Low Energy o Wi-Fi Direct, así como la cola DTN persistente y flujo máximo, quedan planteadas como trabajo futuro.
@@ -59,7 +59,7 @@ Unexuam acopla dos grafos dirigidos y ponderados que reaccionan en cadena durant
 | Capa | Vértices | Aristas (peso) | Algoritmo | Módulo |
 |---|---|---|---|---|
 | ![Capa 1](https://img.shields.io/badge/-1._Comunicación_(Mesh)-CC0000?style=flat-square) | Teléfonos de los estudiantes | Enlace entre dispositivos (retardo en s) | **BFS limitado por TTL** (`propagarAlerta`) | `backend/mesh.py` |
-| ![Capa 2](https://img.shields.io/badge/-2._Navegación_(Campus)-0080FF?style=flat-square) | **150 vértices**: aulas por piso de edificios B, C y P, pabellones este/oeste, escaleras, salidas, edificios y **12 zonas/puntos seguros** | Paso a pie entre lugares (tiempo en s; **400 aristas**) | **Dijkstra** (`dijkstra`, `rutaMasCorta`, `rutaEvacuacion`) | `backend/evacuacion.py` |
+| ![Capa 2](https://img.shields.io/badge/-2._Navegación_(Campus)-0080FF?style=flat-square) | **154 vértices**: aulas por piso de edificios B, C y P, pabellones este/oeste, escaleras (incluyendo unión central B–C), pasarela del B, salidas, edificios y **12 zonas/puntos seguros** | Paso a pie entre lugares (tiempo en s; **442 aristas**) | **Dijkstra** (`dijkstra`, `rutaMasCorta`, `rutaEvacuacion`) | `backend/evacuacion.py` |
 
 ### Flujo ante una emergencia
 
@@ -67,7 +67,7 @@ Unexuam acopla dos grafos dirigidos y ponderados que reaccionan en cadena durant
 sequenceDiagram
     participant E as Estudiante (Teléfono)
     participant M as Capa 1 · Red Mesh<br/>(BFS + TTL)
-    participant C as Capa 2 · Campus UAM<br/>(150 vértices)
+    participant C as Capa 2 · Campus UAM<br/>(154 vértices)
     participant D as Motor Dijkstra
 
     E->>M: Emite alerta con origen y TTL
@@ -109,8 +109,8 @@ La aplicación web móvil sincroniza el estado en tiempo real entre todos los te
 | ![Backend](https://img.shields.io/badge/-Lenguaje-3776AB?style=flat-square&logo=python&logoColor=white) | **Python 3.10+** | Lógica completa de grafos, BFS y Dijkstra implementada desde cero sin librerías externas. |
 | ![Servidor](https://img.shields.io/badge/-Servidor-0080FF?style=flat-square&logo=flask&logoColor=white) | **Flask** | Estado compartido en memoria protegido con `threading.Lock` y API REST JSON para los clientes en la LAN. |
 | ![Frontend](https://img.shields.io/badge/-Frontend-0B2A4A?style=flat-square&logo=javascript&logoColor=white) | **HTML5 · CSS3 · JS vanilla** | Interfaz móvil sin frameworks ni CDNs: funciona completamente sin acceso a internet. |
-| ![Cartografía](https://img.shields.io/badge/-Mapa_UAM-7EBC6F?style=flat-square&logo=openstreetmap&logoColor=white) | **OpenStreetMap + SVG 3D** | Geometría real del campus (`frontend/static/campus-plano.json` y `mapa-campus-3d.svg`). |
-| ![Pruebas](https://img.shields.io/badge/-Pruebas-1FBF5F?style=flat-square) | **unittest** | Suite de 21 pruebas unitarias del backend sin dependencias externas. |
+| ![Cartografía](https://img.shields.io/badge/-Mapa_UAM-7EBC6F?style=flat-square&logo=openstreetmap&logoColor=white) | **OpenStreetMap + SVG 3D** | Geometría real del campus (`frontend/static/campus-plano.json` y `frontend/static/img/mapa-campus-3d.svg`). |
+| ![Pruebas](https://img.shields.io/badge/-Pruebas-1FBF5F?style=flat-square) | **unittest** | Suite de 23 pruebas unitarias del backend sin dependencias externas. |
 
 ### Sistema de diseño
 
@@ -133,7 +133,7 @@ unexuam/
 ├── app.py                     # Servidor Flask: estado en memoria y API JSON
 ├── backend/                   # Lógica pura de grafos (sin dependencias externas)
 │   ├── grafo.py               # Clases Vertex (nombre, neig) y Graph (vertexs)
-│   ├── datos.py               # Campus real UAM (150 vértices, 400 aristas) y red Mesh
+│   ├── datos.py               # Campus real UAM (154 vértices, 442 aristas) y red Mesh
 │   ├── evacuacion.py          # dijkstra, rutaMasCorta, rutaEvacuacion, aplicarAlerta
 │   ├── mesh.py                # propagarAlerta (BFS limitado por TTL)
 │   └── menu.py                # Menú interactivo de consola
@@ -141,7 +141,8 @@ unexuam/
 │   ├── templates/index.html   # Shell de la aplicación
 │   └── static/                # app.css, app.js, campus-plano.json, manifest.json e img/
 ├── tests/
-│   └── test_backend.py        # 21 pruebas unitarias del backend
+│   └── test_backend.py        # 23 pruebas unitarias del backend
+├── mobile/                    # App Android autónoma (Capacitor + motor offline; genera Unexuam.apk)
 └── docs/
     ├── propuesta/             # Propuesta formal del proyecto (.docx y .md)
     ├── pitch/                 # Diapositivas (deck.html), guion, demo, preguntas y capturas
@@ -221,7 +222,7 @@ La consola imprimirá las dos direcciones de acceso:
 
 ## Pruebas y validación
 
-La suite en [`tests/test_backend.py`](tests/test_backend.py) incluye **21 pruebas unitarias** ejecutables sin dependencias externas:
+La suite en [`tests/test_backend.py`](tests/test_backend.py) incluye **23 pruebas unitarias** ejecutables sin dependencias externas:
 
 ```powershell
 python -m unittest discover -s tests -v

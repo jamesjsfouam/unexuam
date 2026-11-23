@@ -51,6 +51,15 @@ app = Flask(
 )
 app.json.ensure_ascii = False
 app.config["SEND_FILE_MAX_AGE_DEFAULT"] = 0  # el navegador revalida app.js/app.css: los teléfonos no se quedan con una versión vieja
+app.config["MAX_CONTENT_LENGTH"] = 64 * 1024
+
+
+@app.after_request
+def cabeceras_respuesta(resp):
+    resp.headers.setdefault("X-Content-Type-Options", "nosniff")
+    if request.path.startswith("/api/"):
+        resp.headers["Cache-Control"] = "no-store"
+    return resp
 
 lock = threading.Lock()
 S = {}
@@ -134,16 +143,27 @@ def grafo_por_nombre(nombre):
     return {"mesh": S["red"], "campus": S["campus"]}.get(nombre)
 
 
-def texto(d, clave):
-    return str(d.get(clave, "")).strip()[:40]
+def cuerpo_json():
+    d = request.get_json(silent=True)
+    return d if isinstance(d, dict) else {}
+
+
+def texto(d, clave, maximo=40):
+    val = d.get(clave)
+    if val is None or isinstance(val, (bool, list, dict)):
+        return ""
+    return str(val).strip()[:maximo]
 
 
 def numero(d, clave, minimo, maximo):
+    val = d.get(clave)
+    if isinstance(val, bool) or val is None:
+        return None
     try:
-        x = float(d.get(clave))
+        x = float(val)
     except (TypeError, ValueError):
         return None
-    if math.isnan(x) or x < minimo or x > maximo:
+    if not math.isfinite(x) or x < minimo or x > maximo:
         return None
     return x
 
@@ -154,11 +174,11 @@ def existe(g, nombre):
 
 @app.errorhandler(Exception)
 def error_backend(e):
-    # Un error inesperado no debe tumbar la app: se responde con el mensaje.
+    # Un error inesperado no debe tumbar la app ni filtrar detalles internos.
     if isinstance(e, HTTPException):
         return jsonify({"ok": False, "mensaje": e.description}), e.code
-    with lock:
-        return responder(False, f"El backend falló: {type(e).__name__}: {e}"), 500
+    app.logger.exception("Error inesperado en el servidor: %s", e)
+    return jsonify({"ok": False, "mensaje": "Error interno del servidor."}), 500
 
 
 # ----------------------------------------------------------------------------
@@ -178,22 +198,25 @@ def api_estado():
 
 @app.post("/api/reiniciar")
 def api_reiniciar():
-    d = request.get_json(silent=True) or {}
-    cual = d.get("grafo", "ambos")
+    d = cuerpo_json()
+    cual = d.get("grafo") or "ambos"
+    if cual not in ("mesh", "campus", "ambos"):
+        with lock:
+            return responder(False, "Grafo desconocido.")
     with lock:
         if cual in ("mesh", "ambos"):
             reiniciar_mesh()
         if cual in ("campus", "ambos"):
             reiniciar_campus()
         nombres = {"mesh": "la red Mesh", "campus": "el campus", "ambos": "los dos grafos"}
-        return responder(True, f"Se reinició {nombres.get(cual, 'los dos grafos')}.")
+        return responder(True, f"Se reinició {nombres[cual]}.")
 
 
 # --- Capa 1: red Mesh --------------------------------------------------------
 
 @app.post("/api/mesh/alerta")
 def api_alerta():
-    d = request.get_json(silent=True) or {}
+    d = cuerpo_json()
     origen = texto(d, "origen")
     ttl = numero(d, "ttl", 0, 50)
     with lock:
@@ -217,8 +240,8 @@ def api_alerta():
 def api_ruta():
     # Ruta de evacuación para UN teléfono: cada estudiante está en un lugar distinto,
     # así que no se guarda en el estado compartido (solo se calcula y se devuelve).
-    d = request.get_json(silent=True) or {}
-    lugar = str(d.get("lugar", "")).strip()[:60]
+    d = cuerpo_json()
+    lugar = texto(d, "lugar", 60)
     with lock:
         if not existe(S["campus"], lugar):
             return jsonify({"ok": False, "mensaje": f"El lugar «{lugar}» no existe.", "ruta": None})
@@ -229,7 +252,7 @@ def api_ruta():
 
 @app.post("/api/campus/ubicacion")
 def api_ubicacion():
-    d = request.get_json(silent=True) or {}
+    d = cuerpo_json()
     lugar = texto(d, "lugar")
     with lock:
         if lugar and not existe(S["campus"], lugar):
@@ -245,7 +268,7 @@ def api_ubicacion():
 
 @app.post("/api/campus/bloquear")
 def api_bloquear():
-    d = request.get_json(silent=True) or {}
+    d = cuerpo_json()
     o, dst, ambos = texto(d, "origen"), texto(d, "destino"), bool(d.get("ambos", True))
     with lock:
         g = S["campus"]
@@ -275,7 +298,7 @@ def api_desbloquear():
 
 @app.post("/api/campus/congestionar")
 def api_congestionar():
-    d = request.get_json(silent=True) or {}
+    d = cuerpo_json()
     lugar = texto(d, "lugar")
     factor = numero(d, "factor", 0.1, 20)
     with lock:
@@ -293,7 +316,7 @@ def api_congestionar():
 
 @app.post("/api/<grafo>/vertice")
 def api_vertice(grafo):
-    d = request.get_json(silent=True) or {}
+    d = cuerpo_json()
     accion, nombre = d.get("accion"), texto(d, "nombre")
     with lock:
         g = grafo_por_nombre(grafo)
@@ -308,21 +331,23 @@ def api_vertice(grafo):
                 S["zonas"].append(nombre)
             return responder(True, f"Vértice «{nombre}» insertado en {grafo}.")
         if accion == "eliminar":
-            if not g.eliminarVertice(nombre):
+            v_real = g.buscarVertice(nombre)
+            if v_real is None or not g.eliminarVertice(v_real.nombre):
                 return responder(False, f"«{nombre}» no existe.")
+            canon = v_real.nombre
             if grafo == "campus":
-                S["zonas"] = [z for z in S["zonas"] if z != nombre]
-                S["bloqueados"] = [b for b in S["bloqueados"] if nombre not in (b["origen"], b["destino"])]
-                S["congestion"].pop(nombre, None)
-                if S["ubicacion"] == nombre:
+                S["zonas"] = [z for z in S["zonas"] if z != canon]
+                S["bloqueados"] = [b for b in S["bloqueados"] if canon not in (b["origen"], b["destino"])]
+                S["congestion"].pop(canon, None)
+                if S["ubicacion"] == canon:
                     S["ubicacion"] = None
-            return responder(True, f"Vértice «{nombre}» eliminado de {grafo} (y sus aristas entrantes).")
+            return responder(True, f"Vértice «{canon}» eliminado de {grafo} (y sus aristas entrantes).")
         return responder(False, "Acción no válida.")
 
 
 @app.post("/api/<grafo>/arista")
 def api_arista(grafo):
-    d = request.get_json(silent=True) or {}
+    d = cuerpo_json()
     accion, o, dst = d.get("accion"), texto(d, "origen"), texto(d, "destino")
     with lock:
         g = grafo_por_nombre(grafo)

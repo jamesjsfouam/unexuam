@@ -498,4 +498,20 @@ form.tarjeta { margin: 0; }
 .chip .l-parada { width: 14px; height: 14px; border-radius: 50%; background: var(--azul); }
 .edificio3d .vista-3d { overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: thin; }
 .edificio3d .vista-3d svg { width: 230%; max-width: none; }
-.desliza { margin: 0; padding: 2px 14px 8px; font-size: 11.5px; color: var(--azul); text-align: right; }
+.desliza { margin: 0; padding: 2px 14px 8px; font-size: 11.5px; color: var(--azul-osc); text-align: right; }
+
+/* ---------- mejoras de contraste, accesibilidad y responsividad móvil ---------- */
+:focus-visible { outline: 3px solid var(--azul-osc); outline-offset: 2px; }
+.nota, .credito { color: #596778; opacity: 1; }
+.btn.aviso-btn, .chips button[aria-pressed="true"] { color: var(--texto); }
+.chip.amarillo, .metricas .ambar, .chips button { color: #7a5c00; }
+.nav a, .segmentado button, .chips button { min-height: 40px; }
+.paso-bloq { min-height: 34px; padding: 4px 12px; }
+.barra { padding-left: calc(12px + env(safe-area-inset-left)); padding-right: calc(12px + env(safe-area-inset-right)); }
+@media (max-width: 400px) {
+  .fila { flex-direction: column; }
+  .fila > .btn, .fila > .campo { width: 100%; }
+}
+@media (min-width: 600px) {
+  .edificio3d .vista-3d svg { width: 140%; }
+}

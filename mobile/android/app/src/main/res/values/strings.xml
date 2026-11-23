@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Unexuam</string>
+    <string name="title_activity_main">Unexuam</string>
+    <string name="package_name">ni.edu.uam.unexuam</string>
+    <string name="custom_url_scheme">ni.edu.uam.unexuam</string>
+</resources>

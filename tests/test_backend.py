@@ -111,7 +111,7 @@ class TestCampusUAM(unittest.TestCase):
             self.assertIsNotNone(campus.buscarVertice(aula))
         for aula in ["B-110", "B-211", "B-301", "C-311", "P-210", "P-310"]:
             self.assertIsNone(campus.buscarVertice(aula))
-        self.assertEqual(len(campus.vertexs), 150)
+        self.assertEqual(len(campus.vertexs), 154)
 
     def test_escalera_dirigida(self):
         # Bajar un piso cuesta 12 s y subirlo 18 s: dos aristas distintas.
@@ -125,6 +125,30 @@ class TestCampusUAM(unittest.TestCase):
         campus, zonas = crearCampus()
         self.assertEqual(rutaMasCorta(campus, "B-210", "Edificio E"),
                          (["B-210", "B Pabellón Oeste P2", "Edificio E"], 23))
+
+    def test_pasarela_b_y_plazoleta(self):
+        campus, zonas = crearCampus()
+        for pab in ["B Pabellón Este P1", "B Pabellón Oeste P1"]:
+            ruta, tiempo = rutaMasCorta(campus, pab, "Punto Seguro Plazoleta")
+            self.assertEqual(ruta, [pab, "Pasarela Edificio B", "Punto Seguro Plazoleta"])
+            self.assertEqual(tiempo, 24)
+        # La escalera en medio de la pasarela es dirigida (bajar 12 s, subir 18 s).
+        _, bajar = rutaMasCorta(campus, "Pasarela Edificio B", "Punto Seguro Plazoleta")
+        _, subir = rutaMasCorta(campus, "Punto Seguro Plazoleta", "Pasarela Edificio B")
+        self.assertEqual(bajar, 12)
+        self.assertEqual(subir, 18)
+
+    def test_paso_b205_hacia_c_y_escalera_central(self):
+        campus, zonas = crearCampus()
+        rutaC, tiempoC = rutaMasCorta(campus, "B-205", "C Pabellón Este P2")
+        self.assertEqual(rutaC, ["B-205", "B Pabellón Este P2", "B Escalera Central P2", "C Pabellón Este P2"])
+        self.assertEqual(tiempoC, 20)
+        rutaC3, tiempoC3 = rutaMasCorta(campus, "C-305", "B Escalera Central P2")
+        self.assertEqual(rutaC3, ["C-305", "C Pabellón Este P3", "C Escalera Central P3", "B Escalera Central P2"])
+        self.assertEqual(tiempoC3, 26)
+        rutaPlazoleta, _ = rutaEvacuacion(campus, "B-205", zonas)
+        self.assertIn("B Escalera Central P2", rutaPlazoleta)
+        self.assertEqual(rutaPlazoleta[-1], "Punto Seguro Plazoleta")
 
     def test_aula_solo_con_su_pabellon(self):
         # A un aula no se llega desde otra aula: solo desde el pabellon de su mitad del piso.

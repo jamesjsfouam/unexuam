@@ -9,7 +9,7 @@ Se hace en la diapositiva 10. La web es la de `app.py` (Flask) con los grafos de
    python app.py
    ```
    Anota la dirección que imprime en «Desde el teléfono» (`http://<IP>:5000`).
-2. Revisa en la consola que **no** salga la línea `AVISO: usando el STUB temporal`. Si sale, alguna función de `backend/` falta o falla, y la pantalla de Inicio lo dice en «Backend en uso».
+2. Revisa en la consola que `python app.py` arranque sin errores y muestre ambas direcciones (local y Wi-Fi).
 3. Conecta el teléfono a la **misma red Wi-Fi** que la laptop y abre la dirección. Si la red de la UAM aísla los equipos entre sí, crea un punto de acceso desde el teléfono y conecta la laptop a él.
 4. Ten abierta también `http://127.0.0.1:5000` en el navegador de la laptop como respaldo (se proyecta más fácil que el teléfono).
 5. Pulsa **Reiniciar la demo** (pantalla Inicio) para empezar con los grafos de ejemplo.
@@ -29,19 +29,19 @@ Narra lo que pasa en el grafo, no los botones.
 | 1:25 | Incidentes → **Reabrir pasos**. Luego **Congestión** → Lugar = **Punto Seguro Parqueo Oeste** → **×5** → **Aplicar alerta (aplicarAlerta)** | «Reabro la escalera. Ahora llega la alerta de que el Parqueo Oeste está saturado.» | Vuelve 1 min 17 s y, tras la alerta: «Punto Seguro Parqueo Sur · **1 min 39 s** · ruta recalculada: +22 s». |
 | 2:00 | Volver al deck (→) | | |
 
-Si sobra tiempo: *Estoy en…* = **B-210** → B Pabellón Oeste P2 → pasillo elevado → Edificio E → Plazoleta, **55 s**. Si se bloquea **B Pabellón Oeste P2 → Edificio E** (con sentido contrario), sale por la escalera oeste del B a la Plazoleta en **80 s**.
+Si sobra tiempo: *Estoy en…* = **B-210** → B Pabellón Oeste P2 → B Escalera Central P2 → B Escalera Central P1 → Pasarela Edificio B → Punto Seguro Plazoleta, **46 s** (o desde **C-305** bajando por la misma escalera central B–C en **58 s**).
 
-Si el profe pide ver el CRUD: pestaña **Administrar** → Campus → *insertarVertice* («Aula 203») y *insertarArista dirigida* («Aula 203 → Pasillo B», 12). La lista de adyacencia de abajo muestra la tupla nueva.
+Si el profe pide ver el CRUD: pestaña **Administrar** → Campus → *insertarVertice* («Aula 203») y *insertarArista dirigida* («Aula 203 → B Pabellón Este P2», 12). La lista de adyacencia de abajo muestra la tupla nueva.
 
 ### Cuentas de la demo (para responder si preguntan)
 
-Verificado el 23/11 con el backend real (`backend/datos.py`, campus de la UAM con pabellones, commit 3d0442e; 150 vértices y 400 aristas):
+Verificado con el backend real (`backend/datos.py`, campus de la UAM con pabellones, pasarela del B y escalera central B–C; 154 vértices y 442 aristas):
 
-- La app muestra los tiempos en minutos: 77 s = 1 min 17 s, 136 s = 2 min 16 s, 99 s = 1 min 39 s. Comprobado en la app el 23/11 (commit 7c9b9c7), con las mismas cifras que el backend.
+- La app muestra los tiempos en minutos: 77 s = 1 min 17 s, 136 s = 2 min 16 s, 99 s = 1 min 39 s.
 - **P-309 normal:** 10 (aula → pabellón oeste) + 6 (pabellón → escalera) + 12 (piso 3 → 2) + 12 (piso 2 → 1) + 5 (escalera → salida) + 32 (salida → Parqueo Oeste) = **77**.
 - **Escalera oeste P3 ↔ P2 cerrada:** 10 + 50 (pabellón oeste → pabellón este) + 6 + 12 + 12 + 5 + 41 (Salida Este → Parqueo Edificio P) = **136**.
 - **Parqueo Oeste ×5:** 32 → 160, así que por ahí serían 225; Parqueo Sur 10 + 6 + 12 + 12 + 5 + 54 = **99**. Con ×2, ×3 o ×10 sale lo mismo.
-- **B-210:** 8 + 15 + 32 = **55** por el pasillo elevado; sin él, 8 + 6 + 12 + 5 + 49 = **80**.
+- **B-210 (campus completo):** 8 (aula → pabellón oeste P2) + 6 (escalera central P2) + 12 (bajar a P1) + 8 (Pasarela Edificio B) + 12 (bajar escalera a Plazoleta) = **46**. (En el subgrafo simplificado de 7 vértices de la diapositiva 8, sin escalera central ni pasarela, sale **55 s** por el pasillo elevado).
 - Subir un piso cuesta 18 s y bajarlo 12 s.
 
 Si cambias `backend/datos.py`, corrige a mano estos números, las diapositivas 8 y 9 (`CAMPUS` y `EDIF_P` en el script de `deck.html`) y `guion.md`.
@@ -68,4 +68,4 @@ Se guardan en `docs/pitch/capturas/` con estos nombres exactos (el deck las carg
 | `03-bloqueo.jpg` | Tras «Simular bloqueo» en el paso 2: Parqueo Edificio P, 2 min 16 s |
 | `04-congestion.jpg` | Tras reabrir y Parqueo Oeste ×5: Parqueo Sur, 1 min 39 s |
 
-Ya están tomadas (23/11, vista de teléfono, backend real y pantalla Campus nueva). Si cambia la app, vuelve a tomarlas con el **backend real** (no con el stub), en vista de teléfono, después de la última versión de `backend/datos.py`.
+Ya están tomadas (vista de teléfono, backend real y pantalla Campus). Si cambia la app, vuelve a tomarlas con el **backend real**, en vista de teléfono, después de la última versión de `backend/datos.py`.

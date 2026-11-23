@@ -1,0 +1,11 @@
+{
+  "appId": "ni.edu.uam.unexuam",
+  "appName": "Unexuam",
+  "webDir": "www",
+  "server": {
+    "androidScheme": "https"
+  },
+  "android": {
+    "backgroundColor": "#0080ff"
+  }
+}

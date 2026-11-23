@@ -18,7 +18,7 @@ El BFS cuenta **saltos**, porque el TTL es un límite de saltos, igual que en S�
 
 - **BFS:** el recorrido es O(V + E): cada teléfono entra a la cola una sola vez y cada arista se mira una vez. En mi código la cola es una lista con `pop(0)` y `visitados` también es una lista, y las dos operaciones cuestan O(V), así que en la práctica queda en **O(V² + E)**. Con `collections.deque` (`popleft()` es O(1)) y un `set` para visitados bajaría a O(V + E). Lo dejé con listas para seguir el estilo del curso; con 8 teléfonos no se nota.
 - **Dijkstra:** busco el mínimo recorriendo los no visitados, así que es **O(V² + E)**. Con un montículo (`heapq`) sería O((V + E) log V). Para un campus de decenas de lugares la diferencia no se nota; para miles sí.
-- **Evacuación:** `rutaEvacuacion` corre un Dijkstra por cada zona segura, o sea O(Z · (V² + E)) con Z destinos seguros (aquí Z = 12, V = 150, E = 400).
+- **Evacuación:** `rutaEvacuacion` corre un Dijkstra por cada zona segura, o sea O(Z · (V² + E)) con Z destinos seguros (aquí Z = 12, V = 154, E = 442).
 - **Memoria:** O(V + E) por usar lista de adyacencia.
 
 ### 4. ¿Por qué Dijkstra y no BFS para la ruta de evacuación?

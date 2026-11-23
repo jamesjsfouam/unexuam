@@ -104,7 +104,7 @@ def crearCampus():
         "Auditorio Central", "Edificio M", "Food Court", "Banco Banpro", "Edificio A",
         "Laboratorios", "Edificio D", "Edificio J", "Kioskos de comida", "El Ranchero",
         "Clínicas Odontológicas", "El Chilamate", "Edificio O", "Comedor del Jaguarcito",
-        "Baño del Comedor", "Kiosko del Jaguarcito",
+        "Baño del Comedor", "Kiosko del Jaguarcito", "Pasarela Edificio B",
     ]
     zonasSeguras = [
         "Zona Segura Cancha de Fútbol", "Zona Segura Campo de Béisbol",
@@ -119,6 +119,39 @@ def crearCampus():
 
     # Pasillo elevado del 2.o piso: del pabellon oeste del B al Edificio E.
     unirDosSentidos(campus, "B Pabellón Oeste P2", "Edificio E", 15)
+
+    # Pasarela frente al Edificio B (desde la entrada de la carretera hasta el parqueo
+    # al lado del Auditorio) y escalera en medio que baja a la Plazoleta.
+    unirDosSentidos(campus, "B Pabellón Este P1", "Pasarela Edificio B", 12)
+    unirDosSentidos(campus, "B Pabellón Oeste P1", "Pasarela Edificio B", 12)
+    unirDosSentidos(campus, "Pasarela Edificio B", "B Salida Este", 18)
+    unirDosSentidos(campus, "Pasarela Edificio B", "B Salida Oeste", 18)
+    unirDosSentidos(campus, "Pasarela Edificio B", "Punto Seguro Parqueo Este", 45)
+    unirDosSentidos(campus, "Pasarela Edificio B", "Auditorio Central", 26)
+    unirDosSentidos(campus, "Pasarela Edificio B", "Punto Seguro Parqueo 20 Av", 42)
+    campus.insertarArista("Pasarela Edificio B", "Punto Seguro Plazoleta", BAJAR_UN_PISO)
+    campus.insertarArista("Punto Seguro Plazoleta", "Pasarela Edificio B", SUBIR_UN_PISO)
+
+    # Unión central entre los edificios B y C (después de B-205):
+    # escalera en el centro que une planta baja, el 2.º piso de B y C, y sube al centro del 3.er piso de C.
+    campus.insertarVertice("C Escalera Central P3")
+    campus.insertarVertice("B Escalera Central P2")
+    campus.insertarVertice("B Escalera Central P1")
+    unirDosSentidos(campus, "C Pabellón Este P3", "C Escalera Central P3", PABELLON_A_ESCALERA)
+    unirDosSentidos(campus, "C Pabellón Oeste P3", "C Escalera Central P3", PABELLON_A_ESCALERA)
+    campus.insertarArista("C Escalera Central P3", "B Escalera Central P2", BAJAR_UN_PISO)
+    campus.insertarArista("B Escalera Central P2", "C Escalera Central P3", SUBIR_UN_PISO)
+    unirDosSentidos(campus, "B Pabellón Este P2", "B Escalera Central P2", PABELLON_A_ESCALERA)
+    unirDosSentidos(campus, "B Pabellón Oeste P2", "B Escalera Central P2", PABELLON_A_ESCALERA)
+    unirDosSentidos(campus, "B Escalera Central P2", "C Pabellón Este P2", PABELLON_A_ESCALERA)
+    unirDosSentidos(campus, "B Escalera Central P2", "C Pabellón Oeste P2", PABELLON_A_ESCALERA)
+    campus.insertarArista("B Escalera Central P2", "B Escalera Central P1", BAJAR_UN_PISO)
+    campus.insertarArista("B Escalera Central P1", "B Escalera Central P2", SUBIR_UN_PISO)
+    unirDosSentidos(campus, "B Escalera Central P1", "B Pabellón Este P1", PABELLON_A_ESCALERA)
+    unirDosSentidos(campus, "B Escalera Central P1", "B Pabellón Oeste P1", PABELLON_A_ESCALERA)
+    unirDosSentidos(campus, "B Escalera Central P1", "C Pabellón Este P1", PABELLON_A_ESCALERA)
+    unirDosSentidos(campus, "B Escalera Central P1", "C Pabellón Oeste P1", PABELLON_A_ESCALERA)
+    unirDosSentidos(campus, "B Escalera Central P1", "Pasarela Edificio B", 8)
 
     # Caminos a pie entre lugares vecinos (calculados con docs/mapa-campus/generar_grafo.py).
     # (lugar, lugar, segundos): cada camino se recorre en los dos sentidos.
