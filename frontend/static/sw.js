@@ -1,14 +1,14 @@
 /* Service Worker de Unexuam: caché de assets estáticos para operar offline. */
-const CACHE = "unexuam-v3";
+const CACHE = "unexuam-v4";
 const ASSETS = [
   "/",
   "/static/app.css",
   "/static/app.js",
   "/static/campus-plano.json",
   "/static/manifest.json",
-  "/static/fonts/Nexa-Regular.otf",
-  "/static/fonts/Nexa-Bold.otf",
-  "/static/fonts/Nexa-Heavy.otf",
+  "/static/fonts/Montserrat-Regular.ttf",
+  "/static/fonts/Montserrat-Bold.ttf",
+  "/static/fonts/Montserrat-Black.ttf",
   "/static/img/logo-x.png",
   "/static/img/wordmark-unexuam.png",
   "/static/img/icono-192.png",

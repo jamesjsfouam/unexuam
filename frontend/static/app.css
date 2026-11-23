@@ -8,24 +8,21 @@
   font-family: "UnexoNexa";
   font-weight: 400;
   font-display: swap;
-  src: url("/static/fonts/Nexa-Regular.otf") format("opentype"),
-       local("Nexa Regular"), local("Nexa-Regular"), local("Nexa");
+  src: url("/static/fonts/Montserrat-Regular.ttf") format("truetype");
 }
 
 @font-face {
   font-family: "UnexoNexa";
   font-weight: 700;
   font-display: swap;
-  src: url("/static/fonts/Nexa-Bold.otf") format("opentype"),
-       local("Nexa Bold"), local("Nexa-Bold");
+  src: url("/static/fonts/Montserrat-Bold.ttf") format("truetype");
 }
 
 @font-face {
   font-family: "UnexoNexa";
   font-weight: 900;
   font-display: swap;
-  src: url("/static/fonts/Nexa-Heavy.otf") format("opentype"),
-       local("Nexa Heavy"), local("Nexa-Heavy"), local("Nexa Black");
+  src: url("/static/fonts/Montserrat-Black.ttf") format("truetype");
 }
 
 :root {
