@@ -10,7 +10,7 @@ Unexuam guía a la comunidad universitaria hacia las zonas seguras cuando se cae
 | Capa | Vértices | Aristas (peso) | Algoritmo |
 |---|---|---|---|
 | 1. Comunicación (red Mesh simulada) | teléfonos de los estudiantes | enlace entre teléfonos (retardo en s) | **BFS limitado por TTL**: la alerta salta de teléfono en teléfono, igual que el reenvío tolerante a retardos (DTN) |
-| 2. Navegación (campus) | aulas, pasillos, escaleras, salidas, zonas seguras | paso de un lugar a otro (tiempo en s) | **Dijkstra**: ruta de evacuación hacia la zona segura más cercana |
+| 2. Navegación (campus UAM real) | 134 vértices: aulas por piso de los edificios B, C y P, pasillos, escaleras, salidas, el resto de edificios y 12 zonas o puntos seguros | paso de un lugar a otro (tiempo en s) | **Dijkstra**: ruta de evacuación hacia la zona segura más cercana |
 
 Cuando llega una alerta, la capa 2 cambia: un pasillo congestionado **multiplica el peso** de sus aristas de entrada y un pasillo bloqueado **elimina la arista**. Después, Dijkstra recalcula la ruta.
 
@@ -54,7 +54,7 @@ Varios teléfonos pueden abrirla a la vez: todos ven el mismo estado, y una aler
 ```
 backend/                    lógica de grafos
   grafo.py                  Vertex y Graph (insertar, buscar, eliminar, actualizar peso)
-  datos.py                  campus y red Mesh de ejemplo
+  datos.py                  campus real de la UAM (134 vértices, 368 aristas) y red Mesh de ejemplo
   evacuacion.py             Dijkstra, ruta más corta, ruta de evacuación, aplicarAlerta
   mesh.py                   propagarAlerta (BFS con TTL)
 app.py                      servidor Flask: estado en memoria y endpoints JSON
@@ -65,12 +65,13 @@ docs/
   REGLAS_PROFE.md           reglas de implementación de grafos del curso
   propuesta/                propuesta del proyecto (.docx y .md)
   pitch/                    deck, guion, demo y preguntas
+  mapa-campus/              mapa 3D del campus, lugares y explicación del grafo (LOGICA_GRAFO.md)
 ```
 
 ## Avance del backend
 
 - [x] `grafo.py`: Vertex (`nombre`, `neig`) y Graph (`vertexs`)
-- [x] `datos.py`: campus y red Mesh de ejemplo
+- [x] `datos.py`: campus real de la UAM y red Mesh de ejemplo
 - [x] `evacuacion.py`: Dijkstra, ruta más corta, ruta de evacuación, aplicarAlerta
 - [x] `mesh.py`: propagarAlerta (BFS con TTL)
 - [x] `menu.py`: menú de consola al estilo del curso (`python -m backend.menu`)
@@ -83,3 +84,7 @@ python -m unittest discover -s tests
 ```
 
 Son 16 pruebas del backend, sin dependencias externas.
+
+## Créditos
+
+El plano del campus usa datos de © colaboradores de [OpenStreetMap](https://www.openstreetmap.org/copyright), con licencia ODbL.
