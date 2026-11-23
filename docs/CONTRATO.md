@@ -23,15 +23,17 @@ Es un prototipo: Bluetooth y Wi-Fi reales quedan como trabajo futuro.
 ## Interfaz backend → frontend (NO cambiar nombres sin avisar)
 El frontend solo importa esto. Todo es Python puro y no imprime nada.
 
+> **Cambio del 22/11 (decisión de James):** el atributo `city` del profe se llama **`nombre`** en este proyecto (`Vertex.nombre`). Lo demás (`vertexs`, `neig` como lista de tuplas) sigue igual que en el profe.
+
 `backend/grafo.py`
 ```python
-class Vertex:   # city: str, neig: list[tuple[Vertex, float]]
+class Vertex:   # nombre: str, neig: list[tuple[Vertex, float]]
 class Graph:    # vertexs: list[Vertex]
-    insertarVertice(city: str) -> bool
-    buscarVertice(city: str) -> Vertex | None
+    insertarVertice(nombre: str) -> bool
+    buscarVertice(nombre: str) -> Vertex | None
     insertarArista(origen: str, destino: str, peso: float) -> bool
     eliminarArista(origen: str, destino: str) -> bool
-    eliminarVertice(city: str) -> bool
+    eliminarVertice(nombre: str) -> bool
     actualizarPeso(origen: str, destino: str, peso: float) -> bool
 ```
 
