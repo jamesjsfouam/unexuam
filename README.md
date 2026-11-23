@@ -59,7 +59,6 @@ backend/                    lógica de grafos
   mesh.py                   propagarAlerta (BFS con TTL)
 app.py                      servidor Flask: estado en memoria y endpoints JSON
 frontend/                   interfaz web móvil (HTML, CSS y JS sin dependencias externas)
-  _stub_backend.py          relleno temporal mientras se completa backend/ (no es la lógica entregada)
 docs/
   CONTRATO.md               interfaz entre backend y frontend
   REGLAS_PROFE.md           reglas de implementación de grafos del curso

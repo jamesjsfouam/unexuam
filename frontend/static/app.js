@@ -380,13 +380,6 @@ function render() {
 
 function renderInicio() {
   const m = E.mesh, c = E.campus, ua = E.ultimaAlerta;
-  const stubs = Object.entries(E.origen).filter(([, o]) => o === "stub").map(([n]) => n);
-  const avisoStub = $("#aviso-stub");
-  avisoStub.hidden = !stubs.length;
-  avisoStub.innerHTML = stubs.length === Object.keys(E.origen).length
-    ? "<b>Modo demostración.</b> Todavía no hay <code>backend/</code>: se usa el stub temporal con datos falsos. No es la lógica entregable."
-    : `<b>Backend incompleto.</b> ${stubs.length} de ${Object.keys(E.origen).length} piezas vienen del stub temporal.`;
-
   const tels = m.vertices.length;
   const alc = ua ? new Set(ua.alcanzados.map(x => x[0]).concat(ua.origen)).size : null;
   $("#m-tels").textContent = tels;
@@ -425,8 +418,6 @@ function renderInicio() {
   $("#historial").innerHTML = E.historial.map(h =>
     `<li class="${h.tipo === "error" ? "error" : ""}"><time>${esc(h.hora)}</time><span>${esc(h.texto)}</span></li>`).join("");
 
-  $("#origenes").innerHTML = Object.entries(E.origen).map(([n, o]) =>
-    `<li><code>${esc(n)}</code><span class="${o === "backend" ? "b" : "s"}">${o === "backend" ? "backend" : "stub"}</span></li>`).join("");
 }
 
 /* ---------------------------------------------------------------- mesh */

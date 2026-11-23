@@ -8,12 +8,10 @@ Uso:
 Abre en el teléfono la dirección http://<IP-del-PC>:5000 que se imprime al arrancar
 (el teléfono y el PC deben estar en la misma red Wi-Fi local). No usa internet.
 
-El frontend SOLO usa la interfaz de docs/CONTRATO.md. Cada función se toma de
-`backend/` (la lógica real, escrita por James). Si todavía no existe, se toma de
-`frontend/_stub_backend.py`, que es un relleno temporal y NO es la lógica entregable.
+Toda la lógica de grafos está en `backend/`; este archivo solo guarda el estado en
+memoria y lo expone como una API JSON para la interfaz web.
 """
 
-import importlib
 import math
 import socket
 import sys
@@ -23,51 +21,23 @@ import time
 from flask import Flask, jsonify, render_template, request
 from werkzeug.exceptions import HTTPException
 
-from frontend import _stub_backend as stub
+from backend.datos import crearCampus, crearRedMesh
+from backend.evacuacion import aplicarAlerta, rutaEvacuacion
+from backend.mesh import propagarAlerta
 
-
-# ----------------------------------------------------------------------------
-# Import con respaldo: primero backend/, y si falta algo, el stub.
-# ----------------------------------------------------------------------------
-
-def _tomar(modulo, nombre):
-    """Devuelve (objeto, True) si backend.<modulo>.<nombre> existe; si no, (stub.<nombre>, False)."""
-    try:
-        mod = importlib.import_module(f"backend.{modulo}")
-        obj = getattr(mod, nombre)
-        return obj, True
-    except Exception:
-        return getattr(stub, nombre), False
-
-
-INTERFAZ = [
-    ("grafo", "Graph"),
-    ("mesh", "propagarAlerta"),
-    ("evacuacion", "dijkstra"),
-    ("evacuacion", "rutaMasCorta"),
-    ("evacuacion", "rutaEvacuacion"),
-    ("evacuacion", "aplicarAlerta"),
-    ("datos", "crearCampus"),
-    ("datos", "crearRedMesh"),
-]
-
-B = {}           # nombre -> función/clase en uso
-ORIGEN = {}      # nombre -> "backend" | "stub"
-for _mod, _nom in INTERFAZ:
-    B[_nom], _real = _tomar(_mod, _nom)
-    ORIGEN[_nom] = "backend" if _real else "stub"
+B = {
+    "propagarAlerta": propagarAlerta,
+    "rutaEvacuacion": rutaEvacuacion,
+    "aplicarAlerta": aplicarAlerta,
+}
 
 
 def crear_campus():
-    if ORIGEN["crearCampus"] == "backend":
-        return B["crearCampus"]()
-    return stub.crearCampus(B["Graph"])  # datos falsos, pero con el Graph en uso
+    return crearCampus()
 
 
 def crear_red_mesh():
-    if ORIGEN["crearRedMesh"] == "backend":
-        return B["crearRedMesh"]()
-    return stub.crearRedMesh(B["Graph"])
+    return crearRedMesh()
 
 
 # ----------------------------------------------------------------------------
@@ -108,7 +78,7 @@ def registrar(texto, tipo="info"):
 S["historial"] = []
 reiniciar_mesh()
 reiniciar_campus()
-registrar("Servidor iniciado. Grafos de ejemplo cargados.")
+registrar("Servidor iniciado. Campus UAM y red Mesh cargados.")
 
 
 def num(x):
@@ -151,7 +121,6 @@ def estado():
         },
         "ultimaAlerta": S["ultimaAlerta"],
         "historial": S["historial"],
-        "origen": ORIGEN,
     }
 
 
@@ -185,7 +154,7 @@ def existe(g, nombre):
 
 @app.errorhandler(Exception)
 def error_backend(e):
-    # Un método del backend que aún no existe o falla no debe tumbar la app.
+    # Un error inesperado no debe tumbar la app: se responde con el mensaje.
     if isinstance(e, HTTPException):
         return jsonify({"ok": False, "mensaje": e.description}), e.code
     with lock:
@@ -396,14 +365,9 @@ if __name__ == "__main__":
     except AttributeError:
         pass
     puerto = 5000
-    stubs = [n for n, o in ORIGEN.items() if o == "stub"]
     print("=" * 60)
     print(" Unexuam · Evacuación Off-Grid")
     print(f" En este PC:        http://127.0.0.1:{puerto}")
     print(f" Desde el teléfono: http://{ip_local()}:{puerto}  (misma Wi-Fi)")
-    if stubs:
-        print(f" AVISO: usando el STUB temporal para: {', '.join(stubs)}")
-    else:
-        print(" Backend real completo (backend/).")
     print("=" * 60)
     app.run(host="0.0.0.0", port=puerto, debug=False, threaded=True)
