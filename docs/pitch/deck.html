@@ -1,0 +1,683 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Unexuam · Evacuación Off-Grid</title>
+<!--
+  Deck de la exposición (10 min). Funciona sin internet: abre este archivo en el navegador.
+  Teclas: → / Espacio / PageDown = siguiente paso · ← / PageUp = anterior
+          F = pantalla completa · N = notas · T = cronómetro · B = plan B (capturas) · R = volver
+          Inicio / Fin = primera / última diapositiva
+-->
+<style>
+:root{
+  --bg:#f7f5f0; --card:#ffffff; --ink:#1d232b; --muted:#5c6670; --line:#9aa3ad; --soft:#e6e2d9;
+  --alert:#d6451b; --alert-soft:#fde3d9;
+  --queue:#c98a00; --queue-soft:#fff1cc;
+  --route:#1f6fd1; --route-soft:#dbe8fb;
+  --safe:#2a8a4a; --safe-soft:#dcf1e2;
+  --code:#1f2630; --code-ink:#e8eef5;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:#2a2f36;overflow:hidden;
+  font-family:"Segoe UI",system-ui,-apple-system,Roboto,Arial,sans-serif;color:var(--ink)}
+#viewport{position:fixed;inset:0}
+#deck{position:absolute;left:50%;top:50%;width:1280px;height:720px;transform-origin:center center}
+.slide{position:absolute;inset:0;background:var(--bg);padding:56px 72px 48px;display:none;flex-direction:column}
+.slide.active{display:flex}
+.kicker{font-size:18px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--alert);margin:0 0 10px}
+h1{font-size:68px;line-height:1.05;margin:0 0 18px;letter-spacing:-.02em}
+h2{font-size:42px;line-height:1.1;margin:0 0 26px;letter-spacing:-.01em}
+p,li{font-size:25px;line-height:1.4}
+.muted{color:var(--muted)}
+.small{font-size:19px}
+.row{display:flex;gap:32px;flex:1;min-height:0}
+.col{flex:1;min-width:0;display:flex;flex-direction:column}
+.card{background:var(--card);border:1px solid var(--soft);border-radius:14px;padding:22px 24px}
+.card h3{margin:0 0 8px;font-size:26px}
+.card p{margin:0;font-size:21px;line-height:1.35}
+.tag{display:inline-block;font-size:15px;font-weight:700;padding:3px 10px;border-radius:99px;margin-bottom:10px}
+.t-alert{background:var(--alert-soft);color:var(--alert)}
+.t-route{background:var(--route-soft);color:var(--route)}
+.t-safe{background:var(--safe-soft);color:var(--safe)}
+.t-queue{background:var(--queue-soft);color:#8a5d00}
+pre{background:var(--code);color:var(--code-ink);border-radius:12px;padding:20px 24px;margin:0;
+  font:20px/1.45 Consolas,"Cascadia Mono",Menlo,monospace;white-space:pre}
+pre .c{color:#8fa1b3} pre .k{color:#ff9e64} pre .s{color:#9ece6a}
+code{font-family:Consolas,"Cascadia Mono",Menlo,monospace;font-size:.92em;background:#ece8df;padding:1px 6px;border-radius:5px}
+table{border-collapse:collapse;width:100%}
+td,th{text-align:left;padding:7px 10px;border-bottom:1px solid var(--soft);font-size:18px;vertical-align:top}
+th{font-size:15px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.foot{margin-top:auto;padding-top:14px;font-size:18px;color:var(--muted)}
+
+/* Portada y cierre */
+.cover{justify-content:center;background:linear-gradient(135deg,#1d232b 0%,#2c3440 100%);color:#fff}
+.cover .kicker{color:#ff8a65}
+.cover p{color:#c9d2dc}
+.cover .who{margin-top:40px;font-size:22px;color:#c9d2dc}
+.pulse{display:flex;gap:14px;margin:6px 0 30px}
+.pulse span{width:16px;height:16px;border-radius:50%;background:#ff8a65;opacity:.35}
+.pulse span:nth-child(2){opacity:.6}.pulse span:nth-child(3){opacity:1}
+
+/* Grafos (SVG) */
+svg.graph{width:100%;height:100%}
+.edge line{stroke:var(--line);stroke-width:2.2;fill:none}
+.edge .wbg{fill:var(--bg)}
+.edge text{font-size:15px;font-weight:600;fill:var(--muted);text-anchor:middle;dominant-baseline:central}
+.edge.used line{stroke:var(--alert);stroke-width:3.2}
+.edge.used text{fill:var(--alert)}
+.edge.route line{stroke:var(--route);stroke-width:5}
+.edge.route text{fill:var(--route)}
+.edge.hot line{stroke:var(--alert);stroke-width:4;stroke-dasharray:8 6}
+.edge.hot text{fill:var(--alert);font-size:15px}
+.edge.off{opacity:.25}
+.node rect{fill:#fff;stroke:#47505b;stroke-width:1.8}
+.node text{font-size:17px;font-weight:600;fill:var(--ink);text-anchor:middle;dominant-baseline:central}
+.node .badge{font-size:18px;font-weight:800;fill:var(--route)}
+.node.safe rect{fill:var(--safe-soft);stroke:var(--safe);stroke-width:2.4}
+.node.q rect{fill:var(--queue-soft);stroke:var(--queue);stroke-width:2.6}
+.node.on rect{fill:var(--alert);stroke:var(--alert)}
+.node.on text{fill:#fff}
+.node.dead rect{fill:#eceae5;stroke:#b9bdc2;stroke-dasharray:4 3}
+.node.dead text{fill:#9aa0a6}
+.node.vis rect{fill:var(--route-soft);stroke:var(--route);stroke-width:2.4}
+.node.cur rect{stroke:var(--ink);stroke-width:4}
+.node.hotn rect{fill:var(--alert-soft);stroke:var(--alert);stroke-width:3}
+.node.fade{opacity:.45}
+.node.start rect{stroke:var(--route);stroke-width:4}
+
+/* Paso a paso */
+.steplog{display:flex;flex-direction:column;gap:10px}
+.step{background:var(--card);border:1px solid var(--soft);border-left:6px solid var(--soft);border-radius:10px;
+  padding:10px 14px;font-size:19px;line-height:1.35}
+.step.now{border-left-color:var(--alert)}
+.step b{color:var(--ink)}
+.queue{display:flex;gap:8px;flex-wrap:wrap;align-items:center;font-size:18px;margin:6px 0 12px;min-height:40px}
+.queue .chip{background:var(--queue-soft);border:2px solid var(--queue);border-radius:8px;padding:4px 10px;font-weight:700}
+.queue .lbl{color:var(--muted);font-weight:700;margin-right:6px}
+#dtab tr{opacity:0;transition:opacity .25s}
+#dtab tr.show{opacity:1}
+#dtab tr.now td{background:var(--route-soft)}
+#dtab td{font-size:16px;padding:5px 8px;line-height:1.3}
+#dtab td:first-child{font-weight:800;color:var(--muted);width:34px}
+.result{border-radius:12px;padding:14px 18px;font-size:21px;line-height:1.35}
+.result.route{background:var(--route-soft);border:2px solid var(--route)}
+.result.alert{background:var(--alert-soft);border:2px solid var(--alert)}
+.hide{visibility:hidden}
+
+/* Demo y plan B */
+.demo-url{font:700 34px/1.2 Consolas,Menlo,monospace;background:var(--code);color:#fff;border-radius:12px;padding:16px 22px;display:inline-block}
+ol.big{margin:0;padding-left:34px} ol.big li{font-size:25px;margin-bottom:10px}
+.shot{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;background:#e9e6df;border-radius:14px;overflow:hidden}
+.shot img{max-width:100%;max-height:100%;object-fit:contain}
+.shot .ph{font-size:22px;color:var(--muted);text-align:center;padding:30px}
+
+/* Interfaz del presentador */
+#bar{position:fixed;left:0;bottom:0;height:5px;background:var(--alert);transition:width .3s;z-index:5}
+#hud{position:fixed;right:14px;bottom:12px;font:600 14px/1 "Segoe UI",system-ui;color:#8a939d;z-index:5}
+#timer{position:fixed;right:14px;top:12px;font:700 22px/1 Consolas,monospace;color:#fff;background:#1d232bcc;padding:8px 12px;border-radius:8px;display:none;z-index:5}
+#timer.over{background:#d6451b}
+#notes{position:fixed;left:0;right:0;bottom:0;max-height:40%;overflow:auto;background:#1d232bf2;color:#f1f4f7;
+  padding:16px 24px 26px;font-size:18px;line-height:1.45;display:none;z-index:6}
+#notes b{color:#ff8a65}
+aside.notes{display:none}
+</style>
+</head>
+<body>
+<div id="viewport"><div id="deck">
+
+<!-- 1 · PORTADA -->
+<section class="slide cover" data-time="20">
+  <p class="kicker">Proyecto final · Estructuras de datos no lineales · UAM</p>
+  <div class="pulse"><span></span><span></span><span></span></div>
+  <h1>Unexuam</h1>
+  <p style="font-size:40px;font-weight:700;color:#fff;margin:0 0 14px">Evacuación Off-Grid para el campus UAM</p>
+  <p style="font-size:30px;max-width:900px">Dos grafos dirigidos y ponderados para avisar y evacuar cuando no hay internet ni red celular.</p>
+  <p class="who">James Santiago Fernández Obregón · 23 de noviembre de 2026</p>
+  <aside class="notes">Presentarse. Una frase: «Mi proyecto se llama Unexuam y usa dos grafos para avisar de una emergencia y sacar a la gente del campus sin depender de internet».</aside>
+</section>
+
+<!-- 2 · PROBLEMA -->
+<section class="slide" data-time="45">
+  <p class="kicker">El problema</p>
+  <h2>Un sismo o un incendio en el campus, y el teléfono se queda sin red</h2>
+  <div class="row" style="flex:0 0 auto;margin-bottom:26px">
+    <div class="card col"><span class="tag t-alert">Comunicación</span><h3>La red celular se satura o se cae</h3><p>Todos llaman al mismo tiempo y las antenas no dan abasto.</p></div>
+    <div class="card col"><span class="tag t-alert">Infraestructura</span><h3>El Wi-Fi depende de la electricidad</h3><p>Si se va la luz, el router y el internet del campus también.</p></div>
+    <div class="card col"><span class="tag t-alert">Información</span><h3>Nadie sabe por dónde salir</h3><p>¿Qué pasillo está bloqueado? ¿Cuál es la salida más rápida desde mi aula?</p></div>
+  </div>
+  <div class="result alert" style="font-size:27px"><b>Pregunta del proyecto:</b> ¿cómo avisar a todos y guiarlos a una zona segura sin ninguna infraestructura?</div>
+  <aside class="notes">Nicaragua es zona sísmica. Cuando más necesitamos el teléfono es cuando la red falla. Dos problemas: avisar (comunicación) y moverse (navegación).</aside>
+</section>
+
+<!-- 3 · SOLUCIÓN -->
+<section class="slide" data-time="40">
+  <p class="kicker">La solución</p>
+  <h2>Dos capas, cada una es un grafo</h2>
+  <div class="row" style="flex:0 0 auto;align-items:stretch">
+    <div class="card col"><span class="tag t-alert">Capa 1 · Comunicación</span>
+      <h3>Red Mesh de teléfonos</h3>
+      <p><b>Vértice:</b> un teléfono.<br><b>Arista:</b> un enlace entre dos teléfonos; <b>peso</b> = retardo en segundos.<br><b>Algoritmo:</b> BFS con TTL. La alerta salta de teléfono en teléfono.</p></div>
+    <div style="display:flex;flex-direction:column;justify-content:center;align-items:center;width:150px;text-align:center">
+      <div style="font-size:54px;color:var(--alert);line-height:1">→</div>
+      <div class="small muted">la alerta cambia los pesos del mapa</div></div>
+    <div class="card col"><span class="tag t-route">Capa 2 · Navegación</span>
+      <h3>Mapa del campus</h3>
+      <p><b>Vértice:</b> aula, pasillo, escalera, salida o zona segura.<br><b>Arista:</b> un paso de A a B; <b>peso</b> = segundos caminando.<br><b>Algoritmo:</b> Dijkstra hacia la zona segura más cercana.</p></div>
+  </div>
+  <p class="foot">Todo está escrito a mano en Python sobre las clases <code>Graph</code> y <code>Vertex</code> del curso, sin NetworkX. Se usa desde el teléfono con una web móvil hecha con Flask.</p>
+  <aside class="notes">La capa 1 responde «¿quién se entera?». La capa 2 responde «¿por dónde salgo?». Cuando la alerta llega, cambia los pesos de la capa 2 y la ruta se recalcula.</aside>
+</section>
+
+<!-- 4 · ESTRUCTURA -->
+<section class="slide" data-time="35">
+  <p class="kicker">La estructura de datos</p>
+  <h2>Grafo dirigido y ponderado con lista de adyacencia</h2>
+  <div class="row">
+    <div class="col" style="flex:1.05">
+<pre><span class="k">class</span> Vertex:
+    <span class="k">def</span> __init__(self, city):
+        self.city = city
+        self.neig = []   <span class="c"># [(Vertex destino, peso)]</span>
+
+<span class="k">class</span> Graph:
+    <span class="k">def</span> __init__(self):
+        self.vertexs = []
+
+<span class="c"># insertarVertice, insertarArista,</span>
+<span class="c"># eliminarArista, eliminarVertice,</span>
+<span class="c"># actualizarPeso  → devuelven bool</span></pre>
+    </div>
+    <div class="col" style="gap:14px">
+      <div class="card"><h3>Dirigido</h3><p>A → B no implica B → A. Bajar una escalera es más rápido que subirla, y un teléfono puede oír a otro sin que el otro lo oiga a él.</p></div>
+      <div class="card"><h3>Ponderado</h3><p>Cada vecino es una tupla <code>(destino, peso)</code>. En la Mesh el peso es retardo; en el campus, tiempo de paso.</p></div>
+      <div class="card"><h3>Lista de adyacencia</h3><p>Memoria O(V + E). Recorrer los vecinos de un vértice cuesta lo que tiene su lista.</p></div>
+    </div>
+  </div>
+  <aside class="notes">Son las clases del profe. Los vecinos son tuplas con el objeto Vertex, no el nombre. Eliminar vértice también quita las aristas que entran a él.</aside>
+</section>
+
+<!-- 5 · CAPA 1 -->
+<section class="slide" data-time="40">
+  <p class="kicker">Capa 1 · Comunicación</p>
+  <h2>La red Mesh: 8 teléfonos, enlaces con retardo</h2>
+  <div class="row">
+    <div class="col" style="flex:1.15"><svg class="graph" id="g-mesh1"></svg></div>
+    <div class="col">
+      <p class="small muted" style="margin:0 0 10px">La lógica viene de la red Mesh de <b>SéTú</b>, mi app en Flutter. La traduje a Python sobre el grafo:</p>
+      <table>
+        <tr><th>SéTú (Dart)</th><th>Este proyecto</th></tr>
+        <tr><td><code>ttl</code> del paquete, resta 1 por salto</td><td>BFS que se detiene en el salto TTL</td></tr>
+        <tr><td><code>_seenPacketIds</code></td><td>lista de visitados (no repetir)</td></tr>
+        <tr><td>reenviar a todos los vecinos</td><td>recorrer <code>v.neig</code></td></tr>
+        <tr><td><code>_queue</code> al aparecer un vecino</td><td>cola DTN: guardar y entregar después</td></tr>
+      </table>
+      <p class="small muted" style="margin-top:12px">Ida y vuelta pueden tener pesos distintos: Ana → Sofía 0.8 s, Sofía → Ana 0.9 s.</p>
+    </div>
+  </div>
+  <aside class="notes">Cada flecha es una arista dirigida. Donde hay dos números, el primero va en el sentido en que está escrito el enlace. Carlos → Pedro y Pedro → Valeria solo van en un sentido.</aside>
+</section>
+
+<!-- 6 · BFS CON TTL -->
+<section class="slide" data-time="75" data-steps="6" id="s-bfs">
+  <p class="kicker">Algoritmo 1</p>
+  <h2>BFS con TTL: alerta desde Tel-Ana, TTL = 2</h2>
+  <div class="row">
+    <div class="col" style="flex:1.15"><svg class="graph" id="g-bfs"></svg></div>
+    <div class="col">
+      <div class="queue" id="bfs-queue"></div>
+      <div class="steplog" id="bfs-log"></div>
+    </div>
+  </div>
+  <aside class="notes">BFS usa una cola: primero todos los del salto 1, luego los del salto 2. Cuando un teléfono está en el salto TTL, recibe la alerta pero ya no la reenvía. Resultado: 5 de 8. Con TTL 5 llega a los 8. El TTL evita que la alerta rebote para siempre y gaste batería.</aside>
+</section>
+
+<!-- 7 · CAPA 2 -->
+<section class="slide" data-time="35">
+  <p class="kicker">Capa 2 · Navegación</p>
+  <h2>El campus: 14 lugares, peso = segundos caminando</h2>
+  <div class="row">
+    <div class="col" style="flex:1.6"><svg class="graph" id="g-campus1"></svg></div>
+    <div class="col" style="gap:12px">
+      <div class="card"><span class="tag t-safe">Zonas seguras</span><p>Cancha y Parqueo. El destino es la más cercana, no una fija.</p></div>
+      <div class="card"><span class="tag t-route">Dirigido de verdad</span><p>Escalera Norte: bajar a Pasillo A cuesta <span id="en-baja"></span> s, subir <span id="en-sube"></span> s.</p></div>
+      <div class="card"><span class="tag t-alert">Dinámico</span><p>Una alerta multiplica los pesos que entran a un lugar o elimina un pasillo.</p></div>
+    </div>
+  </div>
+  <aside class="notes">Piso 2 arriba (Aulas 201, 202, Biblioteca, Pasillo B), piso 1 abajo. Las zonas seguras solo tienen aristas de entrada: de ahí no se sale.</aside>
+</section>
+
+<!-- 8 · DIJKSTRA (la tabla se calcula con los datos de CAMPUS) -->
+<section class="slide" data-time="90" id="s-dij" style="padding-top:40px">
+  <p class="kicker">Algoritmo 2</p>
+  <h2>Dijkstra: ¿cuál es la salida más rápida desde <span class="cfg-origen"></span>?</h2>
+  <div class="row">
+    <div class="col" style="flex:1.35"><svg class="graph" id="g-dij"></svg>
+      <div class="result route hide" id="dij-res" style="margin-top:6px;font-size:19px"></div></div>
+    <div class="col" style="flex:1"><table id="dtab"></table></div>
+  </div>
+  <aside class="notes">Regla: siempre sacar el vértice no visitado con menor distancia y relajar sus aristas: si dist[u] + peso &lt; dist[v], actualizar dist[v] y anotar prev[v] = u. La ruta se reconstruye con prev desde el destino hacia atrás. La primera zona segura que sale es la más cercana. Funciona porque no hay pesos negativos.</aside>
+</section>
+
+<!-- 9 · ALERTA CAMBIA EL MAPA -->
+<section class="slide" data-time="45" data-steps="2" id="s-alert">
+  <p class="kicker">Las dos capas juntas</p>
+  <h2>Llega la alerta «humo en <span class="cfg-lugar"></span>»</h2>
+  <div class="row">
+    <div class="col" style="flex:1.35"><svg class="graph" id="g-alert"></svg></div>
+    <div class="col" style="gap:12px">
+      <div class="result route" id="al-0"></div>
+      <div class="result alert hide" id="al-1"></div>
+      <div class="result route hide" id="al-2"></div>
+      <p class="small muted hide" id="al-3" style="margin:0">Si el pasillo está bloqueado del todo se usa <code>eliminarArista</code> y Dijkstra ni lo considera.</p>
+    </div>
+  </div>
+  <aside class="notes">Esta es la conexión entre capas: la alerta que viajó por la Mesh cambia los pesos del mapa. No hay que programar un caso especial: Dijkstra con los pesos nuevos elige otra ruta solo.</aside>
+</section>
+
+<!-- 10 · DEMO -->
+<section class="slide" data-time="120">
+  <p class="kicker">Demo en vivo</p>
+  <h2>La web móvil, conectada a los dos grafos</h2>
+  <div class="row">
+    <div class="col">
+      <p style="margin:0 0 10px">Desde el teléfono, en la misma red local:</p>
+      <div><span class="demo-url">http://IP-del-PC:5000</span></div>
+      <ol class="big" style="margin-top:26px">
+        <li>Enviar una alerta Mesh desde <b>Tel-Ana</b> con TTL 2 y luego 5.</li>
+        <li>Elegir mi ubicación: <b class="cfg-origen"></b> → ruta de <span id="dm-d0"></span> s.</li>
+        <li>Congestionar <b><span class="cfg-lugar"></span> ×<span class="cfg-factor"></span></b> → la ruta cambia a <span id="dm-d1"></span> s.</li>
+        <li>Bloquear un pasillo y ver que Dijkstra lo evita.</li>
+      </ol>
+    </div>
+  </div>
+  <p class="foot">Si algo falla: tecla <b>B</b> para ver las capturas.</p>
+  <aside class="notes">Seguir docs/pitch/demo.md. Máximo 2 minutos. Si la web no carga en 15 segundos, pasar a las capturas con B sin disculparse demasiado.</aside>
+</section>
+
+<!-- 11 · LIMITACIONES Y FUTURO -->
+<section class="slide" data-time="40">
+  <p class="kicker">Honestidad técnica</p>
+  <h2>Limitaciones y trabajo futuro</h2>
+  <div class="row">
+    <div class="card col"><span class="tag t-alert" style="align-self:flex-start">Hoy es un prototipo</span>
+      <ul style="margin:6px 0 0;padding-left:24px">
+        <li>La red Mesh es <b>simulada</b> con el grafo; no hay radio real.</li>
+        <li>Los pesos son estimados, no medidos en el campus.</li>
+        <li>El servidor corre en una laptop de la red local.</li>
+        <li>La ubicación la elige el usuario.</li>
+      </ul></div>
+    <div class="card col"><span class="tag t-safe" style="align-self:flex-start">Siguiente paso</span>
+      <ul style="margin:6px 0 0;padding-left:24px">
+        <li><b>Bluetooth real</b> con lo que ya diseñé en SéTú: cola, TTL y acuses de custodia.</li>
+        <li>Cada teléfono calcula su propia ruta, sin servidor.</li>
+        <li>Medir tiempos reales y usar el plano real de la UAM.</li>
+        <li>Flujo máximo para encontrar cuellos de botella.</li>
+      </ul></div>
+  </div>
+  <aside class="notes">Decirlo con seguridad: el objetivo del curso son los grafos, y esa parte está completa. La radio real es ingeniería aparte que ya exploré en SéTú.</aside>
+</section>
+
+<!-- 12 · CIERRE -->
+<section class="slide cover" data-time="15">
+  <p class="kicker">Cierre</p>
+  <h1>Dos grafos, dos algoritmos,<br>una sola idea</h1>
+  <p style="font-size:30px;max-width:980px">BFS con TTL para que todos se enteren. Dijkstra para que todos salgan por la ruta más rápida. Sin depender de la red.</p>
+  <p class="who" style="font-size:30px;color:#fff">Gracias. ¿Preguntas?</p>
+  <aside class="notes">Pausa. Mirar al profe. Esperar preguntas (ver docs/pitch/preguntas.md).</aside>
+</section>
+
+<!-- PLAN B: capturas (no cuentan en el tiempo) -->
+<section class="slide planb" data-time="0">
+  <p class="kicker">Plan B · 1/4</p><h2>Alerta Mesh desde Tel-Ana</h2>
+  <div class="shot"><img src="capturas/01-alerta-mesh.png" alt="Alerta Mesh"></div>
+  <aside class="notes">Explicar sobre la captura igual que en vivo. R vuelve a la demo.</aside>
+</section>
+<section class="slide planb" data-time="0">
+  <p class="kicker">Plan B · 2/4</p><h2>Ruta desde <span class="cfg-origen"></span>: <span class="dm-d0b"></span> s</h2>
+  <div class="shot"><img src="capturas/02-ruta-aula201.png" alt="Ruta desde Aula 201"></div>
+</section>
+<section class="slide planb" data-time="0">
+  <p class="kicker">Plan B · 3/4</p><h2><span class="cfg-lugar"></span> ×<span class="cfg-factor"></span>: la ruta cambia a <span class="dm-d1b"></span> s</h2>
+  <div class="shot"><img src="capturas/03-congestion.png" alt="Congestión en Escalera Sur"></div>
+</section>
+<section class="slide planb" data-time="0">
+  <p class="kicker">Plan B · 4/4</p><h2>Pasillo bloqueado con eliminarArista</h2>
+  <div class="shot"><img src="capturas/04-bloqueo.png" alt="Pasillo bloqueado"></div>
+</section>
+
+</div></div>
+<div id="bar"></div><div id="hud"></div><div id="timer">00:00</div><div id="notes"></div>
+
+<script>
+/* ============================================================
+   Datos de los grafos de ejemplo (iguales a backend/datos.py)
+   Arista: [a, b, peso a→b, peso b→a | null si es de un solo sentido]
+   ============================================================ */
+const MESH = {
+  nodes: {
+    "Tel-Ana":[55,190], "Tel-Luis":[200,75], "Tel-Sofía":[200,305], "Tel-Carlos":[415,75],
+    "Tel-María":[415,305], "Tel-Pedro":[545,190], "Tel-Valeria":[665,75], "Tel-Diego":[665,305]
+  },
+  edges: [
+    ["Tel-Ana","Tel-Luis",1.2,1.2], ["Tel-Ana","Tel-Sofía",0.8,0.9], ["Tel-Luis","Tel-Carlos",2.0,2.1],
+    ["Tel-Sofía","Tel-María",1.5,1.4], ["Tel-Carlos","Tel-Pedro",2.5,null], ["Tel-María","Tel-Pedro",1.1,1.0],
+    ["Tel-Pedro","Tel-Valeria",3.0,null], ["Tel-Valeria","Tel-Diego",2.2,null]
+  ],
+  view:[0,0,740,380]
+};
+/* >>> Si cambian los pesos en backend/datos.py, cambia SOLO esta lista.
+   El paso a paso de Dijkstra, la alerta y los números de la demo se recalculan solos. */
+const CAMPUS = {
+  nodes: {
+    "Aula 201":[75,45], "Aula 202":[215,45], "Biblioteca":[355,45],
+    "Pasillo B":[215,150], "Escalera Norte":[85,255], "Escalera Sur":[450,170],
+    "Pasillo A":[215,310], "Aula 101":[70,405], "Aula 102":[215,410], "Cafetería":[350,410],
+    "Salida Principal":[440,365], "Salida Este":[600,280],
+    "Zona Segura Cancha":[650,410], "Zona Segura Parqueo":[705,140]
+  },
+  edges: [
+    ["Aula 101","Pasillo A",10,10], ["Aula 102","Pasillo A",12,12], ["Cafetería","Pasillo A",15,15],
+    ["Aula 201","Pasillo B",10,10], ["Aula 202","Pasillo B",14,14], ["Biblioteca","Pasillo B",18,18],
+    ["Pasillo B","Escalera Norte",8,8], ["Pasillo B","Escalera Sur",20,20],
+    ["Escalera Norte","Pasillo A",15,25], ["Escalera Sur","Salida Este",22,30],
+    ["Pasillo A","Salida Principal",12,12], ["Pasillo A","Salida Este",40,40],
+    ["Salida Principal","Zona Segura Cancha",20,null], ["Salida Este","Zona Segura Parqueo",25,null],
+    ["Salida Principal","Zona Segura Parqueo",60,null, .78]
+  ],
+  safe: ["Zona Segura Cancha","Zona Segura Parqueo"],
+  view:[0,0,780,455]
+};
+/* Escenario del ejemplo y de la demo */
+const CFG = { origen:"Aula 201", alerta:{lugar:"Escalera Norte", factor:3} };
+const LEAF = ["Aula 202","Biblioteca","Aula 101","Aula 102","Cafetería"];
+const lab = n => n.replace("Zona Segura ","Zona Segura\n");
+const short = n => n.replace("Escalera ","Esc. ").replace("Zona Segura ","Zona ");
+
+/* ============================================================
+   Dibujo de grafos en SVG
+   ============================================================ */
+const NS = "http://www.w3.org/2000/svg";
+function el(tag, attrs, parent){ const e=document.createElementNS(NS,tag); for(const k in attrs) e.setAttribute(k,attrs[k]); if(parent) parent.appendChild(e); return e; }
+const fmt = w => (Math.round(w*10)/10).toString();
+
+function drawGraph(id, G){
+  const svg = document.getElementById(id);
+  svg.setAttribute("viewBox", G.view.join(" "));
+  const defs = el("defs",{},svg);
+  const colors = {n:"#9aa3ad", u:"#d6451b", r:"#1f6fd1", h:"#d6451b"};
+  for(const k in colors){
+    const m = el("marker",{id:`${id}-${k}`,viewBox:"0 0 10 10",refX:"9",refY:"5",markerWidth:"5",markerHeight:"5",orient:"auto-start-reverse"},defs);
+    el("path",{d:"M0,0 L10,5 L0,10 z",fill:colors[k]},m);
+  }
+  const box = {};
+  for(const name in G.nodes){
+    const lines = lab(name).split("\n");
+    const w = Math.max(...lines.map(l=>l.length))*9.2 + 24, h = lines.length*20 + 14;
+    box[name] = {x:G.nodes[name][0], y:G.nodes[name][1], w, h, lines};
+  }
+  function exitPoint(b, dx, dy){
+    const tx = dx ? (b.w/2+3)/Math.abs(dx) : Infinity, ty = dy ? (b.h/2+3)/Math.abs(dy) : Infinity;
+    const t = Math.min(tx,ty); return [b.x+dx*t, b.y+dy*t];
+  }
+  const eGroup = el("g",{},svg), nGroup = el("g",{},svg);
+  const edges = {}, nodes = {};
+  for(const [a,b,wab,wba,lt] of G.edges){
+    const A=box[a], B=box[b], dx=B.x-A.x, dy=B.y-A.y, L=Math.hypot(dx,dy), ux=dx/L, uy=dy/L;
+    const [x1,y1]=exitPoint(A,ux,uy), [x2,y2]=exitPoint(B,-ux,-uy);
+    const g = el("g",{class:"edge"},eGroup);
+    const line = el("line",{x1,y1,x2,y2},g);
+    const t = lt ?? .5, lx = x1+(x2-x1)*t, ly = y1+(y2-y1)*t;
+    const bg = el("rect",{class:"wbg",rx:4},g), tx = el("text",{x:lx,y:ly},g);
+    const E = {a,b,g,line,bg,tx,lx,ly,wab,wba,two:wba!==null};
+    E.setW = (p,q)=>{ E.wab=p; E.wba=q; const s = (q===null||q===p) ? fmt(p) : `${fmt(p)}/${fmt(q)}`;
+      tx.textContent=s; const w=s.length*8.6+8; bg.setAttribute("x",lx-w/2); bg.setAttribute("y",ly-10); bg.setAttribute("width",w); bg.setAttribute("height",20); };
+    E.mark = (k, dir) => {
+      const m = `url(#${id}-${k})`;
+      if(k==="r"){ line.setAttribute("marker-end", dir==="rev"?"":m); line.setAttribute("marker-start", dir==="rev"?m:""); return; }
+      line.setAttribute("marker-end", m); line.setAttribute("marker-start", E.two?m:""); };
+    E.set = (cls, dir) => { g.setAttribute("class","edge"+(cls?" "+cls:"")); E.mark({used:"u",route:"r",hot:"h"}[cls]||"n", dir); };
+    E.setW(wab,wba); E.set("");
+    edges[a+"|"+b]=E; edges[b+"|"+a]=E;
+  }
+  for(const name in box){
+    const B=box[name], g=el("g",{class:"node"},nGroup);
+    el("rect",{x:B.x-B.w/2,y:B.y-B.h/2,width:B.w,height:B.h,rx:B.h/2.2},g);
+    B.lines.forEach((l,i)=> el("text",{x:B.x,y:B.y+(i-(B.lines.length-1)/2)*20},g).textContent=l);
+    const badge = el("text",{class:"badge",x:B.x,y:B.y-B.h/2-12},g);
+    nodes[name] = {g, badge, base:(G.safe||[]).includes(name)?"safe":""};
+    nodes[name].set = cls => g.setAttribute("class",["node",nodes[name].base,cls||""].join(" ").trim());
+    nodes[name].set("");
+  }
+  return {svg, nodes, edges};
+}
+
+/* ============================================================
+   Diapositivas con pasos
+   ============================================================ */
+const mesh1 = drawGraph("g-mesh1", MESH);
+const campus1 = drawGraph("g-campus1", CAMPUS);
+const bfs = drawGraph("g-bfs", MESH);
+const dij = drawGraph("g-dij", CAMPUS);
+const alertG = drawGraph("g-alert", CAMPUS);
+
+/* --- BFS con TTL --- */
+const BFS_STEPS = [
+  {q:["Tel-Ana·0"], on:[], qd:["Tel-Ana"], used:[], log:"La alerta nace en <b>Tel-Ana</b> (salto 0). Se mete en la cola y se marca como visitada."},
+  {q:["Tel-Luis·1","Tel-Sofía·1"], on:["Tel-Ana"], qd:["Tel-Luis","Tel-Sofía"], used:["Tel-Ana|Tel-Luis","Tel-Ana|Tel-Sofía"], cur:"Tel-Ana",
+   log:"Sale <b>Tel-Ana</b> (0 &lt; TTL). Recorre <code>neig</code>: encola a Luis y Sofía con salto 1."},
+  {q:["Tel-Sofía·1","Tel-Carlos·2"], on:["Tel-Ana","Tel-Luis"], qd:["Tel-Sofía","Tel-Carlos"], used:["Tel-Ana|Tel-Luis","Tel-Ana|Tel-Sofía","Tel-Luis|Tel-Carlos"], cur:"Tel-Luis",
+   log:"Sale <b>Tel-Luis</b> (1). Ana ya está visitada, no se repite. Encola a Carlos con salto 2."},
+  {q:["Tel-Carlos·2","Tel-María·2"], on:["Tel-Ana","Tel-Luis","Tel-Sofía"], qd:["Tel-Carlos","Tel-María"], used:["Tel-Ana|Tel-Luis","Tel-Ana|Tel-Sofía","Tel-Luis|Tel-Carlos","Tel-Sofía|Tel-María"], cur:"Tel-Sofía",
+   log:"Sale <b>Tel-Sofía</b> (1). Encola a María con salto 2."},
+  {q:["Tel-María·2"], on:["Tel-Ana","Tel-Luis","Tel-Sofía","Tel-Carlos"], qd:["Tel-María"], used:["Tel-Ana|Tel-Luis","Tel-Ana|Tel-Sofía","Tel-Luis|Tel-Carlos","Tel-Sofía|Tel-María"], cur:"Tel-Carlos",
+   log:"Sale <b>Tel-Carlos</b>: su salto es 2 = TTL. <b>Recibe la alerta, pero no la reenvía.</b> Pedro no se entera por aquí."},
+  {q:[], on:["Tel-Ana","Tel-Luis","Tel-Sofía","Tel-Carlos","Tel-María"], qd:[], used:["Tel-Ana|Tel-Luis","Tel-Ana|Tel-Sofía","Tel-Luis|Tel-Carlos","Tel-Sofía|Tel-María"], cur:"Tel-María",
+   log:"Sale <b>Tel-María</b> (2 = TTL): tampoco reenvía. La cola queda vacía y el BFS termina."},
+  {q:[], on:["Tel-Ana","Tel-Luis","Tel-Sofía","Tel-Carlos","Tel-María"], qd:[], dead:["Tel-Pedro","Tel-Valeria","Tel-Diego"], used:["Tel-Ana|Tel-Luis","Tel-Ana|Tel-Sofía","Tel-Luis|Tel-Carlos","Tel-Sofía|Tel-María"],
+   log:"<b>Resultado: 5 de 8 teléfonos.</b> <code>[(Ana,0), (Luis,1), (Sofía,1), (Carlos,2), (María,2)]</code><br>Con TTL = 5 llega a los 8: Pedro 3, Valeria 4, Diego 5.", final:true}
+];
+function renderBFS(k){
+  const s = BFS_STEPS[k];
+  for(const n in bfs.nodes){
+    let c = "";
+    if(s.qd.includes(n)) c="q";
+    if(s.on.includes(n)) c="on";
+    if((s.dead||[]).includes(n)) c="dead";
+    if(s.cur===n) c+=" cur";
+    bfs.nodes[n].set(c);
+  }
+  const seen = new Set();
+  for(const key in bfs.edges){ const E=bfs.edges[key]; if(seen.has(E)) continue; seen.add(E); E.set(""); }
+  s.used.forEach(u=>bfs.edges[u].set("used"));
+  document.getElementById("bfs-queue").innerHTML = '<span class="lbl">Cola:</span>' +
+    (s.q.length ? s.q.map(x=>`<span class="chip">${x}</span>`).join("") : '<span class="muted">vacía</span>');
+  const log = BFS_STEPS.slice(0,k+1).map((x,i)=>`<div class="step${i===k?" now":""}">${x.log}</div>`).slice(-3);
+  document.getElementById("bfs-log").innerHTML = log.join("");
+}
+
+/* --- Dijkstra (calculado con los datos, como en backend/evacuacion.py) --- */
+const ORDER = Object.keys(CAMPUS.nodes);
+function adjacency(f){ // f = {lugar, factor}: multiplica las aristas que ENTRAN a lugar
+  const A = {}; ORDER.forEach(n=>A[n]=[]);
+  const k = (dst,w) => (f && dst===f.lugar) ? w*f.factor : w;
+  for(const [a,b,wab,wba] of CAMPUS.edges){ A[a].push([b,k(b,wab)]); if(wba!==null) A[b].push([a,k(a,wba)]); }
+  return A;
+}
+function dijkstraSteps(A, src){
+  const dist={}, prev={}, vis=new Set(); ORDER.forEach(n=>{dist[n]=Infinity; prev[n]=null}); dist[src]=0;
+  const pops=[];
+  for(;;){
+    let u=null; for(const n of ORDER) if(!vis.has(n) && dist[n]<Infinity && (u===null || dist[n]<dist[u])) u=n;
+    if(u===null) break;
+    vis.add(u); const up=[], rej=[];
+    for(const [v,w] of A[u]){ if(vis.has(v)) continue; const c=dist[u]+w;
+      if(c<dist[v]){ up.push({v,old:dist[v],c,w}); dist[v]=c; prev[v]=u; } else rej.push({v,c,cur:dist[v],w}); }
+    pops.push({u, d:dist[u], up, rej, dist:{...dist}, vis:new Set(vis)});
+    if(CAMPUS.safe.includes(u)) break;
+  }
+  const last = pops[pops.length-1], zona = CAMPUS.safe.includes(last.u) ? last.u : null;
+  const ruta=[]; if(zona){ for(let c=zona;c;c=prev[c]) ruta.unshift(c); }
+  return {pops, ruta, zona, d: zona ? dist[zona] : Infinity};
+}
+const costo = (A, ruta) => ruta.slice(1).reduce((s,v,i)=> s + A[ruta[i]].find(([x])=>x===v)[1], 0);
+const camino = r => r.map(short).join(" → ");
+const n1 = x => fmt(x);
+
+const A0 = adjacency(null), R0 = dijkstraSteps(A0, CFG.origen);
+const A1 = adjacency(CFG.alerta), R1 = dijkstraSteps(A1, CFG.origen);
+
+/* Filas de la tabla: se agrupan los vértices seguidos que no mejoran nada */
+const ROWS = [];
+for(const p of R0.pops){
+  const safe = CAMPUS.safe.includes(p.u);
+  const prevRow = ROWS[ROWS.length-1];
+  if(!safe && p.up.length===0 && prevRow && prevRow.empty){ prevRow.us.push(p); continue; }
+  ROWS.push({us:[p], empty:!safe && p.up.length===0, safe});
+}
+function rowHTML(r, i){
+  const p = r.us[r.us.length-1];
+  if(r.safe) return `<td>${i+1}</td><td colspan="2"><b>${short(p.u)}</b> sale con ${n1(p.d)}: es la zona segura más cercana.</td>`;
+  const who = r.us.map(q=>`<b>${short(q.u)}</b> (${n1(q.d)})`).join(", ");
+  if(r.empty) return `<td>${i+1}</td><td>${who}</td><td class="muted">no mejora nada</td>`;
+  const main = p.up.filter(x=>!LEAF.includes(x.v)), leaf = p.up.filter(x=>LEAF.includes(x.v));
+  const txt = main.map(x=> (p.d===0 ? `${short(x.v)} = ${n1(x.c)}` : `${short(x.v)} = ${n1(p.d)} + ${n1(x.w)} = ${n1(x.c)}`) +
+    (x.old<Infinity ? ` <span class="muted">(antes ${n1(x.old)})</span>` : "")).join("<br>");
+  const extra = [];
+  if(leaf.length) extra.push(leaf.map(x=>`${short(x.v)} = ${n1(x.c)}`).join(" · "));
+  p.rej.filter(x=>!LEAF.includes(x.v) && x.cur<Infinity).forEach(x=> extra.push(`${short(x.v)}: ${n1(p.d)} + ${n1(x.w)} = ${n1(x.c)} ≥ ${n1(x.cur)}, no cambia`));
+  return `<td>${i+1}</td><td>${who}</td><td>${txt||'<span class="muted">—</span>'}${extra.length?`<br><span class="muted">${extra.join("<br>")}</span>`:""}</td>`;
+}
+document.getElementById("dtab").innerHTML = ROWS.map((r,i)=>`<tr>${rowHTML(r,i)}</tr>`).join("");
+document.getElementById("s-dij").dataset.steps = ROWS.length;
+document.getElementById("dij-res").innerHTML = `Ruta: ${camino(R0.ruta.slice(0,-1))} → <b>${short(R0.zona)} · ${n1(R0.d)} s</b>`;
+
+function paintRoute(G, route, cls){ for(let i=0;i+1<route.length;i++){ const E=G.edges[route[i]+"|"+route[i+1]]; E.set(cls, E.a===route[i]?"fwd":"rev"); } }
+function clearEdges(G){ const seen=new Set(); for(const k in G.edges){ const E=G.edges[k]; if(!seen.has(E)){ seen.add(E); E.set(""); } } }
+function renderDIJ(k){
+  const snap = k===0 ? null : ROWS[k-1].us[ROWS[k-1].us.length-1];
+  const dist = snap ? snap.dist : {[CFG.origen]:0}, vis = snap ? snap.vis : new Set();
+  const curSet = new Set(k===0 ? [] : ROWS[k-1].us.map(q=>q.u));
+  for(const n in dij.nodes){
+    let c = vis.has(n) ? "vis" : "";
+    if(n===CFG.origen) c += " start";
+    if(LEAF.includes(n)) c += " fade";
+    if(curSet.has(n)) c += " cur";
+    dij.nodes[n].set(c);
+    const d = dist[n]; dij.nodes[n].badge.textContent = (d===undefined || d===Infinity) ? "∞" : n1(d);
+  }
+  clearEdges(dij);
+  const fin = k===ROWS.length;
+  if(fin) paintRoute(dij, R0.ruta, "route");
+  document.querySelectorAll("#dtab tr").forEach((tr,i)=>{ tr.classList.toggle("show", i<k); tr.classList.toggle("now", i===k-1); });
+  document.getElementById("dij-res").classList.toggle("hide", !fin);
+}
+
+/* --- La alerta cambia el mapa --- */
+const F = CFG.alerta;
+const entrantes = CAMPUS.edges.flatMap(([a,b,wab,wba]) => [ b===F.lugar ? [a,b,wab] : null, (a===F.lugar && wba!==null) ? [b,a,wba] : null ]).filter(Boolean);
+document.getElementById("al-0").innerHTML = `<b>Antes:</b> ${camino(R0.ruta)}, <b>${n1(R0.d)} s</b>.`;
+document.getElementById("al-1").innerHTML = `<code>aplicarAlerta(campus, "${F.lugar}", ${F.factor})</code><br>Las aristas que <b>entran</b> a ${F.lugar} se multiplican por ${F.factor}: ` +
+  entrantes.map(([a,b,w])=>`${n1(w)} → ${n1(w*F.factor)}`).join(" y ") + ".";
+document.getElementById("al-2").innerHTML = R1.zona
+  ? `<b>Dijkstra otra vez:</b> ${camino(R1.ruta)}, <b>${n1(R1.d)} s</b>.<br><span class="small">La ruta anterior ahora costaría ${n1(costo(A1,R0.ruta))} s.</span>`
+  : `<b>Dijkstra otra vez:</b> no hay ruta a ninguna zona segura.`;
+function renderAlert(k){
+  for(const n in alertG.nodes){
+    let c = LEAF.includes(n) ? "fade" : "";
+    if(n===CFG.origen) c+=" start";
+    if(n===F.lugar && k>=1) c+=" hotn";
+    alertG.nodes[n].set(c);
+  }
+  clearEdges(alertG);
+  const hot = [];
+  for(const [a,b,wab,wba] of CAMPUS.edges){
+    const E = alertG.edges[a+"|"+b];
+    if(k===0){ E.setW(wab,wba); continue; }
+    const p = b===F.lugar ? wab*F.factor : wab, q = (wba!==null && a===F.lugar) ? wba*F.factor : wba;
+    E.setW(p,q); if(p!==wab || q!==wba) hot.push(E);
+  }
+  paintRoute(alertG, k<2 ? R0.ruta : R1.ruta, "route");
+  hot.forEach(E=>E.set("hot"));
+  document.getElementById("al-1").classList.toggle("hide", k<1);
+  document.getElementById("al-2").classList.toggle("hide", k<2);
+  document.getElementById("al-3").classList.toggle("hide", k<2);
+}
+
+/* Textos que dependen de los datos */
+document.querySelectorAll(".cfg-origen").forEach(e=>e.textContent=CFG.origen);
+document.querySelectorAll(".cfg-lugar").forEach(e=>e.textContent=F.lugar);
+document.querySelectorAll(".cfg-factor").forEach(e=>e.textContent=F.factor);
+document.getElementById("dm-d0").textContent = n1(R0.d);
+document.getElementById("dm-d1").textContent = n1(R1.d);
+document.querySelectorAll(".dm-d0b").forEach(e=>e.textContent=n1(R0.d));
+document.querySelectorAll(".dm-d1b").forEach(e=>e.textContent=n1(R1.d));
+(()=>{ const e = CAMPUS.edges.find(([a,b])=>a==="Escalera Norte" && b==="Pasillo A");
+  document.getElementById("en-baja").textContent = n1(e[2]); document.getElementById("en-sube").textContent = n1(e[3]); })();
+
+const RENDER = {"s-bfs":renderBFS, "s-dij":renderDIJ, "s-alert":renderAlert};
+
+/* ============================================================
+   Navegación
+   ============================================================ */
+const slides = [...document.querySelectorAll(".slide")];
+const mainCount = slides.filter(s=>!s.classList.contains("planb")).length;
+const firstPlanB = slides.findIndex(s=>s.classList.contains("planb"));
+const demoIdx = 9;
+let cur = 0, step = 0, returnTo = demoIdx;
+
+function steps(i){ return +(slides[i].dataset.steps||0); }
+function show(i, st){
+  cur = Math.max(0, Math.min(slides.length-1, i));
+  step = st ?? 0;
+  slides.forEach((s,j)=>s.classList.toggle("active", j===cur));
+  const r = RENDER[slides[cur].id]; if(r) r(step);
+  const pb = slides[cur].classList.contains("planb");
+  document.getElementById("hud").textContent = pb ? "Plan B · R para volver" : `${cur+1} / ${mainCount}`;
+  document.getElementById("bar").style.width = pb ? "0" : `${(cur+1)/mainCount*100}%`;
+  const notes = slides[cur].querySelector("aside.notes");
+  const t = +slides[cur].dataset.time;
+  document.getElementById("notes").innerHTML = `<b>${cur+1}. Tiempo objetivo: ${Math.floor(t/60)}:${String(t%60).padStart(2,"0")}</b> · objetivo acumulado ${acum(cur)}<br>${notes?notes.innerHTML:""}`;
+  try{ history.replaceState(null,"",`#${cur+1}`); }catch(e){}
+}
+function acum(i){ let s=0; for(let j=0;j<=i && j<mainCount;j++) s+=+slides[j].dataset.time; return `${Math.floor(s/60)}:${String(s%60).padStart(2,"0")}`; }
+function next(){ if(step < steps(cur)) show(cur, step+1); else if(cur < slides.length-1 && !(cur===mainCount-1)) show(cur+1); else if(slides[cur].classList.contains("planb") && cur<slides.length-1) show(cur+1); }
+function prev(){ if(step > 0) show(cur, step-1); else if(cur > 0) show(cur-1, steps(cur-1)); }
+
+document.addEventListener("keydown", e=>{
+  const k = e.key;
+  if(["ArrowRight","ArrowDown"," ","PageDown","Enter"].includes(k)){ e.preventDefault(); next(); }
+  else if(["ArrowLeft","ArrowUp","PageUp","Backspace"].includes(k)){ e.preventDefault(); prev(); }
+  else if(k==="Home") show(0);
+  else if(k==="End") show(mainCount-1);
+  else if(k==="f"||k==="F"){ if(!document.fullscreenElement) document.documentElement.requestFullscreen?.(); else document.exitFullscreen?.(); }
+  else if(k==="n"||k==="N"){ const n=document.getElementById("notes"); n.style.display = n.style.display==="block"?"none":"block"; }
+  else if(k==="t"||k==="T") toggleTimer();
+  else if(k==="b"||k==="B"){ if(!slides[cur].classList.contains("planb")) returnTo = cur; show(firstPlanB); }
+  else if(k==="r"||k==="R"){ show(returnTo); }
+});
+document.addEventListener("click", e=>{ if(e.target.closest("a")) return; (e.clientX < innerWidth/3) ? prev() : next(); });
+
+/* Cronómetro */
+let t0=null, tick=null;
+function toggleTimer(){
+  const el = document.getElementById("timer");
+  if(tick){ clearInterval(tick); tick=null; el.style.display="none"; return; }
+  t0 = t0 ?? Date.now(); el.style.display="block";
+  tick = setInterval(()=>{ const s=Math.floor((Date.now()-t0)/1000); el.textContent=`${String(Math.floor(s/60)).padStart(2,"0")}:${String(s%60).padStart(2,"0")}`; el.classList.toggle("over", s>600); }, 250);
+}
+
+/* Capturas que aún no existen */
+document.querySelectorAll(".shot img").forEach(img=>{
+  img.addEventListener("error", ()=>{ img.replaceWith(Object.assign(document.createElement("div"),{className:"ph",innerHTML:`Falta la captura <code>${img.getAttribute("src")}</code>.<br>Ver docs/pitch/demo.md, sección «Capturas».`})); });
+});
+
+/* Escalado 1280×720 */
+function fit(){ const s=Math.min(innerWidth/1280, innerHeight/720); document.getElementById("deck").style.transform=`translate(-50%,-50%) scale(${s})`; }
+addEventListener("resize", fit); fit();
+const h = parseInt(location.hash.slice(1)); show(isNaN(h)?0:h-1);
+</script>
+</body>
+
+</html>
