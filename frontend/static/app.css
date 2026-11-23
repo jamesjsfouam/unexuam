@@ -394,11 +394,13 @@ main {
 .metricas>div {
   border: 2px solid var(--azul);
   border-radius: 20px;
-  padding: 8px 6px;
+  padding: 8px 4px;
   text-align: center;
   display: flex;
   flex-direction: column;
+  justify-content: center;
   min-width: 0;
+  overflow: hidden;
 }
 
 .metricas b {
@@ -410,8 +412,10 @@ main {
 }
 
 .metricas span {
-  font-size: 11px;
+  font-size: 10.5px;
+  line-height: 1.2;
   color: var(--azul);
+  overflow-wrap: anywhere;
 }
 
 .metricas .rojo {
@@ -2266,12 +2270,21 @@ form.tarjeta {
     width: 100%;
   }
 
+  .nav a {
+    font-size: 11px;
+    padding: 6px 3px;
+  }
+
+  .metricas {
+    gap: 6px;
+  }
+
   .metricas b {
     font-size: 18px;
   }
 
   .metricas span {
-    font-size: 10px;
+    font-size: 9.5px;
   }
 }
 
