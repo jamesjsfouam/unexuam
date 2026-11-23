@@ -147,6 +147,7 @@ unexuam/
 │   └── test_api.py            # 7 pruebas de API Flask, 5 flujos de usuario y paridad de mapa
 ├── mobile/                    # App Android autónoma (Capacitor + motor offline; genera Unexuam.apk)
 └── docs/
+    ├── marca/                 # Manual de identidad corporativa (PDF) y familia tipográfica Nexa
     ├── propuesta/             # Propuesta formal del proyecto (.docx y .md)
     ├── pitch/                 # Diapositivas (deck.html), guion, demo, preguntas y capturas
     └── mapa-campus/           # Scripts de extracción OSM y generación del mapa 3D/grafo
