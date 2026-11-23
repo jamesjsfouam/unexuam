@@ -80,6 +80,7 @@ app = Flask(
     static_folder="frontend/static",
 )
 app.json.ensure_ascii = False
+app.config["SEND_FILE_MAX_AGE_DEFAULT"] = 0  # el navegador revalida app.js/app.css: los teléfonos no se quedan con una versión vieja
 
 lock = threading.Lock()
 S = {}
@@ -242,6 +243,20 @@ def api_alerta():
 
 
 # --- Capa 2: campus ----------------------------------------------------------
+
+@app.post("/api/campus/ruta")
+def api_ruta():
+    # Ruta de evacuación para UN teléfono: cada estudiante está en un lugar distinto,
+    # así que no se guarda en el estado compartido (solo se calcula y se devuelve).
+    d = request.get_json(silent=True) or {}
+    lugar = str(d.get("lugar", "")).strip()[:60]
+    with lock:
+        if not existe(S["campus"], lugar):
+            return jsonify({"ok": False, "mensaje": f"El lugar «{lugar}» no existe.", "ruta": None})
+        ruta, tiempo = B["rutaEvacuacion"](S["campus"], lugar, S["zonas"])
+        return jsonify({"ok": True, "mensaje": "",
+                        "ruta": {"origen": lugar, "ruta": list(ruta), "tiempo": num(tiempo)}})
+
 
 @app.post("/api/campus/ubicacion")
 def api_ubicacion():

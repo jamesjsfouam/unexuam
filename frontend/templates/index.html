@@ -142,17 +142,19 @@
         <div id="ruta-info" class="ruta-info"></div>
       </div>
 
-      <div class="lienzo" id="lienzo-campus">
+      <h3 class="franja">Tu ruta en el mapa 3D</h3>
+      <div class="lienzo mapa3d" id="lienzo-campus">
         <div class="lienzo-cab" id="campus-cab"></div>
-        <svg id="svg-campus" class="grafo" role="img" aria-label="Mapa del campus"></svg>
+        <svg id="svg-campus" class="grafo" role="img" aria-label="Ruta de evacuación sobre el mapa 3D del campus"></svg>
         <p class="credito">Plano © colaboradores de <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> (ODbL)</p>
       </div>
       <div class="leyenda">
-        <span class="chip azul"><i class="l-ruta"></i>Ruta</span>
+        <span class="chip amarillo"><i class="l-tu"></i>Tú</span>
+        <span class="chip azul"><i class="l-ruta"></i>Arista de la ruta</span>
+        <span class="chip azul"><i class="l-parada"></i>Fin de cada paso</span>
         <span class="chip rojo"><i class="l-bloq"></i>Bloqueado</span>
-        <span class="chip amarillo"><img src="{{ url_for('static', filename='img/ico-sismo.png') }}" alt="" class="ancha">Congestión</span>
       </div>
-      <p class="intro">Toca un edificio para ver sus pisos. La ruta se calcula con Dijkstra hacia la zona o punto seguro más cercano.</p>
+      <p class="intro">Cada círculo es un vértice del grafo (aula, pabellón, escalera, salida o punto seguro) y cada flecha una arista dirigida con su tiempo. Toca un paso de la guía para resaltarlo en el mapa.</p>
 
       <h3 class="franja">Incidentes</h3>
       <div class="tarjeta">
@@ -190,6 +192,7 @@
           <button class="btn aviso-btn ancho" data-accion="congestionar">Aplicar alerta (aplicarAlerta)</button>
         </div>
 
+        <p class="nota" id="incidentes-activos"></p>
         <div class="fila-botones">
           <button class="btn secundario" data-accion="desbloquear">Reabrir pasos</button>
           <button class="btn secundario" data-accion="reiniciar-campus">Reiniciar campus</button>
