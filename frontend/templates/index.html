@@ -63,6 +63,10 @@
           <small>Chat sin internet</small>
         </a>
       </div>
+      <button type="button" id="btn-sos" class="btn-sos">
+        <b>🆘 SOS · Pedir ayuda ahora</b>
+        <small>Envía tu edificio al Canal General sin internet</small>
+      </button>
 
       <h3 class="franja">Guías de emergencia</h3>
       <div class="guias-grid" id="guias-emergencia">
@@ -376,8 +380,8 @@
     <form id="chat-form" class="chat-form" autocomplete="off">
       <div class="chips chat-rapidos" id="chat-rapidos">
         <button type="button" data-rapido="Estoy bien, voy a la zona segura.">Estoy bien</button>
-        <button type="button" data-rapido="Necesito ayuda, no puedo salir.">Necesito ayuda</button>
-        <button type="button" data-rapido="Hay un pasillo bloqueado, toma otra ruta.">Pasillo bloqueado</button>
+        <button type="button" data-rapido="🆘 Necesito ayuda, no puedo salir.">Necesito ayuda</button>
+        <button type="button" id="btn-reportar-bloqueo">🚧 Reportar bloqueo</button>
       </div>
       <div class="chat-entrada">
         <textarea id="chat-texto" rows="1" maxlength="500" placeholder="Mensaje" aria-label="Mensaje"></textarea>

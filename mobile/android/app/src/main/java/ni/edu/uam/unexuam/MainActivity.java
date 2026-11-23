@@ -11,6 +11,8 @@ import android.location.Location;
 import android.location.LocationManager;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.VibrationEffect;
+import android.os.Vibrator;
 import android.webkit.JavascriptInterface;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
@@ -175,6 +177,22 @@ public class MainActivity extends BridgeActivity {
         @JavascriptInterface
         public String vecinosMeshReales() {
             return meshNativa != null ? meshNativa.vecinosJson() : "[]";
+        }
+
+        @JavascriptInterface
+        @SuppressLint("MissingPermission")
+        public void vibrarAlerta() {
+            try {
+                Vibrator v = (Vibrator) getSystemService(Context.VIBRATOR_SERVICE);
+                if (v == null || !v.hasVibrator()) return;
+                long[] patron = {0, 260, 120, 260, 120, 380};
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    v.vibrate(VibrationEffect.createWaveform(patron, -1));
+                } else {
+                    v.vibrate(patron, -1);
+                }
+            } catch (Exception ignored) {
+            }
         }
 
         @JavascriptInterface

@@ -1,6 +1,7 @@
 package ni.edu.uam.unexuam;
 
 import android.content.Context;
+import android.content.SharedPreferences;
 import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
@@ -45,12 +46,14 @@ public class MeshNativa {
     private static final String SERVICE_ID = "ni.edu.uam.unexuam.mesh";
     private static final Strategy ESTRATEGIA = Strategy.P2P_CLUSTER;
     private static final int MAX_CUSTODIA = 200;
+    private static final String PREFS_DTN = "unexuam_dtn_v1";
 
     public interface Listener {
         void onEvento(String eventoJson);
     }
 
     private final ConnectionsClient client;
+    private final SharedPreferences prefs;
     private final Listener listener;
     private final Map<String, JSONObject> conectados = new ConcurrentHashMap<>();
     private final Map<String, JSONObject> pendientes = new ConcurrentHashMap<>();
@@ -63,7 +66,47 @@ public class MeshNativa {
 
     public MeshNativa(Context context, Listener listener) {
         this.client = Nearby.getConnectionsClient(context);
+        this.prefs = context.getSharedPreferences(PREFS_DTN, Context.MODE_PRIVATE);
         this.listener = listener;
+        cargarEstadoDtn();
+    }
+
+    private void cargarEstadoDtn() {
+        try {
+            String rawC = prefs.getString("custodia", "{}");
+            JSONObject obj = new JSONObject(rawC);
+            java.util.Iterator<String> it = obj.keys();
+            while (it.hasNext()) {
+                String k = it.next();
+                custodia.put(k, obj.optString(k));
+            }
+            String rawOk = prefs.getString("confirmados", "[]");
+            JSONArray arr = new JSONArray(rawOk);
+            for (int i = 0; i < arr.length(); i++) {
+                confirmados.add(arr.optString(i));
+            }
+        } catch (Exception ignored) {
+        }
+    }
+
+    private void guardarEstadoDtn() {
+        try {
+            JSONObject obj = new JSONObject();
+            for (Map.Entry<String, String> e : custodia.entrySet()) {
+                obj.put(e.getKey(), e.getValue());
+            }
+            JSONArray arr = new JSONArray();
+            synchronized (confirmados) {
+                List<String> lista = new ArrayList<>(confirmados);
+                int inicio = Math.max(0, lista.size() - 500);
+                for (int i = inicio; i < lista.size(); i++) arr.put(lista.get(i));
+            }
+            prefs.edit()
+                    .putString("custodia", obj.toString())
+                    .putString("confirmados", arr.toString())
+                    .apply();
+        } catch (Exception ignored) {
+        }
     }
 
     public synchronized void iniciar(String perfilJson) {
@@ -142,6 +185,7 @@ public class MeshNativa {
             custodia.remove(primero);
         }
         custodia.put(id, paqueteJson);
+        guardarEstadoDtn();
     }
 
     private void sincronizarCustodiaCon(String endpointId) {
@@ -290,6 +334,7 @@ public class MeshNativa {
                         confirmados.add(ackDe);
                         // Eliminar el mensaje ya entregado de la custodia local
                         boolean purgado = custodia.remove(ackDe) != null;
+                        guardarEstadoDtn();
                         if (purgado) {
                             Log.i(TAG, "Mensaje " + ackDe + " eliminado de custodia tras ACK.");
                         }
@@ -328,6 +373,7 @@ public class MeshNativa {
                     // Llegó al destinatario final: marcar como confirmado y devolver ACK al emisor
                     confirmados.add(id);
                     custodia.remove(id);
+                    guardarEstadoDtn();
                     JSONObject ack = new JSONObject();
                     ack.put("tipo", "ack");
                     ack.put("id", "ack-" + id);

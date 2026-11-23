@@ -820,6 +820,76 @@
     hoja.hidden = false;
   }
 
+  function sonarAlerta() {
+    try {
+      if (window.UnexuamNativo && typeof window.UnexuamNativo.vibrarAlerta === "function") {
+        window.UnexuamNativo.vibrarAlerta();
+      } else if (navigator.vibrate) {
+        navigator.vibrate([240, 100, 240]);
+      }
+      const Ctx = window.AudioContext || window.webkitAudioContext;
+      if (!Ctx) return;
+      const ctx = new Ctx();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = "sine";
+      osc.frequency.value = 880;
+      gain.gain.value = 0.08;
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start();
+      setTimeout(() => { osc.stop(); ctx.close(); }, 220);
+    } catch (_) {}
+  }
+
+  async function enviarSOS() {
+    if (!YO) return;
+    sonarAlerta();
+    const texto = `🆘 SOS · Necesito ayuda en ${YO.lugar || "el campus"} (${YO.nombre}).`;
+    const j = await pedir("/api/mensajes/enviar", { para: "TODOS", texto });
+    avisar(j.ok ? "🆘 Alerta SOS enviada al Canal General." : (j.mensaje || "No se pudo enviar SOS."), j.ok);
+    firmaMsj = "";
+    await cargarMensajes();
+    location.hash = "#mensajes";
+    abrirChat("TODOS");
+  }
+
+  function abrirReportarBloqueo() {
+    const hoja = $("#hoja");
+    $("#hoja-titulo").textContent = "Reportar pasillo bloqueado";
+    $("#hoja-texto").textContent = "Se avisará por Mesh y todos recalcularán su ruta.";
+    const acc = $("#hoja-acciones");
+    acc.innerHTML = "";
+    const pasos = [
+      { txt: "Escalera Oeste Edificio P (P3 ↔ P2)", o: "P Escalera Oeste P3", d: "P Escalera Oeste P2" },
+      { txt: "Escalera Central B–C (P3 ↔ P2)", o: "C Escalera Central P3", d: "B Escalera Central P2" },
+      { txt: "Pasarela Edificio B ↔ Edificio E", o: "Pasarela Edificio B", d: "Edificio E" },
+      { txt: "Salida Oeste B ↔ Auditorio Central", o: "B Salida Oeste", d: "Auditorio Central" },
+    ];
+    pasos.forEach(p => {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "btn peligro ancho";
+      b.textContent = `🚧 ${p.txt}`;
+      b.onclick = async () => {
+        hoja.hidden = true;
+        const j = await pedir("/api/campus/bloquear", { origen: p.o, destino: p.d, ambos: true });
+        if (j.ok) {
+          sonarAlerta();
+          avisar(`🚧 Bloqueo difundido: ${p.txt}`);
+          if (window.iniciarUnexuam) window.iniciarUnexuam();
+          firmaMsj = "";
+          await cargarMensajes();
+          if (!$("#chat").hidden) renderChat(true);
+        } else {
+          avisar(j.mensaje || "Ese paso ya estaba bloqueado.", false);
+        }
+      };
+      acc.appendChild(b);
+    });
+    hoja.hidden = false;
+  }
+
   function eventos() {
     navEventos();
     $("#login-form").addEventListener("submit", entrar);
@@ -834,6 +904,10 @@
       const card = ev.target.closest("[data-guia]");
       if (card) abrirGuia(card.dataset.guia);
     });
+    const btnSos = $("#btn-sos");
+    if (btnSos) btnSos.addEventListener("click", enviarSOS);
+    const btnBloq = $("#btn-reportar-bloqueo");
+    if (btnBloq) btnBloq.addEventListener("click", abrirReportarBloqueo);
     window.addEventListener("unexuam-mesh-update", async (ev) => {
       if (!YO) return;
       firmaMsj = "";
@@ -841,9 +915,22 @@
       if (vistaActual() === "mensajes") renderMensajes();
       if (!$("#chat").hidden) renderChat(true);
       const d = ev.detail || {};
-      if (d.tipo === "conectado" && d.peer) avisar(`📡 Vecino cercano conectado: ${d.peer.nombre}`);
-      if (d.tipo === "ack") avisar("✓✓ Entrega confirmada · copias intermedias eliminadas");
-      if (d.tipo === "paquete" && d.paquete && $("#chat").hidden) avisar(`💬 Mensaje recibido de ${d.paquete.deNombre || d.paquete.de}`);
+      if (d.recalcularRuta) {
+        sonarAlerta();
+        if (window.iniciarUnexuam) window.iniciarUnexuam();
+        avisar("🚧 Bloqueo recibido por Mesh: tu ruta de evacuación fue recalculada.", false);
+      } else if (d.tipo === "conectado" && d.peer) {
+        avisar(`📡 Vecino cercano conectado: ${d.peer.nombre}`);
+      } else if (d.tipo === "ack") {
+        avisar("✓✓ Entrega confirmada · copias intermedias eliminadas");
+      } else if (d.tipo === "paquete" && d.paquete) {
+        if (String(d.paquete.texto || "").includes("🆘")) {
+          sonarAlerta();
+          avisar(`🆘 ${d.paquete.texto}`, false);
+        } else if ($("#chat").hidden) {
+          avisar(`💬 Mensaje recibido de ${d.paquete.deNombre || d.paquete.de}`);
+        }
+      }
     });
     $("#buscar-contacto").addEventListener("input", renderMensajes);
     $("#chat-form").addEventListener("submit", enviar);

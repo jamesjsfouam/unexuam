@@ -2503,3 +2503,34 @@ body {
   font-size: 12px;
   font-weight: 900;
 }
+
+.btn-sos {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 13px 18px;
+  border: 0;
+  border-radius: var(--radio);
+  background: linear-gradient(135deg, #e23000 0%, #b82200 100%);
+  color: var(--blanco);
+  font-family: var(--fuente);
+  cursor: pointer;
+  box-shadow: 0 8px 20px rgba(226, 48, 0, .28);
+}
+
+.btn-sos:active {
+  transform: scale(.98);
+}
+
+.btn-sos b {
+  font-size: 15px;
+  font-weight: 900;
+}
+
+.btn-sos small {
+  font-size: 11.5px;
+  opacity: .92;
+  font-weight: 400;
+}

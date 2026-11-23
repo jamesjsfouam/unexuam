@@ -568,6 +568,25 @@
         }
       }
       if (!quitadas.length) return responder(false, `No existe el paso ${o} → ${dst}.`);
+      // Difundir el bloqueo por Mesh real a todos los teléfonos cercanos para recalcular sus rutas
+      const yoBloq = cuentaActual();
+      if (yoBloq) {
+        const ahoraB = horaActual();
+        const idB = Math.random().toString(16).slice(2, 14);
+        const txtB = `🚧 Bloqueo reportado: ${o} ↔ ${dst}. Recalculando rutas.`;
+        const envB = enviarPaqueteReal({
+          id: idB, tipo: "incidente", accion: "bloquear", origen: o, destino: dst, ambos,
+          de: yoBloq.cif, deNombre: yoBloq.u.nombre, deTel: yoBloq.u.telefono,
+          para: "TODOS", texto: txtB, hora: ahoraB, ttl: 6, ruta: [yoBloq.u.telefono],
+        });
+        const CB = cuentas();
+        CB.mensajes.push({
+          id: idB, de: yoBloq.cif, deNombre: yoBloq.u.nombre, para: "TODOS", texto: txtB,
+          hora: ahoraB, estado: envB > 0 ? "entregado" : "en cola",
+          ruta: [yoBloq.u.telefono, "Todos"], retardo: 0.5, entregado: envB > 0 ? ahoraB : null, viaCola: false,
+        });
+        guardarCuentas(CB);
+      }
       return responder(true, `Pasillo bloqueado (eliminarArista): ${quitadas.join(", ")}.`);
     }
 
@@ -967,6 +986,26 @@
         const de = String(pq.de || "").trim().toUpperCase().slice(0, 15);
         const para = String(pq.para || "").trim().toUpperCase().slice(0, 15);
         if (!de || !pq.texto) return;
+        let recalcularRuta = false;
+        // Si es un incidente de bloqueo recibido por Mesh, aplicarlo directo al grafo del campus
+        if (pq.tipo === "incidente" && pq.accion === "bloquear" && pq.origen && pq.destino) {
+          const pares = pq.ambos !== false ? [[pq.origen, pq.destino], [pq.destino, pq.origen]] : [[pq.origen, pq.destino]];
+          for (const [a, b] of pares) {
+            const va = S.campus.vertexs.find((v) => v.nombre === a);
+            const arista = va ? va.neig.find(([w]) => w.nombre === b) : null;
+            if (arista && S.campus.eliminarArista(a, b)) {
+              S.bloqueados.push({ origen: a, destino: b, peso: num(arista[1]) });
+              recalcularRuta = true;
+            }
+          }
+          if (recalcularRuta) {
+            registrar(`Bloqueo recibido por Mesh: ${pq.origen} ↔ ${pq.destino}.`, "error");
+            guardarEstadoLocal();
+          }
+        }
+        if (recalcularRuta || String(pq.texto).includes("🆘")) {
+          try { window.UnexuamNativo && window.UnexuamNativo.vibrarAlerta && window.UnexuamNativo.vibrarAlerta(); } catch (_) {}
+        }
         if (!C.usuarios[de]) {
           C.usuarios[de] = {
             nombre: String(pq.deNombre || de).slice(0, 40),
@@ -990,7 +1029,7 @@
             registrar(`Mensaje real recibido de ${C.usuarios[de].nombre} por Mesh.`, "ok");
             guardarEstadoLocal();
           }
-          window.dispatchEvent(new CustomEvent("unexuam-mesh-update", { detail: ev }));
+          window.dispatchEvent(new CustomEvent("unexuam-mesh-update", { detail: { ...ev, recalcularRuta } }));
         }
       }
     } catch (_) {}
