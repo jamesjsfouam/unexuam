@@ -5,6 +5,9 @@ from backend.grafo import Graph, Vertex
 from backend.datos import crearCampus, crearRedMesh
 from backend.evacuacion import dijkstra, rutaMasCorta, rutaEvacuacion, aplicarAlerta, INF
 from backend.mesh import propagarAlerta
+from backend.evacuacion import dijkstraPasos
+from backend.datos import ubicacionesTelefonos
+from backend.mensajeria import conectarTelefono, desconectarTelefono, rutaMensaje, procesarCola
 
 
 def grafoABC():
@@ -192,6 +195,65 @@ class TestMesh(unittest.TestCase):
         self.assertEqual(propagarAlerta(red, "Tel-Diego", 5), [("Tel-Diego", 0)])
         self.assertEqual(propagarAlerta(red, "Tel-Ana", 0), [("Tel-Ana", 0)])
         self.assertEqual(propagarAlerta(red, "Nadie", 3), [])
+
+
+class TestDijkstraPasos(unittest.TestCase):
+    def test_misma_ruta_que_rutaEvacuacion(self):
+        campus, zonas = crearCampus()
+        pasos, ruta, tiempo = dijkstraPasos(campus, "C-101", zonas)
+        ruta2, tiempo2 = rutaEvacuacion(campus, "C-101", zonas)
+        self.assertEqual(tiempo, tiempo2)
+        self.assertEqual(ruta[0], "C-101")
+        self.assertIn(ruta[-1], zonas)
+        self.assertEqual(pasos[0]["actual"], "C-101")
+        self.assertEqual(pasos[-1]["actual"], ruta[-1])      # termina al sacar la zona segura
+
+    def test_distancias_crecen(self):
+        campus, zonas = crearCampus()
+        pasos, ruta, tiempo = dijkstraPasos(campus, "P-309", zonas)
+        d = [p["distancia"] for p in pasos]
+        self.assertEqual(d, sorted(d))                       # Dijkstra saca en orden de distancia
+
+
+class TestMensajeria(unittest.TestCase):
+    def preparar(self):
+        campus, zonas = crearCampus()
+        red = crearRedMesh()
+        ubic = ubicacionesTelefonos()
+        return campus, red, ubic
+
+    def test_conectar_y_enviar(self):
+        campus, red, ubic = self.preparar()
+        vecinos = conectarTelefono(red, campus, "Tel-Yo", "Edificio M", ubic)
+        self.assertTrue(len(vecinos) > 0)
+        ruta, retardo = rutaMensaje(red, "Tel-Yo", "Tel-Diego")
+        self.assertEqual(ruta[0], "Tel-Yo")
+        self.assertEqual(ruta[-1], "Tel-Diego")
+        self.assertTrue(retardo > 0)
+
+    def test_cola_dtn(self):
+        campus, red, ubic = self.preparar()
+        conectarTelefono(red, campus, "Tel-Yo", "Edificio M", ubic)
+        ubic["Tel-Yo"] = "Edificio M"
+        lejos = conectarTelefono(red, campus, "Tel-Lejos", "Punto Seguro Parqueo Suroeste", ubic)
+        self.assertEqual(lejos, [])                          # nadie a su alcance
+        cola = [{"id": 1, "origen": "Tel-Yo", "destino": "Tel-Lejos"}]
+        self.assertEqual(procesarCola(red, cola), [])
+        self.assertEqual(len(cola), 1)                       # sigue esperando
+        # Se mueve cerca de los demas: ahora si hay camino y el mensaje sale.
+        desconectarTelefono(red, "Tel-Lejos")
+        conectarTelefono(red, campus, "Tel-Lejos", "Edificio D", ubic)
+        entregados = procesarCola(red, cola)
+        self.assertEqual(len(entregados), 1)
+        self.assertEqual(cola, [])
+
+    def test_desconectar_quita_aristas_entrantes(self):
+        campus, red, ubic = self.preparar()
+        conectarTelefono(red, campus, "Tel-Yo", "Edificio M", ubic)
+        self.assertTrue(desconectarTelefono(red, "Tel-Yo"))
+        for v in red.vertexs:
+            for vecino in v.neig:
+                self.assertNotEqual(vecino[0].nombre, "Tel-Yo")
 
 
 if __name__ == "__main__":

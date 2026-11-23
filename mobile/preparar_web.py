@@ -9,7 +9,7 @@ from pathlib import Path
 RAIZ = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(RAIZ))
 
-from backend.datos import crearCampus, crearRedMesh
+from backend.datos import crearCampus, crearRedMesh, ubicacionesTelefonos
 
 
 def serializar(g):
@@ -37,6 +37,7 @@ def main():
         "campus": serializar(campus),
         "zonas": list(zonas),
         "mesh": serializar(red),
+        "ubicaciones": ubicacionesTelefonos(),
     }
     (static_dst / "datos-iniciales.json").write_text(
         json.dumps(datos, ensure_ascii=False, separators=(",", ":")),

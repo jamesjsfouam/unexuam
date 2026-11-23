@@ -1,7 +1,11 @@
 import json
+import os
 import re
+import tempfile
 import unittest
 from pathlib import Path
+
+os.environ.setdefault("UNEXUAM_DATOS", tempfile.mkdtemp(prefix="unexuam-pruebas-"))
 
 import app as servidor
 from backend.datos import crearCampus
@@ -10,6 +14,8 @@ from backend.datos import crearCampus
 class TestApiYParidad(unittest.TestCase):
     def setUp(self):
         self.client = servidor.app.test_client()
+        self.client.post("/api/login/demo", json={})      # perfil administrador
+        servidor.desconectar_usuario(servidor.CIF_DEMO)  # su teléfono no altera la red de ejemplo
         self.client.post("/api/reiniciar", json={"grafo": "ambos"})
 
     def test_cabeceras_y_estado_inicial(self):
@@ -72,7 +78,7 @@ class TestApiYParidad(unittest.TestCase):
         with self.client.get("/sw.js") as r:
             self.assertEqual(r.status_code, 200)
             self.assertEqual(r.headers.get("Service-Worker-Allowed"), "/")
-            self.assertIn(b"unexuam-v5", r.data)
+            self.assertIn(b"unexuam-v6", r.data)
 
     def test_paridad_campus_plano_json(self):
         campus, _ = crearCampus()
@@ -83,6 +89,63 @@ class TestApiYParidad(unittest.TestCase):
         exteriores = {n for n in verts if not rx_int.match(n)}
         self.assertEqual(exteriores - pos, set())
         self.assertEqual(pos - verts, set())
+
+
+
+
+class TestSesionYMensajes(unittest.TestCase):
+    def nuevo(self, cif, nombre, lugar):
+        c = servidor.app.test_client()
+        r = c.post("/api/registro", json={"cif": cif, "nombre": nombre, "contrasena": "clave123"}).get_json()
+        if not r["ok"]:
+            r = c.post("/api/login", json={"cif": cif, "contrasena": "clave123"}).get_json()
+        self.assertTrue(r["ok"], r)
+        c.post("/api/yo/lugar", json={"lugar": lugar})
+        return c, c.get("/api/yo").get_json()["usuario"]
+
+    def test_sin_sesion_no_hay_api(self):
+        c = servidor.app.test_client()
+        self.assertEqual(c.get("/api/estado").status_code, 401)
+        self.assertFalse(c.get("/api/yo").get_json()["sesion"])
+        self.assertTrue(c.get("/api/lugares").get_json()["ok"])
+
+    def test_registro_y_contrasena(self):
+        c = servidor.app.test_client()
+        corta = c.post("/api/registro", json={"cif": "REG0001", "nombre": "Ana", "contrasena": "123"}).get_json()
+        self.assertFalse(corta["ok"])
+        self.nuevo("REG0001", "Registro Prueba", "C-101")
+        self.assertFalse(c.post("/api/login", json={"cif": "REG0001", "contrasena": "mala999"}).get_json()["ok"])
+        self.assertFalse(c.post("/api/registro", json={"cif": "REG0001", "nombre": "Otra", "contrasena": "clave123"}).get_json()["ok"])
+
+    def test_solo_admin_edita_grafos(self):
+        c, u = self.nuevo("NOADM01", "Sin Admin", "C-101")
+        self.assertFalse(u["admin"])
+        r = c.post("/api/mesh/vertice", json={"accion": "insertar", "nombre": "Tel-Intruso"})
+        self.assertEqual(r.status_code, 403)
+
+    def test_mensaje_directo_y_cola_dtn(self):
+        a, ua = self.nuevo("MSJ0001", "Emisor", "Edificio D")
+        b, ub = self.nuevo("MSJ0002", "Receptor", "Punto Seguro Parqueo Suroeste")
+        self.assertEqual(ub["vecinos"], [])                       # lejos de todos
+        r = a.post("/api/mensajes/enviar", json={"para": "MSJ0002", "texto": "¿Estás bien?"}).get_json()
+        self.assertEqual(r["enviado"]["estado"], "en cola")
+        self.assertTrue(b.post("/api/yo/lugar", json={"lugar": "Edificio D"}).get_json()["ok"])
+        m = [x for x in b.get("/api/mensajes").get_json()["mensajes"] if x["texto"] == "¿Estás bien?"][0]
+        self.assertEqual(m["estado"], "entregado")
+        self.assertTrue(m["viaCola"])
+        self.assertEqual(m["ruta"][0], ua["telefono"])
+        self.assertEqual(m["ruta"][-1], ub["telefono"])
+        directo = a.post("/api/mensajes/enviar", json={"para": "MSJ0002", "texto": "Voy en camino"}).get_json()
+        self.assertEqual(directo["enviado"]["estado"], "entregado")
+
+    def test_algoritmo_paso_a_paso(self):
+        c = servidor.app.test_client()
+        c.post("/api/login/demo", json={})
+        r = c.post("/api/algoritmo", json={"origen": "C-101"}).get_json()
+        ruta, tiempo = servidor.rutaEvacuacion(servidor.S["campus"], "C-101", servidor.S["zonas"])
+        self.assertEqual(r["tiempo"], tiempo)
+        self.assertEqual(r["pasos"][0]["actual"], "C-101")
+        self.assertIn(r["ruta"][-1], r["zonasSeguras"])
 
 
 if __name__ == "__main__":

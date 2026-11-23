@@ -12,6 +12,7 @@
   <link rel="apple-touch-icon" href="{{ url_for('static', filename='img/icono-192.png') }}">
   <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='app.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='cuenta.css') }}">
 </head>
 <body>
   <div id="splash" class="splash" aria-hidden="true">
@@ -35,19 +36,14 @@
     <span class="chip-offgrid" title="Funciona sin internet, solo con la red local">
       <span class="punto"></span> Off-Grid
     </span>
-    <nav class="nav" aria-label="Secciones">
-      <a href="#inicio" data-tab="inicio">Inicio</a>
-      <a href="#mesh" data-tab="mesh">Red Mesh</a>
-      <a href="#campus" data-tab="campus">Campus</a>
-      <a href="#admin" data-tab="admin">Administrar</a>
-    </nav>
+    <button type="button" id="btn-cuenta" class="avatar" aria-label="Tu cuenta" hidden></button>
   </header>
 
   <main>
     <!-- ============ 1. INICIO ============ -->
     <section id="v-inicio" class="vista" aria-labelledby="t-inicio">
       <img class="banner" src="{{ url_for('static', filename='img/banner-mapa.png') }}" alt="">
-      <h2 id="t-inicio" class="franja">Estado de la red</h2>
+      <h2 id="t-inicio" class="franja">Estado</h2>
 
       <div id="hero" class="hero calma">
         <img id="hero-icono" class="hero-icono" src="{{ url_for('static', filename='img/logo-x.png') }}" alt="">
@@ -88,31 +84,14 @@
         <p class="nota" id="c-nota"></p>
       </div>
 
-      <h3 class="franja">Actividad en vivo</h3>
+      <h3 class="franja">Actividad</h3>
       <ol id="historial" class="historial"></ol>
 
-      <div class="tarjeta">
-        <div class="tarjeta-cab"><h3>Simulacros rápidos</h3></div>
-        <p class="nota">Prueba un escenario completo de emergencia con un toque.</p>
-        <div class="simulacros">
-          <button type="button" class="btn secundario" data-sim="sismo-p">Sismo · Esc. Oeste P</button>
-          <button type="button" class="btn secundario" data-sim="congestion-p">Congestión · Parqueo Oeste</button>
-          <button type="button" class="btn secundario" data-sim="bloqueo-bc">Bloqueo · Esc. Central B–C</button>
-          <button type="button" class="btn alerta" data-sim="alerta-mesh">Alerta Mesh · TTL 5</button>
-        </div>
-      </div>
-
-      <div class="tarjeta">
-        <div class="tarjeta-cab"><h3>Demostración</h3></div>
-        <button id="btn-instalar" class="btn ancho" data-accion="instalar-pwa" hidden>Instalar app en este dispositivo</button>
-        <button class="btn secundario ancho" data-accion="reiniciar-todo">Reiniciar la demo</button>
-      </div>
     </section>
 
     <!-- ============ 2. RED MESH ============ -->
     <section id="v-mesh" class="vista" aria-labelledby="t-mesh" hidden>
-      <h2 id="t-mesh" class="franja">Red Mesh en vivo</h2>
-      <p class="intro">Cada teléfono reenvía la alerta a sus vecinos (BFS con TTL). El peso de cada enlace es el retardo en segundos.</p>
+      <h2 id="t-mesh" class="franja">Red Mesh</h2>
 
       <div class="lienzo">
         <svg id="svg-mesh" class="grafo" role="img" aria-label="Red de teléfonos"></svg>
@@ -155,7 +134,7 @@
     <!-- ============ 3. CAMPUS ============ -->
     <section id="v-campus" class="vista" aria-labelledby="t-campus" hidden>
       <img class="banner" src="{{ url_for('static', filename='img/banner-zonas.png') }}" alt="">
-      <h2 id="t-campus" class="franja">Ruta de evacuación</h2>
+      <h2 id="t-campus" class="franja">Evacuar</h2>
 
       <div class="tarjeta" id="ruta-tarjeta">
         <label class="campo">
@@ -196,7 +175,6 @@
         <span class="chip azul"><i class="l-parada"></i>Vértice</span>
         <span class="chip rojo"><i class="l-bloq"></i>Bloqueado</span>
       </div>
-      <p class="intro">La ruta es un camino en el grafo: cada círculo es un vértice (aula, pabellón, escalera, salida o punto seguro) y cada flecha una arista dirigida con su tiempo. Toca un paso para resaltarlo.</p>
 
       <h3 class="franja">Incidentes</h3>
       <div class="tarjeta">
@@ -244,8 +222,68 @@
 
     <!-- ============ 4. ADMINISTRAR ============ -->
     <section id="v-admin" class="vista" aria-labelledby="t-admin" hidden>
-      <h2 id="t-admin" class="franja">Administrar grafos</h2>
-      <p class="intro">Insertar y eliminar vértices y aristas de cada grafo.</p>
+      <h2 id="t-admin" class="franja">Administrar</h2>
+      <div class="segmentado grande" role="tablist" id="admin-pestanas">
+        <button role="tab" aria-selected="true" data-admin="grafos">Grafos</button>
+        <button role="tab" aria-selected="false" data-admin="dijkstra">Dijkstra 2D</button>
+        <button role="tab" aria-selected="false" data-admin="simulacros">Simulacros</button>
+      </div>
+
+      <div data-admin-panel="dijkstra" hidden>
+      <div class="tarjeta">
+        <label class="campo">
+          <span>Empezar en</span>
+          <select id="alg-origen"></select>
+        </label>
+        <div class="alg-controles">
+          <button type="button" class="btn redondo" data-alg="inicio" aria-label="Primer paso">⏮</button>
+          <button type="button" class="btn redondo" data-alg="atras" aria-label="Paso anterior">◀</button>
+          <button type="button" class="btn primario" data-alg="play" id="alg-play" aria-label="Reproducir">▶</button>
+          <button type="button" class="btn redondo" data-alg="adelante" aria-label="Paso siguiente">▶</button>
+          <button type="button" class="btn redondo" data-alg="fin" aria-label="Último paso">⏭</button>
+        </div>
+        <input type="range" id="alg-barra" min="0" max="0" value="0" aria-label="Paso">
+      </div>
+
+      <div class="lienzo alg-lienzo" id="alg-lienzo">
+        <svg id="svg-alg" class="alg-svg" role="img" aria-label="Grafo del campus en 2D"></svg>
+      </div>
+      <div class="leyenda alg-leyenda">
+        <span><i class="l-alg origen"></i>Origen</span>
+        <span><i class="l-alg actual"></i>Vértice actual</span>
+        <span><i class="l-alg visitado"></i>Visitado</span>
+        <span><i class="l-alg frontera"></i>Por visitar</span>
+        <span><i class="l-alg zona"></i>Zona segura</span>
+        <span><i class="l-alg ruta"></i>Ruta final</span>
+        <button type="button" class="btn mini" id="alg-zoom" aria-pressed="false">Ampliar</button>
+      </div>
+
+      <div class="tarjeta" id="alg-paso"></div>
+      <div class="tarjeta">
+        <div class="tarjeta-cab"><h3>Por visitar (frontera)</h3></div>
+        <ol id="alg-frontera" class="alg-frontera"></ol>
+      </div>
+      </div>
+
+      <div data-admin-panel="simulacros" hidden>
+      <div class="tarjeta">
+        <div class="tarjeta-cab"><h3>Simulacros rápidos</h3></div>
+        <div class="simulacros">
+          <button type="button" class="btn secundario" data-sim="sismo-p">Sismo · Esc. Oeste P</button>
+          <button type="button" class="btn secundario" data-sim="congestion-p">Congestión · Parqueo Oeste</button>
+          <button type="button" class="btn secundario" data-sim="bloqueo-bc">Bloqueo · Esc. Central B–C</button>
+          <button type="button" class="btn alerta" data-sim="alerta-mesh">Alerta Mesh · TTL 5</button>
+        </div>
+      </div>
+
+      <div class="tarjeta">
+        <div class="tarjeta-cab"><h3>Mantenimiento</h3></div>
+        <button id="btn-instalar" class="btn ancho" data-accion="instalar-pwa" hidden>Instalar app en este dispositivo</button>
+        <button class="btn secundario ancho" data-accion="reiniciar-todo">Reiniciar los grafos</button>
+      </div>
+      </div>
+
+      <div data-admin-panel="grafos">
 
       <div class="segmentado grande" role="tablist">
         <button role="tab" aria-selected="true" data-grafo="mesh">Red Mesh</button>
@@ -303,14 +341,97 @@
         <p class="nota">Así queda <code>vertexs</code> y el <code>neig</code> de cada vértice: tuplas (destino, peso).</p>
         <ul id="adyacencia" class="adyacencia"></ul>
       </div>
+      </div>
+    </section>
+
+    <!-- ============ MENSAJES ============ -->
+    <section id="v-mensajes" class="vista" aria-labelledby="t-mensajes" hidden>
+      <h2 id="t-mensajes" class="franja">Mensajes</h2>
+      <button type="button" class="mi-red" id="mi-red">
+        <span class="mi-red-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 4.2a2.6 2.6 0 1 0 2.4 3.6l3.5 1.9a2.7 2.7 0 0 0 0 1.6l-3.5 1.9A2.6 2.6 0 1 0 7.9 15l3.6-2a2.6 2.6 0 0 0 3.9 0l3.6 2a2.6 2.6 0 1 0 .5-1.8l-3.5-1.9a2.7 2.7 0 0 0 0-1.6l3.5-1.9A2.6 2.6 0 1 0 19 6.2l-3.6 2a2.6 2.6 0 0 0-3.9 0L7.9 6.2A2.6 2.6 0 0 0 5 4.2Z"/></svg></span>
+        <span class="mi-red-txt"><b id="mi-tel-nombre">Tu teléfono</b><small id="mi-vecinos"></small></span>
+        <span class="mi-red-lugar" id="mi-lugar-txt"></span>
+      </button>
+      <label class="buscar-chat">
+        <input type="search" id="buscar-contacto" placeholder="Buscar" autocomplete="off" aria-label="Buscar contacto">
+      </label>
+      <ul id="contactos" class="contactos"></ul>
     </section>
   </main>
 
-  <footer class="pie">
-    <p class="pie-chico">Juntos podemos</p>
-    <p class="pie-grande">superar las adversidades</p>
-    <p class="pie-marca">Unexuam</p>
-  </footer>
+  <nav class="nav navbar" id="navbar" aria-label="Secciones">
+    <span class="nav-capsula" aria-hidden="true"></span>
+      <a href="#inicio" data-tab="inicio"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.2 2.8 11h2.7v9.3h5V15h3v5.3h5V11h2.7z"/></svg><span>Inicio</span></a>
+      <a href="#campus" data-tab="campus"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5a6.6 6.6 0 0 0-6.6 6.6c0 4.9 6.6 12.4 6.6 12.4s6.6-7.5 6.6-12.4A6.6 6.6 0 0 0 12 2.5Zm0 9.2a2.6 2.6 0 1 1 0-5.2 2.6 2.6 0 0 1 0 5.2Z"/></svg><span>Evacuar</span></a>
+      <a href="#mensajes" data-tab="mensajes"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3C6.8 3 2.7 6.6 2.7 11c0 2.3 1.1 4.4 3 5.9L4.9 21l4.4-2.3c.9.2 1.8.3 2.7.3 5.2 0 9.3-3.6 9.3-8S17.2 3 12 3Zm-4.3 9.3a1.3 1.3 0 1 1 0-2.6 1.3 1.3 0 0 1 0 2.6Zm4.3 0a1.3 1.3 0 1 1 0-2.6 1.3 1.3 0 0 1 0 2.6Zm4.3 0a1.3 1.3 0 1 1 0-2.6 1.3 1.3 0 0 1 0 2.6Z"/></svg><span>Mensajes</span><b id="badge-mensajes" class="badge" hidden></b></a>
+      <a href="#mesh" data-tab="mesh"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4.2a2.6 2.6 0 1 0 2.4 3.6l3.5 1.9a2.7 2.7 0 0 0 0 1.6l-3.5 1.9A2.6 2.6 0 1 0 7.9 15l3.6-2a2.6 2.6 0 0 0 3.9 0l3.6 2a2.6 2.6 0 1 0 .5-1.8l-3.5-1.9a2.7 2.7 0 0 0 0-1.6l3.5-1.9A2.6 2.6 0 1 0 19 6.2l-3.6 2a2.6 2.6 0 0 0-3.9 0L7.9 6.2A2.6 2.6 0 0 0 5 4.2Z"/></svg><span>Red Mesh</span></a>
+      <a href="#admin" data-tab="admin" class="solo-admin" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13.9 2.6h-3.8l-.5 2.6c-.6.2-1.1.5-1.6.9L5.5 5.2 3.6 8.5l2 1.7a6 6 0 0 0 0 1.8l-2 1.7 1.9 3.3 2.5-.9c.5.4 1 .7 1.6.9l.5 2.6h3.8l.5-2.6c.6-.2 1.1-.5 1.6-.9l2.5.9 1.9-3.3-2-1.7a6 6 0 0 0 0-1.8l2-1.7-1.9-3.3-2.5.9c-.5-.4-1-.7-1.6-.9ZM12 14.6a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7Z"/></svg><span>Admin</span></a>
+  </nav>
+
+  <section id="chat" class="chat" aria-labelledby="chat-titulo" hidden>
+    <header class="chat-cab">
+      <button type="button" class="chat-volver" id="chat-volver" aria-label="Volver">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15.4 4.6 8 12l7.4 7.4-1.6 1.6L4.8 12l9-9z"/></svg>
+      </button>
+      <span class="avatar-c" id="chat-avatar" aria-hidden="true"></span>
+      <div class="chat-quien">
+        <h2 id="chat-titulo"></h2>
+        <small id="chat-estado"></small>
+      </div>
+    </header>
+    <ol id="chat-lista" class="chat-lista"></ol>
+    <form id="chat-form" class="chat-form" autocomplete="off">
+      <div class="chips chat-rapidos" id="chat-rapidos">
+        <button type="button" data-rapido="Estoy bien, voy a la zona segura.">Estoy bien</button>
+        <button type="button" data-rapido="Necesito ayuda, no puedo salir.">Necesito ayuda</button>
+        <button type="button" data-rapido="Hay un pasillo bloqueado, toma otra ruta.">Pasillo bloqueado</button>
+      </div>
+      <div class="chat-entrada">
+        <textarea id="chat-texto" rows="1" maxlength="500" placeholder="Mensaje" aria-label="Mensaje"></textarea>
+        <button class="chat-enviar" aria-label="Enviar">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 20.5 21.5 12 3 3.5l.1 6.6L15 12 3.1 13.9z"/></svg>
+        </button>
+      </div>
+    </form>
+  </section>
+
+  <!-- ============ INICIO DE SESIÓN ============ -->
+  <section id="v-login" class="login" aria-labelledby="t-login" hidden>
+    <div class="login-marca">
+      <img src="{{ url_for('static', filename='img/icono-192.png') }}" alt="" class="login-logo">
+      <img src="{{ url_for('static', filename='img/wordmark-unexuam.png') }}" alt="Unexuam" class="login-wordmark">
+      <p>Evacuación y mensajes sin internet</p>
+    </div>
+    <div class="login-carta">
+      <h2 id="t-login" class="sr">Acceso</h2>
+      <div class="segmentado login-tabs" role="tablist">
+        <button type="button" role="tab" aria-selected="true" data-modo="entrar">Entrar</button>
+        <button type="button" role="tab" aria-selected="false" data-modo="registro">Crear cuenta</button>
+      </div>
+      <form id="login-form" autocomplete="on" novalidate>
+        <label class="campo">
+          <span>CIF</span>
+          <input name="cif" id="login-cif" required maxlength="15" autocomplete="username" autocapitalize="characters" spellcheck="false" placeholder="Tu CIF">
+        </label>
+        <label class="campo solo-registro" hidden>
+          <span>Nombre</span>
+          <input name="nombre" id="login-nombre" maxlength="40" autocomplete="name" placeholder="Cómo te verán los demás">
+        </label>
+        <label class="campo">
+          <span>Contraseña</span>
+          <input name="contrasena" id="login-clave" type="password" required maxlength="64" autocomplete="current-password" placeholder="••••••">
+        </label>
+        <label class="campo solo-registro" hidden>
+          <span>Repite la contraseña</span>
+          <input id="login-clave2" type="password" maxlength="64" autocomplete="new-password" placeholder="••••••">
+        </label>
+        <p class="login-error" id="login-error" role="alert"></p>
+        <button class="btn primario ancho grande" id="login-btn">Entrar</button>
+      </form>
+      <div class="login-sep"><span>o</span></div>
+      <button type="button" class="btn secundario ancho" id="login-demo">Demo rápida · Admin</button>
+    </div>
+  </section>
 
   <div id="hoja" class="hoja" hidden>
     <div class="hoja-fondo" data-cerrar></div>
@@ -326,5 +447,6 @@
   <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
 
   <script src="{{ url_for('static', filename='app.js') }}"></script>
+  <script src="{{ url_for('static', filename='cuenta.js') }}"></script>
 </body>
 </html>

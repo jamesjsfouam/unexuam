@@ -80,3 +80,63 @@ def aplicarAlerta(campus, lugar, factor):
             if v.neig[i][0] is peligro:
                 v.neig[i] = (peligro, v.neig[i][1] * factor)
     return True
+
+
+def dijkstraPasos(campus, origen, zonasSeguras):
+    # El mismo Dijkstra de arriba, pero guardando cada paso para explicarlo.
+    # Se detiene cuando saca la PRIMERA zona segura: como Dijkstra saca los
+    # vertices en orden de distancia, esa es la zona segura mas cercana.
+    # Devuelve (pasos, ruta, tiempo). Cada paso es un diccionario:
+    #   {"actual", "distancia", "vecinos": [{"destino", "peso", "antes", "nueva", "mejora", "visitado"}]}
+    distancias = {}
+    anteriores = {}
+    for v in campus.vertexs:
+        distancias[v.nombre] = INF
+        anteriores[v.nombre] = None
+
+    inicio = campus.buscarVertice(origen)
+    if inicio is None:
+        return [], [], INF
+    distancias[inicio.nombre] = 0
+
+    pasos = []
+    visitados = []
+    zonaAlcanzada = None
+    while len(visitados) < len(campus.vertexs):
+        actual = None
+        for v in campus.vertexs:
+            if v not in visitados:
+                if actual is None or distancias[v.nombre] < distancias[actual.nombre]:
+                    actual = v
+        if distancias[actual.nombre] == INF:
+            break
+        visitados.append(actual)
+
+        paso = {"actual": actual.nombre, "distancia": distancias[actual.nombre], "vecinos": []}
+        if actual.nombre in zonasSeguras:
+            pasos.append(paso)
+            zonaAlcanzada = actual.nombre
+            break
+
+        for vecino in actual.neig:
+            destino = vecino[0]
+            peso = vecino[1]
+            antes = distancias[destino.nombre]
+            nueva = distancias[actual.nombre] + peso
+            mejora = destino not in visitados and nueva < antes
+            if mejora:
+                distancias[destino.nombre] = nueva
+                anteriores[destino.nombre] = actual.nombre
+            paso["vecinos"].append({"destino": destino.nombre, "peso": peso, "antes": antes,
+                                    "nueva": nueva, "mejora": mejora,
+                                    "visitado": destino in visitados})
+        pasos.append(paso)
+
+    if zonaAlcanzada is None:
+        return pasos, [], INF
+    ruta = []
+    lugar = zonaAlcanzada
+    while lugar is not None:
+        ruta.insert(0, lugar)
+        lugar = anteriores[lugar]
+    return pasos, ruta, distancias[zonaAlcanzada]

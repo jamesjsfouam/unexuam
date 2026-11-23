@@ -270,3 +270,18 @@ def crearRedMesh():
         red.insertarArista(enlace[0], enlace[1], enlace[2])
 
     return red
+
+
+def ubicacionesTelefonos():
+    # Lugar del campus donde esta cada telefono de ejemplo. Sirve para enlazar
+    # los telefonos de los usuarios que inician sesion con los que tienen cerca.
+    return {
+        "Tel-Ana": "Edificio E",
+        "Tel-Luis": "Punto Seguro Plazoleta",
+        "Tel-Sofía": "Food Court",
+        "Tel-Carlos": "B Salida Oeste",
+        "Tel-María": "Edificio A",
+        "Tel-Pedro": "C Salida Este",
+        "Tel-Valeria": "Edificio D",
+        "Tel-Diego": "Punto Seguro Parqueo Sur",
+    }

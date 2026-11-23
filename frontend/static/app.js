@@ -65,6 +65,7 @@ async function api(ruta, cuerpo) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(cuerpo),
     });
+    if (r.status === 401) { if (window.mostrarLogin) window.mostrarLogin(); return { ok: false }; }
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
     const j = await r.json();
     marcarConexion(true);
@@ -1436,12 +1437,14 @@ function renderAdmin() {
 /* ---------------------------------------------------------------- tabs */
 
 function irA(nombre) {
-  if (!["inicio", "mesh", "campus", "admin"].includes(nombre)) nombre = "inicio";
+  if (!["inicio", "mesh", "campus", "mensajes", "admin"].includes(nombre)) nombre = "inicio";
+  if (nombre === "admin" && !document.body.classList.contains("es-admin")) nombre = "inicio";
   vista = nombre;
   $$(".vista").forEach(s => { s.hidden = s.id !== "v-" + nombre; });
   $$(".nav a").forEach(a => (a.dataset.tab === nombre ? a.setAttribute("aria-current", "page") : a.removeAttribute("aria-current")));
   window.scrollTo(0, 0);
   render();
+  if (window.alEntrarVista) window.alEntrarVista(nombre);
 }
 
 /* ------------------------------------------------------------- eventos */
@@ -1729,6 +1732,7 @@ async function sondeo() {
   if (!document.hidden && !animando && !$("#svg-mesh").classList.contains("arrastrando")) {
     try {
       const r = await fetch("/api/estado");
+      if (r.status === 401) { if (window.mostrarLogin) window.mostrarLogin(); setTimeout(sondeo, 4000); return; }
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       const j = await r.json();
       marcarConexion(true);
@@ -1764,5 +1768,11 @@ if (!window.__UNEXUAM_OFFLINE__ && "serviceWorker" in navigator) {
 }
 
 eventos();
-api("/api/estado").then(() => irA(location.hash.slice(1) || "inicio"));
-if (!window.__UNEXUAM_OFFLINE__) setTimeout(sondeo, 4000);
+// La app arranca cuando hay sesión iniciada (ver cuenta.js).
+let appIniciada = false;
+window.iniciarUnexuam = function () {
+  api("/api/estado").then(() => irA(location.hash.slice(1) || "inicio"));
+  if (appIniciada) return;
+  appIniciada = true;
+  if (!window.__UNEXUAM_OFFLINE__) setTimeout(sondeo, 4000);
+};

@@ -1,9 +1,11 @@
 /* Service Worker de Unexuam: caché de assets estáticos para operar offline. */
-const CACHE = "unexuam-v5";
+const CACHE = "unexuam-v6";
 const ASSETS = [
   "/",
   "/static/app.css",
   "/static/app.js",
+  "/static/cuenta.js",
+  "/static/cuenta.css",
   "/static/campus-plano.json",
   "/static/manifest.json",
   "/static/fonts/Montserrat-Regular.ttf",

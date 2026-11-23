@@ -12,17 +12,23 @@ Toda la lógica de grafos está en `backend/`; este archivo solo guarda el estad
 memoria y lo expone como una API JSON para la interfaz web.
 """
 
+import json
 import math
+import os
+import re
+import secrets
 import socket
 import sys
 import threading
 import time
 
-from flask import Flask, jsonify, render_template, request
+from flask import Flask, jsonify, render_template, request, session
 from werkzeug.exceptions import HTTPException
+from werkzeug.security import check_password_hash, generate_password_hash
 
-from backend.datos import crearCampus, crearRedMesh
-from backend.evacuacion import aplicarAlerta, rutaEvacuacion
+from backend.datos import crearCampus, crearRedMesh, ubicacionesTelefonos
+from backend.evacuacion import aplicarAlerta, dijkstraPasos, rutaEvacuacion
+from backend.mensajeria import ALCANCE, conectarTelefono, desconectarTelefono, procesarCola, rutaMensaje
 from backend.mesh import propagarAlerta
 
 B = {
@@ -61,13 +67,56 @@ def cabeceras_respuesta(resp):
         resp.headers["Cache-Control"] = "no-store"
     return resp
 
+# Cuentas y mensajes se guardan en disco (carpeta datos/) para no perderlos al reiniciar.
+CARPETA_DATOS = os.environ.get("UNEXUAM_DATOS") or os.path.join(os.path.dirname(os.path.abspath(__file__)), "datos")
+os.makedirs(CARPETA_DATOS, exist_ok=True)
+
+
+def ruta_datos(nombre):
+    return os.path.join(CARPETA_DATOS, nombre)
+
+
+def leer_json(nombre, defecto):
+    try:
+        with open(ruta_datos(nombre), encoding="utf-8") as f:
+            return json.load(f)
+    except (OSError, ValueError):
+        return defecto
+
+
+def guardar_json(nombre, datos):
+    tmp = ruta_datos(nombre + ".tmp")
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(datos, f, ensure_ascii=False, indent=1)
+    os.replace(tmp, ruta_datos(nombre))
+
+
+def clave_secreta():
+    archivo = ruta_datos("clave.secret")
+    if not os.path.exists(archivo):
+        with open(archivo, "w", encoding="utf-8") as f:
+            f.write(secrets.token_hex(32))
+    with open(archivo, encoding="utf-8") as f:
+        return f.read().strip()
+
+
+app.secret_key = clave_secreta()
+app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+app.config["PERMANENT_SESSION_LIFETIME"] = 60 * 60 * 24 * 30   # 30 días
+
 lock = threading.Lock()
 S = {}
+USUARIOS = leer_json("usuarios.json", {})     # cif -> {nombre, hash, telefono, lugar}
+MENSAJES = leer_json("mensajes.json", [])     # lista de mensajes
+EN_LINEA = set()                              # CIF con el teléfono conectado a la red Mesh
 
 
 def reiniciar_mesh():
     S["red"] = crear_red_mesh()
+    S["ubicaciones"] = ubicacionesTelefonos()   # teléfono -> lugar del campus
     S["ultimaAlerta"] = None
+    for cif in list(EN_LINEA):                  # los usuarios conectados vuelven a la red
+        conectar_usuario(cif, USUARIOS[cif]["lugar"])
 
 
 def reiniciar_campus():
@@ -134,6 +183,8 @@ def estado():
 
 
 def responder(ok, mensaje, **extra):
+    if ok:
+        repartir_cola()        # la red pudo cambiar: los mensajes en cola prueban de nuevo
     if mensaje:
         registrar(mensaje, "ok" if ok else "error")
     return jsonify({"ok": ok, "mensaje": mensaje, "estado": estado(), **extra})
@@ -184,6 +235,254 @@ def error_backend(e):
 # ----------------------------------------------------------------------------
 # Rutas
 # ----------------------------------------------------------------------------
+
+# ----------------------------------------------------------------------------
+# Inicio de sesión (CIF + carnet) y mensajería por la red Mesh
+# ----------------------------------------------------------------------------
+
+LIBRES = {"/api/yo", "/api/login", "/api/login/demo", "/api/registro", "/api/lugares"}
+SOLO_ADMIN = ("/api/reiniciar", "/api/mesh/vertice", "/api/mesh/arista", "/api/campus/vertice", "/api/campus/arista")
+LUGAR_INICIAL = "Edificio E"      # lugar por defecto al entrar (luego cada quien elige dónde está)
+CIF_DEMO = "ADMIN"
+
+
+@app.before_request
+def exigir_sesion():
+    if request.path.startswith("/api/") and request.path not in LIBRES:
+        cif = session.get("cif")
+        if cif not in USUARIOS:
+            return jsonify({"ok": False, "mensaje": "Inicia sesión con tu CIF y tu contraseña.", "sesion": False}), 401
+        if request.path in SOLO_ADMIN and not USUARIOS[cif].get("admin"):
+            return jsonify({"ok": False, "mensaje": "Solo el administrador puede editar los grafos."}), 403
+
+
+def nombre_telefono(cif, nombre):
+    base = "Tel-" + (nombre.split()[0] if nombre.split() else "UAM")
+    usados = {u["telefono"] for u in USUARIOS.values()} | set(ubicacionesTelefonos())
+    for sufijo in (cif[-3:], cif):
+        candidato = f"{base}-{sufijo}"
+        if candidato not in usados:
+            return candidato
+    return f"Tel-{cif}"
+
+
+def conectar_usuario(cif, lugar):
+    """Pone el teléfono del usuario en la red Mesh, en `lugar`, enlazado con los que tiene cerca."""
+    u = USUARIOS[cif]
+    red = S["red"]
+    if red.buscarVertice(u["telefono"]) is not None:
+        desconectarTelefono(red, u["telefono"])
+    S["ubicaciones"].pop(u["telefono"], None)
+    vecinos = conectarTelefono(red, S["campus"], u["telefono"], lugar, S["ubicaciones"])
+    S["ubicaciones"][u["telefono"]] = lugar
+    u["lugar"] = lugar
+    EN_LINEA.add(cif)
+    return vecinos
+
+
+def desconectar_usuario(cif):
+    u = USUARIOS.get(cif)
+    if not u:
+        return
+    desconectarTelefono(S["red"], u["telefono"])
+    S["ubicaciones"].pop(u["telefono"], None)
+    EN_LINEA.discard(cif)
+
+
+def telefono_de(cif):
+    return USUARIOS[cif]["telefono"] if cif in USUARIOS else None
+
+
+def repartir_cola():
+    """DTN: intenta entregar los mensajes en cola ahora que la red cambió."""
+    cola = [{"id": m["id"], "origen": telefono_de(m["de"]), "destino": telefono_de(m["para"])}
+            for m in MENSAJES if m["estado"] == "en cola"]
+    if not cola:
+        return 0
+    entregados = procesarCola(S["red"], cola)
+    por_id = {m["id"]: m for m in MENSAJES}
+    for ident, ruta, retardo in entregados:
+        por_id[ident].update(estado="entregado", ruta=list(ruta), retardo=num(retardo),
+                             entregado=time.strftime("%H:%M:%S"), viaCola=True)
+        registrar(f"Mensaje en cola entregado: {' → '.join(ruta)} ({num(retardo)} s).", "ok")
+    if entregados:
+        guardar_json("mensajes.json", MENSAJES)
+    return len(entregados)
+
+
+def vecinos_de(telefono):
+    v = S["red"].buscarVertice(telefono)
+    return [{"telefono": w.nombre, "retardo": num(p)} for w, p in v.neig] if v else []
+
+
+def datos_usuario(cif):
+    u = USUARIOS[cif]
+    return {"cif": cif, "nombre": u["nombre"], "telefono": u["telefono"], "lugar": u["lugar"],
+            "admin": bool(u.get("admin")), "enLinea": cif in EN_LINEA,
+            "vecinos": vecinos_de(u["telefono"]), "alcance": ALCANCE}
+
+
+@app.get("/api/lugares")
+def api_lugares():
+    with lock:
+        return jsonify({"ok": True, "lugares": [v.nombre for v in S["campus"].vertexs]})
+
+
+@app.get("/api/yo")
+def api_yo():
+    cif = session.get("cif")
+    with lock:
+        if cif not in USUARIOS:
+            return jsonify({"ok": False, "sesion": False})
+        if cif not in EN_LINEA:            # el servidor se reinició: vuelve a la red donde estaba
+            conectar_usuario(cif, USUARIOS[cif]["lugar"])
+            repartir_cola()
+        return jsonify({"ok": True, "sesion": True, "usuario": datos_usuario(cif)})
+
+
+def leer_cif(d):
+    return re.sub(r"\s+", "", str(d.get("cif", ""))).upper()[:15]
+
+
+def abrir_sesion(cif, lugar=None):
+    u = USUARIOS[cif]
+    if not lugar or S["campus"].buscarVertice(lugar) is None:
+        lugar = u.get("lugar") or LUGAR_INICIAL
+    session.clear()
+    session["cif"] = cif
+    session.permanent = True
+    vecinos = conectar_usuario(cif, lugar)
+    guardar_json("usuarios.json", USUARIOS)
+    registrar(f"{u['nombre']} entró a la red desde {lugar}: {len(vecinos)} teléfono(s) a su alcance.", "ok")
+    repartir_cola()
+    return jsonify({"ok": True, "usuario": datos_usuario(cif)})
+
+
+@app.post("/api/registro")
+def api_registro():
+    d = request.get_json(silent=True) or {}
+    cif = leer_cif(d)
+    nombre = " ".join(str(d.get("nombre", "")).split())[:40]
+    clave = str(d.get("contrasena", ""))[:64]
+    if not re.fullmatch(r"[0-9A-Z-]{4,15}", cif) or cif == CIF_DEMO:
+        return jsonify({"ok": False, "mensaje": "Escribe un CIF válido (4 a 15 letras o números)."})
+    if len(nombre) < 2:
+        return jsonify({"ok": False, "mensaje": "Escribe tu nombre."})
+    if len(clave) < 6:
+        return jsonify({"ok": False, "mensaje": "La contraseña debe tener al menos 6 caracteres."})
+    with lock:
+        if cif in USUARIOS:
+            return jsonify({"ok": False, "mensaje": "Ese CIF ya tiene cuenta. Inicia sesión."})
+        USUARIOS[cif] = {"nombre": nombre, "hash": generate_password_hash(clave),
+                         "telefono": nombre_telefono(cif, nombre), "lugar": LUGAR_INICIAL}
+        registrar(f"Nueva cuenta: {nombre} ({USUARIOS[cif]['telefono']}).", "ok")
+        return abrir_sesion(cif, d.get("lugar"))
+
+
+@app.post("/api/login")
+def api_login():
+    d = request.get_json(silent=True) or {}
+    cif = leer_cif(d)
+    clave = str(d.get("contrasena", ""))[:64]
+    with lock:
+        u = USUARIOS.get(cif)
+        if u is None or u.get("admin") or not check_password_hash(u["hash"], clave):
+            return jsonify({"ok": False, "mensaje": "CIF o contraseña incorrectos."})
+        return abrir_sesion(cif, d.get("lugar"))
+
+
+@app.post("/api/login/demo")
+def api_login_demo():
+    # Acceso rápido de demostración: perfil de administrador (puede editar los grafos).
+    with lock:
+        if CIF_DEMO not in USUARIOS:
+            USUARIOS[CIF_DEMO] = {"nombre": "Administrador", "hash": "", "admin": True,
+                                  "telefono": "Tel-Admin", "lugar": LUGAR_INICIAL}
+        return abrir_sesion(CIF_DEMO)
+
+
+@app.post("/api/logout")
+def api_logout():
+    cif = session.get("cif")
+    with lock:
+        if cif in USUARIOS:
+            desconectar_usuario(cif)
+            registrar(f"{USUARIOS[cif]['nombre']} salió: su teléfono dejó la red (eliminarVertice).")
+    session.clear()
+    return jsonify({"ok": True})
+
+
+@app.post("/api/yo/lugar")
+def api_mover():
+    lugar = str((request.get_json(silent=True) or {}).get("lugar", "")).strip()[:60]
+    cif = session["cif"]
+    with lock:
+        if S["campus"].buscarVertice(lugar) is None:
+            return jsonify({"ok": False, "mensaje": f"El lugar «{lugar}» no existe."})
+        vecinos = conectar_usuario(cif, lugar)
+        guardar_json("usuarios.json", USUARIOS)
+        n = repartir_cola()
+        extra = f" Salieron {n} mensaje(s) que estaban en cola." if n else ""
+        return jsonify({"ok": True, "usuario": datos_usuario(cif),
+                        "mensaje": f"Ahora estás en {lugar}: {len(vecinos)} teléfono(s) a tu alcance.{extra}"})
+
+
+@app.get("/api/mensajes")
+def api_mensajes():
+    cif = session["cif"]
+    with lock:
+        contactos = [{"cif": c, "nombre": u["nombre"], "telefono": u["telefono"], "enLinea": c in EN_LINEA,
+                      "lugar": u["lugar"] if c in EN_LINEA else None}
+                     for c, u in USUARIOS.items() if c != cif]
+        contactos.sort(key=lambda x: (not x["enLinea"], x["nombre"].lower()))
+        mios = [m for m in MENSAJES if cif in (m["de"], m["para"])]
+        return jsonify({"ok": True, "yo": datos_usuario(cif), "contactos": contactos, "mensajes": mios[-300:]})
+
+
+@app.post("/api/mensajes/enviar")
+def api_enviar():
+    d = request.get_json(silent=True) or {}
+    cif = session["cif"]
+    para = str(d.get("para", "")).strip().upper()
+    texto_msj = str(d.get("texto", "")).strip()[:500]
+    with lock:
+        if para not in USUARIOS or para == cif:
+            return jsonify({"ok": False, "mensaje": "Elige a quién enviarle el mensaje."})
+        if not texto_msj:
+            return jsonify({"ok": False, "mensaje": "El mensaje está vacío."})
+        ruta, retardo = rutaMensaje(S["red"], telefono_de(cif), telefono_de(para))
+        ahora = time.strftime("%H:%M:%S")
+        m = {"id": secrets.token_hex(6), "de": cif, "para": para, "texto": texto_msj, "hora": ahora,
+             "estado": "entregado" if ruta else "en cola", "ruta": list(ruta),
+             "retardo": num(retardo) if ruta else None, "entregado": ahora if ruta else None, "viaCola": False}
+        MENSAJES.append(m)
+        del MENSAJES[:-5000]
+        guardar_json("mensajes.json", MENSAJES)
+        if ruta:
+            msj = f"Entregado en {len(ruta) - 1} salto(s), {num(retardo)} s de retardo."
+        else:
+            msj = "Sin camino en la red Mesh: el mensaje queda en cola (DTN) y sale cuando aparezca uno."
+        registrar(f"Mensaje {telefono_de(cif)} → {telefono_de(para)}: {m['estado']}.", "ok" if ruta else "info")
+        return jsonify({"ok": True, "mensaje": msj, "enviado": m})
+
+
+# --- Dijkstra paso a paso (grafo 2D) -----------------------------------------
+
+@app.route("/api/algoritmo", methods=["GET", "POST"])
+def api_algoritmo():
+    d = request.get_json(silent=True) or {}
+    origen = str(d.get("origen") or request.args.get("origen") or "C-101").strip()[:60]
+    with lock:
+        if S["campus"].buscarVertice(origen) is None:
+            return jsonify({"ok": False, "mensaje": f"El lugar «{origen}» no existe."})
+        pasos, ruta, tiempo = dijkstraPasos(S["campus"], origen, S["zonas"])
+        for p in pasos:
+            p["distancia"] = num(p["distancia"])
+            for v in p["vecinos"]:
+                v["peso"], v["antes"], v["nueva"] = num(v["peso"]), num(v["antes"]), num(v["nueva"])
+        return jsonify({"ok": True, "origen": origen, "pasos": pasos, "ruta": list(ruta), "tiempo": num(tiempo),
+                        "grafo": serializar(S["campus"]), "zonasSeguras": S["zonas"]})
+
 
 @app.get("/")
 def index():
@@ -397,7 +696,7 @@ if __name__ == "__main__":
         sys.stdout.reconfigure(errors="replace")  # consolas de Windows sin UTF-8
     except AttributeError:
         pass
-    puerto = 5000
+    puerto = int(os.environ.get("PORT", "5000"))
     print("=" * 60)
     print(" Unexuam · Evacuación Off-Grid")
     print(f" En este PC:        http://127.0.0.1:{puerto}")

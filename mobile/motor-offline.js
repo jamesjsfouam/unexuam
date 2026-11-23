@@ -371,7 +371,127 @@
     return null;
   }
 
+  // --- Cuentas, mensajería por la red Mesh y Dijkstra paso a paso (espejo de backend/) ---
+  const CUENTAS_KEY = "unexuam-cuentas-v1";
+  const ALCANCE = 120;
+  const UBIC = {};
+
+  function cuentas() {
+    try {
+      const c = JSON.parse(window.localStorage.getItem(CUENTAS_KEY) || "null");
+      if (c && c.usuarios && Array.isArray(c.mensajes)) return c;
+    } catch (_) {}
+    return { usuarios: {}, mensajes: [], sesion: null };
+  }
+  function guardarCuentas(c) {
+    try { window.localStorage.setItem(CUENTAS_KEY, JSON.stringify(c)); } catch (_) {}
+  }
+  function cuentaActual() {
+    const c = cuentas();
+    return c.sesion && c.usuarios[c.sesion] ? { cif: c.sesion, u: c.usuarios[c.sesion] } : null;
+  }
+  function resumen(texto) {
+    // FNV-1a de 32 bits (las cuentas viven solo en este teléfono).
+    let h = 0x811c9dc5;
+    for (const ch of String(texto)) { h ^= ch.codePointAt(0); h = Math.imul(h, 0x01000193) >>> 0; }
+    return h.toString(16);
+  }
+  function nombreTelefono(C, cif, nombre) {
+    const base = "Tel-" + (nombre.split(" ")[0] || "UAM");
+    const usados = new Set(Object.values(C.usuarios).map((u) => u.telefono).concat(Object.keys(SEED.ubicaciones || {})));
+    for (const suf of [cif.slice(-3), cif]) if (!usados.has(`${base}-${suf}`)) return `${base}-${suf}`;
+    return `Tel-${cif}`;
+  }
+  function retardoEnlace(segundos) {
+    return Math.round((0.5 + segundos / 30) * 10) / 10;
+  }
+  function conectarTelefono(red, campus, telefono, lugar, ubicaciones) {
+    if (!campus.buscarVertice(lugar)) return [];
+    red.insertarVertice(telefono);
+    const distancias = dijkstra(campus, lugar).distancias;
+    const vecinos = [];
+    for (const otro of Object.keys(ubicaciones)) {
+      if (otro === telefono || !red.buscarVertice(otro)) continue;
+      const s = distancias.get(ubicaciones[otro]);
+      if (s !== undefined && s <= ALCANCE) {
+        const r = retardoEnlace(s);
+        red.insertarArista(telefono, otro, r);
+        red.insertarArista(otro, telefono, r);
+        vecinos.push([otro, r]);
+      }
+    }
+    return vecinos;
+  }
+  function conectarUsuario(cif, lugar) {
+    const C = cuentas();
+    const u = C.usuarios[cif];
+    if (!Object.keys(UBIC).length) Object.assign(UBIC, SEED.ubicaciones || {});
+    if (S.red.buscarVertice(u.telefono)) S.red.eliminarVertice(u.telefono);
+    delete UBIC[u.telefono];
+    const vecinos = conectarTelefono(S.red, S.campus, u.telefono, lugar, UBIC);
+    UBIC[u.telefono] = lugar;
+    u.lugar = lugar;
+    guardarCuentas(C);
+    return vecinos;
+  }
+  function datosUsuario(cif) {
+    const u = cuentas().usuarios[cif];
+    const v = S.red.buscarVertice(u.telefono);
+    return { cif, nombre: u.nombre, telefono: u.telefono, lugar: u.lugar, admin: !!u.admin, enLinea: !!v, alcance: ALCANCE,
+      vecinos: v ? v.neig.map(([w, p]) => ({ telefono: w.nombre, retardo: num(p) })) : [] };
+  }
+  function repartirCola() {
+    const C = cuentas();
+    let n = 0;
+    for (const m of C.mensajes) {
+      if (m.estado !== "en cola" || !C.usuarios[m.de] || !C.usuarios[m.para]) continue;
+      const [r, retardo] = rutaMasCorta(S.red, C.usuarios[m.de].telefono, C.usuarios[m.para].telefono);
+      if (r.length) {
+        Object.assign(m, { estado: "entregado", ruta: r, retardo: num(retardo), entregado: horaActual(), viaCola: true });
+        n++;
+      }
+    }
+    if (n) guardarCuentas(C);
+    return n;
+  }
+  function dijkstraPasos(campus, origen, zonasSeguras) {
+    const distancias = {}, anteriores = {};
+    for (const v of campus.vertexs) { distancias[v.nombre] = INF; anteriores[v.nombre] = null; }
+    const inicio = campus.buscarVertice(origen);
+    if (!inicio) return [[], [], INF];
+    distancias[inicio.nombre] = 0;
+    const pasos = [], visitados = new Set();
+    let zona = null;
+    while (visitados.size < campus.vertexs.length) {
+      let actual = null;
+      for (const v of campus.vertexs) {
+        if (!visitados.has(v) && (actual === null || distancias[v.nombre] < distancias[actual.nombre])) actual = v;
+      }
+      if (distancias[actual.nombre] === INF) break;
+      visitados.add(actual);
+      const paso = { actual: actual.nombre, distancia: distancias[actual.nombre], vecinos: [] };
+      if (zonasSeguras.includes(actual.nombre)) { pasos.push(paso); zona = actual.nombre; break; }
+      for (const [destino, peso] of actual.neig) {
+        const antes = distancias[destino.nombre];
+        const nueva = distancias[actual.nombre] + peso;
+        const mejora = !visitados.has(destino) && nueva < antes;
+        if (mejora) { distancias[destino.nombre] = nueva; anteriores[destino.nombre] = actual.nombre; }
+        paso.vecinos.push({ destino: destino.nombre, peso, antes, nueva, mejora, visitado: visitados.has(destino) });
+      }
+      pasos.push(paso);
+    }
+    if (zona === null) return [pasos, [], INF];
+    const r = [];
+    for (let l = zona; l !== null; l = anteriores[l]) r.unshift(l);
+    return [pasos, r, distancias[zona]];
+  }
+
   function despacharApi(ruta, d) {
+    const SOLO_ADMIN = ["/api/reiniciar", "/api/mesh/vertice", "/api/mesh/arista", "/api/campus/vertice", "/api/campus/arista"];
+    if (SOLO_ADMIN.includes(ruta)) {
+      const yo = cuentaActual();
+      if (!yo || !yo.u.admin) return { ok: false, mensaje: "Solo el administrador puede editar los grafos." };
+    }
     if (ruta === "/api/estado") {
       return { ok: true, mensaje: "", estado: estado() };
     }
@@ -510,6 +630,113 @@
         return responder(true, `Arista ${o} → ${dst} eliminada de ${grafo}.`);
       }
       return responder(false, "Acción no válida.");
+    }
+
+    // --- Inicio de sesión y mensajes (espejo de app.py) ---
+    // Sin servidor, las cuentas y los mensajes quedan en este teléfono (localStorage).
+    if (ruta === "/api/lugares") {
+      return { ok: true, lugares: S.campus.vertexs.map((v) => v.nombre) };
+    }
+    if (ruta === "/api/yo") {
+      const yo = cuentaActual();
+      if (!yo) return { ok: false, sesion: false };
+      if (!S.red.buscarVertice(yo.u.telefono)) conectarUsuario(yo.cif, yo.u.lugar);
+      return { ok: true, sesion: true, usuario: datosUsuario(yo.cif) };
+    }
+    if (ruta === "/api/registro" || ruta === "/api/login" || ruta === "/api/login/demo") {
+      const C = cuentas();
+      let cif;
+      if (ruta === "/api/login/demo") {
+        cif = "ADMIN";
+        if (!C.usuarios[cif]) C.usuarios[cif] = { nombre: "Administrador", sal: "", hash: "", admin: true, telefono: "Tel-Admin", lugar: "Edificio E" };
+      } else {
+        cif = String((d && d.cif) || "").replace(/\s+/g, "").toUpperCase().slice(0, 15);
+        const clave = String((d && d.contrasena) || "").slice(0, 64);
+        if (ruta === "/api/registro") {
+          const nombre = String((d && d.nombre) || "").split(/\s+/).filter(Boolean).join(" ").slice(0, 40);
+          if (!/^[0-9A-Z-]{4,15}$/.test(cif) || cif === "ADMIN") return { ok: false, mensaje: "Escribe un CIF válido (4 a 15 letras o números)." };
+          if (nombre.length < 2) return { ok: false, mensaje: "Escribe tu nombre." };
+          if (clave.length < 6) return { ok: false, mensaje: "La contraseña debe tener al menos 6 caracteres." };
+          if (C.usuarios[cif]) return { ok: false, mensaje: "Ese CIF ya tiene cuenta. Inicia sesión." };
+          const sal = Math.random().toString(36).slice(2, 10);
+          C.usuarios[cif] = { nombre, sal, hash: resumen(sal + clave), telefono: nombreTelefono(C, cif, nombre), lugar: "Edificio E" };
+          registrar(`Nueva cuenta: ${nombre} (${C.usuarios[cif].telefono}).`, "ok");
+        } else {
+          const u = C.usuarios[cif];
+          if (!u || u.admin || u.hash !== resumen(u.sal + clave)) return { ok: false, mensaje: "CIF o contraseña incorrectos." };
+        }
+      }
+      C.sesion = cif;
+      guardarCuentas(C);
+      const u = C.usuarios[cif];
+      const vecinos = conectarUsuario(cif, u.lugar || "Edificio E");
+      registrar(`${u.nombre} entró a la red desde ${u.lugar}: ${vecinos.length} teléfono(s) a su alcance.`, "ok");
+      repartirCola();
+      guardarEstadoLocal();
+      return { ok: true, usuario: datosUsuario(cif) };
+    }
+    if (ruta === "/api/logout") {
+      const yo = cuentaActual();
+      if (yo) {
+        S.red.eliminarVertice(yo.u.telefono);
+        delete UBIC[yo.u.telefono];
+        const C = cuentas();
+        C.sesion = null;
+        guardarCuentas(C);
+        guardarEstadoLocal();
+      }
+      return { ok: true };
+    }
+    if (ruta.startsWith("/api/yo/") || ruta.startsWith("/api/mensajes") || ruta === "/api/algoritmo") {
+      const yo = cuentaActual();
+      if (!yo) return { ok: false, sesion: false, mensaje: "Inicia sesión con tu CIF y tu carnet." };
+      if (ruta === "/api/yo/lugar") {
+        const lugar = String((d && d.lugar) || "").trim().slice(0, 60);
+        if (!S.campus.buscarVertice(lugar)) return { ok: false, mensaje: `El lugar «${lugar}» no existe.` };
+        const vecinos = conectarUsuario(yo.cif, lugar);
+        const n = repartirCola();
+        guardarEstadoLocal();
+        return { ok: true, usuario: datosUsuario(yo.cif),
+          mensaje: `Ahora estás en ${lugar}: ${vecinos.length} teléfono(s) a tu alcance.` + (n ? ` Salieron ${n} mensaje(s) que estaban en cola.` : "") };
+      }
+      if (ruta === "/api/mensajes") {
+        const C = cuentas();
+        const contactos = Object.entries(C.usuarios).filter(([c]) => c !== yo.cif).map(([c, u]) => ({
+          cif: c, nombre: u.nombre, telefono: u.telefono, enLinea: !!S.red.buscarVertice(u.telefono),
+          lugar: S.red.buscarVertice(u.telefono) ? u.lugar : null,
+        }));
+        contactos.sort((a, b) => (a.enLinea === b.enLinea ? a.nombre.localeCompare(b.nombre) : a.enLinea ? -1 : 1));
+        const mios = C.mensajes.filter((m) => m.de === yo.cif || m.para === yo.cif).slice(-300);
+        return { ok: true, yo: datosUsuario(yo.cif), contactos, mensajes: mios, modoLocal: true };
+      }
+      if (ruta === "/api/mensajes/enviar") {
+        const C = cuentas();
+        const para = String((d && d.para) || "").trim().toUpperCase();
+        const textoMsj = String((d && d.texto) || "").trim().slice(0, 500);
+        if (!C.usuarios[para] || para === yo.cif) return { ok: false, mensaje: "Elige a quién enviarle el mensaje." };
+        if (!textoMsj) return { ok: false, mensaje: "El mensaje está vacío." };
+        const [r, retardo] = rutaMasCorta(S.red, yo.u.telefono, C.usuarios[para].telefono);
+        const ahora = horaActual();
+        const m = { id: Math.random().toString(16).slice(2, 14), de: yo.cif, para, texto: textoMsj, hora: ahora,
+          estado: r.length ? "entregado" : "en cola", ruta: r, retardo: r.length ? num(retardo) : null,
+          entregado: r.length ? ahora : null, viaCola: false };
+        C.mensajes.push(m);
+        if (C.mensajes.length > 5000) C.mensajes.splice(0, C.mensajes.length - 5000);
+        guardarCuentas(C);
+        return { ok: true, enviado: m, mensaje: r.length
+          ? `Entregado en ${r.length - 1} salto(s), ${num(retardo)} s de retardo.`
+          : "Sin camino en la red Mesh: el mensaje queda en cola (DTN) y sale cuando aparezca uno." };
+      }
+      if (ruta === "/api/algoritmo") {
+        const origen = String((d && d.origen) || "C-101").trim().slice(0, 60);
+        if (!S.campus.buscarVertice(origen)) return { ok: false, mensaje: `El lugar «${origen}» no existe.` };
+        const res = dijkstraPasos(S.campus, origen, S.zonas);
+        for (const p of res[0]) {
+          p.distancia = num(p.distancia);
+          for (const v of p.vecinos) { v.peso = num(v.peso); v.antes = num(v.antes); v.nueva = num(v.nueva); }
+        }
+        return { ok: true, origen, pasos: res[0], ruta: res[1], tiempo: num(res[2]), grafo: serializar(S.campus), zonasSeguras: S.zonas };
+      }
     }
 
     return responder(false, `Ruta desconocida: ${ruta}`);
