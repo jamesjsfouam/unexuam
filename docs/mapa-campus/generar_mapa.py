@@ -708,6 +708,27 @@ def construir(eds):
         if p["id"] in CARPORTS:
             pol = [tuple(q) for q in p["pol"]]
             OB.append((prof(*max(pol, key=lambda q: prof(*q))), cubierta(pol, 4.5, "url(#solar)", "#4b5f78", lado="#9fb3cc")))
+    # Pasarela frente al Edificio B + escalera central bajando a la Plazoleta
+    pasarela_pol = [(176.0, 114.5), (268.0, 114.5), (268.0, 118.8), (176.0, 118.8)]
+    pasarela_svg = (
+        paredes(pasarela_pol, 0, 1.1, "#e1effe", "#b9d7f7", "#5a8ec9")
+        + f'<polygon points="{pts(pasarela_pol, 1.1)}" fill="#f4f9ff" stroke="#5a8ec9" stroke-width="0.9"/>'
+    )
+    # Escalera en medio de la pasarela hacia la Plazoleta (5 peldaños)
+    for k in range(5):
+        y_a = 114.5 - k * 1.1
+        y_b = y_a - 1.1
+        zk = 1.1 - k * 0.22
+        pel = [(219.5, y_b), (226.5, y_b), (226.5, y_a), (219.5, y_a)]
+        pasarela_svg += f'<polygon points="{pts(pel, zk)}" fill="#fff3c4" stroke="#c89b00" stroke-width="0.6"/>'
+    OB.append((prof(223.0, 116.5), pasarela_svg))
+    # Unión / escalera central entre Edificio B y Edificio C (2.º piso)
+    union_bc = [(220.0, 131.8), (226.5, 131.8), (226.5, 138.2), (220.0, 138.2)]
+    union_svg = (
+        paredes(union_bc, 0, PISO * 2, "#dbeafe", "#93c5fd", AZUL_OSC)
+        + f'<polygon points="{pts(union_bc, PISO * 2)}" fill="#eff6ff" stroke="{AZUL_OSC}" stroke-width="0.9"/>'
+    )
+    OB.append((prof(223.2, 135.0), union_svg))
     OB.sort(key=lambda t: t[0])
 
     # Insignias encima de todo (no las tapa ningún edificio)

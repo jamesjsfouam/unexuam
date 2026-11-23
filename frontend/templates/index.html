@@ -14,6 +14,18 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='app.css') }}">
 </head>
 <body>
+  <div id="splash" class="splash" aria-hidden="true">
+    <div class="splash-centro">
+      <div class="splash-emblema">
+        <span class="splash-onda o1"></span>
+        <span class="splash-onda o2"></span>
+        <img src="{{ url_for('static', filename='img/icono-512.png') }}" alt="" class="splash-icono">
+      </div>
+      <img src="{{ url_for('static', filename='img/wordmark-unexuam.png') }}" alt="Unexuam" class="splash-wordmark">
+      <p class="splash-sub">Evacuación Off-Grid · Campus UAM</p>
+      <div class="splash-barra"><span></span></div>
+    </div>
+  </div>
   <header class="barra">
     <a href="#inicio" class="marca" aria-label="Unexuam, inicio">
       <img src="{{ url_for('static', filename='img/logo-x.png') }}" alt="" class="marca-x">

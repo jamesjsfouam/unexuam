@@ -639,11 +639,17 @@ function pasosDeRuta(ruta) {
   const peso = new Map(E.campus.aristas.map(a => [clave(a.origen, a.destino), a.peso || 0]));
   const I = ruta.map(lugarInfo);
   const esCentralBC = x => x.t === "escalera" && x.lado === "central" && (x.ed === "B" || x.ed === "C");
-  const tipoTramo = (a, b) => {
+  const tipoTramo = (a, b, idx) => {
     if (b.t === "zona") return "zona";
     const enPiso = x => x.t === "aula" || x.t === "escalera" || x.t === "pabellon";
     if (esCentralBC(a) && b.t === "pabellon" && a.piso === b.piso && (b.ed === "B" || b.ed === "C")) {
-      return `cruce:${b.ed}:${b.piso}`;
+      // solo es "cruce" si venimos de otro edificio distinto a b.ed
+      let edPrev = a.ed;
+      for (let j = idx - 1; j >= 0; j--) {
+        if (I[j].ed && !esCentralBC(I[j])) { edPrev = I[j].ed; break; }
+      }
+      if (edPrev !== b.ed) return `cruce:${b.ed}:${b.piso}`;
+      return `pasillo:${b.ed}:${b.piso}`;
     }
     const mismoEd = a.ed === b.ed || (esCentralBC(b) && (a.ed === "B" || a.ed === "C"));
     if (enPiso(a) && enPiso(b) && mismoEd && a.piso === b.piso &&
@@ -656,7 +662,7 @@ function pasosDeRuta(ruta) {
   };
   const grupos = [];
   for (let i = 0; i + 1 < I.length; i++) {
-    const k = tipoTramo(I[i], I[i + 1]);
+    const k = tipoTramo(I[i], I[i + 1], i);
     const ult = grupos[grupos.length - 1];
     if (ult && ult.k === k && !k.startsWith("lugar:")) ult.hasta = i + 1;
     else grupos.push({ k, desde: i, hasta: i + 1 });
@@ -704,7 +710,7 @@ function pasosDeRuta(ruta) {
   });
 }
 
-const ICONO_PASO = { pasillo: "→", escalera: "⇅", salida: "⇱", zona: "✓", lugar: "→" };
+const ICONO_PASO = { pasillo: "→", escalera: "⇅", salida: "⇱", cruce: "⇄", zona: "✓", lugar: "→" };
 const minutos = s => (s < 60 ? `${Math.round(s)} s` : `${Math.floor(s / 60)} min ${Math.round(s % 60)} s`);
 
 let miLugar = leer("mi-lugar", "");   // cada teléfono guarda dónde está su estudiante
@@ -712,7 +718,12 @@ let miRuta = null;                    // {origen, ruta, tiempo} calculada para e
 let firmaCampus = "";                 // para recalcular cuando el grafo del campus cambia
 
 async function pedirRuta() {
-  if (!E || !miLugar || !E.campus.vertices.includes(miLugar)) { miRuta = null; renderCampus(); renderInicio(); return; }
+  if (!E || !miLugar || !E.campus.vertices.includes(miLugar)) {
+    miRuta = null;
+    if (vista === "campus") renderCampus();
+    else if (vista === "inicio") renderInicio();
+    return;
+  }
   try {
     const r = await fetch("/api/campus/ruta", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ lugar: miLugar }) });
     const j = await r.json();
@@ -722,8 +733,8 @@ async function pedirRuta() {
     else if (!miRuta || !nueva || miRuta.origen !== nueva.origen) rutaAnterior = null;
     miRuta = nueva;
   } catch (e) { /* sin conexión: se mantiene la última ruta conocida */ }
-  renderCampus();
-  renderInicio();
+  if (vista === "campus") renderCampus();
+  else if (vista === "inicio") renderInicio();
 }
 
 function renderCampus() {
@@ -764,6 +775,8 @@ function renderCampus() {
   }
   const destino = r.ruta[r.ruta.length - 1];
   const pasos = r.ruta.length > 1 ? pasosDeRuta(r.ruta) : [];
+  pasosActuales = pasos;
+  if (pasoActivo >= pasos.length) pasoActivo = -1;
   info.innerHTML = `
     <div class="destino">
       <span class="destino-etq">Evacúa hacia</span>
@@ -781,7 +794,6 @@ function renderCampus() {
       </li>`).join("")}
     </ol>
     <p class="consejo">Camina, no corras. Ayuda a quien lo necesite y espera indicaciones en el punto seguro.</p>`;
-  if (pasoActivo >= pasos.length) pasoActivo = -1;
   renderMapa3D(r, pasos);
 }
 
@@ -803,6 +815,7 @@ let PLANO = null;            // frontend/static/campus-plano.json (OpenStreetMap
 let PROY = null;             // { esc, ox, oy } de la proyección del mapa 3D
 let mapaCompleto = false;    // false: acercado a la ruta · true: todo el campus
 let pasoActivo = -1;         // paso de la guía resaltado
+let pasosActuales = [];      // pasos calculados de la ruta activa
 
 const MAPA_W = 1600, MAPA_H = 1060;
 const GIRO = 16 * Math.PI / 180, ACHATE = 0.58, COS_G = Math.cos(GIRO), SEN_G = Math.sin(GIRO);
@@ -944,7 +957,8 @@ function edificio3D(L, o) {
   for (const p of G.pisos) {
     const z = zPiso(p), activo = pisosRuta.has(p);
     const cls = activo ? " activo" : "";
-    // losa del piso (con su canto)
+    // losa del piso (con sombra proyectada y canto)
+    svg += poli([P(-0.01, -W / 2 + 1, z - 1.5), P(1.03, -W / 2 + 1, z - 1.5), P(1.03, W / 2 + 1.2, z - 1.5), P(-0.01, W / 2 + 1.2, z - 1.5)], "e3-sombra");
     svg += poli([P(-0.02, -W / 2, z), P(1.02, -W / 2, z), P(1.02, W / 2, z), P(-0.02, W / 2, z)], "e3-losa" + cls, `stroke-width="${0.9 * k}"`);
     svg += poli([P(-0.02, W / 2, z), P(1.02, W / 2, z), P(1.02, W / 2, z - 0.8), P(-0.02, W / 2, z - 0.8)], "e3-canto" + cls);
     // pabellones (las dos mitades del pasillo, adelante)
@@ -989,6 +1003,10 @@ function edificio3D(L, o) {
       for (const [u, txt] of [[0.28, "Pab. Este"], [0.72, "Pab. Oeste"]]) {
         const t = P(u, sg * (W / 2 - 0.5), z);
         svg += `<text class="e3-pabtxt" x="${t.x}" y="${t.y}" font-size="${5.8 * k}">${txt}</text>`;
+      }
+      if ((L === "B" || L === "C") && p === 1) {
+        const tc = P(0.5, sg * (W / 2 + 1.8), z);
+        svg += `<text class="e3-central-txt" x="${tc.x}" y="${tc.y}" font-size="${5.5 * k}">Esc. Central B–C</text>`;
       }
     }
   }
@@ -1103,65 +1121,69 @@ function campusSvg(ruta, o) {
   const visibles = pos.filter(Boolean).concat(pinTu ? [pinTu] : []);
   if (!visibles.length) return "";
   let vb;
-  if (o.completo) vb = [0, 92, MAPA_W, 900];
+  if (o.vb) vb = o.vb;
+  else if (o.completo) vb = [0, 92, MAPA_W, 900];
   else {
     const foco = o.resaltar ? pos.filter((p, i) => p && (o.resaltar.has(i) || o.resaltar.has(i - 1))) : visibles;
     const usar = foco.length ? foco : visibles;
     const xs = usar.map(p => p.x), ys = usar.map(p => p.y);
-    const minW = o.minW || 230;
-    let x0 = Math.min(...xs) - 75, x1 = Math.max(...xs) + 75, y0 = Math.min(...ys) - 55, y1 = Math.max(...ys) + 45;
-    let w = Math.max(x1 - x0, minW), h = Math.max(y1 - y0, w * (o.alto || 1));
-    w = Math.max(w, h / (o.alto || 1));
+    const minW = o.minW || 165;
+    let x0 = Math.min(...xs) - 55, x1 = Math.max(...xs) + 55, y0 = Math.min(...ys) - 45, y1 = Math.max(...ys) + 40;
+    let w = Math.max(x1 - x0, minW), h = Math.max(y1 - y0, w * (o.alto || 0.9));
+    w = Math.max(w, h / (o.alto || 0.9));
     const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
     x0 = Math.min(Math.max(cx - w / 2, 0), MAPA_W - w); y0 = Math.min(Math.max(cy - h / 2, 92), MAPA_H - 70 - h);
     vb = [x0, y0, w, h];
   }
-  const s = vb[2] / 360;
+  const s = vb[2] / 380;
   const peso = new Map(E.campus.aristas.map(a => [clave(a.origen, a.destino), a.peso]));
   const pFin = pos[pos.length - 1];
   const tuAbajo = pinTu && pFin && pinTu.y >= pFin.y;
   const cajas = [];
   const choca = (x, y, w, h) => cajas.some(c => Math.abs(x - c.x) < (w + c.w) / 2 && Math.abs(y - c.y) < (h + c.h) / 2);
   if (pinTu) {
-    cajas.push({ x: pinTu.x, y: pinTu.y, w: 28 * s, h: 28 * s });
-    cajas.push({ x: pinTu.x, y: tuAbajo ? pinTu.y + 22 * s : pinTu.y - 20 * s, w: 54 * s, h: 16 * s });
+    const wTu = Math.max(46, String(ruta[0] || "").length * 6.5) * s;
+    cajas.push({ x: pinTu.x, y: pinTu.y, w: 22 * s, h: 22 * s });
+    cajas.push({ x: pinTu.x, y: tuAbajo ? pinTu.y + 18 * s : pinTu.y - 17 * s, w: wTu, h: 14 * s });
   }
   if (pFin && ruta.length > 1) {
-    cajas.push({ x: pFin.x, y: pFin.y, w: 28 * s, h: 28 * s });
-    cajas.push({ x: pFin.x, y: tuAbajo ? pFin.y - 22 * s : pFin.y + 22 * s, w: 72 * s, h: 16 * s });
+    const wFin = Math.max(58, corto(ruta[ruta.length - 1]).length * 6.8) * s;
+    cajas.push({ x: pFin.x, y: pFin.y, w: 22 * s, h: 22 * s });
+    cajas.push({ x: pFin.x, y: tuAbajo ? pFin.y - 18 * s : pFin.y + 18 * s, w: wFin, h: 14 * s });
   }
   pos.forEach((p, i) => {
-    if (p && i > 0 && i < pos.length - 1) cajas.push({ x: p.x, y: p.y, w: 18 * s, h: 18 * s });
+    if (p && i > 0 && i < pos.length - 1) cajas.push({ x: p.x, y: p.y, w: 14 * s, h: 14 * s });
   });
   let aristas = "", pesos = "", nodos = "";
   const primerFuera = pos.findIndex(Boolean);
   if (pinTu && primerFuera > 0) {
     const B = pos[primerFuera];
-    aristas += `<line class="r3-dentro" x1="${pinTu.x}" y1="${pinTu.y}" x2="${B.x}" y2="${B.y}" stroke-width="${3 * s}" stroke-dasharray="${5 * s} ${4 * s}"/>`;
+    aristas += `<line class="r3-dentro" x1="${pinTu.x}" y1="${pinTu.y}" x2="${B.x}" y2="${B.y}" stroke-width="${2.5 * s}" stroke-dasharray="${5 * s} ${4 * s}"/>`;
   }
   for (let i = 0; i + 1 < pos.length; i++) {
     const A = pos[i], B = pos[i + 1];
     if (!A || !B) continue;
-    const cls = o.resaltar ? (o.resaltar.has(i) ? "r3-arista resaltada" : "r3-arista tenue") : "r3-arista";
-    aristas += flecha(A, B, s * 2.2, cls, 6);
+    const res = !o.resaltar || o.resaltar.has(i);
+    const cls = o.resaltar ? (res ? "r3-arista resaltada" : "r3-arista tenue") : "r3-arista";
+    aristas += flecha(A, B, s * 1.85, cls, 5.5);
     const p = peso.get(clave(ruta[i], ruta[i + 1]));
     const Lr = Math.hypot(B.x - A.x, B.y - A.y);
-    if (p !== undefined && Lr > 24 * s) {
+    if (p !== undefined && res && Lr > 20 * s) {
       const lbl = `${fmt(p)} s`;
-      const pw = Math.max(28, lbl.length * 6.2 + 8) * s, ph = 16 * s;
+      const pw = Math.max(24, lbl.length * 5.6 + 7) * s, ph = 14 * s;
       const mx = (A.x + B.x) / 2, my = (A.y + B.y) / 2;
       const nx = -(B.y - A.y) / (Lr || 1), ny = (B.x - A.x) / (Lr || 1);
       const candidatos = [
         [mx, my],
-        [mx + nx * 16 * s, my + ny * 16 * s],
-        [mx - nx * 16 * s, my - ny * 16 * s],
-        [mx + 22 * s, my],
-        [mx - 22 * s, my],
+        [mx + nx * 14 * s, my + ny * 14 * s],
+        [mx - nx * 14 * s, my - ny * 14 * s],
+        [mx + 18 * s, my],
+        [mx - 18 * s, my],
       ];
       const libre = candidatos.find(([cx, cy]) => !choca(cx, cy, pw, ph));
       if (libre) {
         cajas.push({ x: libre[0], y: libre[1], w: pw + 4 * s, h: ph + 4 * s });
-        pesos += `<g class="r3-peso" transform="translate(${libre[0]},${libre[1]})"><rect x="${-pw / 2}" y="${-ph / 2}" width="${pw}" height="${ph}" rx="${ph / 2}"/><text font-size="${9.5 * s}">${fmt(p)} s</text></g>`;
+        pesos += `<g class="r3-peso" transform="translate(${libre[0]},${libre[1]})"><rect x="${-pw / 2}" y="${-ph / 2}" width="${pw}" height="${ph}" rx="${ph / 2}"/><text font-size="${8.5 * s}">${fmt(p)} s</text></g>`;
       }
     }
   }
@@ -1169,24 +1191,25 @@ function campusSvg(ruta, o) {
     const p = pos[i];
     if (!p || (ruta.length === 1 && pinTu)) return;
     const fin = i === ruta.length - 1;
-    const rad = (fin ? 13 : 8) * s;
-    const etqY = tuAbajo ? p.y - rad - 6 * s : p.y + rad + 14 * s;
-    nodos += `<g class="r3-nodo ${fin ? "meta" : "parada"}"><title>${esc(n)}</title><circle cx="${p.x}" cy="${p.y}" r="${rad}" stroke-width="${2.5 * s}"/>
-      ${fin ? `<text x="${p.x}" y="${p.y}" font-size="${13 * s}">✓</text><text class="r3-etq" x="${p.x}" y="${etqY}" font-size="${12.5 * s}" stroke-width="${4 * s}">${esc(corto(n))}</text>` : ""}</g>`;
+    const rad = (fin ? 10 : 6) * s;
+    const etqY = tuAbajo ? p.y - rad - 5 * s : p.y + rad + 12 * s;
+    nodos += `<g class="r3-nodo ${fin ? "meta" : "parada"}"><title>${esc(n)}</title><circle cx="${p.x}" cy="${p.y}" r="${rad}" stroke-width="${2 * s}"/>
+      ${fin ? `<text x="${p.x}" y="${p.y}" font-size="${10.5 * s}">✓</text><text class="r3-etq" x="${p.x}" y="${etqY}" font-size="${10.5 * s}" stroke-width="${3.2 * s}">${esc(corto(n))}</text>` : ""}</g>`;
   });
   if (pinTu) {
-    const tuY = tuAbajo ? pinTu.y + 24 * s : pinTu.y - 19 * s;
-    nodos += `<g class="r3-nodo inicio"><circle cx="${pinTu.x}" cy="${pinTu.y}" r="${13 * s}" stroke-width="${2.5 * s}"/><text x="${pinTu.x}" y="${pinTu.y}" font-size="${10 * s}">Tú</text>
-      <text class="r3-etq" x="${pinTu.x}" y="${tuY}" font-size="${11.5 * s}" stroke-width="${4 * s}">${esc(ruta[0])}</text></g>`;
+    const tuY = tuAbajo ? pinTu.y + 19 * s : pinTu.y - 15 * s;
+    nodos += `<g class="r3-nodo inicio"><circle cx="${pinTu.x}" cy="${pinTu.y}" r="${10 * s}" stroke-width="${2 * s}"/><text x="${pinTu.x}" y="${pinTu.y}" font-size="${8.5 * s}">Tú</text>
+      <text class="r3-etq" x="${pinTu.x}" y="${tuY}" font-size="${10 * s}" stroke-width="${3.2 * s}">${esc(ruta[0])}</text></g>`;
   }
   let bloq = "";
   for (const b of E.campus.bloqueados) {
     const A = posCampus(b.origen), B = posCampus(b.destino);
-    if (A && B) bloq += `<line class="r3-bloq" x1="${A.x}" y1="${A.y}" x2="${B.x}" y2="${B.y}" stroke-width="${3.5 * s}" stroke-dasharray="${6 * s} ${5 * s}"/>`;
+    if (A && B) bloq += `<line class="r3-bloq" x1="${A.x}" y1="${A.y}" x2="${B.x}" y2="${B.y}" stroke-width="${3 * s}" stroke-dasharray="${6 * s} ${5 * s}"/>`;
   }
-  return `<svg class="c3d${o.mini ? " mini" : ""}" viewBox="${vb.map(n => n.toFixed(1)).join(" ")}" style="aspect-ratio:${vb[2].toFixed(1)}/${vb[3].toFixed(1)}" role="img" aria-label="Ruta sobre el mapa 3D del campus">
+  const estilo = o.mini ? `style="aspect-ratio:${vb[2].toFixed(1)}/${vb[3].toFixed(1)}"` : "";
+  return `<svg class="c3d${o.mini ? " mini" : " interactivo"}" viewBox="${vb.map(n => n.toFixed(1)).join(" ")}" ${estilo} role="img" aria-label="Ruta sobre el mapa 3D del campus">
     <image href="/static/img/mapa-campus-3d.svg" width="${MAPA_W}" height="${MAPA_H}"/>
-    <rect x="${vb[0]}" y="${vb[1]}" width="${vb[2]}" height="${vb[3]}" class="r3-velo"/>
+    <rect x="0" y="0" width="${MAPA_W}" height="${MAPA_H}" class="r3-velo"/>
     ${bloq}<g>${aristas}</g><g>${pesos}</g><g>${nodos}</g></svg>`;
 }
 
@@ -1195,25 +1218,138 @@ function vistaPaso(r, p) {
   if (!PLANO) return "";
   const resaltar = new Set();
   for (let i = p.desde; i < p.hasta; i++) resaltar.add(i);
-  const L = edificioDe(r.ruta[p.desde]) || edificioDe(r.ruta[p.hasta]);
+  const L = p.tipo === "cruce"
+    ? edificioDe(r.ruta[p.hasta])
+    : (edificioDe(r.ruta[p.desde]) || edificioDe(r.ruta[p.hasta]));
   if (L && (p.tipo === "pasillo" || p.tipo === "escalera" || p.tipo === "salida" || p.tipo === "cruce")) {
     const G = geomEdificio(L);
     if (G && nodoEnEdificio(G, r.ruta[p.desde]) && nodoEnEdificio(G, r.ruta[p.hasta])) {
       return edificio3D(L, { ruta: r.ruta, resaltar, mini: true });
     }
   }
-  return campusSvg(r.ruta, { resaltar, mini: true, minW: 200, alto: 0.6 });
+  return campusSvg(r.ruta, { resaltar, mini: true, minW: 155, alto: 0.65 });
 }
 
 let ultEdificioVista = "";
+let camCampus = null;      // [x, y, w, h] actual del mapa interactivo
+let camCampusIni = null;   // [x, y, w, h] inicial de la ruta para "Centrar"
+let ultClaveCampus = "";
+
+function acotarCamara(vb) {
+  let [x, y, w, h] = vb;
+  const ratio = h / (w || 1);
+  w = Math.min(MAPA_W, Math.max(100, w));
+  h = w * ratio;
+  if (h > MAPA_H) { h = MAPA_H; w = h / ratio; }
+  x = Math.min(Math.max(x, 0), MAPA_W - w);
+  y = Math.min(Math.max(y, 0), MAPA_H - h);
+  return [x, y, w, h];
+}
+
+function aplicarCamaraCampus(vb) {
+  const svg = $("#mapa-campus svg.c3d");
+  if (!svg || !vb) return;
+  camCampus = acotarCamara(vb);
+  svg.setAttribute("viewBox", camCampus.map(n => n.toFixed(1)).join(" "));
+}
+
+function zoomCampus(factorZoom, cxSvg, cySvg) {
+  if (!camCampus) return;
+  const [x, y, w, h] = camCampus;
+  const cx = cxSvg !== undefined ? cxSvg : x + w / 2;
+  const cy = cySvg !== undefined ? cySvg : y + h / 2;
+  const nw = w * factorZoom, nh = h * factorZoom;
+  const nx = cx - ((cx - x) / w) * nw;
+  const ny = cy - ((cy - y) / h) * nh;
+  aplicarCamaraCampus([nx, ny, nw, nh]);
+}
+
+function conectarPanZoomCampus() {
+  const cont = $("#mapa-campus");
+  if (!cont || cont.dataset.pz) return;
+  cont.dataset.pz = "1";
+  const ptrs = new Map();
+  let estado = null;
+
+  const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+  const mid = (a, b) => ({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 });
+
+  const iniciar = () => {
+    if (!camCampus) return;
+    const arr = [...ptrs.values()];
+    if (arr.length === 1) estado = { modo: "pan", p0: { ...arr[0] }, vb0: [...camCampus] };
+    else if (arr.length >= 2) estado = { modo: "pinch", d0: dist(arr[0], arr[1]) || 1, m0: mid(arr[0], arr[1]), vb0: [...camCampus] };
+  };
+
+  cont.addEventListener("pointerdown", ev => {
+    if (ev.target.closest(".mapa-controles")) return;
+    cont.setPointerCapture(ev.pointerId);
+    ptrs.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
+    iniciar();
+  });
+  cont.addEventListener("pointermove", ev => {
+    if (!ptrs.has(ev.pointerId) || !estado) return;
+    ptrs.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
+    const svg = cont.querySelector("svg.c3d");
+    if (!svg) return;
+    const rect = svg.getBoundingClientRect();
+    if (!rect.width || !rect.height) return;
+    if (estado.modo === "pan" && ptrs.size === 1) {
+      const p = ptrs.get(ev.pointerId);
+      const dx = (p.x - estado.p0.x) * (estado.vb0[2] / rect.width);
+      const dy = (p.y - estado.p0.y) * (estado.vb0[3] / rect.height);
+      aplicarCamaraCampus([estado.vb0[0] - dx, estado.vb0[1] - dy, estado.vb0[2], estado.vb0[3]]);
+    } else if (ptrs.size >= 2) {
+      const [a, b] = [...ptrs.values()];
+      const d = dist(a, b) || 1;
+      const m = mid(a, b);
+      const esc = estado.d0 / d;
+      const nw = estado.vb0[2] * esc, nh = estado.vb0[3] * esc;
+      const fx = (estado.m0.x - rect.left) / rect.width;
+      const fy = (estado.m0.y - rect.top) / rect.height;
+      const sx = estado.vb0[0] + fx * estado.vb0[2];
+      const sy = estado.vb0[1] + fy * estado.vb0[3];
+      const f2x = (m.x - rect.left) / rect.width;
+      const f2y = (m.y - rect.top) / rect.height;
+      aplicarCamaraCampus([sx - f2x * nw, sy - f2y * nh, nw, nh]);
+    }
+  });
+  const soltar = ev => {
+    ptrs.delete(ev.pointerId);
+    if (ptrs.size === 0) estado = null;
+    else iniciar();
+  };
+  cont.addEventListener("pointerup", soltar);
+  cont.addEventListener("pointercancel", soltar);
+  cont.addEventListener("wheel", ev => {
+    if (!camCampus) return;
+    ev.preventDefault();
+    const svg = cont.querySelector("svg.c3d");
+    if (!svg) return;
+    const rect = svg.getBoundingClientRect();
+    const cx = camCampus[0] + ((ev.clientX - rect.left) / rect.width) * camCampus[2];
+    const cy = camCampus[1] + ((ev.clientY - rect.top) / rect.height) * camCampus[3];
+    zoomCampus(ev.deltaY > 0 ? 1.18 : 0.84, cx, cy);
+  }, { passive: false });
+}
 
 function renderMapa3D(r, pasos = []) {
   const cajaEd = $("#lienzo-edificio");
+  const contMapa = $("#mapa-campus");
+  conectarPanZoomCampus();
+  const controlesHtml = `<div class="mapa-controles" aria-label="Controles del mapa">
+    <button type="button" data-accion="mapa-mas" aria-label="Acercar">+</button>
+    <button type="button" data-accion="mapa-menos" aria-label="Alejar">−</button>
+    <button type="button" data-accion="mapa-centrar" aria-label="Centrar en mi ruta">◎</button>
+  </div>`;
   if (!r || !r.ruta.length || !PLANO) {
-    cajaEd.hidden = true; $("#t-edificio").hidden = true; ultEdificioVista = "";
+    cajaEd.hidden = true; $("#t-edificio").hidden = true; ultEdificioVista = ""; ultClaveCampus = "";
     const sinSalida = r && r.origen && r.tiempo === null;
     $("#campus-cab").innerHTML = `<span>${sinSalida ? `Sin salida libre desde <b>${esc(r.origen)}</b>.` : "Elige dónde estás para ver tu ruta en el mapa."}</span>`;
-    $("#mapa-campus").innerHTML = PLANO ? campusSvg(sinSalida ? [r.origen] : [], { completo: !sinSalida, minW: 300, alto: 1 }) || `<svg class="c3d" viewBox="0 92 ${MAPA_W} 900"><image href="/static/img/mapa-campus-3d.svg" width="${MAPA_W}" height="${MAPA_H}"/></svg>` : "";
+    const svgHtml = PLANO ? (campusSvg(sinSalida ? [r.origen] : [], { completo: !sinSalida, minW: 180, alto: 0.9 }) || `<svg class="c3d interactivo" viewBox="0 92 ${MAPA_W} 900"><image href="/static/img/mapa-campus-3d.svg" width="${MAPA_W}" height="${MAPA_H}"/></svg>`) : "";
+    contMapa.innerHTML = svgHtml + (svgHtml ? controlesHtml : "");
+    const vbAttr = contMapa.querySelector("svg.c3d")?.getAttribute("viewBox");
+    if (vbAttr) { camCampusIni = vbAttr.split(" ").map(Number); camCampus = [...camCampusIni]; }
     return;
   }
   let resaltar = null;
@@ -1245,10 +1381,17 @@ function renderMapa3D(r, pasos = []) {
   } else {
     ultEdificioVista = "";
   }
-  $("#mapa-campus").innerHTML = campusSvg(r.ruta, { completo: mapaCompleto, resaltar, minW: 300, alto: 1 });
+  const claveCampus = `${r.origen}:${pasoActivo}:${mapaCompleto}`;
+  const usarCamaraGuardada = claveCampus === ultClaveCampus && camCampus;
+  contMapa.innerHTML = campusSvg(r.ruta, { completo: mapaCompleto, resaltar, minW: 165, alto: 0.9, vb: usarCamaraGuardada ? camCampus : null }) + controlesHtml;
+  const vbAttr = contMapa.querySelector("svg.c3d")?.getAttribute("viewBox");
+  if (vbAttr) {
+    const parsed = vbAttr.split(" ").map(Number);
+    if (!usarCamaraGuardada) { camCampusIni = [...parsed]; camCampus = [...parsed]; ultClaveCampus = claveCampus; }
+  }
   const nV = r.ruta.length, nA = nV - 1;
-  $("#campus-cab").innerHTML = `<span><b>${nV} ${nV === 1 ? "vértice" : "vértices"} · ${nA} ${nA === 1 ? "arista" : "aristas"}</b></span>
-    <button class="btn mini" data-accion="mapa-zoom">${mapaCompleto ? "Acercar a mi ruta" : "Ver todo el campus"}</button>`;
+  $("#campus-cab").innerHTML = `<span><b>${nV} ${nV === 1 ? "vértice" : "vértices"} · ${nA} ${nA === 1 ? "arista" : "aristas"}</b> · arrastra o pellizca</span>
+    <button class="btn mini" data-accion="mapa-zoom">${mapaCompleto ? "Acercar ruta" : "Todo el campus"}</button>`;
 }
 
 /* --------------------------------------------------------------- admin */
@@ -1320,7 +1463,8 @@ function eventos() {
       const botones = [...$$(".hoja-carta button")];
       if (!botones.length) return;
       const primero = botones[0], ultimo = botones[botones.length - 1];
-      if (ev.shiftKey && document.activeElement === primero) { ev.preventDefault(); ultimo.focus(); }
+      if (!botones.includes(document.activeElement)) { ev.preventDefault(); primero.focus(); }
+      else if (ev.shiftKey && document.activeElement === primero) { ev.preventDefault(); ultimo.focus(); }
       else if (!ev.shiftKey && document.activeElement === ultimo) { ev.preventDefault(); primero.focus(); }
     }
   });
@@ -1333,7 +1477,12 @@ function eventos() {
     const b = ev.target.closest("[data-bloq]");
     if (b) { const [o, d] = JSON.parse(b.dataset.bloq); bloquear(o, d, true); return; }
     const p = ev.target.closest("[data-paso]");
-    if (p) { const i = Number(p.dataset.paso); pasoActivo = pasoActivo === i ? -1 : i; renderCampus(); }
+    if (p) {
+      const i = Number(p.dataset.paso);
+      pasoActivo = pasoActivo === i ? -1 : i;
+      $$(".guia .paso").forEach(li => li.classList.toggle("activa", Number(li.dataset.paso) === pasoActivo));
+      if (miRuta) renderMapa3D(miRuta, pasosActuales);
+    }
   });
 
   interacciones($("#svg-mesh"), "mesh", v => {
@@ -1359,10 +1508,15 @@ function eventos() {
     } else if (tipo === "eliminar") {
       if (boton?.value === "vertice") {
         const v = fd.get("vertice");
-        if (v && confirm(`¿Eliminar «${v}» y todas sus aristas?`)) await api(`${base}/vertice`, { accion: "eliminar", nombre: v });
+        if (!v) { aviso("No hay vértices para eliminar.", false); return; }
+        hoja(`Eliminar «${v}»`, "Se eliminará el vértice y todas sus aristas entrantes y salientes.", [
+          { txt: "Sí, eliminar", cls: "peligro", fn: () => api(`${base}/vertice`, { accion: "eliminar", nombre: v }) },
+        ]);
       } else {
         const a = fd.get("arista");
-        if (a) { const [o, d] = JSON.parse(a); await api(`${base}/arista`, { accion: "eliminar", origen: o, destino: d }); }
+        if (!a) { aviso("No hay aristas para eliminar.", false); return; }
+        const [o, d] = JSON.parse(a);
+        await api(`${base}/arista`, { accion: "eliminar", origen: o, destino: d });
       }
     }
   }));
@@ -1395,21 +1549,26 @@ async function accion(a) {
     api("/api/campus/desbloquear", {});
   } else if (a === "mapa-zoom") {
     mapaCompleto = !mapaCompleto;
+    ultClaveCampus = "";
     renderCampus();
+  } else if (a === "mapa-mas") {
+    zoomCampus(0.72);
+  } else if (a === "mapa-menos") {
+    zoomCampus(1.38);
+  } else if (a === "mapa-centrar") {
+    if (camCampusIni) aplicarCamaraCampus(camCampusIni);
   } else if (a === "reiniciar-campus") {
-    rutaAnterior = null; seleccion = null;
+    rutaAnterior = null;
     api("/api/reiniciar", { grafo: "campus" });
   } else if (a === "reiniciar-grafo") {
-    if (confirm(`¿Volver a los datos de ejemplo de ${grafoAdmin === "mesh" ? "la red Mesh" : "el campus"}?`)) {
-      reordenar(grafoAdmin);
-      api("/api/reiniciar", { grafo: grafoAdmin });
-    }
+    const cual = grafoAdmin;
+    hoja("Reiniciar grafo", `¿Volver a los datos de ejemplo de ${cual === "mesh" ? "la red Mesh" : "el campus"}?`, [
+      { txt: "Sí, reiniciar", cls: "alerta", fn: () => { reordenar(cual); api("/api/reiniciar", { grafo: cual }); } },
+    ]);
   } else if (a === "reiniciar-todo") {
-    if (confirm("¿Reiniciar los dos grafos con los datos de ejemplo?")) {
-      reordenar("mesh"); reordenar("campus");
-      rutaAnterior = null; seleccion = null;
-      api("/api/reiniciar", { grafo: "ambos" });
-    }
+    hoja("Reiniciar la demo", "Se restaurarán la red Mesh y el campus UAM a su estado inicial.", [
+      { txt: "Sí, reiniciar todo", cls: "alerta", fn: () => { reordenar("mesh"); reordenar("campus"); rutaAnterior = null; api("/api/reiniciar", { grafo: "ambos" }); } },
+    ]);
   }
 }
 
@@ -1429,6 +1588,19 @@ async function sondeo() {
     }
   }
   setTimeout(sondeo, 4000);
+}
+
+function ocultarSplash() {
+  const sp = $("#splash");
+  if (!sp || sp.classList.contains("fuera")) return;
+  sp.classList.add("fuera");
+  setTimeout(() => sp.remove(), 460);
+}
+const spEl = $("#splash");
+if (spEl) {
+  const reducido = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  spEl.addEventListener("click", ocultarSplash);
+  setTimeout(ocultarSplash, reducido ? 150 : 1250);
 }
 
 eventos();
