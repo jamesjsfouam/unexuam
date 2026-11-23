@@ -24,9 +24,9 @@ Narra lo que pasa en el grafo, no los botones.
 | 0:00 | Pestaña **Red Mesh** | «Esta es la red de ocho teléfonos que vimos.» | El grafo de la Mesh. |
 | 0:10 | *Emitir desde* = **Tel-Ana**. TTL con **−** hasta **2**. **Emitir alerta** | «La misma alerta del ejemplo, con TTL 2.» | Mensaje: «llegó a 5 de 8 teléfonos». Recorrido: Ana 0, Luis 1, Sofía 1, Carlos 2, María 2. |
 | 0:30 | TTL con **+** hasta **5**. **Emitir alerta** | «Si dejo que dé más saltos, llega a todos.» | «llegó a 8 de 8 teléfonos». Pedro 3, Valeria 4, Diego 5. |
-| 0:45 | Pestaña **Campus**. *Estoy en…* = **P-309** | «Ahora soy un estudiante en el aula P-309, tercer piso del Edificio P.» | Ruta: P-309 → P Pabellón Oeste P3 → P Escalera Oeste P3 → P2 → P1 → P Salida Oeste → Punto Seguro Parqueo Oeste, **77 s**. |
-| 1:05 | Incidentes → **Bloquear pasillo**. Paso = **P Escalera Oeste P3 → P Escalera Oeste P2 (12 s)**, con «sentido contrario» marcado. **Bloquear (eliminarArista)** | «Se bloquea la escalera oeste entre el piso 3 y el 2.» | Ruta: P-309 → P Pabellón Oeste P3 → P Pabellón Este P3 → P Escalera Este P3 → P2 → P1 → P Salida Este → Punto Seguro Parqueo Edificio P, **136 s**. |
-| 1:25 | **Reabrir pasos**. Luego Incidentes → **Congestión**. Lugar = **Punto Seguro Parqueo Oeste**, **×5**, **Aplicar alerta (aplicarAlerta)** | «Reabro la escalera. Ahora llega la alerta de que el Parqueo Oeste está saturado.» | Primero vuelve la ruta de 77 s; tras la alerta: … → P Salida Oeste → Punto Seguro Parqueo Sur, **99 s**. |
+| 0:45 | Pestaña **Campus**. *Estoy en…* → grupo **Edificio P · Piso 3** → **P-309** | «Ahora soy un estudiante en el aula P-309, tercer piso del Edificio P.» | «Evacúa hacia Punto Seguro Parqueo Oeste · **1 min 17 s** caminando · 4 pasos». Abajo, el mapa 3D con la ruta dibujada como grafo (vértices numerados, aristas con su peso). |
+| 1:05 | En la guía, paso **2** («Baja por la escalera oeste…») → **Simular bloqueo** | «Se bloquea la escalera oeste. La app llama a `eliminarArista` y Dijkstra recalcula.» | «Evacúa hacia Punto Seguro Parqueo Edificio P · **2 min 16 s** · ruta recalculada: +59 s». El paso 1 ahora cruza al pabellón este. |
+| 1:25 | Incidentes → **Reabrir pasos**. Luego **Congestión** → Lugar = **Punto Seguro Parqueo Oeste** → **×5** → **Aplicar alerta (aplicarAlerta)** | «Reabro la escalera. Ahora llega la alerta de que el Parqueo Oeste está saturado.» | Vuelve 1 min 17 s y, tras la alerta: «Punto Seguro Parqueo Sur · **1 min 39 s** · ruta recalculada: +22 s». |
 | 2:00 | Volver al deck (→) | | |
 
 Si sobra tiempo: *Estoy en…* = **B-210** → B Pabellón Oeste P2 → pasillo elevado → Edificio E → Plazoleta, **55 s**. Si se bloquea **B Pabellón Oeste P2 → Edificio E** (con sentido contrario), sale por la escalera oeste del B a la Plazoleta en **80 s**.
@@ -37,6 +37,7 @@ Si el profe pide ver el CRUD: pestaña **Administrar** → Campus → *insertarV
 
 Verificado el 23/11 con el backend real (`backend/datos.py`, campus de la UAM con pabellones, commit 3d0442e; 150 vértices y 400 aristas):
 
+- La app muestra los tiempos en minutos: 77 s = 1 min 17 s, 136 s = 2 min 16 s, 99 s = 1 min 39 s. Comprobado en la app el 23/11 (commit 7c9b9c7), con las mismas cifras que el backend.
 - **P-309 normal:** 10 (aula → pabellón oeste) + 6 (pabellón → escalera) + 12 (piso 3 → 2) + 12 (piso 2 → 1) + 5 (escalera → salida) + 32 (salida → Parqueo Oeste) = **77**.
 - **Escalera oeste P3 ↔ P2 cerrada:** 10 + 50 (pabellón oeste → pabellón este) + 6 + 12 + 12 + 5 + 41 (Salida Este → Parqueo Edificio P) = **136**.
 - **Parqueo Oeste ×5:** 32 → 160, así que por ahí serían 225; Parqueo Sur 10 + 6 + 12 + 12 + 5 + 54 = **99**. Con ×2, ×3 o ×10 sale lo mismo.
@@ -62,9 +63,9 @@ Se guardan en `docs/pitch/capturas/` con estos nombres exactos (el deck las carg
 
 | Archivo | Pantalla |
 |---|---|
-| `01-alerta-mesh.png` | Red Mesh tras emitir desde Tel-Ana con TTL 2 (con el recorrido visible) |
-| `02-ruta-p309.png` | Campus con *Estoy en… P-309* y la ruta de 77 s |
-| `03-bloqueo.png` | Campus tras bloquear P Escalera Oeste P3 → P2, ruta de 136 s |
-| `04-congestion.png` | Campus tras reabrir y Parqueo Oeste ×5, ruta de 99 s |
+| `01-alerta-mesh.jpg` | Red Mesh tras emitir desde Tel-Ana con TTL 2 (5 de 8 con alerta) |
+| `02-ruta-p309.jpg` | Campus con *Estoy en… P-309*: Parqueo Oeste, 1 min 17 s |
+| `03-bloqueo.jpg` | Tras «Simular bloqueo» en el paso 2: Parqueo Edificio P, 2 min 16 s |
+| `04-congestion.jpg` | Tras reabrir y Parqueo Oeste ×5: Parqueo Sur, 1 min 39 s |
 
-Tómalas con el **backend real** (no con el stub), en vista de teléfono, después de la última versión de `backend/datos.py`.
+Ya están tomadas (23/11, vista de teléfono, backend real y pantalla Campus nueva). Si cambia la app, vuelve a tomarlas con el **backend real** (no con el stub), en vista de teléfono, después de la última versión de `backend/datos.py`.
