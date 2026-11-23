@@ -155,14 +155,14 @@ def edificio(poligono, alto, techo, claro, oscuro, borde):
         f'<polygon points="{pts(poligono, alto)}" fill="{techo}" stroke="{borde}" stroke-width="1" stroke-linejoin="round"/>'
 
 
-def cubierta(poligono, alto, techo, borde):
+def cubierta(poligono, alto, techo, borde, lado="#f6f7f9"):
     """Techo sobre columnas (edificios marcados como «roof» en OSM, p. ej. Jaguar Center)."""
     g = []
     for x, y in poligono:
         (x1, y1), (x2, y2) = P(x, y, 0), P(x, y, alto)
         g.append(f'<line x1="{x1:.1f}" y1="{y1:.1f}" x2="{x2:.1f}" y2="{y2:.1f}" stroke="{borde}" stroke-width="2.2"/>')
     g.append(f'<polygon points="{pts(poligono, 0)}" fill="#d9e6f2" opacity=".55"/>')
-    g.append(paredes(poligono, alto, alto + 1.4, mezclar(techo, "#000000", .05), mezclar(techo, "#000000", .25), borde))
+    g.append(paredes(poligono, alto, alto + 1.4, mezclar(lado, "#000000", .05), mezclar(lado, "#000000", .25), borde))
     g.append(f'<polygon points="{pts(poligono, alto + 1.4)}" fill="{techo}" stroke="{borde}" stroke-width="1" stroke-linejoin="round" opacity=".96"/>')
     return "".join(g)
 
@@ -203,8 +203,49 @@ def rotulo(ax, ay, az, dx, dy, texto, fondo=BLANCO, color=AZUL, borde=AZUL, tam=
 
 
 # ---------------------------------------------------------------- lugares
-INSIGNIA = {"Edificio I": "I", "Edificio E": "E", "Edificio A": "A", "Jaguar Center": "JC", "Edificio P": "P"}
+INSIGNIA = {"Jaguar Center": "JC", "Edificio I": "I", "Edificio E": "E", "Edificio F": "F",
+            "Auditorio Central": "AC", "UAM College": "UC", "Edificio B": "B", "Edificio C": "C",
+            "Edificio A": "A", "Edificio J": "J", "Clínicas Odontológicas": "CO", "Edificio O": "O",
+            "Edificio P": "P", "Subway": "SW"}
+DETALLE = {"Edificio I": "Biblioteca Pablo Antonio Cuadra", "Edificio O": "Ingeniería y Arquitectura",
+           "Edificio P": "Copérnico · Observatorio"}
 MIN_AREA = 60   # m²: más pequeño es un kiosco o caseta, se dibuja pero no es un lugar del grafo
+VERDE = "#1e9e4a"
+
+# Celdas solares vistas en el satélite de Google Maps (22/11/2026): techos de edificios y
+# las cubiertas de los parqueos (carports).
+SOLAR = {"527270729", "1333922788", "1547515040",                       # Clínicas, Edificio O, Edificio P
+         "1334322230", "1334322231", "1334322232", "1334322233", "1334322234"}   # cubiertas del parqueo este
+CARPORTS = {"730964039", "1553720160", "1553720161"}                   # parqueos con techo de celdas solares
+
+# Puntos seguros: espacios abiertos lejos de los edificios (parqueos, celdas solares y la plazoleta).
+# (nombre, ids de parqueos de OSM o "plaza")
+PUNTOS_SEGUROS = [
+    ("Punto Seguro Parqueo Norte", ["537512772"]),
+    ("Punto Seguro Parqueo 47 Calle", ["678946086"]),
+    ("Punto Seguro Parqueo 20 Av", ["537512773"]),
+    ("Punto Seguro Plazoleta", "plaza"),
+    ("Punto Seguro Parqueo Este", ["241348792"]),                # con cubiertas de celdas solares
+    ("Punto Seguro Parqueo Central", ["730964039"]),             # con celdas solares
+    ("Punto Seguro Parqueo Sur", ["1553720160", "1553720161"]),  # con celdas solares
+    ("Punto Seguro Parqueo Oeste", ["1553720165", "1553720166", "1553720167"]),
+    ("Punto Seguro Parqueo Edificio P", ["1553720159", "1553720163", "1553720164"]),
+    ("Punto Seguro Parqueo Suroeste", ["1553720168"]),
+]
+CON_SOLAR = {"Punto Seguro Parqueo Este", "Punto Seguro Parqueo Central", "Punto Seguro Parqueo Sur"}
+
+
+def poligonos_punto(ids):
+    if ids == "plaza":
+        return [[tuple(q) for q in pl["pol"]] for pl in DATOS["plazas"]]
+    return [[tuple(q) for q in pq["pol"]] for pq in DATOS["parqueos"] if pq["id"] in ids]
+
+
+def centro_varios(polis):
+    def ar(p):
+        return abs(sum(p[i][0] * p[(i + 1) % len(p)][1] - p[(i + 1) % len(p)][0] * p[i][1] for i in range(len(p)))) / 2
+    tot = sum(ar(p) for p in polis) or 1
+    return (sum(centro(p)[0] * ar(p) for p in polis) / tot, sum(centro(p)[1] * ar(p) for p in polis) / tot)
 
 
 def clasificar():
@@ -213,7 +254,8 @@ def clasificar():
     for e in DATOS["edificios"]:
         pol = [tuple(p) for p in e["pol"]]
         eds.append({**e, "pol": pol, "c": centro(pol)})
-    sin = [e for e in eds if not e["nombre"] and e["area"] >= MIN_AREA]
+    # las cubiertas de celdas solares del parqueo este son parte de ese punto seguro, no edificios
+    sin = [e for e in eds if not e["nombre"] and e["area"] >= MIN_AREA and not (e["tipo"] == "roof" and e["id"] in SOLAR)]
     sin.sort(key=lambda e: (round(e["c"][1] / 22), e["c"][0]))
     for i, e in enumerate(sin, 1):
         e["nombre"] = f"Edificio sin nombre {i}"
@@ -233,6 +275,13 @@ def lugares(eds):
         pol = [tuple(p) for p in cancha(dep)["pol"]]
         c = centro(pol)
         out.append({"nombre": nombre, "tipo": "zona segura", "centro_m": [round(c[0], 1), round(c[1], 1)]})
+    for nombre, ids in PUNTOS_SEGUROS:
+        c = centro_varios(poligonos_punto(ids))
+        out.append({"nombre": nombre, "tipo": "punto seguro", "celdas_solares": nombre in CON_SOLAR,
+                    "centro_m": [round(c[0], 1), round(c[1], 1)]})
+    for e in out:
+        if e["nombre"] in DETALLE:
+            e["detalle"] = DETALLE[e["nombre"]]
     return out
 
 
@@ -303,9 +352,19 @@ def construir(eds):
         S.append(f'<polygon points="{" ".join(f"{u:.1f},{v:.1f}" for u, v in cara)}" fill="#a8bd93" stroke="#879e72" stroke-width="1"/>')
     S.append(suelo(CAMPUS, "url(#terreno)", borde="#c2b78f"))
 
-    # Parqueos
+    # Parqueos y plazoleta (puntos seguros con contorno verde discontinuo)
+    seguros = {i for _, ids in PUNTOS_SEGUROS if ids != "plaza" for i in ids}
     for p in DATOS["parqueos"]:
-        PL.append(suelo([tuple(q) for q in p["pol"]], "#d3d9e1", borde="#b7c1cd"))
+        pol = [tuple(q) for q in p["pol"]]
+        PL.append(suelo(pol, "#d3d9e1", borde="#b7c1cd"))
+        if p["id"] in seguros:
+            PL.append(f'<polygon points="{pts(pol)}" fill="none" stroke="{VERDE}" stroke-width="2.2" stroke-dasharray="7 5"/>')
+    for pl in DATOS["plazas"]:
+        pol = [tuple(q) for q in pl["pol"]]
+        PL.append(suelo(pol, "#f1e3bf", borde="#d8c28d"))
+        cx, cy = centro(pol)
+        PL.append(suelo([(cx - 9, cy - 6), (cx + 9, cy - 6), (cx + 9, cy + 6), (cx - 9, cy + 6)], "#c9775a", borde=BLANCO))  # cancha
+        PL.append(f'<polygon points="{pts(pol)}" fill="none" stroke="{VERDE}" stroke-width="2.4" stroke-dasharray="7 5"/>')
 
     # Zonas seguras: fútbol y béisbol (con contorno blanco discontinuo)
     PL.append(futbol([tuple(q) for q in cancha("soccer")["pol"]]))
@@ -372,20 +431,26 @@ def construir(eds):
         pol, area = e["pol"], e["area"]
         alto = 15 if area >= 700 else 12 if area >= 250 else 9 if area >= MIN_AREA else 5
         nombre = e["nombre"] or ""
+        solar = e["id"] in SOLAR
         if e["tipo"] == "roof":
-            alto = min(alto, 9)
-            svg = cubierta(pol, alto, "#f2f8ff" if nombre in INSIGNIA else "#f6f7f9",
-                           AZUL_OSC if nombre in INSIGNIA else "#8a97a6")
+            alto = min(alto, 9 if not solar else 5)
+            svg = cubierta(pol, alto, "url(#solar)" if solar else "#f6f7f9",
+                           "#4b5f78" if solar else "#8a97a6", lado="#9fb3cc" if solar else "#f6f7f9")
             alto += 1.4
         elif nombre == "Edificio P":
-            svg = edificio(pol, alto, "#fffbe6", "#ffe680", "#d4a900", "#8f7200")
+            svg = edificio(pol, alto, "url(#solar)", "#ffe680", "#d4a900", "#8f7200")
         elif nombre in INSIGNIA:
-            svg = edificio(pol, alto, "#f7fbff", "#cfe5fc", "#7fb6ef", AZUL_OSC)
+            svg = edificio(pol, alto, "url(#solar)" if solar else "#f7fbff", "#cfe5fc", "#7fb6ef", AZUL_OSC)
         else:
-            svg = edificio(pol, alto, "#fbfcfd", "#e3e8ee", "#b5c0cc", "#8a97a6")
+            svg = edificio(pol, alto, "url(#solar)" if solar else "#fbfcfd", "#e3e8ee", "#b5c0cc", "#8a97a6")
         cx, cy = e["c"]
         OB.append((prof(*max(pol, key=lambda q: prof(*q))), svg))
         e["alto"] = alto
+    # Carports: techos de celdas solares sobre parqueos
+    for p in DATOS["parqueos"]:
+        if p["id"] in CARPORTS:
+            pol = [tuple(q) for q in p["pol"]]
+            OB.append((prof(*max(pol, key=lambda q: prof(*q))), cubierta(pol, 4.5, "url(#solar)", "#4b5f78", lado="#9fb3cc")))
     OB.sort(key=lambda t: t[0])
 
     # Insignias encima de todo (no las tapa ningún edificio)
@@ -397,6 +462,10 @@ def construir(eds):
                                                color=AZUL_OSC if e["nombre"] == "Edificio P" else AZUL)))
         elif e.get("num"):
             INS.append((prof(cx, cy), insignia(cx, cy, e["alto"], str(e["num"]), color=GRIS, r=7.5)))
+    for nombre, ids in PUNTOS_SEGUROS:
+        cx, cy = centro_varios(poligonos_punto(ids))
+        z = 20 if ids == "plaza" else 6 if any(i in CARPORTS for i in ids) else 0   # la plazoleta queda detrás del Edificio B
+        INS.append((prof(cx, cy) + 1000, insignia(cx, cy, z, "PS", color=VERDE, r=9)))
     INS.sort(key=lambda t: t[0])
     return S, PL, [s for _, s in OB], [s for _, s in INS]
 
@@ -410,10 +479,14 @@ def rotulos(eds):
 
     R = []
     R.append(rotulo(*ancla("Jaguar Center"), -140, -135, "Jaguar Center", punto=False))
-    R.append(rotulo(*ancla("Edificio I"), -40, -175, "Edificio I", punto=False))
+    R.append(rotulo(*ancla("Edificio I"), -40, -175, "Edificio I", punto=False, sub="Biblioteca Pablo Antonio Cuadra"))
     R.append(rotulo(*ancla("Edificio E"), 60, -200, "Edificio E", punto=False))
     R.append(rotulo(*ancla("Edificio A"), 205, -95, "Edificio A", punto=False))
-    R.append(rotulo(*ancla("Edificio P"), 190, 95, "Edificio P", fondo=AMARILLO, color=AZUL_OSC, borde=AZUL_OSC, tam=16, punto=False))
+    R.append(rotulo(*ancla("Edificio P"), 190, 95, "Edificio P", fondo=AMARILLO, color=AZUL_OSC, borde=AZUL_OSC, tam=16, punto=False, sub="Copérnico · celdas solares"))
+    pz = centro_varios(poligonos_punto("plaza"))
+    R.append(rotulo(pz[0], pz[1], 0, 110, -190, "Plazoleta", fondo=VERDE, color=BLANCO, borde=VERDE, tam=15, sub="Punto seguro", punto=False))
+    pe = centro_varios(poligonos_punto(["241348792"]))
+    R.append(rotulo(pe[0], pe[1], 6, 0, -235, "Celdas solares", fondo=VERDE, color=BLANCO, borde=VERDE, tam=14, sub="Parqueo · punto seguro", punto=False))
     f = centro([tuple(q) for q in cancha("soccer")["pol"]])
     b = centro([tuple(q) for q in cancha("baseball")["pol"]])
     R.append(rotulo(f[0], f[1], 0, -215, -60, "Zona segura", fondo="#2f9e48", color=BLANCO, borde="#2f9e48", tam=16, sub="Cancha de fútbol"))
@@ -440,6 +513,21 @@ def rosa(cx, cy, r=46):
     return "".join(g)
 
 
+def lista_codigos(x=1428, y=268):
+    """Recuadro con las insignias de los edificios con nombre."""
+    filas = list(INSIGNIA.items())
+    alto = 44 + len(filas) * 25
+    g = [f'<rect x="{x}" y="{y}" width="160" height="{alto}" rx="18" fill="{BLANCO}" stroke="{AZUL}" stroke-width="2.5"/>',
+         f'<text x="{x + 80}" y="{y + 22}" font-size="15" font-weight="900" fill="{AZUL}" text-anchor="middle" dominant-baseline="central">Edificios</text>']
+    for i, (nombre, cod) in enumerate(filas):
+        cy = y + 50 + i * 25
+        col = AZUL_OSC if nombre == "Edificio P" else AZUL
+        g.append(f'<circle cx="{x + 22}" cy="{cy}" r="10" fill="{col}"/>'
+                 f'<text x="{x + 22}" y="{cy + .5}" font-size="{12 if len(cod) == 1 else 9}" font-weight="800" fill="{BLANCO}" text-anchor="middle" dominant-baseline="central">{cod}</text>'
+                 f'<text x="{x + 38}" y="{cy + .5}" font-size="{12 if len(nombre) < 16 else 10.5}" font-weight="700" fill="{AZUL}" dominant-baseline="central">{nombre}</text>')
+    return "".join(g)
+
+
 def documento():
     W, H = 1600, 1060
     encajar(200, 140, 1400, 935)
@@ -451,15 +539,16 @@ def documento():
   <linearGradient id="terreno" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#e3efd5"/><stop offset="1" stop-color="#d2e6c0"/></linearGradient>
   <linearGradient id="franja" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#0066dd"/><stop offset=".5" stop-color="{AZUL}"/><stop offset="1" stop-color="#38b6ff"/></linearGradient>
   <filter id="sombra" x="-10%" y="-10%" width="120%" height="130%"><feDropShadow dx="0" dy="10" stdDeviation="12" flood-color="#003c82" flood-opacity=".22"/></filter>
+  <pattern id="solar" width="7" height="5" patternUnits="userSpaceOnUse" patternTransform="skewX(-28)"><rect width="7" height="5" fill="#1f3f6e"/><path d="M0 .4H7M.4 0V5" stroke="#7aa3d6" stroke-width=".9"/></pattern>
   <clipPath id="recorte"><polygon points="{pts(CAMPUS)}"/></clipPath>
 </defs>'''
     cabecera = f'''<rect width="{W}" height="92" fill="url(#franja)"/>
 <text x="40" y="46" font-size="40" font-weight="900" fill="{BLANCO}" dominant-baseline="central">Campus UAM</text>
 <text x="330" y="48" font-size="20" font-weight="700" fill="{BLANCO}" opacity=".9" dominant-baseline="central">Mapa 3D · evacuación Off-Grid</text>
 <text x="{W - 40}" y="46" font-size="30" font-weight="900" fill="{BLANCO}" text-anchor="end" dominant-baseline="central" letter-spacing="1">UNEXUAM</text>'''
-    items = [("#f7fbff", AZUL_OSC, "Edificio con nombre"), ("#fffbe6", "#8f7200", "Edificio P"),
-             ("#fbfcfd", "#8a97a6", f"Sin nombre (1–{n_sin})"), ("#47b660", AMARILLO, "Zona segura"),
-             ("#d3d9e1", "#b7c1cd", "Parqueo"), ("#c5ccd6", "#a9b3c0", "Vía Universidad UAM")]
+    items = [("#f7fbff", AZUL_OSC, "Edificio con nombre"), ("#fbfcfd", "#8a97a6", f"Sin nombre (1–{n_sin})"),
+             ("#47b660", AMARILLO, "Zona segura"), (VERDE, VERDE, "Punto seguro (PS)"),
+             ("url(#solar)", "#4b5f78", "Celdas solares"), ("#c5ccd6", "#a9b3c0", "Vía Universidad UAM")]
     ley = [f'<g transform="translate(40,{H - 64})"><rect x="0" y="0" width="{W - 80}" height="44" rx="22" fill="{BLANCO}" stroke="{AZUL}" stroke-width="2.5"/>']
     x = 26
     for relleno, borde, txt in items:
@@ -469,7 +558,7 @@ def documento():
     ley.append(f'<text x="{W - 100}" y="23" font-size="12" font-weight="600" fill="{AZUL}" opacity=".8" text-anchor="end" dominant-baseline="central">Plano © OpenStreetMap contributors</text></g>')
 
     cuerpo = "\n".join([f'<g filter="url(#sombra)">{"".join(suelo_)}</g>', "".join(planos), "".join(objetos),
-                        rosa(1490, 190), "".join(rotulos(eds)), "".join(insignias)])
+                        rosa(1490, 190), "".join(rotulos(eds)), "".join(insignias), lista_codigos()])
     svg = f'''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {W} {H}" width="{W}" height="{H}" font-family="{FUENTE}">
 {defs}
 <rect width="{W}" height="{H}" fill="url(#cielo)"/>

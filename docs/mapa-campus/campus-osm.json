@@ -86,7 +86,7 @@
  "edificios": [
   {
    "id": "527270723",
-   "nombre": null,
+   "nombre": "Subway",
    "tipo": "yes",
    "area": 435,
    "pol": [
@@ -134,7 +134,7 @@
   },
   {
    "id": "527270724",
-   "nombre": null,
+   "nombre": "Edificio B",
    "tipo": "yes",
    "area": 737,
    "pol": [
@@ -190,7 +190,7 @@
   },
   {
    "id": "527270727",
-   "nombre": null,
+   "nombre": "Edificio J",
    "tipo": "yes",
    "area": 126,
    "pol": [
@@ -246,7 +246,7 @@
   },
   {
    "id": "527270729",
-   "nombre": null,
+   "nombre": "Clínicas Odontológicas",
    "tipo": "yes",
    "area": 1415,
    "pol": [
@@ -386,7 +386,7 @@
   },
   {
    "id": "527270733",
-   "nombre": null,
+   "nombre": "Edificio F",
    "tipo": "yes",
    "area": 318,
    "pol": [
@@ -426,7 +426,7 @@
   },
   {
    "id": "527270734",
-   "nombre": null,
+   "nombre": "Auditorio Central",
    "tipo": "yes",
    "area": 297,
    "pol": [
@@ -466,7 +466,7 @@
   },
   {
    "id": "527270735",
-   "nombre": null,
+   "nombre": "UAM College",
    "tipo": "yes",
    "area": 467,
    "pol": [
@@ -614,7 +614,7 @@
   },
   {
    "id": "730964041",
-   "nombre": null,
+   "nombre": "Edificio C",
    "tipo": "yes",
    "area": 784,
    "pol": [
@@ -734,7 +734,7 @@
   },
   {
    "id": "1333922788",
-   "nombre": null,
+   "nombre": "Edificio O",
    "tipo": "yes",
    "area": 475,
    "pol": [
@@ -2591,6 +2591,33 @@
     [
      19.6,
      196.2
+    ]
+   ]
+  }
+ ],
+ "plazas": [
+  {
+   "id": "678946085",
+   "pol": [
+    [
+     204.0,
+     80.5
+    ],
+    [
+     204.1,
+     118.1
+    ],
+    [
+     220.5,
+     118.1
+    ],
+    [
+     238.3,
+     98.1
+    ],
+    [
+     238.2,
+     80.3
     ]
    ]
   }

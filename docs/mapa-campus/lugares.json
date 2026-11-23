@@ -1,11 +1,47 @@
 [
   {
+    "nombre": "Auditorio Central",
+    "tipo": "edificio",
+    "area_m2": 297,
+    "centro_m": [
+      173.8,
+      106.6
+    ]
+  },
+  {
+    "nombre": "Clínicas Odontológicas",
+    "tipo": "edificio",
+    "area_m2": 1415,
+    "centro_m": [
+      218.6,
+      198.1
+    ]
+  },
+  {
     "nombre": "Edificio A",
     "tipo": "edificio",
     "area_m2": 286,
     "centro_m": [
       267.0,
       133.8
+    ]
+  },
+  {
+    "nombre": "Edificio B",
+    "tipo": "edificio",
+    "area_m2": 737,
+    "centro_m": [
+      223.1,
+      126.9
+    ]
+  },
+  {
+    "nombre": "Edificio C",
+    "tipo": "edificio",
+    "area_m2": 784,
+    "centro_m": [
+      223.1,
+      143.7
     ]
   },
   {
@@ -18,13 +54,42 @@
     ]
   },
   {
+    "nombre": "Edificio F",
+    "tipo": "edificio",
+    "area_m2": 318,
+    "centro_m": [
+      173.2,
+      82.4
+    ]
+  },
+  {
     "nombre": "Edificio I",
     "tipo": "edificio",
     "area_m2": 982,
     "centro_m": [
       117.4,
       49.2
+    ],
+    "detalle": "Biblioteca Pablo Antonio Cuadra"
+  },
+  {
+    "nombre": "Edificio J",
+    "tipo": "edificio",
+    "area_m2": 126,
+    "centro_m": [
+      235.9,
+      180.1
     ]
+  },
+  {
+    "nombre": "Edificio O",
+    "tipo": "edificio",
+    "area_m2": 475,
+    "centro_m": [
+      166.2,
+      221.0
+    ],
+    "detalle": "Ingeniería y Arquitectura"
   },
   {
     "nombre": "Edificio P",
@@ -33,7 +98,8 @@
     "centro_m": [
       217.8,
       251.6
-    ]
+    ],
+    "detalle": "Copérnico · Observatorio"
   },
   {
     "nombre": "Jaguar Center",
@@ -42,6 +108,24 @@
     "centro_m": [
       82.5,
       64.1
+    ]
+  },
+  {
+    "nombre": "Subway",
+    "tipo": "edificio",
+    "area_m2": 435,
+    "centro_m": [
+      252.9,
+      98.5
+    ]
+  },
+  {
+    "nombre": "UAM College",
+    "tipo": "edificio",
+    "area_m2": 467,
+    "centro_m": [
+      166.5,
+      136.2
     ]
   },
   {
@@ -83,24 +167,6 @@
   {
     "nombre": "Edificio sin nombre 5",
     "tipo": "edificio",
-    "area_m2": 318,
-    "centro_m": [
-      173.2,
-      82.4
-    ]
-  },
-  {
-    "nombre": "Edificio sin nombre 6",
-    "tipo": "edificio",
-    "area_m2": 435,
-    "centro_m": [
-      252.9,
-      98.5
-    ]
-  },
-  {
-    "nombre": "Edificio sin nombre 7",
-    "tipo": "edificio",
     "area_m2": 82,
     "centro_m": [
       290.9,
@@ -108,61 +174,7 @@
     ]
   },
   {
-    "nombre": "Edificio sin nombre 8",
-    "tipo": "edificio",
-    "area_m2": 222,
-    "centro_m": [
-      339.4,
-      98.8
-    ]
-  },
-  {
-    "nombre": "Edificio sin nombre 9",
-    "tipo": "edificio",
-    "area_m2": 297,
-    "centro_m": [
-      173.8,
-      106.6
-    ]
-  },
-  {
-    "nombre": "Edificio sin nombre 10",
-    "tipo": "edificio",
-    "area_m2": 467,
-    "centro_m": [
-      166.5,
-      136.2
-    ]
-  },
-  {
-    "nombre": "Edificio sin nombre 11",
-    "tipo": "edificio",
-    "area_m2": 737,
-    "centro_m": [
-      223.1,
-      126.9
-    ]
-  },
-  {
-    "nombre": "Edificio sin nombre 12",
-    "tipo": "edificio",
-    "area_m2": 405,
-    "centro_m": [
-      324.3,
-      140.5
-    ]
-  },
-  {
-    "nombre": "Edificio sin nombre 13",
-    "tipo": "edificio",
-    "area_m2": 405,
-    "centro_m": [
-      324.4,
-      121.3
-    ]
-  },
-  {
-    "nombre": "Edificio sin nombre 14",
+    "nombre": "Edificio sin nombre 6",
     "tipo": "edificio",
     "area_m2": 327,
     "centro_m": [
@@ -171,25 +183,7 @@
     ]
   },
   {
-    "nombre": "Edificio sin nombre 15",
-    "tipo": "edificio",
-    "area_m2": 784,
-    "centro_m": [
-      223.1,
-      143.7
-    ]
-  },
-  {
-    "nombre": "Edificio sin nombre 16",
-    "tipo": "edificio",
-    "area_m2": 109,
-    "centro_m": [
-      333.9,
-      158.4
-    ]
-  },
-  {
-    "nombre": "Edificio sin nombre 17",
+    "nombre": "Edificio sin nombre 7",
     "tipo": "edificio",
     "area_m2": 1278,
     "centro_m": [
@@ -198,7 +192,7 @@
     ]
   },
   {
-    "nombre": "Edificio sin nombre 18",
+    "nombre": "Edificio sin nombre 8",
     "tipo": "edificio",
     "area_m2": 732,
     "centro_m": [
@@ -207,16 +201,7 @@
     ]
   },
   {
-    "nombre": "Edificio sin nombre 19",
-    "tipo": "edificio",
-    "area_m2": 126,
-    "centro_m": [
-      235.9,
-      180.1
-    ]
-  },
-  {
-    "nombre": "Edificio sin nombre 20",
+    "nombre": "Edificio sin nombre 9",
     "tipo": "edificio",
     "area_m2": 138,
     "centro_m": [
@@ -225,7 +210,7 @@
     ]
   },
   {
-    "nombre": "Edificio sin nombre 21",
+    "nombre": "Edificio sin nombre 10",
     "tipo": "edificio",
     "area_m2": 320,
     "centro_m": [
@@ -234,7 +219,7 @@
     ]
   },
   {
-    "nombre": "Edificio sin nombre 22",
+    "nombre": "Edificio sin nombre 11",
     "tipo": "edificio",
     "area_m2": 93,
     "centro_m": [
@@ -243,16 +228,7 @@
     ]
   },
   {
-    "nombre": "Edificio sin nombre 23",
-    "tipo": "edificio",
-    "area_m2": 1415,
-    "centro_m": [
-      218.6,
-      198.1
-    ]
-  },
-  {
-    "nombre": "Edificio sin nombre 24",
+    "nombre": "Edificio sin nombre 12",
     "tipo": "edificio",
     "area_m2": 516,
     "centro_m": [
@@ -261,16 +237,7 @@
     ]
   },
   {
-    "nombre": "Edificio sin nombre 25",
-    "tipo": "edificio",
-    "area_m2": 475,
-    "centro_m": [
-      166.2,
-      221.0
-    ]
-  },
-  {
-    "nombre": "Edificio sin nombre 26",
+    "nombre": "Edificio sin nombre 13",
     "tipo": "edificio",
     "area_m2": 108,
     "centro_m": [
@@ -292,6 +259,96 @@
     "centro_m": [
       75.3,
       256.0
+    ]
+  },
+  {
+    "nombre": "Punto Seguro Parqueo Norte",
+    "tipo": "punto seguro",
+    "celdas_solares": false,
+    "centro_m": [
+      238.3,
+      49.9
+    ]
+  },
+  {
+    "nombre": "Punto Seguro Parqueo 47 Calle",
+    "tipo": "punto seguro",
+    "celdas_solares": false,
+    "centro_m": [
+      192.1,
+      10.5
+    ]
+  },
+  {
+    "nombre": "Punto Seguro Parqueo 20 Av",
+    "tipo": "punto seguro",
+    "celdas_solares": false,
+    "centro_m": [
+      155.4,
+      69.6
+    ]
+  },
+  {
+    "nombre": "Punto Seguro Plazoleta",
+    "tipo": "punto seguro",
+    "celdas_solares": false,
+    "centro_m": [
+      219.4,
+      97.3
+    ]
+  },
+  {
+    "nombre": "Punto Seguro Parqueo Este",
+    "tipo": "punto seguro",
+    "celdas_solares": true,
+    "centro_m": [
+      332.4,
+      128.7
+    ]
+  },
+  {
+    "nombre": "Punto Seguro Parqueo Central",
+    "tipo": "punto seguro",
+    "celdas_solares": true,
+    "centro_m": [
+      222.3,
+      154.5
+    ]
+  },
+  {
+    "nombre": "Punto Seguro Parqueo Sur",
+    "tipo": "punto seguro",
+    "celdas_solares": true,
+    "centro_m": [
+      221.0,
+      226.9
+    ]
+  },
+  {
+    "nombre": "Punto Seguro Parqueo Oeste",
+    "tipo": "punto seguro",
+    "celdas_solares": false,
+    "centro_m": [
+      148.8,
+      243.9
+    ]
+  },
+  {
+    "nombre": "Punto Seguro Parqueo Edificio P",
+    "tipo": "punto seguro",
+    "celdas_solares": false,
+    "centro_m": [
+      231.6,
+      278.7
+    ]
+  },
+  {
+    "nombre": "Punto Seguro Parqueo Suroeste",
+    "tipo": "punto seguro",
+    "celdas_solares": false,
+    "centro_m": [
+      88.1,
+      325.5
     ]
   }
 ]

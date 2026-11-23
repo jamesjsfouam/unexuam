@@ -21,8 +21,20 @@ CAMPUS_ID = "70193885"
 BBOX = "-86.2620,12.1045,-86.2545,12.1105"   # oeste, sur, este, norte
 URL = f"https://api.openstreetmap.org/api/0.6/map?bbox={BBOX}"
 
-# Edificio que el mapa de OSM no nombra y que James identificó (22/11/2026)
-NOMBRES_EXTRA = {"1547515040": "Edificio P"}
+# Edificios que OSM no nombra. Edificio P lo identificó James; el resto sale de las etiquetas
+# de Google Maps (vista satelital, 22/11/2026), cotejando forma y posición con el plano de OSM.
+NOMBRES_EXTRA = {
+    "1547515040": "Edificio P",              # Google: «Edificio P Copérnico» (con el observatorio)
+    "527270733": "Edificio F",
+    "527270734": "Auditorio Central",
+    "527270735": "UAM College",
+    "527270724": "Edificio B",
+    "730964041": "Edificio C",
+    "527270727": "Edificio J",
+    "527270729": "Clínicas Odontológicas",
+    "1333922788": "Edificio O",              # Facultad de Ingeniería y Arquitectura
+    "527270723": "Subway",
+}
 
 
 def dentro(punto, poligono):
@@ -60,7 +72,8 @@ def main():
     campus = [xy(p) for p in campus_ll[:-1]]
     out = {"fuente": "© OpenStreetMap contributors, ODbL (https://www.openstreetmap.org/copyright)",
            "unidades": "metros; x hacia el este, y hacia el sur",
-           "campus": campus, "edificios": [], "calles": [], "canchas": [], "parqueos": [], "arboledas": []}
+           "campus": campus, "edificios": [], "calles": [], "canchas": [], "parqueos": [], "arboledas": [],
+           "plazas": []}
     for wid, (tags, ll) in vias.items():
         if wid == CAMPUS_ID or len(ll) < 2:
             continue
@@ -80,11 +93,13 @@ def main():
             out["canchas"].append({"id": wid, "deporte": tags.get("sport"), "pol": p})
         elif tags.get("amenity") == "parking" and cerrado:
             out["parqueos"].append({"id": wid, "pol": p})
+        elif tags.get("place") == "square" and cerrado:
+            out["plazas"].append({"id": wid, "pol": p})
         elif (tags.get("natural") == "wood" or tags.get("landuse") == "forest") and cerrado:
             out["arboledas"].append({"id": wid, "pol": p})
     (AQUI / "campus-osm.json").write_text(json.dumps(out, ensure_ascii=False, indent=1), encoding="utf-8")
     print(f"{len(out['edificios'])} edificios, {len(out['calles'])} calles, {len(out['canchas'])} canchas, "
-          f"{len(out['parqueos'])} parqueos, {len(out['arboledas'])} arboledas -> campus-osm.json")
+          f"{len(out['parqueos'])} parqueos, {len(out['arboledas'])} arboledas, {len(out['plazas'])} plazas -> campus-osm.json")
 
 
 if __name__ == "__main__":

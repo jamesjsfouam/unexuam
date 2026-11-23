@@ -13,10 +13,15 @@ Ilustración en 3D del campus con la marca Unexuam, hecha con el plano **real** 
 | `generar_mapa.py` | Genera el SVG, el HTML y `lugares.json` a partir de `campus-osm.json` |
 
 ## Nombres
-- **Con nombre en OSM:** Edificio I, Edificio E, Edificio A y Jaguar Center (una cancha techada).
-- **Edificio P:** la nave alargada del borde sur, identificada por James (OSM way 1547515040).
-- **Resto:** «Edificio sin nombre N», numerados de norte a sur y de oeste a este. Las casetas de menos de 60 m² se dibujan, pero no son lugares del grafo.
+- **Con nombre en OSM:** Edificio I, Edificio E, Edificio A y Jaguar Center.
+- **Edificio P:** la nave alargada del borde sur, identificada por James (OSM way 1547515040). En Google Maps es el «Edificio P Copérnico», con el observatorio.
+- **De Google Maps (vista satelital, 22/11/2026),** cotejando la forma y la posición con OSM: Edificio B, C, F, J y O (Ingeniería y Arquitectura), Auditorio Central, UAM College, Clínicas Odontológicas y Subway. La Biblioteca Pablo Antonio Cuadra está en el Edificio I. Están en `NOMBRES_EXTRA` de `extraer_osm.py`.
+- **Resto:** «Edificio sin nombre N», numerados de norte a sur y de oeste a este. Las casetas de menos de 60 m² y las cubiertas solares del parqueo este se dibujan, pero no son lugares del grafo.
+
+## Zonas y puntos seguros
 - **Zonas seguras:** la cancha de fútbol y el campo de béisbol (contorno amarillo discontinuo).
+- **Puntos seguros (PS):** espacios abiertos, lejos de los edificios, con contorno verde discontinuo. Son los parqueos (Norte, 47 Calle, 20 Av, Este, Central, Sur, Oeste, Edificio P y Suroeste) y la plazoleta.
+- **Celdas solares:** se ven en el satélite sobre los techos de Clínicas Odontológicas, del Edificio O y del Edificio P, y sobre las cubiertas de los parqueos Este, Central y Sur. En `lugares.json`, los puntos seguros que tienen celdas solares llevan `"celdas_solares": true`.
 
 Cuando lleguen más nombres, se agregan en `NOMBRES_EXTRA` de `extraer_osm.py` (por id de OSM) y se vuelven a correr los dos scripts.
 
