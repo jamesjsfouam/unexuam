@@ -144,20 +144,26 @@ public class MeshNativa {
         AdvertisingOptions opts = new AdvertisingOptions.Builder().setStrategy(ESTRATEGIA).build();
         client.startAdvertising(nombreEndpointLocal(), SERVICE_ID, lifecycleCallback, opts)
                 .addOnSuccessListener(unused -> {
-                    Log.d(TAG, "Advertising iniciado: " + nombreEndpointLocal());
+                    Log.i(TAG, "Advertising iniciado: " + nombreEndpointLocal());
                     emitirEstado("anunciando");
                 })
-                .addOnFailureListener(e -> Log.w(TAG, "Error advertising: " + e.getMessage()));
+                .addOnFailureListener(e -> {
+                    Log.e(TAG, "Error advertising: " + e.getMessage());
+                    emitirEstado("error-adv:" + e.getMessage());
+                });
     }
 
     private void iniciarBusqueda() {
         DiscoveryOptions opts = new DiscoveryOptions.Builder().setStrategy(ESTRATEGIA).build();
         client.startDiscovery(SERVICE_ID, discoveryCallback, opts)
                 .addOnSuccessListener(unused -> {
-                    Log.d(TAG, "Discovery iniciado");
+                    Log.i(TAG, "Discovery iniciado");
                     emitirEstado("buscando");
                 })
-                .addOnFailureListener(e -> Log.w(TAG, "Error discovery: " + e.getMessage()));
+                .addOnFailureListener(e -> {
+                    Log.e(TAG, "Error discovery: " + e.getMessage());
+                    emitirEstado("error-disc:" + e.getMessage());
+                });
     }
 
     private final EndpointDiscoveryCallback discoveryCallback = new EndpointDiscoveryCallback() {

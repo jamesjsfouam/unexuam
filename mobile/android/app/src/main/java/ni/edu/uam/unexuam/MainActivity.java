@@ -33,6 +33,7 @@ public class MainActivity extends BridgeActivity {
         meshNativa = new MeshNativa(this, this::enviarEventoAWeb);
         if (this.bridge != null && this.bridge.getWebView() != null) {
             this.bridge.getWebView().addJavascriptInterface(new PuenteNativo(), "UnexuamNativo");
+            this.bridge.getWebView().reload();
         }
         solicitarPermisosEntrada();
     }
@@ -68,10 +69,18 @@ public class MainActivity extends BridgeActivity {
     }
 
     private boolean tienePermisosMesh() {
-        for (String p : permisosRequeridos()) {
-            if (ContextCompat.checkSelfPermission(this, p) != PackageManager.PERMISSION_GRANTED) {
-                return false;
-            }
+        boolean loc = ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
+                == PackageManager.PERMISSION_GRANTED
+                || ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION)
+                == PackageManager.PERMISSION_GRANTED;
+        if (!loc) return false;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_SCAN)
+                    != PackageManager.PERMISSION_GRANTED) return false;
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT)
+                    != PackageManager.PERMISSION_GRANTED) return false;
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_ADVERTISE)
+                    != PackageManager.PERMISSION_GRANTED) return false;
         }
         return true;
     }

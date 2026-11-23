@@ -53,6 +53,7 @@ function aviso(msg, ok = true) {
 function marcarConexion(ok) {
   const chip = $(".chip-offgrid");
   if (!chip) return;
+  if (window.__UNEXUAM_OFFLINE__) ok = true;
   chip.classList.toggle("caido", !ok);
   const txt = chip.lastChild;
   if (txt && txt.nodeType === 3) txt.nodeValue = ok ? " Off-Grid" : " Sin conexión";
@@ -66,6 +67,12 @@ async function api(ruta, cuerpo) {
       body: JSON.stringify(cuerpo),
     });
     if (r.status === 401) { if (window.mostrarLogin) window.mostrarLogin(); return { ok: false }; }
+    if (r.status === 403) {
+      const j = await r.json().catch(() => ({ ok: false, mensaje: "Solo el administrador puede hacer eso." }));
+      marcarConexion(true);
+      if (cuerpo !== undefined) aviso(j.mensaje, false);
+      return j;
+    }
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
     const j = await r.json();
     marcarConexion(true);
