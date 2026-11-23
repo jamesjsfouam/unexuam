@@ -6,7 +6,7 @@ const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
 const FLECHA = "→";
 const NS = "http://www.w3.org/2000/svg";
-const IMG = {  // iconos exportados del Figma de UNEXO (frontend/static/img)
+const IMG = {  // iconos de la interfaz (frontend/static/img)
   x: "/static/img/logo-x.png",
   fuego: "/static/img/ico-fuego.png",
   sinSenal: "/static/img/ico-sin-senal.png",

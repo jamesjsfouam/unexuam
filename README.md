@@ -9,10 +9,11 @@
 
   [![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org)
   [![Flask](https://img.shields.io/badge/Flask-Backend_LAN-0080FF?style=for-the-badge&logo=flask&logoColor=white)](https://flask.palletsprojects.com)
+  [![Android](https://img.shields.io/badge/Android-APK_Autónomo-3DDC84?style=for-the-badge&logo=android&logoColor=white)](mobile/)
   ![Grafos](https://img.shields.io/badge/Grafos-Dirigidos_y_Ponderados-0B2A4A?style=for-the-badge)
   ![Mesh](https://img.shields.io/badge/Red_Mesh-BFS_%2B_TTL-CC0000?style=for-the-badge)
   ![Dijkstra](https://img.shields.io/badge/Rutas-Dijkstra_a_mano-FCD222?style=for-the-badge&labelColor=0B2A4A)
-  ![UAM](https://img.shields.io/badge/UAM-Estructuras_No_Lineales_2026-0066CC?style=for-the-badge)
+  ![UAM](https://img.shields.io/badge/UAM-Proyecto_Final_2026-0066CC?style=for-the-badge)
 </div>
 
 <br />
@@ -94,7 +95,7 @@ La aplicación web móvil sincroniza el estado en tiempo real entre todos los te
 |---|---|
 | ![Inicio](https://img.shields.io/badge/-Inicio-0080FF?style=flat-square) | Resumen del estado de las dos redes, ruta de evacuación activa y registro cronológico de eventos. |
 | ![Red Mesh](https://img.shields.io/badge/-Red_Mesh-CC0000?style=flat-square) | Visualización de teléfonos y enlaces dirigidos con su peso. Permite emitir alertas configurando el **TTL** con animación salto a salto en todos los dispositivos conectados. |
-| ![Campus](https://img.shields.io/badge/-Campus_3D-0B2A4A?style=flat-square) | Selector «Estoy en…» por edificio y piso con **guía paso a paso** hasta la zona segura más cercana. Incluye vista explotada por pisos de B, C y P, mapa 3D del campus UAM y controles de **Simular bloqueo** o **Congestión** que recalculan la ruta al instante. |
+| ![Campus](https://img.shields.io/badge/-Campus_3D-0B2A4A?style=flat-square) | Selector «Estoy en…» por edificio y piso con **guía paso a paso** hasta la zona segura más cercana. Incluye vista 3D explotada por pisos de B, C y P (con escalera central B–C), **mapa 3D interactivo del campus** (arrastrar, pinch-to-zoom, botones `+` / `−` / `◎`, Pasarela del B) y controles de **Simular bloqueo** o **Congestión** que recalculan la ruta al instante. |
 | ![Administrar](https://img.shields.io/badge/-Administrar-0066CC?style=flat-square) | Inserción, actualización y eliminación de vértices y aristas en ambos grafos, más inspección de la lista de adyacencia. |
 | ![Consola](https://img.shields.io/badge/-Menú_CLI-262626?style=flat-square) | Interfaz de consola clásica del curso (`python -m backend.menu`) para probar operaciones de grafos sin levantar el servidor web. |
 
@@ -108,7 +109,8 @@ La aplicación web móvil sincroniza el estado en tiempo real entre todos los te
 |---|---|---|
 | ![Backend](https://img.shields.io/badge/-Lenguaje-3776AB?style=flat-square&logo=python&logoColor=white) | **Python 3.10+** | Lógica completa de grafos, BFS y Dijkstra implementada desde cero sin librerías externas. |
 | ![Servidor](https://img.shields.io/badge/-Servidor-0080FF?style=flat-square&logo=flask&logoColor=white) | **Flask** | Estado compartido en memoria protegido con `threading.Lock` y API REST JSON para los clientes en la LAN. |
-| ![Frontend](https://img.shields.io/badge/-Frontend-0B2A4A?style=flat-square&logo=javascript&logoColor=white) | **HTML5 · CSS3 · JS vanilla** | Interfaz móvil sin frameworks ni CDNs: funciona completamente sin acceso a internet. |
+| ![Frontend](https://img.shields.io/badge/-Frontend-0B2A4A?style=flat-square&logo=javascript&logoColor=white) | **HTML5 · CSS3 · JS vanilla** | Interfaz móvil con animación de entrada Off-Grid, sin frameworks ni CDNs: funciona completamente sin internet. |
+| ![Móvil](https://img.shields.io/badge/-App_Android-3DDC84?style=flat-square&logo=android&logoColor=white) | **Capacitor + motor offline** | Empaqueta el frontend y el grafo exportado desde `backend/datos.py` en un APK autónomo (`ni.edu.uam.unexuam`) con persistencia en `localStorage`. |
 | ![Cartografía](https://img.shields.io/badge/-Mapa_UAM-7EBC6F?style=flat-square&logo=openstreetmap&logoColor=white) | **OpenStreetMap + SVG 3D** | Geometría real del campus (`frontend/static/campus-plano.json` y `frontend/static/img/mapa-campus-3d.svg`). |
 | ![Pruebas](https://img.shields.io/badge/-Pruebas-1FBF5F?style=flat-square) | **unittest** | Suite de 23 pruebas unitarias del backend sin dependencias externas. |
 
@@ -204,6 +206,20 @@ La consola imprimirá las dos direcciones de acceso:
 > [!TIP]
 > Varios teléfonos pueden abrir Unexuam simultáneamente: todos comparten el estado de la red y del campus, y una alerta emitida desde uno se anima en tiempo real en los demás.
 
+### 4. Compilar la app móvil Android (APK autónomo)
+
+La carpeta [`mobile/`](mobile/) empaqueta la aplicación completa para que funcione en Android **sin necesidad de tener la PC encendida**:
+
+```powershell
+cd mobile
+npm install            # solo la primera vez
+npm run sync           # exporta backend/datos.py + frontend/ al proyecto Android
+cd android
+.\gradlew.bat assembleDebug
+```
+
+El APK queda en `mobile/android/app/build/outputs/apk/debug/app-debug.apk`.
+
 <br />
 
 ![](https://img.shields.io/badge/Comandos-0B2A4A?style=flat-square)
@@ -214,7 +230,8 @@ La consola imprimirá las dos direcciones de acceso:
 |---|---|
 | `python app.py` | Levanta el servidor web móvil en el puerto `5000` (`0.0.0.0`) |
 | `python -m backend.menu` | Abre el menú interactivo de consola para operar los grafos |
-| `python -m unittest discover -s tests -v` | Ejecuta toda la suite de pruebas del backend con detalle |
+| `python -m unittest discover -s tests -v` | Ejecuta las 23 pruebas unitarias del backend |
+| `cd mobile && npm run sync` | Sincroniza el grafo de `backend/datos.py` y el frontend con Android |
 
 <br />
 
