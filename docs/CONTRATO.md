@@ -15,7 +15,7 @@ Es un prototipo: Bluetooth y Wi-Fi reales quedan como trabajo futuro.
 ## Reparto
 | Parte | Quién | Carpeta |
 |---|---|---|
-| Backend (lógica de grafos) | **James lo escribe a mano.** Claude solo explica, revisa y ayuda a depurar | `backend/` |
+| Backend (lógica de grafos) | Lo escribió Claude a petición de James (22/11), con las estructuras del profe. James lo estudia con `docs/ESTUDIO_BACKEND.md` | `backend/`, `tests/` |
 | Frontend web móvil (Flask + HTML/CSS/JS) | Claude | `frontend/`, `app.py` |
 | Documento de propuesta | Claude con James | `docs/propuesta/` |
 | Pitch y exposición | Claude con James | `docs/pitch/` |
