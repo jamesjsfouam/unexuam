@@ -120,9 +120,9 @@ def num(x):
 def serializar(g):
     vertices, aristas = [], []
     for v in g.vertexs:
-        vertices.append(v.city)
+        vertices.append(v.nombre)
         for destino, peso in v.neig:
-            aristas.append({"origen": v.city, "destino": destino.city, "peso": num(peso)})
+            aristas.append({"origen": v.nombre, "destino": destino.nombre, "peso": num(peso)})
     return {"vertices": vertices, "aristas": aristas}
 
 
@@ -179,7 +179,7 @@ def numero(d, clave, minimo, maximo):
 
 
 def existe(g, nombre):
-    return any(v.city == nombre for v in g.vertexs)
+    return any(v.nombre == nombre for v in g.vertexs)
 
 
 @app.errorhandler(Exception)
@@ -268,7 +268,7 @@ def api_bloquear():
         pares = [(o, dst)] + ([(dst, o)] if ambos else [])
         quitadas = []
         for a, b in pares:
-            peso = next((p for v in g.vertexs if v.city == a for w, p in v.neig if w.city == b), None)
+            peso = next((p for v in g.vertexs if v.nombre == a for w, p in v.neig if w.nombre == b), None)
             if peso is not None and g.eliminarArista(a, b):
                 S["bloqueados"].append({"origen": a, "destino": b, "peso": num(peso)})
                 quitadas.append(f"{a} → {b}")

@@ -24,8 +24,8 @@ INF = float("inf")
 # --- Graph mínimo (solo para que el frontend tenga algo que dibujar) ----------
 
 class Vertex:
-    def __init__(self, city):
-        self.city = city
+    def __init__(self, nombre):
+        self.nombre = nombre
         self.neig = []
 
 
@@ -33,13 +33,13 @@ class Graph:
     def __init__(self):
         self.vertexs = []
 
-    def buscarVertice(self, city):
-        return next((v for v in self.vertexs if v.city.lower() == city.lower()), None)
+    def buscarVertice(self, nombre):
+        return next((v for v in self.vertexs if v.nombre.lower() == nombre.lower()), None)
 
-    def insertarVertice(self, city):
-        if self.buscarVertice(city):
+    def insertarVertice(self, nombre):
+        if self.buscarVertice(nombre):
             return False
-        self.vertexs.append(Vertex(city))
+        self.vertexs.append(Vertex(nombre))
         return True
 
     def insertarArista(self, origen, destino, peso):
@@ -59,8 +59,8 @@ class Graph:
                 return True
         return False
 
-    def eliminarVertice(self, city):
-        v = self.buscarVertice(city)
+    def eliminarVertice(self, nombre):
+        v = self.buscarVertice(nombre)
         if not v:
             return False
         for u in self.vertexs:
@@ -89,7 +89,7 @@ def propagarAlerta(red, origen, ttl):
     out, seen, q = [], {id(v0)}, deque([(v0, 0)])
     while q:
         v, s = q.popleft()
-        out.append((v.city, s))
+        out.append((v.nombre, s))
         if s >= ttl:
             continue
         for w, _ in v.neig:
@@ -100,22 +100,22 @@ def propagarAlerta(red, origen, ttl):
 
 
 def dijkstra(campus, origen):
-    dist = {v.city: INF for v in campus.vertexs}
-    prev = {v.city: None for v in campus.vertexs}
+    dist = {v.nombre: INF for v in campus.vertexs}
+    prev = {v.nombre: None for v in campus.vertexs}
     v0 = campus.buscarVertice(origen)
     if not v0:
         return dist, prev
-    dist[v0.city] = 0.0
-    pq = [(0.0, v0.city)]
-    por_nombre = {v.city: v for v in campus.vertexs}
+    dist[v0.nombre] = 0.0
+    pq = [(0.0, v0.nombre)]
+    por_nombre = {v.nombre: v for v in campus.vertexs}
     while pq:
         d, c = heapq.heappop(pq)
         if d > dist[c]:
             continue
         for w, p in por_nombre[c].neig:
-            if d + p < dist[w.city]:
-                dist[w.city], prev[w.city] = d + p, c
-                heapq.heappush(pq, (d + p, w.city))
+            if d + p < dist[w.nombre]:
+                dist[w.nombre], prev[w.nombre] = d + p, c
+                heapq.heappush(pq, (d + p, w.nombre))
     return dist, prev
 
 
