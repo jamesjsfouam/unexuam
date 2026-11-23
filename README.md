@@ -93,9 +93,9 @@ La aplicación web móvil sincroniza el estado en tiempo real entre todos los te
 
 | Pestaña / Modo | Qué hace |
 |---|---|
-| ![Inicio](https://img.shields.io/badge/-Inicio-0080FF?style=flat-square) | Resumen del estado de las dos redes, ruta de evacuación activa y registro cronológico de eventos. |
+| ![Inicio](https://img.shields.io/badge/-Inicio-0080FF?style=flat-square) | Resumen del estado de las dos redes, ruta activa, **simulacros rápidos en 1 toque** (sismo, congestión, bloqueo B–C y alerta Mesh), botón de instalación PWA y actividad en vivo. |
 | ![Red Mesh](https://img.shields.io/badge/-Red_Mesh-CC0000?style=flat-square) | Visualización de teléfonos y enlaces dirigidos con su peso. Permite emitir alertas configurando el **TTL** con animación salto a salto en todos los dispositivos conectados. |
-| ![Campus](https://img.shields.io/badge/-Campus_3D-0B2A4A?style=flat-square) | Selector «Estoy en…» por edificio y piso con **guía paso a paso** hasta la zona segura más cercana. Incluye vista 3D explotada por pisos de B, C y P (con escalera central B–C), **mapa 3D interactivo del campus** (arrastrar, pinch-to-zoom, botones `+` / `−` / `◎`, Pasarela del B) y controles de **Simular bloqueo** o **Congestión** que recalculan la ruta al instante. |
+| ![Campus](https://img.shields.io/badge/-Campus_3D-0B2A4A?style=flat-square) | **Buscador instantáneo de aulas** y accesos rápidos (`P-309`, `C-305`, `B-205`, `B-101`), guía paso a paso con **lectura por voz (TTS)** y navegación `← Anterior` / `Siguiente →`, vista 3D explotada por pisos (con escalera central B–C) y **mapa 3D interactivo** (arrastrar, pinch-to-zoom, doble toque, brújula `N ↑`, botones `+`/`−`/`◎`). |
 | ![Administrar](https://img.shields.io/badge/-Administrar-0066CC?style=flat-square) | Inserción, actualización y eliminación de vértices y aristas en ambos grafos, más inspección de la lista de adyacencia. |
 | ![Consola](https://img.shields.io/badge/-Menú_CLI-262626?style=flat-square) | Interfaz de consola clásica del curso (`python -m backend.menu`) para probar operaciones de grafos sin levantar el servidor web. |
 
@@ -112,7 +112,7 @@ La aplicación web móvil sincroniza el estado en tiempo real entre todos los te
 | ![Frontend](https://img.shields.io/badge/-Frontend-0B2A4A?style=flat-square&logo=javascript&logoColor=white) | **HTML5 · CSS3 · JS vanilla** | Interfaz móvil con animación de entrada Off-Grid, sin frameworks ni CDNs: funciona completamente sin internet. |
 | ![Móvil](https://img.shields.io/badge/-App_Android-3DDC84?style=flat-square&logo=android&logoColor=white) | **Capacitor + motor offline** | Empaqueta el frontend y el grafo exportado desde `backend/datos.py` en un APK autónomo (`ni.edu.uam.unexuam`) con persistencia en `localStorage`. |
 | ![Cartografía](https://img.shields.io/badge/-Mapa_UAM-7EBC6F?style=flat-square&logo=openstreetmap&logoColor=white) | **OpenStreetMap + SVG 3D** | Geometría real del campus (`frontend/static/campus-plano.json` y `frontend/static/img/mapa-campus-3d.svg`). |
-| ![Pruebas](https://img.shields.io/badge/-Pruebas-1FBF5F?style=flat-square) | **unittest** | Suite de 30 pruebas (23 de backend + 7 de API y paridad frontend/backend). |
+| ![Pruebas](https://img.shields.io/badge/-Pruebas-1FBF5F?style=flat-square) | **unittest** | Suite de 31 pruebas (23 de backend + 8 de API, PWA y paridad frontend/backend). |
 
 ### Sistema de diseño
 

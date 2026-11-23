@@ -2277,3 +2277,35 @@ form.tarjeta {
     height: 460px;
   }
 }
+
+/* ---------- brújula, pulso, buscador, atajos, voz y simulacros ---------- */
+.mapa-brujula {
+  position: absolute; left: 10px; top: 10px; z-index: 2; pointer-events: none;
+  padding: 4px 10px; border-radius: 20px;
+  background: rgba(255, 255, 255, .92); border: 2px solid var(--azul);
+  color: var(--azul-osc); font-size: 11px; font-weight: 900; letter-spacing: .04em;
+  box-shadow: 0 2px 8px rgba(0, 50, 120, .15);
+}
+.r3-pulso {
+  fill: none; stroke: var(--amarillo); opacity: .75;
+  animation: pulsoPin 1.8s ease-out infinite;
+  transform-box: fill-box; transform-origin: center;
+}
+@keyframes pulsoPin {
+  from { transform: scale(1); opacity: .85; }
+  to { transform: scale(2.1); opacity: 0; }
+}
+.sugerencias, .atajos { display: flex; flex-wrap: wrap; gap: 6px; }
+.sugerencias button, .atajos button {
+  font: 700 12px var(--fuente); color: var(--azul-osc); background: var(--azul-claro);
+  border: 1.5px solid var(--azul); border-radius: var(--radio);
+  padding: 5px 11px; min-height: 32px; cursor: pointer;
+}
+.atajos button { background: var(--blanco); color: var(--texto); border-color: #c5d6ea; }
+.atajos button:active, .sugerencias button:active { background: var(--azul); color: var(--blanco); }
+.paso-herramientas {
+  display: flex; flex-wrap: wrap; gap: 6px; align-items: center; justify-content: space-between;
+}
+.paso-herramientas .btn { flex: 1 1 auto; min-height: 36px; font-size: 12.5px; padding: 6px 10px; }
+.simulacros { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.simulacros .btn { font-size: 12.5px; padding: 10px 8px; line-height: 1.2; text-align: center; }

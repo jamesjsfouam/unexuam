@@ -774,7 +774,13 @@ function renderCampus() {
       <span class="destino-tiempo">${minutos(r.tiempo)} caminando · ${pasos.length} paso${pasos.length === 1 ? "" : "s"}</span>
       ${cambio}
     </div>
-    ${r.ruta.length === 1 ? `<p class="nota">Ya estás en un punto seguro.</p>` : `<p class="nota">Toca un paso para resaltarlo en el mapa 3D.</p>`}
+    ${r.ruta.length === 1 ? `<p class="nota">Ya estás en un punto seguro.</p>` : `
+      <div class="paso-herramientas">
+        <button type="button" class="btn mini secundario" data-accion="paso-ant">← Anterior</button>
+        <button type="button" class="btn mini" data-accion="leer-voz" id="btn-voz">🔊 Leer ruta</button>
+        <button type="button" class="btn mini secundario" data-accion="paso-sig">Siguiente →</button>
+      </div>
+      <p class="nota">Toca un paso para resaltarlo en el mapa 3D.</p>`}
     <ol class="guia">${pasos.map((p, i) => `
       <li class="paso t-${p.tipo}${i === pasoActivo ? " activa" : ""}" data-paso="${i}" tabindex="0" aria-pressed="${i === pasoActivo}">
         <div class="paso-cab"><span class="paso-n">${i + 1}</span><p class="paso-texto">${esc(p.texto)}</p></div>
@@ -1183,12 +1189,23 @@ function campusSvg(ruta, o) {
     const fin = i === ruta.length - 1;
     const rad = (fin ? 10 : 6) * s;
     const etqY = tuAbajo ? p.y - rad - 5 * s : p.y + rad + 12 * s;
+    let etqParada = "";
+    if (!fin && !o.mini) {
+      const txtP = corto(n);
+      const pw = Math.max(40, txtP.length * 5.8) * s;
+      const py = p.y - rad - 7 * s;
+      if (!choca(p.x, py, pw, 13 * s)) {
+        cajas.push({ x: p.x, y: py, w: pw + 4 * s, h: 14 * s });
+        etqParada = `<text class="r3-etq" x="${p.x}" y="${py}" font-size="${9 * s}" stroke-width="${2.8 * s}">${esc(txtP)}</text>`;
+      }
+    }
     nodos += `<g class="r3-nodo ${fin ? "meta" : "parada"}"><title>${esc(n)}</title><circle cx="${p.x}" cy="${p.y}" r="${rad}" stroke-width="${2 * s}"/>
-      ${fin ? `<text x="${p.x}" y="${p.y}" font-size="${10.5 * s}">✓</text><text class="r3-etq" x="${p.x}" y="${etqY}" font-size="${10.5 * s}" stroke-width="${3.2 * s}">${esc(corto(n))}</text>` : ""}</g>`;
+      ${fin ? `<text x="${p.x}" y="${p.y}" font-size="${10.5 * s}">✓</text><text class="r3-etq" x="${p.x}" y="${etqY}" font-size="${10.5 * s}" stroke-width="${3.2 * s}">${esc(corto(n))}</text>` : etqParada}</g>`;
   });
   if (pinTu) {
     const tuY = tuAbajo ? pinTu.y + 19 * s : pinTu.y - 15 * s;
-    nodos += `<g class="r3-nodo inicio"><circle cx="${pinTu.x}" cy="${pinTu.y}" r="${10 * s}" stroke-width="${2 * s}"/><text x="${pinTu.x}" y="${pinTu.y}" font-size="${8.5 * s}">Tú</text>
+    nodos += `<g class="r3-nodo inicio"><circle class="r3-pulso" cx="${pinTu.x}" cy="${pinTu.y}" r="${10 * s}" stroke-width="${2 * s}"/>
+      <circle cx="${pinTu.x}" cy="${pinTu.y}" r="${10 * s}" stroke-width="${2 * s}"/><text x="${pinTu.x}" y="${pinTu.y}" font-size="${8.5 * s}">Tú</text>
       <text class="r3-etq" x="${pinTu.x}" y="${tuY}" font-size="${10 * s}" stroke-width="${3.2 * s}">${esc(ruta[0])}</text></g>`;
   }
   let bloq = "";
@@ -1321,13 +1338,23 @@ function conectarPanZoomCampus() {
     const cy = camCampus[1] + ((ev.clientY - rect.top) / rect.height) * camCampus[3];
     zoomCampus(ev.deltaY > 0 ? 1.18 : 0.84, cx, cy);
   }, { passive: false });
+  cont.addEventListener("dblclick", ev => {
+    if (!camCampus || ev.target.closest(".mapa-controles")) return;
+    const svg = cont.querySelector("svg.c3d");
+    if (!svg) return;
+    const rect = svg.getBoundingClientRect();
+    const cx = camCampus[0] + ((ev.clientX - rect.left) / rect.width) * camCampus[2];
+    const cy = camCampus[1] + ((ev.clientY - rect.top) / rect.height) * camCampus[3];
+    zoomCampus(0.68, cx, cy);
+  });
 }
 
 function renderMapa3D(r, pasos = []) {
   const cajaEd = $("#lienzo-edificio");
   const contMapa = $("#mapa-campus");
   conectarPanZoomCampus();
-  const controlesHtml = `<div class="mapa-controles" aria-label="Controles del mapa">
+  const controlesHtml = `<span class="mapa-brujula" aria-hidden="true">N ↑</span>
+    <div class="mapa-controles" aria-label="Controles del mapa">
     <button type="button" data-accion="mapa-mas" aria-label="Acercar">+</button>
     <button type="button" data-accion="mapa-menos" aria-label="Alejar">−</button>
     <button type="button" data-accion="mapa-centrar" aria-label="Centrar en mi ruta">◎</button>
@@ -1465,21 +1492,39 @@ function eventos() {
 
   $("#mesh-origen").addEventListener("change", () => { if (!animando) { alcanceMostrado = null; viaMostrada = {}; renderMesh(); } });
   $("#campus-ubicacion").addEventListener("change", ev => {
-    miLugar = ev.target.value; guardar("mi-lugar", miLugar); rutaAnterior = null; pasoActivo = -1; pedirRuta();
+    seleccionarLugar(ev.target.value);
   });
+  const norm = s => String(s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  const buscarInp = $("#campus-buscar");
+  const sugBox = $("#campus-sug");
+  if (buscarInp && sugBox) {
+    buscarInp.addEventListener("input", () => {
+      const q = norm(buscarInp.value.trim());
+      if (!q || !E) { sugBox.hidden = true; sugBox.innerHTML = ""; return; }
+      const zonas = new Set(E.campus.zonasSeguras);
+      const hits = E.campus.vertices.filter(v => !zonas.has(v) && norm(v).includes(q)).slice(0, 6);
+      if (!hits.length) { sugBox.hidden = true; sugBox.innerHTML = ""; return; }
+      sugBox.innerHTML = hits.map(v => `<button type="button" data-ir-lugar="${esc(v)}">${esc(v)}</button>`).join("");
+      sugBox.hidden = false;
+    });
+    buscarInp.addEventListener("keydown", ev => {
+      if (ev.key === "Enter") {
+        const primero = sugBox.querySelector("button[data-ir-lugar]");
+        if (primero) { ev.preventDefault(); seleccionarLugar(primero.dataset.irLugar); }
+      }
+    });
+  }
   document.addEventListener("click", ev => {
+    const irL = ev.target.closest("[data-ir-lugar]");
+    if (irL) { seleccionarLugar(irL.dataset.irLugar); return; }
+    const sim = ev.target.closest("[data-sim]");
+    if (sim) { ejecutarSimulacro(sim.dataset.sim); return; }
     const b = ev.target.closest("[data-bloq]");
     if (b) { const [o, d] = JSON.parse(b.dataset.bloq); bloquear(o, d, true); return; }
     const p = ev.target.closest("[data-paso]");
     if (p) {
       const i = Number(p.dataset.paso);
-      pasoActivo = pasoActivo === i ? -1 : i;
-      $$(".guia .paso").forEach(li => {
-        const act = Number(li.dataset.paso) === pasoActivo;
-        li.classList.toggle("activa", act);
-        li.setAttribute("aria-pressed", String(act));
-      });
-      if (miRuta) renderMapa3D(miRuta, pasosActuales);
+      enfocarPaso(pasoActivo === i ? -1 : i);
     }
   });
 
@@ -1520,8 +1565,115 @@ function eventos() {
   }));
 }
 
+let eventoInstalarPwa = null;
+let leyendoVoz = false;
+
+function seleccionarLugar(lugar) {
+  miLugar = lugar || "";
+  guardar("mi-lugar", miLugar);
+  rutaAnterior = null;
+  pasoActivo = -1;
+  detenerVoz();
+  const inp = $("#campus-buscar"), sug = $("#campus-sug");
+  if (inp) inp.value = "";
+  if (sug) { sug.hidden = true; sug.innerHTML = ""; }
+  pedirRuta();
+}
+
+function enfocarPaso(idx) {
+  pasoActivo = idx;
+  $$(".guia .paso").forEach(li => {
+    const act = Number(li.dataset.paso) === pasoActivo;
+    li.classList.toggle("activa", act);
+    li.setAttribute("aria-pressed", String(act));
+  });
+  if (miRuta) renderMapa3D(miRuta, pasosActuales);
+}
+
+function detenerVoz() {
+  leyendoVoz = false;
+  if ("speechSynthesis" in window) window.speechSynthesis.cancel();
+  const btn = $("#btn-voz");
+  if (btn) btn.textContent = "🔊 Leer ruta";
+}
+
+function leerRutaVoz() {
+  if (!("speechSynthesis" in window)) { aviso("Tu navegador no soporta lectura por voz.", false); return; }
+  if (leyendoVoz) { detenerVoz(); return; }
+  if (!miRuta || !pasosActuales.length) return;
+  const destino = miRuta.ruta[miRuta.ruta.length - 1];
+  const partes = [
+    `Ruta de evacuación hacia ${destino}, tiempo estimado ${minutos(miRuta.tiempo)}.`,
+    ...pasosActuales.map((p, i) => `Paso ${i + 1}: ${p.texto}`),
+  ];
+  window.speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(partes.join(" "));
+  u.lang = "es-NI";
+  u.rate = 1.02;
+  u.onend = u.onerror = () => detenerVoz();
+  leyendoVoz = true;
+  const btn = $("#btn-voz");
+  if (btn) btn.textContent = "⏹ Detener voz";
+  window.speechSynthesis.speak(u);
+}
+
+async function ejecutarSimulacro(tipo) {
+  if (!E) return;
+  if (tipo === "alerta-mesh") {
+    ttl = 5;
+    const ttlEl = $("#ttl");
+    if (ttlEl) ttlEl.textContent = ttl;
+    if ($("#mesh-origen")) $("#mesh-origen").value = "Tel-Ana";
+    location.hash = "#mesh";
+    irA("mesh");
+    await accion("emitir");
+    return;
+  }
+  await api("/api/reiniciar", { grafo: "campus" });
+  if (tipo === "sismo-p") {
+    miLugar = "P-309"; guardar("mi-lugar", miLugar);
+    await api("/api/campus/bloquear", { origen: "P Escalera Oeste P3", destino: "P Escalera Oeste P2", ambos: true });
+  } else if (tipo === "congestion-p") {
+    miLugar = "P-309"; guardar("mi-lugar", miLugar);
+    await api("/api/campus/congestionar", { lugar: "Punto Seguro Parqueo Oeste", factor: 5 });
+  } else if (tipo === "bloqueo-bc") {
+    miLugar = "C-305"; guardar("mi-lugar", miLugar);
+    await api("/api/campus/bloquear", { origen: "C Escalera Central P3", destino: "B Escalera Central P2", ambos: true });
+  }
+  rutaAnterior = null;
+  pasoActivo = -1;
+  location.hash = "#campus";
+  irA("campus");
+  await pedirRuta();
+}
+
 async function accion(a) {
   if (!E) return;
+  if (a === "reordenar-mesh") {
+    reordenar("mesh");
+    renderMesh();
+    aviso("Posiciones de la red Mesh restablecidas.");
+    return;
+  } else if (a === "paso-ant") {
+    if (!pasosActuales.length) return;
+    enfocarPaso(pasoActivo <= 0 ? pasosActuales.length - 1 : pasoActivo - 1);
+    return;
+  } else if (a === "paso-sig") {
+    if (!pasosActuales.length) return;
+    enfocarPaso((pasoActivo + 1) % pasosActuales.length);
+    return;
+  } else if (a === "leer-voz") {
+    leerRutaVoz();
+    return;
+  } else if (a === "instalar-pwa") {
+    if (!eventoInstalarPwa) return;
+    eventoInstalarPwa.prompt();
+    await eventoInstalarPwa.userChoice;
+    eventoInstalarPwa = null;
+    const b = $("#btn-instalar");
+    if (b) b.hidden = true;
+    return;
+  }
   if (a === "emitir") {
     if (animando) return;
     const origen = $("#mesh-origen").value;
@@ -1599,6 +1751,16 @@ if (spEl) {
   const reducido = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   spEl.addEventListener("click", ocultarSplash);
   setTimeout(ocultarSplash, reducido ? 150 : 1250);
+}
+
+if (!window.__UNEXUAM_OFFLINE__ && "serviceWorker" in navigator) {
+  navigator.serviceWorker.register("/sw.js").catch(() => {});
+  window.addEventListener("beforeinstallprompt", ev => {
+    ev.preventDefault();
+    eventoInstalarPwa = ev;
+    const b = $("#btn-instalar");
+    if (b) b.hidden = false;
+  });
 }
 
 eventos();

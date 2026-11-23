@@ -68,6 +68,12 @@ class TestApiYParidad(unittest.TestCase):
         self.assertEqual(self.client.post("/api/campus/ruta", json={"lugar": "Aula 203"}).get_json()["ruta"]["tiempo"], 58)
         self.assertTrue(self.client.post("/api/campus/vertice", json={"accion": "eliminar", "nombre": "aula 203"}).get_json()["ok"])
 
+    def test_service_worker_disponible(self):
+        with self.client.get("/sw.js") as r:
+            self.assertEqual(r.status_code, 200)
+            self.assertEqual(r.headers.get("Service-Worker-Allowed"), "/")
+            self.assertIn(b"unexuam-v1", r.data)
+
     def test_paridad_campus_plano_json(self):
         campus, _ = crearCampus()
         plano = json.loads(Path("frontend/static/campus-plano.json").read_text(encoding="utf-8"))

@@ -92,7 +92,19 @@
       <ol id="historial" class="historial"></ol>
 
       <div class="tarjeta">
+        <div class="tarjeta-cab"><h3>Simulacros rápidos</h3></div>
+        <p class="nota">Prueba un escenario completo de emergencia con un toque.</p>
+        <div class="simulacros">
+          <button type="button" class="btn secundario" data-sim="sismo-p">Sismo · Esc. Oeste P</button>
+          <button type="button" class="btn secundario" data-sim="congestion-p">Congestión · Parqueo Oeste</button>
+          <button type="button" class="btn secundario" data-sim="bloqueo-bc">Bloqueo · Esc. Central B–C</button>
+          <button type="button" class="btn alerta" data-sim="alerta-mesh">Alerta Mesh · TTL 5</button>
+        </div>
+      </div>
+
+      <div class="tarjeta">
         <div class="tarjeta-cab"><h3>Demostración</h3></div>
+        <button id="btn-instalar" class="btn ancho" data-accion="instalar-pwa" hidden>Instalar app en este dispositivo</button>
         <button class="btn secundario ancho" data-accion="reiniciar-todo">Reiniciar la demo</button>
       </div>
     </section>
@@ -109,6 +121,7 @@
         <span class="chip rojo"><img src="{{ url_for('static', filename='img/ico-fuego.png') }}" alt="">Con alerta</span>
         <span class="chip gris"><img src="{{ url_for('static', filename='img/ico-sin-senal.png') }}" alt="">Sin alerta</span>
         <button class="btn mini" data-mover="mesh" aria-pressed="false">Mover</button>
+        <button class="btn mini secundario" data-accion="reordenar-mesh">Reordenar</button>
       </div>
 
       <div class="tarjeta">
@@ -145,6 +158,18 @@
       <h2 id="t-campus" class="franja">Ruta de evacuación</h2>
 
       <div class="tarjeta" id="ruta-tarjeta">
+        <label class="campo">
+          <span>Buscar aula o edificio</span>
+          <input id="campus-buscar" type="search" placeholder="Ej.: B-205, C-305, P-309, Biblioteca…" autocomplete="off">
+        </label>
+        <div id="campus-sug" class="sugerencias" hidden></div>
+        <div class="atajos" aria-label="Accesos rápidos">
+          <button type="button" data-ir-lugar="P-309">P-309</button>
+          <button type="button" data-ir-lugar="C-305">C-305</button>
+          <button type="button" data-ir-lugar="B-205">B-205</button>
+          <button type="button" data-ir-lugar="B-101">B-101</button>
+          <button type="button" data-ir-lugar="Auditorio Central">Auditorio</button>
+        </div>
         <label class="campo">
           <span>Estoy en…</span>
           <select id="campus-ubicacion"></select>

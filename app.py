@@ -190,6 +190,14 @@ def index():
     return render_template("index.html")
 
 
+@app.get("/sw.js")
+def service_worker():
+    resp = app.send_static_file("sw.js")
+    resp.headers["Service-Worker-Allowed"] = "/"
+    resp.headers["Cache-Control"] = "no-cache"
+    return resp
+
+
 @app.get("/api/estado")
 def api_estado():
     with lock:
