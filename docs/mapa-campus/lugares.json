@@ -1,0 +1,297 @@
+[
+  {
+    "nombre": "Edificio A",
+    "tipo": "edificio",
+    "area_m2": 286,
+    "centro_m": [
+      267.0,
+      133.8
+    ]
+  },
+  {
+    "nombre": "Edificio E",
+    "tipo": "edificio",
+    "area_m2": 747,
+    "centro_m": [
+      194.7,
+      81.4
+    ]
+  },
+  {
+    "nombre": "Edificio I",
+    "tipo": "edificio",
+    "area_m2": 982,
+    "centro_m": [
+      117.4,
+      49.2
+    ]
+  },
+  {
+    "nombre": "Edificio P",
+    "tipo": "edificio",
+    "area_m2": 892,
+    "centro_m": [
+      217.8,
+      251.6
+    ]
+  },
+  {
+    "nombre": "Jaguar Center",
+    "tipo": "edificio",
+    "area_m2": 1427,
+    "centro_m": [
+      82.5,
+      64.1
+    ]
+  },
+  {
+    "nombre": "Edificio sin nombre 1",
+    "tipo": "edificio",
+    "area_m2": 703,
+    "centro_m": [
+      19.6,
+      36.0
+    ]
+  },
+  {
+    "nombre": "Edificio sin nombre 2",
+    "tipo": "edificio",
+    "area_m2": 150,
+    "centro_m": [
+      29.1,
+      48.4
+    ]
+  },
+  {
+    "nombre": "Edificio sin nombre 3",
+    "tipo": "edificio",
+    "area_m2": 102,
+    "centro_m": [
+      50.3,
+      61.2
+    ]
+  },
+  {
+    "nombre": "Edificio sin nombre 4",
+    "tipo": "edificio",
+    "area_m2": 81,
+    "centro_m": [
+      47.9,
+      78.7
+    ]
+  },
+  {
+    "nombre": "Edificio sin nombre 5",
+    "tipo": "edificio",
+    "area_m2": 318,
+    "centro_m": [
+      173.2,
+      82.4
+    ]
+  },
+  {
+    "nombre": "Edificio sin nombre 6",
+    "tipo": "edificio",
+    "area_m2": 435,
+    "centro_m": [
+      252.9,
+      98.5
+    ]
+  },
+  {
+    "nombre": "Edificio sin nombre 7",
+    "tipo": "edificio",
+    "area_m2": 82,
+    "centro_m": [
+      290.9,
+      97.9
+    ]
+  },
+  {
+    "nombre": "Edificio sin nombre 8",
+    "tipo": "edificio",
+    "area_m2": 222,
+    "centro_m": [
+      339.4,
+      98.8
+    ]
+  },
+  {
+    "nombre": "Edificio sin nombre 9",
+    "tipo": "edificio",
+    "area_m2": 297,
+    "centro_m": [
+      173.8,
+      106.6
+    ]
+  },
+  {
+    "nombre": "Edificio sin nombre 10",
+    "tipo": "edificio",
+    "area_m2": 467,
+    "centro_m": [
+      166.5,
+      136.2
+    ]
+  },
+  {
+    "nombre": "Edificio sin nombre 11",
+    "tipo": "edificio",
+    "area_m2": 737,
+    "centro_m": [
+      223.1,
+      126.9
+    ]
+  },
+  {
+    "nombre": "Edificio sin nombre 12",
+    "tipo": "edificio",
+    "area_m2": 405,
+    "centro_m": [
+      324.3,
+      140.5
+    ]
+  },
+  {
+    "nombre": "Edificio sin nombre 13",
+    "tipo": "edificio",
+    "area_m2": 405,
+    "centro_m": [
+      324.4,
+      121.3
+    ]
+  },
+  {
+    "nombre": "Edificio sin nombre 14",
+    "tipo": "edificio",
+    "area_m2": 327,
+    "centro_m": [
+      158.7,
+      157.1
+    ]
+  },
+  {
+    "nombre": "Edificio sin nombre 15",
+    "tipo": "edificio",
+    "area_m2": 784,
+    "centro_m": [
+      223.1,
+      143.7
+    ]
+  },
+  {
+    "nombre": "Edificio sin nombre 16",
+    "tipo": "edificio",
+    "area_m2": 109,
+    "centro_m": [
+      333.9,
+      158.4
+    ]
+  },
+  {
+    "nombre": "Edificio sin nombre 17",
+    "tipo": "edificio",
+    "area_m2": 1278,
+    "centro_m": [
+      54.9,
+      176.1
+    ]
+  },
+  {
+    "nombre": "Edificio sin nombre 18",
+    "tipo": "edificio",
+    "area_m2": 732,
+    "centro_m": [
+      107.1,
+      174.0
+    ]
+  },
+  {
+    "nombre": "Edificio sin nombre 19",
+    "tipo": "edificio",
+    "area_m2": 126,
+    "centro_m": [
+      235.9,
+      180.1
+    ]
+  },
+  {
+    "nombre": "Edificio sin nombre 20",
+    "tipo": "edificio",
+    "area_m2": 138,
+    "centro_m": [
+      251.8,
+      180.4
+    ]
+  },
+  {
+    "nombre": "Edificio sin nombre 21",
+    "tipo": "edificio",
+    "area_m2": 320,
+    "centro_m": [
+      269.5,
+      171.8
+    ]
+  },
+  {
+    "nombre": "Edificio sin nombre 22",
+    "tipo": "edificio",
+    "area_m2": 93,
+    "centro_m": [
+      186.1,
+      189.8
+    ]
+  },
+  {
+    "nombre": "Edificio sin nombre 23",
+    "tipo": "edificio",
+    "area_m2": 1415,
+    "centro_m": [
+      218.6,
+      198.1
+    ]
+  },
+  {
+    "nombre": "Edificio sin nombre 24",
+    "tipo": "edificio",
+    "area_m2": 516,
+    "centro_m": [
+      273.2,
+      207.1
+    ]
+  },
+  {
+    "nombre": "Edificio sin nombre 25",
+    "tipo": "edificio",
+    "area_m2": 475,
+    "centro_m": [
+      166.2,
+      221.0
+    ]
+  },
+  {
+    "nombre": "Edificio sin nombre 26",
+    "tipo": "edificio",
+    "area_m2": 108,
+    "centro_m": [
+      188.5,
+      209.1
+    ]
+  },
+  {
+    "nombre": "Zona Segura Cancha de Fútbol",
+    "tipo": "zona segura",
+    "centro_m": [
+      74.7,
+      129.6
+    ]
+  },
+  {
+    "nombre": "Zona Segura Campo de Béisbol",
+    "tipo": "zona segura",
+    "centro_m": [
+      75.3,
+      256.0
+    ]
+  }
+]
