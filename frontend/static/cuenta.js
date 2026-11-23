@@ -741,6 +741,16 @@
     $("#mi-red").addEventListener("click", elegirLugar);
     const btnGps = $("#btn-gps");
     if (btnGps) btnGps.addEventListener("click", () => aproximarEdificioPorGPS(true));
+    window.addEventListener("unexuam-mesh-update", async (ev) => {
+      if (!YO) return;
+      firmaMsj = "";
+      await cargarMensajes();
+      if (vistaActual() === "mensajes") renderMensajes();
+      if (!$("#chat").hidden) renderChat(true);
+      const d = ev.detail || {};
+      if (d.tipo === "conectado" && d.peer) avisar(`📡 Vecino cercano conectado: ${d.peer.nombre}`);
+      if (d.tipo === "paquete" && d.paquete && $("#chat").hidden) avisar(`💬 Mensaje recibido de ${d.paquete.deNombre || d.paquete.de}`);
+    });
     $("#buscar-contacto").addEventListener("input", renderMensajes);
     $("#chat-form").addEventListener("submit", enviar);
     $("#chat-volver").addEventListener("click", cerrarChat);

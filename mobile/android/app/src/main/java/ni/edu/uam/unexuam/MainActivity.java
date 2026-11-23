@@ -18,19 +18,38 @@ import com.getcapacitor.BridgeActivity;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import org.json.JSONObject;
 
 public class MainActivity extends BridgeActivity {
     private static final int REQ_PERMISOS = 1042;
     private static final int REQ_BT_ENABLE = 1043;
     private boolean btPromptLanzado = false;
+    private MeshNativa meshNativa;
+    private String ultimoPerfilMesh = null;
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        meshNativa = new MeshNativa(this, this::enviarEventoAWeb);
         if (this.bridge != null && this.bridge.getWebView() != null) {
             this.bridge.getWebView().addJavascriptInterface(new PuenteNativo(), "UnexuamNativo");
         }
         solicitarPermisosEntrada();
+    }
+
+    @Override
+    public void onDestroy() {
+        if (meshNativa != null) meshNativa.detener();
+        super.onDestroy();
+    }
+
+    private void enviarEventoAWeb(String eventoJson) {
+        runOnUiThread(() -> {
+            if (this.bridge != null && this.bridge.getWebView() != null) {
+                String js = "window.__unexuamMeshEvento && window.__unexuamMeshEvento(" + JSONObject.quote(eventoJson) + ");";
+                this.bridge.getWebView().evaluateJavascript(js, null);
+            }
+        });
     }
 
     private String[] permisosRequeridos() {
@@ -42,7 +61,19 @@ public class MainActivity extends BridgeActivity {
             lista.add(Manifest.permission.BLUETOOTH_CONNECT);
             lista.add(Manifest.permission.BLUETOOTH_ADVERTISE);
         }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            lista.add(Manifest.permission.NEARBY_WIFI_DEVICES);
+        }
         return lista.toArray(new String[0]);
+    }
+
+    private boolean tienePermisosMesh() {
+        for (String p : permisosRequeridos()) {
+            if (ContextCompat.checkSelfPermission(this, p) != PackageManager.PERMISSION_GRANTED) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private void solicitarPermisosEntrada() {
@@ -56,6 +87,7 @@ public class MainActivity extends BridgeActivity {
             ActivityCompat.requestPermissions(this, faltantes.toArray(new String[0]), REQ_PERMISOS);
         } else {
             pedirActivarBluetoothSiApagado();
+            if (ultimoPerfilMesh != null) meshNativa.iniciar(ultimoPerfilMesh);
         }
     }
 
@@ -64,6 +96,9 @@ public class MainActivity extends BridgeActivity {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
         if (requestCode == REQ_PERMISOS) {
             pedirActivarBluetoothSiApagado();
+            if (ultimoPerfilMesh != null && tienePermisosMesh()) {
+                meshNativa.iniciar(ultimoPerfilMesh);
+            }
         }
     }
 
@@ -97,6 +132,40 @@ public class MainActivity extends BridgeActivity {
                 btPromptLanzado = false;
                 solicitarPermisosEntrada();
             });
+        }
+
+        @JavascriptInterface
+        public void iniciarMesh(String perfilJson) {
+            ultimoPerfilMesh = perfilJson;
+            runOnUiThread(() -> {
+                if (tienePermisosMesh()) {
+                    meshNativa.iniciar(perfilJson);
+                } else {
+                    solicitarPermisosEntrada();
+                }
+            });
+        }
+
+        @JavascriptInterface
+        public void actualizarPerfilMesh(String perfilJson) {
+            ultimoPerfilMesh = perfilJson;
+            runOnUiThread(() -> meshNativa.actualizarPerfil(perfilJson));
+        }
+
+        @JavascriptInterface
+        public void detenerMesh() {
+            ultimoPerfilMesh = null;
+            runOnUiThread(() -> meshNativa.detener());
+        }
+
+        @JavascriptInterface
+        public int enviarPaqueteMesh(String paqueteJson) {
+            return meshNativa != null ? meshNativa.enviarPaquete(paqueteJson) : 0;
+        }
+
+        @JavascriptInterface
+        public String vecinosMeshReales() {
+            return meshNativa != null ? meshNativa.vecinosJson() : "[]";
         }
 
         @JavascriptInterface

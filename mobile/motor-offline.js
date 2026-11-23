@@ -658,6 +658,7 @@
         repartirCola();
         guardarEstadoLocal();
       }
+      iniciarMeshReal(yo.cif, yo.u);
       return { ok: true, sesion: true, usuario: datosUsuario(yo.cif) };
     }
     if (ruta === "/api/registro" || ruta === "/api/login" || ruta === "/api/login/demo") {
@@ -693,11 +694,13 @@
       registrar(`${u.nombre} entró a la red desde ${lugarFinal}: ${vecinos.length} teléfono(s) a su alcance.`, "ok");
       repartirCola();
       guardarEstadoLocal();
+      iniciarMeshReal(cif, u);
       return { ok: true, usuario: datosUsuario(cif) };
     }
     if (ruta === "/api/logout") {
       const yo = cuentaActual();
       if (yo) {
+        detenerMeshReal();
         S.red.eliminarVertice(yo.u.telefono);
         delete UBIC[yo.u.telefono];
         registrar(`${yo.u.nombre} salió: su teléfono dejó la red (eliminarVertice).`);
@@ -717,6 +720,7 @@
         const vecinos = conectarUsuario(yo.cif, lugar);
         const n = repartirCola();
         guardarEstadoLocal();
+        actualizarPerfilMeshReal(yo.cif, { ...yo.u, lugar });
         return { ok: true, usuario: datosUsuario(yo.cif),
           mensaje: `Ahora estás en ${lugar}: ${vecinos.length} teléfono(s) a tu alcance.` + (n ? ` Salieron ${n} mensaje(s) que estaban en cola.` : "") };
       }
@@ -736,19 +740,31 @@
         const textoMsj = texto(d, "texto", 500);
         if (!C.usuarios[para] || para === yo.cif) return { ok: false, mensaje: "Elige a quién enviarle el mensaje." };
         if (!textoMsj) return { ok: false, mensaje: "El mensaje está vacío." };
-        const [r, retardo] = rutaMasCorta(S.red, yo.u.telefono, C.usuarios[para].telefono);
         const ahora = horaActual();
-        const m = { id: Math.random().toString(16).slice(2, 14), de: yo.cif, para, texto: textoMsj, hora: ahora,
-          estado: r.length ? "entregado" : "en cola", ruta: r, retardo: r.length ? num(retardo) : null,
-          entregado: r.length ? ahora : null, viaCola: false };
+        const id = Math.random().toString(16).slice(2, 14);
+        const dest = C.usuarios[para];
+        const enviadosReal = enviarPaqueteReal({
+          id, tipo: "mensaje", de: yo.cif, deNombre: yo.u.nombre, deTel: yo.u.telefono,
+          para, texto: textoMsj, hora: ahora, ttl: 5, ruta: [yo.u.telefono],
+        });
+        const [rSim, retardoSim] = rutaMasCorta(S.red, yo.u.telefono, dest.telefono);
+        const entregado = enviadosReal > 0 || rSim.length > 0;
+        const rutaFinal = rSim.length ? rSim : (enviadosReal > 0 ? [yo.u.telefono, dest.telefono] : []);
+        const retFinal = rSim.length ? num(retardoSim) : (enviadosReal > 0 ? 0.5 : null);
+        const m = { id, de: yo.cif, para, texto: textoMsj, hora: ahora,
+          estado: entregado ? "entregado" : "en cola", ruta: rutaFinal, retardo: retFinal,
+          entregado: entregado ? ahora : null, viaCola: false };
         C.mensajes.push(m);
         if (C.mensajes.length > 5000) C.mensajes.splice(0, C.mensajes.length - 5000);
         guardarCuentas(C);
-        registrar(`Mensaje ${yo.u.telefono} → ${C.usuarios[para].telefono}: ${m.estado}.`, r.length ? "ok" : "info");
+        registrar(`Mensaje ${yo.u.telefono} → ${dest.telefono}: ${m.estado}.`, entregado ? "ok" : "info");
         guardarEstadoLocal();
-        return { ok: true, enviado: m, mensaje: r.length
-          ? `Entregado en ${r.length - 1} salto(s), ${num(retardo)} s de retardo.`
-          : "Sin camino en la red Mesh: el mensaje queda en cola (DTN) y sale cuando aparezca uno." };
+        const msgTxt = enviadosReal > 0
+          ? `Enviado por Mesh real (Bluetooth/Wi-Fi Direct) a ${enviadosReal} teléfono(s) cercano(s).`
+          : (rSim.length
+            ? `Entregado en ${rSim.length - 1} salto(s), ${num(retardoSim)} s de retardo.`
+            : "Sin teléfonos cerca: el mensaje queda en cola (DTN) y saldrá al detectar un vecino.");
+        return { ok: true, enviado: m, mensaje: msgTxt };
       }
       if (ruta === "/api/algoritmo") {
         const origen = texto(d, "origen", 60) || String((searchParams && searchParams.get("origen")) || "C-101").trim().slice(0, 60);
@@ -795,5 +811,147 @@
     }
 
     return fetchOriginal(input, init);
+  };
+
+  // --- Puente con MeshNativa (Nearby Connections: Bluetooth + Wi-Fi Direct reales) ---
+  function iniciarMeshReal(cif, u) {
+    try {
+      if (window.UnexuamNativo && typeof window.UnexuamNativo.iniciarMesh === "function") {
+        window.UnexuamNativo.iniciarMesh(JSON.stringify({
+          cif, nombre: u.nombre, telefono: u.telefono, lugar: u.lugar || "Edificio E",
+        }));
+      }
+    } catch (_) {}
+  }
+
+  function actualizarPerfilMeshReal(cif, u) {
+    try {
+      if (window.UnexuamNativo && typeof window.UnexuamNativo.actualizarPerfilMesh === "function") {
+        window.UnexuamNativo.actualizarPerfilMesh(JSON.stringify({
+          cif, nombre: u.nombre, telefono: u.telefono, lugar: u.lugar || "Edificio E",
+        }));
+      }
+    } catch (_) {}
+  }
+
+  function detenerMeshReal() {
+    try {
+      if (window.UnexuamNativo && typeof window.UnexuamNativo.detenerMesh === "function") {
+        window.UnexuamNativo.detenerMesh();
+      }
+    } catch (_) {}
+  }
+
+  function enviarPaqueteReal(paquete) {
+    try {
+      if (window.UnexuamNativo && typeof window.UnexuamNativo.enviarPaqueteMesh === "function") {
+        return Number(window.UnexuamNativo.enviarPaqueteMesh(JSON.stringify(paquete))) || 0;
+      }
+    } catch (_) {}
+    return 0;
+  }
+
+  function vaciarColaReal() {
+    const yo = cuentaActual();
+    if (!yo) return;
+    const C = cuentas();
+    let cambio = false;
+    for (const m of C.mensajes) {
+      if (m.estado === "en cola" && m.de === yo.cif) {
+        const enviados = enviarPaqueteReal({
+          id: m.id, tipo: "mensaje", de: yo.cif, deNombre: yo.u.nombre, deTel: yo.u.telefono,
+          para: m.para, texto: m.texto, hora: m.hora, ttl: 5, ruta: [yo.u.telefono],
+        });
+        if (enviados > 0) {
+          const destTel = (C.usuarios[m.para] && C.usuarios[m.para].telefono) || m.para;
+          m.estado = "entregado";
+          m.ruta = [yo.u.telefono, destTel];
+          m.retardo = 0.5;
+          m.entregado = horaActual();
+          m.viaCola = true;
+          cambio = true;
+        }
+      }
+    }
+    if (cambio) {
+      guardarCuentas(C);
+      registrar("Mensajes en cola (DTN) enviados al detectar vecino por Bluetooth/Wi-Fi Direct.", "ok");
+      guardarEstadoLocal();
+    }
+  }
+
+  window.__unexuamMeshEvento = async function (raw) {
+    try {
+      await asegurarInicializado();
+      const ev = typeof raw === "string" ? JSON.parse(raw) : raw;
+      if (!ev || !ev.tipo) return;
+      const yo = cuentaActual();
+      const C = cuentas();
+
+      if ((ev.tipo === "conectado" || ev.tipo === "perfil") && ev.peer) {
+        const p = ev.peer;
+        const cif = String(p.cif || "").trim().toUpperCase().slice(0, 15);
+        if (!cif || (yo && cif === yo.cif)) return;
+        const nombre = String(p.nombre || "Teléfono cercano").slice(0, 40);
+        const telefono = String(p.telefono || `Tel-${cif}`).slice(0, 30);
+        const lugar = String(p.lugar || "Cercano (Bluetooth)").slice(0, 60);
+        C.usuarios[cif] = { ...(C.usuarios[cif] || {}), nombre, telefono, lugar, real: true };
+        guardarCuentas(C);
+        S.red.insertarVertice(telefono);
+        if (yo) {
+          S.red.insertarVertice(yo.u.telefono);
+          S.red.insertarArista(yo.u.telefono, telefono, 0.5);
+          S.red.insertarArista(telefono, yo.u.telefono, 0.5);
+        }
+        if (ev.tipo === "conectado") {
+          registrar(`Teléfono cercano conectado por Mesh real: ${nombre} (${telefono}).`, "ok");
+          vaciarColaReal();
+        }
+        guardarEstadoLocal();
+        window.dispatchEvent(new CustomEvent("unexuam-mesh-update", { detail: ev }));
+        return;
+      }
+
+      if (ev.tipo === "desconectado" && ev.peer) {
+        const tel = ev.peer.telefono;
+        if (tel) S.red.eliminarVertice(tel);
+        registrar(`Teléfono desconectado de Mesh real: ${ev.peer.nombre || tel}.`);
+        guardarEstadoLocal();
+        window.dispatchEvent(new CustomEvent("unexuam-mesh-update", { detail: ev }));
+        return;
+      }
+
+      if (ev.tipo === "paquete" && ev.paquete) {
+        const pq = ev.paquete;
+        const de = String(pq.de || "").trim().toUpperCase().slice(0, 15);
+        const para = String(pq.para || "").trim().toUpperCase().slice(0, 15);
+        if (!de || !pq.texto) return;
+        if (!C.usuarios[de]) {
+          C.usuarios[de] = {
+            nombre: String(pq.deNombre || de).slice(0, 40),
+            telefono: String(pq.deTel || `Tel-${de}`).slice(0, 30),
+            lugar: "Cercano (Bluetooth)",
+            real: true,
+          };
+        }
+        if (yo && para === yo.cif) {
+          if (!C.mensajes.some((x) => x.id === pq.id)) {
+            const ahora = horaActual();
+            C.mensajes.push({
+              id: pq.id || Math.random().toString(16).slice(2, 14),
+              de, para, texto: String(pq.texto).slice(0, 500),
+              hora: pq.hora || ahora, estado: "entregado",
+              ruta: Array.isArray(pq.ruta) ? pq.ruta : [],
+              retardo: 0.5, entregado: ahora, viaCola: false, real: true,
+            });
+            if (C.mensajes.length > 5000) C.mensajes.splice(0, C.mensajes.length - 5000);
+            guardarCuentas(C);
+            registrar(`Mensaje real recibido de ${C.usuarios[de].nombre} por Mesh.`, "ok");
+            guardarEstadoLocal();
+          }
+          window.dispatchEvent(new CustomEvent("unexuam-mesh-update", { detail: ev }));
+        }
+      }
+    } catch (_) {}
   };
 })();
