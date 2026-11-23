@@ -443,19 +443,21 @@ form.tarjeta { margin: 0; }
 .e3-pab.oeste { fill: rgba(0, 128, 255, .18); }
 .e3-pab.activo.este { fill: rgba(0, 128, 255, .18); }
 .e3-pab.activo.oeste { fill: rgba(0, 128, 255, .28); }
-.e3-muro { stroke: #b3c0cf; stroke-width: .25; }
+.e3-muro { stroke: #7d8a99; stroke-width: .25; }
 .e3-techo-aulas { stroke: #c5d0dc; stroke-width: .2; opacity: .95; }
 .e3-ventanas { opacity: .9; }
 .e3-puerta { fill: #5b6f86; }
 .e3-tabique { fill: none; stroke: #b3c0cf; }
-.e3-ladrillo { fill: #b5523b; opacity: .92; }
-.e3-baranda { stroke: #8f9aa6; }
+.e3-baranda { stroke: #8a96a3; }
 .e3-escalera { fill: #d5dde7; stroke: #a9b6c5; stroke-width: .25; }
 .e3-escalera.activo { fill: #fff3c4; stroke: #e0b400; }
 .e3-peldano { stroke: #9aa8b8; }
 .e3-pozo { stroke: #e0b400; opacity: .7; }
-.e3-solar { fill: #1f3f6e; opacity: .85; }
-.e3-cupula { fill: #ffffff; stroke: #9aa8b8; stroke-width: .4; }
+.e3-solar { fill: #1f3f6e; stroke: #7aa3d6; stroke-width: .25; }
+.e3-cupula { fill: #ffffff; stroke: #a9b4c0; stroke-width: .4; }
+.e3-torre { fill: #e6eaef; stroke: #a9b4c0; stroke-width: .25; }
+.e3-torre-verde { fill: #2e9b57; }
+.e3-sello { fill: #e6c15a; }
 .e3-salida rect { fill: #1e9e4a; }
 .e3-salida text { fill: #1e7a3c; }
 .e3-num { fill: #5b6f86; }
