@@ -1,44 +1,205 @@
-# Datos de ejemplo: el campus (capa 2) y la red de telefonos (capa 1).
+# Datos: el campus real de la UAM (capa 2) y la red de telefonos de ejemplo (capa 1).
 # Solo se usan los metodos del Graph del profe.
 
 from backend.grafo import Graph
 
 
+# ---------------------------------------------------------------------------
+# Capa 2: el campus real de la UAM (ver docs/mapa-campus/).
+#
+# - Los edificios B, C y P se modelan por dentro, aula por aula. El primer numero
+#   del aula es el piso y se numera de ESTE a OESTE:
+#       B: 101-109 y 201-210
+#       C: 101-109, 201-210 y 301-310
+#       P: 101-109, 201-209 y 301-309
+#   Cada piso es un pasillo: un aula se une con la de al lado. En los dos extremos
+#   del pasillo (este y oeste) hay una escalera, y en la planta baja las escaleras
+#   llevan a la salida este y a la salida oeste del edificio.
+# - Las escaleras son aristas DIRIGIDAS con distinto peso: bajar es mas rapido
+#   que subir. Por eso el grafo tiene que ser dirigido.
+# - Los demas lugares (edificios sin aulas en la demo, zonas y puntos seguros) son
+#   un solo vertice cada uno, unidos por caminos a pie.
+# - Peso = segundos caminando (distancia del mapa x 1.3 / 1.2 m/s).
+# ---------------------------------------------------------------------------
+
+AULA_A_ESCALERA = 6       # del aula del extremo a la escalera de ese extremo
+BAJAR_UN_PISO = 12        # escalera hacia abajo
+SUBIR_UN_PISO = 18        # escalera hacia arriba (mas lento)
+ESCALERA_A_SALIDA = 5     # de la escalera de planta baja a la salida
+
+
+def nombreAula(letra, piso, numero):
+    # ("B", 2, 7) -> "B-207"
+    if numero < 10:
+        return letra + "-" + str(piso) + "0" + str(numero)
+    return letra + "-" + str(piso) + str(numero)
+
+
+def unirDosSentidos(campus, a, b, segundos):
+    # Un pasillo o camino se puede recorrer en los dos sentidos: dos aristas.
+    campus.insertarArista(a, b, segundos)
+    campus.insertarArista(b, a, segundos)
+
+
+def agregarEdificioConAulas(campus, letra, aulasPorPiso, segundosEntreAulas):
+    # aulasPorPiso = [9, 10] significa: piso 1 con 101..109 y piso 2 con 201..210.
+    totalPisos = len(aulasPorPiso)
+
+    # 1. Vertices: aulas, escaleras de cada piso y las dos salidas.
+    for piso in range(1, totalPisos + 1):
+        campus.insertarVertice(letra + " Escalera Este P" + str(piso))
+        campus.insertarVertice(letra + " Escalera Oeste P" + str(piso))
+        for numero in range(1, aulasPorPiso[piso - 1] + 1):
+            campus.insertarVertice(nombreAula(letra, piso, numero))
+    campus.insertarVertice(letra + " Salida Este")
+    campus.insertarVertice(letra + " Salida Oeste")
+
+    # 2. Aristas de cada piso.
+    for piso in range(1, totalPisos + 1):
+        cantidad = aulasPorPiso[piso - 1]
+        # Pasillo: cada aula con la de al lado (la 01 es la del extremo este).
+        for numero in range(1, cantidad):
+            unirDosSentidos(campus, nombreAula(letra, piso, numero),
+                            nombreAula(letra, piso, numero + 1), segundosEntreAulas)
+        escaleraEste = letra + " Escalera Este P" + str(piso)
+        escaleraOeste = letra + " Escalera Oeste P" + str(piso)
+        unirDosSentidos(campus, nombreAula(letra, piso, 1), escaleraEste, AULA_A_ESCALERA)
+        unirDosSentidos(campus, nombreAula(letra, piso, cantidad), escaleraOeste, AULA_A_ESCALERA)
+        # Escaleras al piso de abajo: bajar y subir cuestan distinto (grafo dirigido).
+        if piso > 1:
+            for lado in ["Este", "Oeste"]:
+                arriba = letra + " Escalera " + lado + " P" + str(piso)
+                abajo = letra + " Escalera " + lado + " P" + str(piso - 1)
+                campus.insertarArista(arriba, abajo, BAJAR_UN_PISO)
+                campus.insertarArista(abajo, arriba, SUBIR_UN_PISO)
+
+    # 3. Planta baja: las escaleras del piso 1 llevan a las salidas.
+    unirDosSentidos(campus, letra + " Escalera Este P1", letra + " Salida Este", ESCALERA_A_SALIDA)
+    unirDosSentidos(campus, letra + " Escalera Oeste P1", letra + " Salida Oeste", ESCALERA_A_SALIDA)
+
+
 def crearCampus():
     campus = Graph()
 
+    # Edificios con aulas (los de la demo).
+    agregarEdificioConAulas(campus, "B", [9, 10], 8)
+    agregarEdificioConAulas(campus, "C", [9, 10, 10], 8)
+    agregarEdificioConAulas(campus, "P", [9, 9, 9], 10)
+
+    # Resto de lugares: un vertice por lugar.
     lugares = [
-        "Aula 101", "Aula 102", "Aula 201", "Aula 202", "Biblioteca", "Cafetería",
-        "Pasillo A", "Pasillo B", "Escalera Norte", "Escalera Sur",
-        "Salida Principal", "Salida Este", "Zona Segura Cancha", "Zona Segura Parqueo",
+        "Salón de Contenedores", "Salón Multiusos", "Salón de Danza", "Salón de Música",
+        "Vestidores", "Jaguar Center", "Edificio I", "Edificio E", "Edificio F",
+        "Auditorio Central", "Edificio M", "Food Court", "Banco Banpro", "Edificio A",
+        "Laboratorios", "Edificio D", "Edificio J", "Kioskos de comida", "El Ranchero",
+        "Clínicas Odontológicas", "El Chilamate", "Edificio O", "Comedor del Jaguarcito",
+        "Baño del Comedor", "Kiosko del Jaguarcito",
     ]
-    for lugar in lugares:
+    zonasSeguras = [
+        "Zona Segura Cancha de Fútbol", "Zona Segura Campo de Béisbol",
+        "Punto Seguro Parqueo Norte", "Punto Seguro Parqueo 47 Calle",
+        "Punto Seguro Parqueo 20 Av", "Punto Seguro Plazoleta",
+        "Punto Seguro Parqueo Este", "Punto Seguro Parqueo Central",
+        "Punto Seguro Parqueo Sur", "Punto Seguro Parqueo Oeste",
+        "Punto Seguro Parqueo Edificio P", "Punto Seguro Parqueo Suroeste",
+    ]
+    for lugar in lugares + zonasSeguras:
         campus.insertarVertice(lugar)
 
-    # (origen, destino, segundos). El grafo es dirigido: cada sentido es una arista.
-    pasos = [
-        ("Aula 101", "Pasillo A", 10), ("Pasillo A", "Aula 101", 10),
-        ("Aula 102", "Pasillo A", 12), ("Pasillo A", "Aula 102", 12),
-        ("Cafetería", "Pasillo A", 15), ("Pasillo A", "Cafetería", 15),
-        ("Aula 201", "Pasillo B", 10), ("Pasillo B", "Aula 201", 10),
-        ("Aula 202", "Pasillo B", 14), ("Pasillo B", "Aula 202", 14),
-        ("Biblioteca", "Pasillo B", 18), ("Pasillo B", "Biblioteca", 18),
-        ("Pasillo B", "Escalera Norte", 8), ("Escalera Norte", "Pasillo B", 8),
-        ("Pasillo B", "Escalera Sur", 20), ("Escalera Sur", "Pasillo B", 20),
-        ("Escalera Norte", "Pasillo A", 15),    # bajar es mas rapido...
-        ("Pasillo A", "Escalera Norte", 25),    # ...que subir
-        ("Escalera Sur", "Salida Este", 22), ("Salida Este", "Escalera Sur", 30),
-        ("Pasillo A", "Salida Principal", 12), ("Salida Principal", "Pasillo A", 12),
-        ("Pasillo A", "Salida Este", 40), ("Salida Este", "Pasillo A", 40),
-        # Hacia las zonas seguras solo se va (no se vuelve).
-        ("Salida Principal", "Zona Segura Cancha", 20),
-        ("Salida Este", "Zona Segura Parqueo", 25),
-        ("Salida Principal", "Zona Segura Parqueo", 60),
-    ]
-    for paso in pasos:
-        campus.insertarArista(paso[0], paso[1], paso[2])
+    # Pasillo elevado del 2.o piso: del extremo oeste del B (aula 210) al Edificio E.
+    unirDosSentidos(campus, "B-210", "Edificio E", 15)
 
-    zonasSeguras = ["Zona Segura Cancha", "Zona Segura Parqueo"]
+    # Caminos a pie entre lugares vecinos (calculados con docs/mapa-campus/generar_grafo.py).
+    # (lugar, lugar, segundos): cada camino se recorre en los dos sentidos.
+    caminos = [
+        ("Auditorio Central", "B Salida Oeste", 25),
+        ("Auditorio Central", "Edificio E", 35),
+        ("Auditorio Central", "Edificio F", 26),
+        ("Auditorio Central", "Edificio M", 33),
+        ("Auditorio Central", "Punto Seguro Parqueo 20 Av", 45),
+        ("B Salida Este", "Banco Banpro", 45),
+        ("B Salida Este", "C Salida Este", 19),
+        ("B Salida Este", "Edificio A", 10),
+        ("B Salida Este", "Food Court", 32),
+        ("B Salida Este", "Punto Seguro Parqueo Este", 77),
+        ("B Salida Oeste", "C Salida Oeste", 20),
+        ("B Salida Oeste", "Edificio M", 22),
+        ("B Salida Oeste", "Laboratorios", 43),
+        ("B Salida Oeste", "Punto Seguro Plazoleta", 49),
+        ("Banco Banpro", "Edificio A", 47),
+        ("Banco Banpro", "Food Court", 41),
+        ("Banco Banpro", "Punto Seguro Parqueo Este", 56),
+        ("Baño del Comedor", "Comedor del Jaguarcito", 35),
+        ("Baño del Comedor", "Zona Segura Cancha de Fútbol", 75),
+        ("C Salida Este", "Edificio A", 13),
+        ("C Salida Este", "Kioskos de comida", 31),
+        ("C Salida Oeste", "Edificio M", 25),
+        ("C Salida Oeste", "Laboratorios", 34),
+        ("C Salida Oeste", "Punto Seguro Parqueo Central", 39),
+        ("Clínicas Odontológicas", "Edificio D", 27),
+        ("Clínicas Odontológicas", "El Ranchero", 36),
+        ("Clínicas Odontológicas", "Punto Seguro Parqueo Sur", 31),
+        ("Comedor del Jaguarcito", "Kiosko del Jaguarcito", 57),
+        ("Comedor del Jaguarcito", "Zona Segura Cancha de Fútbol", 55),
+        ("Edificio A", "Food Court", 41),
+        ("Edificio A", "Punto Seguro Parqueo Este", 71),
+        ("Edificio D", "Edificio J", 17),
+        ("Edificio D", "El Chilamate", 50),
+        ("Edificio D", "Kioskos de comida", 37),
+        ("Edificio D", "Punto Seguro Parqueo Central", 31),
+        ("Edificio D", "Punto Seguro Parqueo Sur", 53),
+        ("Edificio E", "Edificio F", 23),
+        ("Edificio E", "Punto Seguro Parqueo 20 Av", 44),
+        ("Edificio E", "Punto Seguro Parqueo 47 Calle", 77),
+        ("Edificio E", "Punto Seguro Parqueo Norte", 58),
+        ("Edificio E", "Punto Seguro Plazoleta", 32),
+        ("Edificio F", "Punto Seguro Parqueo 20 Av", 24),
+        ("Edificio I", "Jaguar Center", 41),
+        ("Edificio I", "Punto Seguro Parqueo 20 Av", 47),
+        ("Edificio I", "Salón de Música", 65),
+        ("Edificio J", "El Chilamate", 37),
+        ("Edificio J", "Kioskos de comida", 21),
+        ("Edificio J", "Punto Seguro Parqueo Central", 43),
+        ("Edificio M", "Laboratorios", 24),
+        ("Edificio O", "El Ranchero", 40),
+        ("Edificio O", "P Salida Oeste", 35),
+        ("Edificio O", "Punto Seguro Parqueo Oeste", 31),
+        ("El Chilamate", "Kioskos de comida", 38),
+        ("El Chilamate", "P Salida Este", 51),
+        ("El Ranchero", "Laboratorios", 46),
+        ("El Ranchero", "Punto Seguro Parqueo Oeste", 71),
+        ("Food Court", "Punto Seguro Parqueo Norte", 55),
+        ("Food Court", "Punto Seguro Plazoleta", 36),
+        ("Jaguar Center", "Salón de Danza", 35),
+        ("Jaguar Center", "Salón de Música", 26),
+        ("Jaguar Center", "Vestidores", 41),
+        ("Kiosko del Jaguarcito", "Laboratorios", 59),
+        ("Kiosko del Jaguarcito", "Zona Segura Cancha de Fútbol", 60),
+        ("P Salida Este", "Punto Seguro Parqueo Edificio P", 41),
+        ("P Salida Este", "Punto Seguro Parqueo Sur", 49),
+        ("P Salida Oeste", "Punto Seguro Parqueo Edificio P", 66),
+        ("P Salida Oeste", "Punto Seguro Parqueo Oeste", 32),
+        ("P Salida Oeste", "Punto Seguro Parqueo Sur", 54),
+        ("Punto Seguro Parqueo 20 Av", "Punto Seguro Parqueo 47 Calle", 75),
+        ("Punto Seguro Parqueo 47 Calle", "Punto Seguro Parqueo Norte", 66),
+        ("Punto Seguro Parqueo Edificio P", "Punto Seguro Parqueo Sur", 57),
+        ("Punto Seguro Parqueo Norte", "Punto Seguro Plazoleta", 55),
+        ("Punto Seguro Parqueo Oeste", "Zona Segura Campo de Béisbol", 81),
+        ("Punto Seguro Parqueo Suroeste", "Zona Segura Campo de Béisbol", 77),
+        ("Salón Multiusos", "Salón de Contenedores", 17),
+        ("Salón Multiusos", "Salón de Danza", 27),
+        ("Salón Multiusos", "Salón de Música", 34),
+        ("Salón Multiusos", "Vestidores", 39),
+        ("Salón de Contenedores", "Salón de Danza", 43),
+        ("Salón de Contenedores", "Salón de Música", 50),
+        ("Salón de Danza", "Salón de Música", 9),
+        ("Salón de Danza", "Vestidores", 19),
+        ("Salón de Música", "Vestidores", 23),
+        ("Vestidores", "Zona Segura Cancha de Fútbol", 62),
+    ]
+    for camino in caminos:
+        unirDosSentidos(campus, camino[0], camino[1], camino[2])
+
     return campus, zonasSeguras
 
 

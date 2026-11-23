@@ -20,7 +20,14 @@ Revisión del 22/11/2026: más de 60 fotos públicas de la UAM en 10 búsquedas 
 | Jaguar Stadium (béisbol) | Graderías azules, una pizarra azul «JAGUAR STADIUM», malla verde y tierra roja en el cuadro | Graderías azules junto a las líneas de foul y la pizarra en el jardín central |
 | Auditorio Central | Se llama «Rubén Darío». Salón amplio con cerchas verdes | Dato `"detalle"` |
 | Food Court | Locales de comida con rótulos de colores | Sin cambios |
+| Banco Banpro (verificada: foto de la ficha «Banpro Sucursal UAM» en Google Maps) | Agencia de un piso, fachada gris oscuro con vidrio y el logo blanco de Banpro | 1 piso |
+| Biblioteca (ampliación) | Edificio de un solo piso con ventanales largos | 1 piso (dato de James) |
+| Plazoleta (foto principal de la ficha de la UAM) | Cancha de básquet techada, con estructura turquesa y malla azul | Sin cambios |
 
 ## Pisos confirmados por James (22/11/2026)
 - **Edificio A:** 2 pisos, aunque en la fachada principal se vean 3 hileras de ventanas.
 - **Edificio C:** 3 pisos.
+
+## Sin fotos del exterior
+No se encontraron fotos verificables del exterior (en Google Imágenes ni en las fichas de Google Maps) de: Edificios D, E, F, J y O, los salones de Contenedores, Multiusos, Danza y Música, Vestidores, Laboratorios, El Ranchero, El Chilamate, el Comedor y el Kiosko del Jaguarcito, ni los Kioskos de comida. Las fichas de Google Maps de los Edificios F, J y O no tienen fotos, y la del Auditorio solo tiene una del interior. Esos edificios usan el estilo general: blanco con ventanas por piso.
+- **Kiosko del Jaguarcito:** es muy pequeño (James). En el mapa ocupa 6 × 5 m, en vez del contorno de 732 m² de OSM.

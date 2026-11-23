@@ -335,7 +335,7 @@ INSIGNIA = {"Salón de Contenedores": "SC", "Salón Multiusos": "SM", "Salón de
             "El Chilamate": "CH", "Edificio O": "O", "Edificio P": "P", "Comedor del Jaguarcito": "CJ",
             "Baño del Comedor": "BA", "Kiosko del Jaguarcito": "KJ"}
 PISO = 3.6   # metros por piso
-PISOS = {"Edificio P": 3, "Edificio C": 3, "Edificio M": 3, "Edificio A": 2, "Edificio B": 2, "Edificio E": 2,
+PISOS = {"Edificio P": 3, "Edificio C": 3, "Edificio M": 3, "Edificio I": 1, "Edificio A": 2, "Edificio B": 2, "Edificio E": 2,
          "Edificio O": 2, "Clínicas Odontológicas": 2}       # dato de James; el resto se estima
 TECHADOS = {"Comedor del Jaguarcito", "El Chilamate"}
 # Detalles de fachada vistos en las fotos de la UAM (búsqueda de imágenes, 22/11/2026)
@@ -408,6 +408,11 @@ def clasificar():
     eds = []
     for e in DATOS["edificios"]:
         pol = [tuple(p) for p in e["pol"]]
+        if e["nombre"] == "Kiosko del Jaguarcito":
+            # el contorno de OSM (732 m²) es mucho más grande que el kiosko real, que es muy pequeño (James)
+            cx, cy = centro(pol)
+            pol = caja_r(cx - 3, cy - 2.5, cx + 3, cy + 2.5)
+            e = {**e, "area": 30}
         eds.append({**e, "pol": pol, "c": centro(pol)})
     # las cubiertas de celdas solares del parqueo este son parte de ese punto seguro, no edificios
     sin = [e for e in eds if not e["nombre"] and e["area"] >= MIN_AREA and not (e["tipo"] == "roof" and e["id"] in SOLAR)]

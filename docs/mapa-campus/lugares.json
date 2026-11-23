@@ -128,7 +128,8 @@
       117.4,
       49.2
     ],
-    "detalle": "Biblioteca Pablo Antonio Cuadra"
+    "detalle": "Biblioteca Pablo Antonio Cuadra",
+    "pisos": 1
   },
   {
     "nombre": "Edificio J",
@@ -213,7 +214,7 @@
   {
     "nombre": "Kiosko del Jaguarcito",
     "tipo": "edificio",
-    "area_m2": 732,
+    "area_m2": 30,
     "centro_m": [
       107.1,
       174.0

@@ -82,23 +82,56 @@ class TestEvacuacion(unittest.TestCase):
         self.assertEqual(rutaMasCorta(g, "A", "C"), (["A", "B", "C"], 7))
 
     def test_ruta_evacuacion_campus(self):
+        # Desde el aula 309 (3.er piso del P) baja por la escalera oeste hasta el parqueo oeste.
         campus, zonas = crearCampus()
-        ruta, tiempo = rutaEvacuacion(campus, "Aula 101", zonas)
-        self.assertEqual(ruta, ["Aula 101", "Pasillo A", "Salida Principal", "Zona Segura Cancha"])
-        self.assertEqual(tiempo, 42)
+        ruta, tiempo = rutaEvacuacion(campus, "P-309", zonas)
+        self.assertEqual(ruta, ["P-309", "P Escalera Oeste P3", "P Escalera Oeste P2", "P Escalera Oeste P1",
+                                "P Salida Oeste", "Punto Seguro Parqueo Oeste"])
+        self.assertEqual(tiempo, 67)
 
     def test_alerta_cambia_la_ruta(self):
         campus, zonas = crearCampus()
-        self.assertTrue(aplicarAlerta(campus, "Salida Principal", 10))
-        ruta, tiempo = rutaEvacuacion(campus, "Aula 101", zonas)
-        self.assertEqual(ruta[-1], "Zona Segura Parqueo")    # evita la salida en peligro
+        self.assertTrue(aplicarAlerta(campus, "Punto Seguro Parqueo Oeste", 10))
+        ruta, tiempo = rutaEvacuacion(campus, "P-309", zonas)
+        self.assertNotEqual(ruta[-1], "Punto Seguro Parqueo Oeste")   # evita el punto en peligro
+        self.assertIn(ruta[-1], zonas)
         self.assertFalse(aplicarAlerta(campus, "Lugar inventado", 2))
 
-    def test_pasillo_bloqueado(self):
+    def test_escalera_bloqueada(self):
         campus, zonas = crearCampus()
-        campus.eliminarArista("Pasillo A", "Salida Principal")
-        ruta, tiempo = rutaEvacuacion(campus, "Aula 101", zonas)
-        self.assertNotIn("Salida Principal", ruta)
+        campus.eliminarArista("P Escalera Oeste P3", "P Escalera Oeste P2")
+        ruta, tiempo = rutaEvacuacion(campus, "P-309", zonas)
+        self.assertNotIn("P Escalera Oeste P2", ruta)               # busca otra escalera
+        self.assertIn(ruta[-1], zonas)
+        self.assertGreater(tiempo, 67)
+
+
+class TestCampusUAM(unittest.TestCase):
+    def test_numeracion_de_aulas(self):
+        campus, zonas = crearCampus()
+        for aula in ["B-101", "B-109", "B-201", "B-210", "C-109", "C-210", "C-310", "P-109", "P-209", "P-309"]:
+            self.assertIsNotNone(campus.buscarVertice(aula))
+        for aula in ["B-110", "B-211", "B-301", "C-311", "P-210", "P-310"]:
+            self.assertIsNone(campus.buscarVertice(aula))
+        self.assertEqual(len(campus.vertexs), 134)
+
+    def test_escalera_dirigida(self):
+        # Bajar un piso cuesta 12 s y subirlo 18 s: dos aristas distintas.
+        campus, zonas = crearCampus()
+        arriba = campus.buscarVertice("C Escalera Este P2")
+        abajo = campus.buscarVertice("C Escalera Este P1")
+        self.assertIn((abajo, 12), arriba.neig)
+        self.assertIn((arriba, 18), abajo.neig)
+
+    def test_pasillo_elevado_b_e(self):
+        campus, zonas = crearCampus()
+        self.assertEqual(rutaMasCorta(campus, "B-210", "Edificio E"), (["B-210", "Edificio E"], 15))
+
+    def test_todos_tienen_ruta_segura(self):
+        campus, zonas = crearCampus()
+        for v in campus.vertexs:
+            ruta, tiempo = rutaEvacuacion(campus, v.nombre, zonas)
+            self.assertNotEqual(tiempo, INF, v.nombre)
 
 
 class TestMesh(unittest.TestCase):

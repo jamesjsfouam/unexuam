@@ -1,0 +1,706 @@
+{
+ "vertices": [
+  {
+   "nombre": "Auditorio Central",
+   "tipo": "edificio",
+   "x_m": 173.8,
+   "y_m": 106.6
+  },
+  {
+   "nombre": "Banco Banpro",
+   "tipo": "edificio",
+   "x_m": 290.9,
+   "y_m": 97.9
+  },
+  {
+   "nombre": "Baño del Comedor",
+   "tipo": "edificio",
+   "x_m": 23.0,
+   "y_m": 175.5
+  },
+  {
+   "nombre": "Clínicas Odontológicas",
+   "tipo": "edificio",
+   "x_m": 218.6,
+   "y_m": 198.1
+  },
+  {
+   "nombre": "Comedor del Jaguarcito",
+   "tipo": "edificio",
+   "x_m": 54.9,
+   "y_m": 176.1
+  },
+  {
+   "nombre": "Edificio A",
+   "tipo": "edificio",
+   "x_m": 267.0,
+   "y_m": 133.8
+  },
+  {
+   "nombre": "Edificio D",
+   "tipo": "edificio",
+   "x_m": 235.9,
+   "y_m": 180.1
+  },
+  {
+   "nombre": "Edificio E",
+   "tipo": "edificio",
+   "x_m": 194.7,
+   "y_m": 81.4
+  },
+  {
+   "nombre": "Edificio F",
+   "tipo": "edificio",
+   "x_m": 173.2,
+   "y_m": 82.4
+  },
+  {
+   "nombre": "Edificio I",
+   "tipo": "edificio",
+   "x_m": 117.4,
+   "y_m": 49.2
+  },
+  {
+   "nombre": "Edificio J",
+   "tipo": "edificio",
+   "x_m": 251.8,
+   "y_m": 180.4
+  },
+  {
+   "nombre": "Edificio M",
+   "tipo": "edificio",
+   "x_m": 166.5,
+   "y_m": 136.2
+  },
+  {
+   "nombre": "Edificio O",
+   "tipo": "edificio",
+   "x_m": 166.2,
+   "y_m": 221.0
+  },
+  {
+   "nombre": "El Chilamate",
+   "tipo": "edificio",
+   "x_m": 273.2,
+   "y_m": 207.1
+  },
+  {
+   "nombre": "El Ranchero",
+   "tipo": "edificio",
+   "x_m": 186.1,
+   "y_m": 189.8
+  },
+  {
+   "nombre": "Food Court",
+   "tipo": "edificio",
+   "x_m": 252.9,
+   "y_m": 98.5
+  },
+  {
+   "nombre": "Jaguar Center",
+   "tipo": "edificio",
+   "x_m": 82.5,
+   "y_m": 64.1
+  },
+  {
+   "nombre": "Kiosko del Jaguarcito",
+   "tipo": "edificio",
+   "x_m": 107.1,
+   "y_m": 174.0
+  },
+  {
+   "nombre": "Kioskos de comida",
+   "tipo": "edificio",
+   "x_m": 269.5,
+   "y_m": 171.8
+  },
+  {
+   "nombre": "Laboratorios",
+   "tipo": "edificio",
+   "x_m": 158.7,
+   "y_m": 157.1
+  },
+  {
+   "nombre": "Salón Multiusos",
+   "tipo": "edificio",
+   "x_m": 29.1,
+   "y_m": 48.4
+  },
+  {
+   "nombre": "Salón de Contenedores",
+   "tipo": "edificio",
+   "x_m": 19.6,
+   "y_m": 36.0
+  },
+  {
+   "nombre": "Salón de Danza",
+   "tipo": "edificio",
+   "x_m": 50.3,
+   "y_m": 61.2
+  },
+  {
+   "nombre": "Salón de Música",
+   "tipo": "edificio",
+   "x_m": 58.5,
+   "y_m": 60.0
+  },
+  {
+   "nombre": "Vestidores",
+   "tipo": "edificio",
+   "x_m": 47.9,
+   "y_m": 78.7
+  },
+  {
+   "nombre": "Zona Segura Cancha de Fútbol",
+   "tipo": "zona segura",
+   "x_m": 74.7,
+   "y_m": 129.6
+  },
+  {
+   "nombre": "Zona Segura Campo de Béisbol",
+   "tipo": "zona segura",
+   "x_m": 75.3,
+   "y_m": 256.0
+  },
+  {
+   "nombre": "Punto Seguro Parqueo Norte",
+   "tipo": "punto seguro",
+   "x_m": 238.3,
+   "y_m": 49.9
+  },
+  {
+   "nombre": "Punto Seguro Parqueo 47 Calle",
+   "tipo": "punto seguro",
+   "x_m": 192.1,
+   "y_m": 10.5
+  },
+  {
+   "nombre": "Punto Seguro Parqueo 20 Av",
+   "tipo": "punto seguro",
+   "x_m": 155.4,
+   "y_m": 69.6
+  },
+  {
+   "nombre": "Punto Seguro Plazoleta",
+   "tipo": "punto seguro",
+   "x_m": 219.4,
+   "y_m": 97.3
+  },
+  {
+   "nombre": "Punto Seguro Parqueo Este",
+   "tipo": "punto seguro",
+   "x_m": 332.4,
+   "y_m": 128.7
+  },
+  {
+   "nombre": "Punto Seguro Parqueo Central",
+   "tipo": "punto seguro",
+   "x_m": 222.3,
+   "y_m": 154.5
+  },
+  {
+   "nombre": "Punto Seguro Parqueo Sur",
+   "tipo": "punto seguro",
+   "x_m": 221.0,
+   "y_m": 226.9
+  },
+  {
+   "nombre": "Punto Seguro Parqueo Oeste",
+   "tipo": "punto seguro",
+   "x_m": 148.8,
+   "y_m": 243.9
+  },
+  {
+   "nombre": "Punto Seguro Parqueo Edificio P",
+   "tipo": "punto seguro",
+   "x_m": 231.6,
+   "y_m": 278.7
+  },
+  {
+   "nombre": "Punto Seguro Parqueo Suroeste",
+   "tipo": "punto seguro",
+   "x_m": 88.1,
+   "y_m": 325.5
+  },
+  {
+   "nombre": "B Salida Este",
+   "tipo": "salida",
+   "x_m": 261.5,
+   "y_m": 126.9
+  },
+  {
+   "nombre": "B Salida Oeste",
+   "tipo": "salida",
+   "x_m": 184.9,
+   "y_m": 126.9
+  },
+  {
+   "nombre": "C Salida Este",
+   "tipo": "salida",
+   "x_m": 261.3,
+   "y_m": 144.8
+  },
+  {
+   "nombre": "C Salida Oeste",
+   "tipo": "salida",
+   "x_m": 187.6,
+   "y_m": 144.8
+  },
+  {
+   "nombre": "P Salida Este",
+   "tipo": "salida",
+   "x_m": 258.5,
+   "y_m": 251.60000000000002
+  },
+  {
+   "nombre": "P Salida Oeste",
+   "tipo": "salida",
+   "x_m": 177.2,
+   "y_m": 251.60000000000002
+  }
+ ],
+ "caminos": [
+  {
+   "a": "Auditorio Central",
+   "b": "B Salida Oeste",
+   "segundos": 25
+  },
+  {
+   "a": "Auditorio Central",
+   "b": "Edificio E",
+   "segundos": 35
+  },
+  {
+   "a": "Auditorio Central",
+   "b": "Edificio F",
+   "segundos": 26
+  },
+  {
+   "a": "Auditorio Central",
+   "b": "Edificio M",
+   "segundos": 33
+  },
+  {
+   "a": "Auditorio Central",
+   "b": "Punto Seguro Parqueo 20 Av",
+   "segundos": 45
+  },
+  {
+   "a": "B Salida Este",
+   "b": "Banco Banpro",
+   "segundos": 45
+  },
+  {
+   "a": "B Salida Este",
+   "b": "C Salida Este",
+   "segundos": 19
+  },
+  {
+   "a": "B Salida Este",
+   "b": "Edificio A",
+   "segundos": 10
+  },
+  {
+   "a": "B Salida Este",
+   "b": "Food Court",
+   "segundos": 32
+  },
+  {
+   "a": "B Salida Este",
+   "b": "Punto Seguro Parqueo Este",
+   "segundos": 77
+  },
+  {
+   "a": "B Salida Oeste",
+   "b": "C Salida Oeste",
+   "segundos": 20
+  },
+  {
+   "a": "B Salida Oeste",
+   "b": "Edificio M",
+   "segundos": 22
+  },
+  {
+   "a": "B Salida Oeste",
+   "b": "Laboratorios",
+   "segundos": 43
+  },
+  {
+   "a": "B Salida Oeste",
+   "b": "Punto Seguro Plazoleta",
+   "segundos": 49
+  },
+  {
+   "a": "Banco Banpro",
+   "b": "Edificio A",
+   "segundos": 47
+  },
+  {
+   "a": "Banco Banpro",
+   "b": "Food Court",
+   "segundos": 41
+  },
+  {
+   "a": "Banco Banpro",
+   "b": "Punto Seguro Parqueo Este",
+   "segundos": 56
+  },
+  {
+   "a": "Baño del Comedor",
+   "b": "Comedor del Jaguarcito",
+   "segundos": 35
+  },
+  {
+   "a": "Baño del Comedor",
+   "b": "Zona Segura Cancha de Fútbol",
+   "segundos": 75
+  },
+  {
+   "a": "C Salida Este",
+   "b": "Edificio A",
+   "segundos": 13
+  },
+  {
+   "a": "C Salida Este",
+   "b": "Kioskos de comida",
+   "segundos": 31
+  },
+  {
+   "a": "C Salida Oeste",
+   "b": "Edificio M",
+   "segundos": 25
+  },
+  {
+   "a": "C Salida Oeste",
+   "b": "Laboratorios",
+   "segundos": 34
+  },
+  {
+   "a": "C Salida Oeste",
+   "b": "Punto Seguro Parqueo Central",
+   "segundos": 39
+  },
+  {
+   "a": "Clínicas Odontológicas",
+   "b": "Edificio D",
+   "segundos": 27
+  },
+  {
+   "a": "Clínicas Odontológicas",
+   "b": "El Ranchero",
+   "segundos": 36
+  },
+  {
+   "a": "Clínicas Odontológicas",
+   "b": "Punto Seguro Parqueo Sur",
+   "segundos": 31
+  },
+  {
+   "a": "Comedor del Jaguarcito",
+   "b": "Kiosko del Jaguarcito",
+   "segundos": 57
+  },
+  {
+   "a": "Comedor del Jaguarcito",
+   "b": "Zona Segura Cancha de Fútbol",
+   "segundos": 55
+  },
+  {
+   "a": "Edificio A",
+   "b": "Food Court",
+   "segundos": 41
+  },
+  {
+   "a": "Edificio A",
+   "b": "Punto Seguro Parqueo Este",
+   "segundos": 71
+  },
+  {
+   "a": "Edificio D",
+   "b": "Edificio J",
+   "segundos": 17
+  },
+  {
+   "a": "Edificio D",
+   "b": "El Chilamate",
+   "segundos": 50
+  },
+  {
+   "a": "Edificio D",
+   "b": "Kioskos de comida",
+   "segundos": 37
+  },
+  {
+   "a": "Edificio D",
+   "b": "Punto Seguro Parqueo Central",
+   "segundos": 31
+  },
+  {
+   "a": "Edificio D",
+   "b": "Punto Seguro Parqueo Sur",
+   "segundos": 53
+  },
+  {
+   "a": "Edificio E",
+   "b": "Edificio F",
+   "segundos": 23
+  },
+  {
+   "a": "Edificio E",
+   "b": "Punto Seguro Parqueo 20 Av",
+   "segundos": 44
+  },
+  {
+   "a": "Edificio E",
+   "b": "Punto Seguro Parqueo 47 Calle",
+   "segundos": 77
+  },
+  {
+   "a": "Edificio E",
+   "b": "Punto Seguro Parqueo Norte",
+   "segundos": 58
+  },
+  {
+   "a": "Edificio E",
+   "b": "Punto Seguro Plazoleta",
+   "segundos": 32
+  },
+  {
+   "a": "Edificio F",
+   "b": "Punto Seguro Parqueo 20 Av",
+   "segundos": 24
+  },
+  {
+   "a": "Edificio I",
+   "b": "Jaguar Center",
+   "segundos": 41
+  },
+  {
+   "a": "Edificio I",
+   "b": "Punto Seguro Parqueo 20 Av",
+   "segundos": 47
+  },
+  {
+   "a": "Edificio I",
+   "b": "Salón de Música",
+   "segundos": 65
+  },
+  {
+   "a": "Edificio J",
+   "b": "El Chilamate",
+   "segundos": 37
+  },
+  {
+   "a": "Edificio J",
+   "b": "Kioskos de comida",
+   "segundos": 21
+  },
+  {
+   "a": "Edificio J",
+   "b": "Punto Seguro Parqueo Central",
+   "segundos": 43
+  },
+  {
+   "a": "Edificio M",
+   "b": "Laboratorios",
+   "segundos": 24
+  },
+  {
+   "a": "Edificio O",
+   "b": "El Ranchero",
+   "segundos": 40
+  },
+  {
+   "a": "Edificio O",
+   "b": "P Salida Oeste",
+   "segundos": 35
+  },
+  {
+   "a": "Edificio O",
+   "b": "Punto Seguro Parqueo Oeste",
+   "segundos": 31
+  },
+  {
+   "a": "El Chilamate",
+   "b": "Kioskos de comida",
+   "segundos": 38
+  },
+  {
+   "a": "El Chilamate",
+   "b": "P Salida Este",
+   "segundos": 51
+  },
+  {
+   "a": "El Ranchero",
+   "b": "Laboratorios",
+   "segundos": 46
+  },
+  {
+   "a": "El Ranchero",
+   "b": "Punto Seguro Parqueo Oeste",
+   "segundos": 71
+  },
+  {
+   "a": "Food Court",
+   "b": "Punto Seguro Parqueo Norte",
+   "segundos": 55
+  },
+  {
+   "a": "Food Court",
+   "b": "Punto Seguro Plazoleta",
+   "segundos": 36
+  },
+  {
+   "a": "Jaguar Center",
+   "b": "Salón de Danza",
+   "segundos": 35
+  },
+  {
+   "a": "Jaguar Center",
+   "b": "Salón de Música",
+   "segundos": 26
+  },
+  {
+   "a": "Jaguar Center",
+   "b": "Vestidores",
+   "segundos": 41
+  },
+  {
+   "a": "Kiosko del Jaguarcito",
+   "b": "Laboratorios",
+   "segundos": 59
+  },
+  {
+   "a": "Kiosko del Jaguarcito",
+   "b": "Zona Segura Cancha de Fútbol",
+   "segundos": 60
+  },
+  {
+   "a": "P Salida Este",
+   "b": "Punto Seguro Parqueo Edificio P",
+   "segundos": 41
+  },
+  {
+   "a": "P Salida Este",
+   "b": "Punto Seguro Parqueo Sur",
+   "segundos": 49
+  },
+  {
+   "a": "P Salida Oeste",
+   "b": "Punto Seguro Parqueo Edificio P",
+   "segundos": 66
+  },
+  {
+   "a": "P Salida Oeste",
+   "b": "Punto Seguro Parqueo Oeste",
+   "segundos": 32
+  },
+  {
+   "a": "P Salida Oeste",
+   "b": "Punto Seguro Parqueo Sur",
+   "segundos": 54
+  },
+  {
+   "a": "Punto Seguro Parqueo 20 Av",
+   "b": "Punto Seguro Parqueo 47 Calle",
+   "segundos": 75
+  },
+  {
+   "a": "Punto Seguro Parqueo 47 Calle",
+   "b": "Punto Seguro Parqueo Norte",
+   "segundos": 66
+  },
+  {
+   "a": "Punto Seguro Parqueo Edificio P",
+   "b": "Punto Seguro Parqueo Sur",
+   "segundos": 57
+  },
+  {
+   "a": "Punto Seguro Parqueo Norte",
+   "b": "Punto Seguro Plazoleta",
+   "segundos": 55
+  },
+  {
+   "a": "Punto Seguro Parqueo Oeste",
+   "b": "Zona Segura Campo de Béisbol",
+   "segundos": 81
+  },
+  {
+   "a": "Punto Seguro Parqueo Suroeste",
+   "b": "Zona Segura Campo de Béisbol",
+   "segundos": 77
+  },
+  {
+   "a": "Salón Multiusos",
+   "b": "Salón de Contenedores",
+   "segundos": 17
+  },
+  {
+   "a": "Salón Multiusos",
+   "b": "Salón de Danza",
+   "segundos": 27
+  },
+  {
+   "a": "Salón Multiusos",
+   "b": "Salón de Música",
+   "segundos": 34
+  },
+  {
+   "a": "Salón Multiusos",
+   "b": "Vestidores",
+   "segundos": 39
+  },
+  {
+   "a": "Salón de Contenedores",
+   "b": "Salón de Danza",
+   "segundos": 43
+  },
+  {
+   "a": "Salón de Contenedores",
+   "b": "Salón de Música",
+   "segundos": 50
+  },
+  {
+   "a": "Salón de Danza",
+   "b": "Salón de Música",
+   "segundos": 9
+  },
+  {
+   "a": "Salón de Danza",
+   "b": "Vestidores",
+   "segundos": 19
+  },
+  {
+   "a": "Salón de Música",
+   "b": "Vestidores",
+   "segundos": 23
+  },
+  {
+   "a": "Vestidores",
+   "b": "Zona Segura Cancha de Fútbol",
+   "segundos": 62
+  }
+ ],
+ "zonasSeguras": [
+  "Zona Segura Cancha de Fútbol",
+  "Zona Segura Campo de Béisbol",
+  "Punto Seguro Parqueo Norte",
+  "Punto Seguro Parqueo 47 Calle",
+  "Punto Seguro Parqueo 20 Av",
+  "Punto Seguro Plazoleta",
+  "Punto Seguro Parqueo Este",
+  "Punto Seguro Parqueo Central",
+  "Punto Seguro Parqueo Sur",
+  "Punto Seguro Parqueo Oeste",
+  "Punto Seguro Parqueo Edificio P",
+  "Punto Seguro Parqueo Suroeste"
+ ],
+ "ejemplo": {
+  "origen": "C Salida Oeste",
+  "ruta": [
+   "C Salida Oeste",
+   "Punto Seguro Parqueo Central"
+  ],
+  "segundos": 39
+ }
+}

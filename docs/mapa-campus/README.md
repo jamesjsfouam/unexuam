@@ -11,6 +11,8 @@ Ilustración en 3D del campus con la marca Unexuam, hecha con el plano **real** 
 | `campus-osm.json` | Plano extraído de OpenStreetMap, en metros (x al este, y al sur) |
 | `extraer_osm.py` | Descarga el plano de OSM y genera `campus-osm.json` (es lo único que usa internet) |
 | `generar_mapa.py` | Genera el SVG, el HTML y `lugares.json` a partir de `campus-osm.json` |
+| `generar_grafo.py` | Calcula el grafo exterior (lugares, salidas de B, C y P y caminos con su tiempo) desde `lugares.json`. Genera `grafo-campus.json`/`.svg`/`.png` |
+| `LOGICA_GRAFO.md` | Cómo funciona la lógica: aulas por piso, escaleras dirigidas, Dijkstra y los casos de la demo |
 | `FOTOS.md` | Cómo se ve cada edificio según las fotos de la UAM (fachadas, colores y detalles que usa el mapa) |
 
 ## Nombres
