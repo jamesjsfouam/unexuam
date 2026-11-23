@@ -842,6 +842,7 @@
       if (!$("#chat").hidden) renderChat(true);
       const d = ev.detail || {};
       if (d.tipo === "conectado" && d.peer) avisar(`📡 Vecino cercano conectado: ${d.peer.nombre}`);
+      if (d.tipo === "ack") avisar("✓✓ Entrega confirmada · copias intermedias eliminadas");
       if (d.tipo === "paquete" && d.paquete && $("#chat").hidden) avisar(`💬 Mensaje recibido de ${d.paquete.deNombre || d.paquete.de}`);
     });
     $("#buscar-contacto").addEventListener("input", renderMensajes);

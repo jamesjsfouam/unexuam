@@ -1,6 +1,8 @@
 package ni.edu.uam.unexuam;
 
 import android.content.Context;
+import android.os.Handler;
+import android.os.Looper;
 import android.util.Log;
 import com.google.android.gms.nearby.Nearby;
 import com.google.android.gms.nearby.connection.AdvertisingOptions;
@@ -30,13 +32,19 @@ import org.json.JSONObject;
 /**
  * Transporte Mesh real 100% offline sobre Bluetooth / BLE / Wi-Fi Direct
  * usando Google Nearby Connections (Strategy.P2P_CLUSTER).
- * Descubre teléfonos cercanos con Unexuam sin internet ni emparejamiento manual,
- * intercambia perfiles/mensajes JSON y reenvía paquetes multi-salto con TTL.
+ *
+ * Protocolo DTN con custodia y purga por acuse (Delivery ACK):
+ * - Cada teléfono intermedio guarda el paquete en `custodia` y lo reenvía
+ *   automáticamente a nuevos vecinos que entren en rango.
+ * - Cuando el destinatario final recibe el mensaje, devuelve un paquete `ack`
+ *   que viaja de vuelta al emisor y elimina el mensaje de la `custodia` de
+ *   todos los teléfonos intermedios.
  */
 public class MeshNativa {
     private static final String TAG = "UnexuamMesh";
     private static final String SERVICE_ID = "ni.edu.uam.unexuam.mesh";
     private static final Strategy ESTRATEGIA = Strategy.P2P_CLUSTER;
+    private static final int MAX_CUSTODIA = 200;
 
     public interface Listener {
         void onEvento(String eventoJson);
@@ -46,7 +54,9 @@ public class MeshNativa {
     private final Listener listener;
     private final Map<String, JSONObject> conectados = new ConcurrentHashMap<>();
     private final Map<String, JSONObject> pendientes = new ConcurrentHashMap<>();
+    private final Map<String, String> custodia = new ConcurrentHashMap<>();
     private final Set<String> vistos = Collections.synchronizedSet(new LinkedHashSet<>());
+    private final Set<String> confirmados = Collections.synchronizedSet(new LinkedHashSet<>());
 
     private volatile JSONObject perfilLocal = new JSONObject();
     private volatile boolean activo = false;
@@ -97,7 +107,14 @@ public class MeshNativa {
         try {
             JSONObject obj = new JSONObject(paqueteJson);
             String id = obj.optString("id", "");
-            if (!id.isEmpty()) registrarVisto(id);
+            String para = obj.optString("para", "");
+            if (!id.isEmpty()) {
+                registrarVisto(id);
+                // Guardar en custodia hasta recibir ACK (para mensajes 1-a-1)
+                if (!"TODOS".equals(para) && !confirmados.contains(id)) {
+                    guardarEnCustodia(id, paqueteJson);
+                }
+            }
         } catch (Exception ignored) {
         }
         if (conectados.isEmpty()) return 0;
@@ -116,6 +133,22 @@ public class MeshNativa {
             arr.put(peer);
         }
         return arr.toString();
+    }
+
+    private void guardarEnCustodia(String id, String paqueteJson) {
+        if (id == null || id.isEmpty() || confirmados.contains(id)) return;
+        if (custodia.size() >= MAX_CUSTODIA) {
+            String primero = custodia.keySet().iterator().next();
+            custodia.remove(primero);
+        }
+        custodia.put(id, paqueteJson);
+    }
+
+    private void sincronizarCustodiaCon(String endpointId) {
+        if (custodia.isEmpty()) return;
+        for (String paqueteJson : new ArrayList<>(custodia.values())) {
+            client.sendPayload(endpointId, Payload.fromBytes(paqueteJson.getBytes(StandardCharsets.UTF_8)));
+        }
     }
 
     private String nombreEndpointLocal() {
@@ -175,9 +208,8 @@ public class MeshNativa {
             String cifRemoto = peer.optString("cif", "");
             String cifLocal = perfilLocal.optString("cif", "");
             if (!cifLocal.isEmpty() && cifLocal.equals(cifRemoto)) return;
-            // Desempate determinista para evitar colisiones cuando muchos teléfonos se descubren a la vez
             if (!cifLocal.isEmpty() && !cifRemoto.isEmpty() && cifLocal.compareTo(cifRemoto) > 0) {
-                new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
+                new Handler(Looper.getMainLooper()).postDelayed(() -> {
                     if (!activo || conectados.containsKey(endpointId) || pendientes.containsKey(endpointId)) return;
                     pendientes.put(endpointId, peer);
                     client.requestConnection(nombreEndpointLocal(), endpointId, lifecycleCallback)
@@ -214,6 +246,8 @@ public class MeshNativa {
                 if (peer == null) peer = parsearEndpoint(endpointId, "");
                 conectados.put(endpointId, peer);
                 enviarHello(endpointId);
+                // Reenviar todos los mensajes guardados en custodia al nuevo vecino
+                sincronizarCustodiaCon(endpointId);
                 emitirEvento("conectado", "peer", peer);
             }
         }
@@ -242,38 +276,87 @@ public class MeshNativa {
                     emitirEvento("perfil", "peer", obj);
                     return;
                 }
-                String id = obj.optString("id", "");
-                if (!id.isEmpty() && yaVisto(id)) return;
-                if (!id.isEmpty()) registrarVisto(id);
 
-                // Agregar nuestro teléfono a la ruta de saltos
-                String miTel = perfilLocal.optString("telefono", "");
-                JSONArray ruta = obj.optJSONArray("ruta");
-                if (ruta == null) ruta = new JSONArray();
-                if (!miTel.isEmpty()) {
-                    boolean yaEnRuta = false;
-                    for (int i = 0; i < ruta.length(); i++) {
-                        if (miTel.equals(ruta.optString(i))) { yaEnRuta = true; break; }
-                    }
-                    if (!yaEnRuta) ruta.put(miTel);
-                    obj.put("ruta", ruta);
-                }
-
-                // Entregar al WebView
-                emitirEvento("paquete", "paquete", obj);
-
-                // Reenvío multi-salto (relay Mesh) si el destino es otro teléfono y queda TTL
-                String para = obj.optString("para", "");
                 String miCif = perfilLocal.optString("cif", "");
-                int ttl = obj.optInt("ttl", 4);
-                if (!para.isEmpty() && !para.equals(miCif) && ttl > 1) {
-                    obj.put("ttl", ttl - 1);
-                    byte[] bytes = obj.toString().getBytes(StandardCharsets.UTF_8);
-                    for (String otro : new ArrayList<>(conectados.keySet())) {
-                        if (!otro.equals(endpointId)) {
-                            client.sendPayload(otro, Payload.fromBytes(bytes));
+                String miTel = perfilLocal.optString("telefono", "");
+
+                // --- Manejo de ACK de vuelta: purgar custodia en todos los teléfonos intermedios ---
+                if ("ack".equals(tipo)) {
+                    String ackId = obj.optString("id", "");
+                    String ackDe = obj.optString("ackDe", "");
+                    if (!ackId.isEmpty() && yaVisto(ackId)) return;
+                    if (!ackId.isEmpty()) registrarVisto(ackId);
+                    if (!ackDe.isEmpty()) {
+                        confirmados.add(ackDe);
+                        // Eliminar el mensaje ya entregado de la custodia local
+                        boolean purgado = custodia.remove(ackDe) != null;
+                        if (purgado) {
+                            Log.i(TAG, "Mensaje " + ackDe + " eliminado de custodia tras ACK.");
                         }
                     }
+                    agregarARuta(obj, "ruta", miTel);
+                    String paraAck = obj.optString("para", "");
+                    if (paraAck.equals(miCif)) {
+                        // El ACK volvió al emisor original: confirmar entrega en el WebView
+                        emitirEvento("ack", "ack", obj);
+                    } else {
+                        // Seguir propagando el ACK de vuelta hacia el emisor y limpiar otros nodos
+                        int ttl = obj.optInt("ttl", 6);
+                        if (ttl > 1) {
+                            obj.put("ttl", ttl - 1);
+                            reenviarAOtros(endpointId, obj.toString());
+                        }
+                    }
+                    return;
+                }
+
+                // --- Manejo de mensaje normal / broadcast ---
+                String id = obj.optString("id", "");
+                if (!id.isEmpty() && (yaVisto(id) || confirmados.contains(id))) return;
+                if (!id.isEmpty()) registrarVisto(id);
+
+                agregarARuta(obj, "ruta", miTel);
+                String para = obj.optString("para", "");
+                boolean esParaMi = !miCif.isEmpty() && para.equals(miCif);
+                boolean esBroadcast = "TODOS".equals(para);
+
+                if (esParaMi || esBroadcast) {
+                    emitirEvento("paquete", "paquete", obj);
+                }
+
+                if (esParaMi && !id.isEmpty()) {
+                    // Llegó al destinatario final: marcar como confirmado y devolver ACK al emisor
+                    confirmados.add(id);
+                    custodia.remove(id);
+                    JSONObject ack = new JSONObject();
+                    ack.put("tipo", "ack");
+                    ack.put("id", "ack-" + id);
+                    ack.put("ackDe", id);
+                    ack.put("de", miCif);
+                    ack.put("para", obj.optString("de", ""));
+                    ack.put("ttl", 6);
+                    JSONArray rutaVuelta = new JSONArray();
+                    if (!miTel.isEmpty()) rutaVuelta.put(miTel);
+                    ack.put("ruta", rutaVuelta);
+                    ack.put("rutaEntrega", obj.optJSONArray("ruta"));
+                    registrarVisto("ack-" + id);
+                    // Enviar ACK por todos los vecinos conectados (encuentra la ruta más corta de vuelta)
+                    byte[] ackBytes = ack.toString().getBytes(StandardCharsets.UTF_8);
+                    for (String ep : new ArrayList<>(conectados.keySet())) {
+                        client.sendPayload(ep, Payload.fromBytes(ackBytes));
+                    }
+                    return;
+                }
+
+                // Si NO es para mí: guardar en custodia (si es 1-a-1) y reenviar si queda TTL
+                int ttl = obj.optInt("ttl", 6);
+                if (ttl > 1) {
+                    obj.put("ttl", ttl - 1);
+                    String reenvio = obj.toString();
+                    if (!esBroadcast && !id.isEmpty()) {
+                        guardarEnCustodia(id, reenvio);
+                    }
+                    reenviarAOtros(endpointId, reenvio);
                 }
             } catch (Exception e) {
                 Log.w(TAG, "Error procesando payload: " + e.getMessage());
@@ -282,9 +365,31 @@ public class MeshNativa {
 
         @Override
         public void onPayloadTransferUpdate(String endpointId, PayloadTransferUpdate update) {
-            // Bytes payloads llegan completos en onPayloadReceived.
         }
     };
+
+    private void agregarARuta(JSONObject obj, String clave, String tel) {
+        if (tel == null || tel.isEmpty()) return;
+        try {
+            JSONArray ruta = obj.optJSONArray(clave);
+            if (ruta == null) ruta = new JSONArray();
+            for (int i = 0; i < ruta.length(); i++) {
+                if (tel.equals(ruta.optString(i))) return;
+            }
+            ruta.put(tel);
+            obj.put(clave, ruta);
+        } catch (Exception ignored) {
+        }
+    }
+
+    private void reenviarAOtros(String origenEndpointId, String json) {
+        byte[] bytes = json.getBytes(StandardCharsets.UTF_8);
+        for (String otro : new ArrayList<>(conectados.keySet())) {
+            if (!otro.equals(origenEndpointId)) {
+                client.sendPayload(otro, Payload.fromBytes(bytes));
+            }
+        }
+    }
 
     private void enviarHello(String endpointId) {
         try {

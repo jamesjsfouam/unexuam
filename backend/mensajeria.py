@@ -77,3 +77,16 @@ def procesarCola(red, cola):
             siguen.append(pendiente)
     cola[:] = siguen
     return entregados
+
+
+def confirmarEntrega(red, origen, destino, custodias, idMensaje):
+    # Cuando el mensaje llega al destino final, busca la ruta mas corta de vuelta
+    # (destino -> origen) para devolver el acuse (ACK) y elimina la copia en custodia
+    # de todos los telefonos intermedios que lo guardaban.
+    rutaVuelta, retardoVuelta = rutaMasCorta(red, destino, origen)
+    purgados = []
+    for tel, lista in custodias.items():
+        if idMensaje in lista:
+            lista.remove(idMensaje)
+            purgados.append(tel)
+    return rutaVuelta, retardoVuelta, purgados

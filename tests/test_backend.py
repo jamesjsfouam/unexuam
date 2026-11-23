@@ -7,7 +7,7 @@ from backend.evacuacion import dijkstra, rutaMasCorta, rutaEvacuacion, aplicarAl
 from backend.mesh import propagarAlerta
 from backend.evacuacion import dijkstraPasos
 from backend.datos import ubicacionesTelefonos
-from backend.mensajeria import conectarTelefono, desconectarTelefono, rutaMensaje, procesarCola
+from backend.mensajeria import conectarTelefono, confirmarEntrega, desconectarTelefono, rutaMensaje, procesarCola
 
 
 def grafoABC():
@@ -254,6 +254,16 @@ class TestMensajeria(unittest.TestCase):
         for v in red.vertexs:
             for vecino in v.neig:
                 self.assertNotEqual(vecino[0].nombre, "Tel-Yo")
+
+    def test_confirmar_entrega_ack_purga_custodia(self):
+        campus, red, ubic = self.preparar()
+        conectarTelefono(red, campus, "Tel-Yo", "Edificio M", ubic)
+        custodias = {"Tel-Yo": ["m1"], "Tel-Ana": ["m1"], "Tel-Luis": ["m1", "m2"]}
+        rutaVuelta, retardoVuelta, purgados = confirmarEntrega(red, "Tel-Yo", "Tel-Ana", custodias, "m1")
+        self.assertGreater(len(rutaVuelta), 0)
+        self.assertLess(retardoVuelta, INF)
+        self.assertEqual(set(purgados), {"Tel-Yo", "Tel-Ana", "Tel-Luis"})
+        self.assertEqual(custodias["Tel-Luis"], ["m2"])
 
 
 if __name__ == "__main__":

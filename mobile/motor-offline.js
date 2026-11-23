@@ -756,22 +756,27 @@
           para, texto: textoMsj, hora: ahora, ttl: 6, ruta: [yo.u.telefono],
         });
         const [rSim, retardoSim] = esTodos ? [[], Infinity] : rutaMasCorta(S.red, yo.u.telefono, dest.telefono);
-        const entregado = enviadosReal > 0 || rSim.length > 0;
+        // En red Mesh real (Android) para mensajes 1-a-1, queda en custodia ("en cola")
+        // hasta que regrese el ACK de entrega del destinatario final (y purgue las copias intermedias).
+        const esMeshReal = !!(window.UnexuamNativo && typeof window.UnexuamNativo.enviarPaqueteMesh === "function");
+        const entregadoInmediato = esTodos ? (enviadosReal > 0) : (!esMeshReal && rSim.length > 0);
         const rutaFinal = rSim.length ? rSim : (enviadosReal > 0 ? [yo.u.telefono, dest.telefono] : []);
         const retFinal = rSim.length ? num(retardoSim) : (enviadosReal > 0 ? 0.5 : null);
         const m = { id, de: yo.cif, deNombre: yo.u.nombre, para, texto: textoMsj, hora: ahora,
-          estado: entregado ? "entregado" : "en cola", ruta: rutaFinal, retardo: retFinal,
-          entregado: entregado ? ahora : null, viaCola: false };
+          estado: entregadoInmediato ? "entregado" : "en cola", ruta: rutaFinal, retardo: retFinal,
+          entregado: entregadoInmediato ? ahora : null, viaCola: false };
         C.mensajes.push(m);
         if (C.mensajes.length > 5000) C.mensajes.splice(0, C.mensajes.length - 5000);
         guardarCuentas(C);
-        registrar(`Mensaje ${yo.u.telefono} → ${dest.telefono}: ${m.estado}.`, entregado ? "ok" : "info");
+        registrar(`Mensaje ${yo.u.telefono} → ${dest.telefono}: ${m.estado}.`, entregadoInmediato ? "ok" : "info");
         guardarEstadoLocal();
-        const msgTxt = enviadosReal > 0
-          ? `Difundido por Mesh real (Bluetooth/Wi-Fi Direct) a ${enviadosReal} teléfono(s) cercano(s).`
-          : (rSim.length
-            ? `Entregado en ${rSim.length - 1} salto(s), ${num(retardoSim)} s de retardo.`
-            : "Sin teléfonos cerca: el mensaje queda en cola (DTN) y saldrá al detectar un vecino.");
+        const msgTxt = esTodos && enviadosReal > 0
+          ? `Difundido por Mesh real a ${enviadosReal} teléfono(s) cercano(s).`
+          : (esMeshReal && enviadosReal > 0
+            ? `En custodia por Mesh (${enviadosReal} vecino(s)): esperando acuse de vuelta.`
+            : (rSim.length && !esMeshReal
+              ? `Entregado en ${rSim.length - 1} salto(s), ${num(retardoSim)} s de retardo.`
+              : "Guardado en custodia (DTN): saldrá al detectar un teléfono cercano."));
         return { ok: true, enviado: m, mensaje: msgTxt };
       }
       if (ruta === "/api/algoritmo") {
@@ -936,6 +941,24 @@
         registrar(`Teléfono desconectado de Mesh real: ${ev.peer.nombre || tel}.`);
         guardarEstadoLocal();
         window.dispatchEvent(new CustomEvent("unexuam-mesh-update", { detail: ev }));
+        return;
+      }
+
+      if (ev.tipo === "ack" && ev.ack) {
+        const ackId = String(ev.ack.ackDe || "");
+        if (!ackId) return;
+        const m = C.mensajes.find((x) => x.id === ackId);
+        if (m && m.estado !== "entregado") {
+          m.estado = "entregado";
+          if (Array.isArray(ev.ack.rutaEntrega) && ev.ack.rutaEntrega.length) m.ruta = ev.ack.rutaEntrega;
+          m.retardo = 0.5;
+          m.entregado = horaActual();
+          m.viaCola = true;
+          guardarCuentas(C);
+          registrar(`Acuse de entrega recibido (ACK): copias en custodia eliminadas.`, "ok");
+          guardarEstadoLocal();
+          window.dispatchEvent(new CustomEvent("unexuam-mesh-update", { detail: ev }));
+        }
         return;
       }
 
