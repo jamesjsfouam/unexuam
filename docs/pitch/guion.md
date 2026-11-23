@@ -1,123 +1,169 @@
-# Guion hablado · 10 minutos
+# Guion Maestro · Pitch + Exposición Unexuam (10 min · versión exprés 4 min)
 
-Deck: `docs/pitch/deck.html` (ábrelo en Chrome o Edge, tecla **F** para pantalla completa).
-Teclas: **→ / Espacio / clic** avanza un paso, **←** retrocede, **N** muestra estas notas resumidas, **T** cronómetro (se pone rojo pasados los 10 min), **B** capturas del plan B, **R** vuelve.
+**Deck:** `docs/pitch/deck.html` (ábrelo en Chrome o Edge, sin internet).
+**Atajos:** **F** pantalla completa · **→ / Espacio / clic** avanza paso · **←** retrocede · **N** notas · **T** cronómetro · **B** capturas Plan B · **R** vuelve.
 
-Ritmo de referencia: unas 130 palabras por minuto. Lo que está en *cursiva* es lo que haces, no lo que dices. Los ▶ marcan cuándo pulsar → en las diapositivas con pasos.
+*Lo que está en cursiva es lo que haces, no lo que dices. Los ▶ marcan cuándo pulsar → en las diapositivas con pasos.*
 
-| # | Diapositiva | Tiempo | Acumulado |
-|---|---|---|---|
-| 1 | Portada | 0:20 | 0:20 |
-| 2 | El problema | 0:45 | 1:05 |
-| 3 | La solución: dos capas | 0:40 | 1:45 |
-| 4 | Grafo dirigido y ponderado | 0:35 | 2:20 |
-| 5 | Capa 1: red Mesh | 0:40 | 3:00 |
-| 6 | BFS con TTL paso a paso | 1:15 | 4:15 |
-| 7 | Capa 2: el campus real | 0:35 | 4:50 |
-| 8 | Dijkstra paso a paso (trozo real, B-210) | 1:30 | 6:20 |
-| 9 | Campus real: evacuar el aula P-309 | 0:45 | 7:05 |
-| 10 | Demo en vivo | 2:00 | 9:05 |
-| 11 | Limitaciones y trabajo futuro | 0:40 | 9:45 |
-| 12 | Cierre | 0:15 | 10:00 |
+| # | Diapositiva | Tiempo (10 min) | Acumulado | Modo pitch rápido (4 min) |
+|---|---|---|---|---|
+| 1 | Portada · Gancho | 0:25 | 0:25 | Sí (0:25) |
+| 2 | El problema | 0:40 | 1:05 | Sí (0:25) |
+| 3 | La solución: dos capas | 0:40 | 1:45 | Sí (0:30) |
+| 4 | Grafo dirigido y ponderado | 0:35 | 2:20 | Breve (0:15) |
+| 5 | Capa 1: red Mesh | 0:35 | 2:55 | Saltar a slide 6 |
+| 6 | BFS con TTL paso a paso | 1:10 | 4:05 | Solo resultado (0:20) |
+| 7 | Capa 2: el campus real | 0:40 | 4:45 | Sí (0:25) |
+| 8 | Dijkstra paso a paso (subgrafo B-210) | 1:25 | 6:10 | Resumir (0:20) |
+| 9 | Campus real: evacuar P-309 | 0:45 | 6:55 | Saltar directo a demo |
+| 10 | Demo en vivo (Web + App Android) | 2:10 | 9:05 | Sí (1:00) |
+| 11 | Limitaciones y trabajo futuro | 0:35 | 9:40 | Breve (0:10) |
+| 12 | Cierre | 0:20 | 10:00 | Sí (0:10) |
 
-**Controles de tiempo:** si al llegar a la diapositiva 6 vas por encima de 3:30, acorta el BFS (salta del paso 3 al resultado). Si al empezar la demo vas por encima de 7:30, haz solo los pasos 1 a 3 de la demo.
+**Controles de tiempo:** si en la diapositiva 6 pasas de **3:30**, salta del paso 3 al resultado. Si al empezar la demo pasas de **7:30**, haz solo los pasos 1 a 3 (Mesh + P-309 + bloqueo).
 
 ---
 
-## 1 · Portada (0:20)
+## 1 · Portada y gancho (0:25)
 
-Buenos días. Soy James Fernández. Mi proyecto se llama **Unexuam**: es un sistema de evacuación *off-grid* para el campus de la UAM. Usa dos grafos dirigidos y ponderados para avisar de una emergencia y guiar a la gente a una zona segura, sin internet y sin red celular.
+Buenos días. Soy **James Fernández**.
 
-## 2 · El problema (0:45)
+Imaginen que ahora mismo tiembla fuerte aquí en la UAM. ¿Qué es lo primero que hacemos todos? Sacar el teléfono. Y en ese mismo segundo se satura la red celular y, si se va la luz, se cae el Wi-Fi del campus.
 
-Imaginen un sismo a media mañana. Lo primero que hacemos es sacar el teléfono, y justo en ese momento la red celular se satura porque todos llaman a la vez. Si se va la luz, el Wi-Fi del campus también se cae.
+Para resolver exactamente ese escenario creé **Unexuam**: un sistema de evacuación **Off-Grid** para el campus real de la UAM, construido con **dos grafos dirigidos y ponderados hechos 100 % a mano en Python**, y empaquetado también como **app Android autónoma**.
 
-Entonces tenemos dos problemas. Uno de **comunicación**: ¿cómo se entera todo el mundo de que hay peligro? Y otro de **navegación**: ¿por dónde salgo, si no sé qué pasillo está bloqueado ni cuál es la salida más rápida desde mi aula?
+---
 
-La pregunta del proyecto es esa: avisar y guiar sin depender de ninguna infraestructura.
+## 2 · El problema (0:40)
 
-## 3 · La solución: dos capas (0:40)
+En una emergencia sin internet ni señal celular aparecen dos problemas críticos al mismo tiempo:
 
-La solución tiene dos capas, y cada una es un grafo.
+1. **Comunicación:** ¿cómo se entera toda la comunidad universitaria de que hay peligro si nadie tiene señal?
+2. **Navegación:** si estás en el tercer piso del Edificio P o del Edificio C, ¿por dónde sales si no sabes qué escalera se bloqueó ni cuál es la zona segura más cercana?
 
-La primera es la **comunicación**: los teléfonos son vértices y los enlaces entre ellos son aristas, con el retardo como peso. La alerta salta de teléfono en teléfono con un BFS limitado por TTL.
+El objetivo de Unexuam es resolver ambos problemas **sin depender de ninguna infraestructura externa**.
 
-La segunda es la **navegación**: aulas, pasillos, escaleras y salidas son vértices, y cada paso es una arista cuyo peso son los segundos que se tarda en caminar. Ahí uso Dijkstra para encontrar la zona segura más cercana.
+---
 
-Y lo importante es la flecha del medio: cuando la alerta llega, cambia los pesos del mapa y la ruta se recalcula.
+## 3 · La solución: dos capas, dos grafos (0:40)
+
+La solución acopla **dos capas de grafos** que reaccionan en cadena:
+
+- **Capa 1 · Comunicación (Red Mesh simulada):** cada teléfono es un vértice y cada enlace es una arista cuyo peso es el retardo en segundos. Las alertas saltan de teléfono en teléfono usando **BFS limitado por TTL**.
+- **Capa 2 · Navegación (Campus real de la UAM):** aulas, pabellones, escaleras, la pasarela del B, salidas y zonas seguras son vértices; cada paso es una arista cuyo peso es el tiempo caminando en segundos. Aquí **Dijkstra** calcula la ruta hacia la zona segura más cercana.
+
+Lo clave es la conexión entre ambas capas: **cuando llega una alerta, modifica el grafo del campus** —cierra tramos o encarece zonas— y Dijkstra recalcula la ruta al instante.
+
+---
 
 ## 4 · Grafo dirigido y ponderado (0:35)
 
-Las dos capas usan las mismas clases del curso: `Vertex`, con su nombre y su lista de vecinos, y `Graph`, con la lista de vértices. Cada vecino es una tupla con el vértice destino y el peso.
+Las dos capas usan exactamente las mismas clases implementadas a mano en Python, sin NetworkX ni librerías externas: `Vertex` (con `nombre` y `neig`, una lista de tuplas `(destino, peso)`) y `Graph` (con `vertexs`).
 
-Es **dirigido** porque en la realidad no es simétrico: bajar una escalera es más rápido que subirla, y un teléfono puede recibir la señal de otro sin que el otro lo reciba a él. Es **ponderado** porque no todos los pasos cuestan lo mismo. Las operaciones de insertar, eliminar y actualizar devuelven verdadero o falso y no imprimen nada.
+- Es **dirigido** porque la realidad no es simétrica: bajar un piso cuesta **12 segundos**, pero subirlo cuesta **18**; y en la red Mesh un teléfono puede escuchar a otro sin que ocurra al revés.
+- Es **ponderado** porque no todos los pasos cuestan lo mismo.
 
-## 5 · Capa 1: red Mesh (0:40)
+Las operaciones CRUD (`insertarVertice`, `insertarArista`, `eliminarArista`, `eliminarVertice`, `actualizarPeso`) devuelven `True` o `False` y separan totalmente la lógica de grafos de la interfaz.
 
-Esta es la red de ejemplo: ocho teléfonos. Las flechas dobles son enlaces de ida y vuelta, y fíjense que pueden tener pesos distintos: de Ana a Sofía son 0.8 segundos y de vuelta 0.9. Carlos a Pedro, en cambio, solo va en un sentido.
+---
 
-La lógica no la inventé de cero. Viene de **SéTú**, una app que estoy desarrollando con una red Mesh real en Flutter. Allá cada paquete lleva un TTL que baja en cada salto y una lista de paquetes ya vistos para no repetir. Aquí traduje esa lógica a Python sobre el grafo. La cola para entregar cuando aparece un vecino nuevo quedó como trabajo futuro.
+## 5 · Capa 1: Red Mesh (0:35)
 
-## 6 · BFS con TTL paso a paso (1:15)
+Esta es la red Mesh de ejemplo: **8 teléfonos** y **13 enlaces dirigidos**. Las flechas dobles tienen pesos independientes en cada sentido (de Ana a Sofía 0.8 s, de vuelta 0.9 s), y Carlos → Pedro es unidireccional.
 
-Veamos un ejemplo. Tel-Ana emite una alerta con TTL 2: puede llegar como mucho a dos saltos.
+Esta lógica está inspirada en el protocolo Mesh de **SéTú**: cada alerta lleva un **TTL** que controla cuántos saltos puede dar y una lista de **visitados** para no rebotar ni duplicar paquetes. La cola DTN persistente para entregar cuando aparece un vecino nuevo queda planteada como trabajo futuro.
 
-▶ El BFS usa una cola. Ana sale primero, salto 0. Recorro su lista de vecinos y encolo a Luis y a Sofía con salto 1.
+---
 
-▶ Sale Luis. Su vecino Ana ya está visitada, así que no la repito; eso es lo mismo que la lista de paquetes vistos de SéTú. Encolo a Carlos con salto 2.
+## 6 · BFS con TTL paso a paso (1:10)
 
-▶ Sale Sofía y encola a María, también con salto 2.
+Veamos cómo funciona cuando **Tel-Ana** emite una alerta con **TTL 2** (máximo 2 saltos):
 
-▶ Sale Carlos. Su salto es 2, igual al TTL: recibe la alerta pero **ya no la reenvía**. Por eso Pedro no se entera por este lado.
+▶ BFS usa una cola FIFO. Sale **Ana** en salto 0 y encola a **Luis** y **Sofía** en salto 1.
+▶ Sale **Luis**. Su vecino Ana ya está visitado, así que no se repite; encola a **Carlos** en salto 2.
+▶ Sale **Sofía** y encola a **María** en salto 2.
+▶ Sale **Carlos**. Como su salto es 2 (igual al TTL), recibe la alerta pero **ya no la reenvía** a Pedro.
+▶ Lo mismo ocurre con **María**. La cola queda vacía y el algoritmo termina.
+▶ **Resultado:** llegan **5 de 8 teléfonos** con su número exacto de salto. Si subo el TTL a **5**, cubre los **8 teléfonos**. El TTL evita tormentas de reenvío y ahorro de batería en una red real.
 
-▶ Lo mismo con María. La cola queda vacía y el BFS termina.
+---
 
-▶ Resultado: la alerta llegó a 5 de 8 teléfonos, y la función devuelve cada teléfono con su número de salto. Si subo el TTL a 5, llega a los ocho. El TTL sirve para que la alerta no rebote para siempre gastando batería en una red real.
+## 7 · Capa 2: El campus real de la UAM (0:40)
 
-## 7 · Capa 2: el campus real (0:35)
+Este es el **campus real de la UAM** modelado como grafo sobre el plano de OpenStreetMap:
 
-Este es el campus real de la UAM como grafo, sacado del plano. Afuera hay 44 lugares: edificios, comedores, la pasarela frente al B, salidas y parqueos. Por dentro, cada piso de los edificios B, C y P tiene dos pabellones, este y oeste, con sus aulas, escaleras en los extremos y la escalera central que une B y C hasta el tercer piso; a un aula solo se llega desde su pabellón. En total son 154 vértices y 442 aristas dirigidas.
+- Afuera hay **44 lugares**: edificios, comedores, la **Pasarela frente al Edificio B** (con su escalera central bajando a la Plazoleta), salidas y parqueos.
+- Por dentro, los edificios **B, C y P** se modelan piso por piso y aula por aula: dos pabellones (este y oeste), escaleras en ambos extremos y la **escalera central que une B y C hasta el tercer piso del C**.
+- En total son **154 vértices**, **442 aristas dirigidas** y **12 zonas y puntos seguros**.
 
-El peso son los segundos a pie: la distancia del mapa por 1.3, porque los caminos no son rectos, dividida entre 1.2 metros por segundo. Hay 12 destinos seguros, entre zonas y parqueos, y Dijkstra elige el más cercano.
+El peso de cada arista son segundos caminando (`distancia × 1.3 / 1.2 m/s`), y bajar un piso (12 s) cuesta distinto que subirlo (18 s).
 
-Y aquí se ve por qué tiene que ser dirigido: bajar un piso cuesta 12 segundos y subirlo 18. El plano sale de OpenStreetMap.
+---
 
-## 8 · Dijkstra paso a paso (1:30)
+## 8 · Dijkstra paso a paso · Subgrafo B-210 (1:25)
 
-Con 154 vértices no se puede seguir Dijkstra a mano, así que tomo un subgrafo simplificado del campus: 7 vértices alrededor del aula B-210, en el segundo piso del Edificio B. Los pesos son los mismos del backend. La pregunta: estoy en B-210, ¿cuál es el lugar seguro más cercano? Al inicio, la distancia a B-210 es 0 y a todo lo demás infinito.
+Con 154 vértices no se puede trazar Dijkstra a mano en pantalla, así que tomo un **subgrafo simplificado de 7 vértices alrededor del aula B-210** (2.º piso del B, sin la escalera central/pasarela) con los mismos pesos del backend. Al inicio, B-210 vale `0` y todo lo demás `∞`.
 
-La regla de Dijkstra es una sola: tomo el vértice **no visitado con la menor distancia** y reviso sus aristas. Si llegar por él es más barato, actualizo la distancia y anoto de dónde vine.
+La regla de Dijkstra es una sola: elegir el vértice **no visitado con menor distancia** y relajar sus vecinos.
 
-▶ B-210, con 0: su pabellón, el oeste del piso 2, queda a 8.
-▶ Pabellón oeste, con 8: la escalera del piso 2 queda a 8 + 6 = 14, y el Edificio E, por el pasillo elevado, a 8 + 15 = 23.
-▶ Escalera del piso 2, con 14: bajar al piso 1 cuesta 12, así que la escalera del piso 1 queda a 26. Subir costaría 18: el grafo es dirigido.
-▶ Edificio E, con 23: la Plazoleta queda a 23 + 32 = 55.
-▶ Escalera del piso 1, con 26: la salida oeste del B queda a 31.
-▶ Salida oeste, con 31: por aquí la Plazoleta costaría 31 + 49 = 80, peor que 55, así que **no se toca**. Esto es Dijkstra: solo cambia una distancia si encuentra algo mejor.
-▶ Sale la Plazoleta con 55. Como es el primer lugar seguro que sale, es el más cercano.
+▶ **B-210 (0):** su pabellón oeste queda a `8`.
+▶ **Pabellón oeste (8):** escalera P2 queda a `14` (`8+6`), y Edificio E (por el pasillo elevado) a `23` (`8+15`).
+▶ **Escalera P2 (14):** bajar a P1 cuesta `12`, así que Escalera P1 queda a `26`.
+▶ **Edificio E (23):** Plazoleta queda a `55` (`23+32`).
+▶ **Escalera P1 (26):** Salida Oeste del B queda a `31` (`26+5`).
+▶ **Salida Oeste (31):** por aquí la Plazoleta costaría `80` (`31+49`), peor que `55`, así que **no se actualiza**.
+▶ Sale **Plazoleta con 55 s**: es el destino seguro más cercano en este subgrafo. *(Y en el campus completo, al existir la escalera central y la Pasarela del B, el backend baja todavía más la ruta a **46 s**).*
 
-La ruta se reconstruye hacia atrás con «de dónde vine»: B-210, pabellón oeste, Edificio E, Plazoleta. **55 segundos**: en este subgrafo el pasillo elevado le gana a bajar por la escalera lateral (en el campus completo, al incluir la escalera central y la pasarela del B, baja aún más a **46 segundos**). Esto funciona porque ningún peso es negativo.
-
-*(Son 7 pasos: un → por cada línea con ▶.)*
+---
 
 ## 9 · Campus real: evacuar el aula P-309 (0:45)
 
-Ahora el mismo algoritmo sobre el campus completo. Estoy en el aula P-309, en el tercer piso del Edificio P. Salgo a mi pabellón, el oeste, y Dijkstra me baja por la escalera oeste al Parqueo Oeste: 10 más 6, más 12, más 12, más 5, más 32, **77 segundos**.
+Ahora el mismo Dijkstra sobre los **154 vértices reales**, saliendo desde el aula **P-309** (tercer piso del Edificio P):
 
-▶ Primera forma en que una alerta cambia el mapa: **cerrar** algo. Si la escalera oeste se bloquea entre el piso 3 y el 2, uso `eliminarArista`. Dijkstra ya no la ve: cruza al pabellón este, baja por la escalera este y llega al Parqueo del Edificio P en **136 segundos**.
+- **Ruta normal:** aula → pabellón oeste → escalera oeste P3 → P2 → P1 → salida oeste → **Punto Seguro Parqueo Oeste** en **77 segundos (1 min 17 s)**.
+- ▶ **Bloqueo (`eliminarArista`):** si el sismo bloquea la escalera oeste entre P3 y P2, se elimina la arista. Dijkstra cruza al pabellón este, baja por la escalera este y sale al **Parqueo del Edificio P** en **136 segundos (2 min 16 s)**.
+- ▶ **Congestión (`aplicarAlerta`):** reabrimos la escalera y llega una alerta de saturación ×5 en el Parqueo Oeste (32 s → 160 s). Dijkstra redirige solo al **Parqueo Sur** en **99 segundos (1 min 39 s)** — sin ningún caso especial programado.
 
-▶ Segunda forma: **encarecer** algo. Reabro la escalera, y por la Mesh llega la alerta de que el Parqueo Oeste está saturado. `aplicarAlerta` multiplica por 5 el costo de entrar: de 32 pasa a 160. Dijkstra cambia de destino solo: Parqueo Sur, **99 segundos**. No programé ningún caso especial: el algoritmo simplemente ve otros pesos.
+---
 
-## 10 · Demo en vivo (2:00)
+## 10 · Demo en vivo (2:10)
 
-Ahora lo muestro funcionando. *(Seguir `demo.md`.)*
+*Abre `http://127.0.0.1:5000` (o muestra el **APK nativo de Android** corriendo en el teléfono sin PC ni internet). Destaca al inicio: «No se quedó en consola: es web móvil LAN y también APK nativo de Android con buscador rápido, guía por voz, vista 3D por pisos y mapa 3D interactivo con arrastrar y zoom».*
 
-## 11 · Limitaciones y trabajo futuro (0:40)
+| Tiempo | Qué tocar | Qué decir | Qué debe verse |
+|---|---|---|---|
+| 0:00 | Pestaña **Red Mesh** → *Tel-Ana*, TTL **2** → **Emitir alerta** | «Tel-Ana emite con TTL 2: BFS propaga salto a salto sin repetir.» | **5 de 8 teléfonos** (Ana 0, Luis 1, Sofía 1, Carlos 2, María 2). |
+| 0:25 | Subir TTL a **5** → **Emitir alerta** | «Con TTL 5, cubre toda la red.» | **8 de 8 teléfonos** (Pedro 3, Valeria 4, Diego 5). |
+| 0:40 | Pestaña **Campus** → acceso rápido **P-309** *(o buscador)* | «Ahora estoy en P-309. Dijkstra calcula la ruta, los pisos en 3D y el mapa interactivo.» | **Parqueo Oeste · 1 min 17 s (77 s)** · 4 pasos. *(Opcional: tocar «🔊 Leer ruta» 3 s o hacer zoom en el mapa 3D).* |
+| 1:05 | En el paso 2 → **Simular bloqueo** *(o Simulacro rápido en Inicio)* | «Se bloquea la escalera oeste: `eliminarArista` y Dijkstra recalcula solo.» | **Parqueo Edificio P · 2 min 16 s (136 s)** · `+59 s`. |
+| 1:30 | **Reabrir pasos** → **Congestión** en *Parqueo Oeste* ×5 → **Aplicar alerta** | «El Parqueo Oeste se satura ×5: `aplicarAlerta` multiplica las entradas y cambia de destino.» | **Parqueo Sur · 1 min 39 s (99 s)** · `+22 s`. |
+| 1:55 | *(Si sobra tiempo)* Acceso rápido **C-305** o **B-205** *(o CRUD en **Administrar**: insertar `Aula 203` → `B Pabellón Este P2`, peso 12)* | «Y en B y C usa la escalera central y la pasarela del B directo a la Plazoleta.» | **C-305: 58 s** · **B-205: 46 s** hacia Plazoleta. |
 
-Quiero ser honesto con lo que es y no es. Es un prototipo: la red Mesh está **simulada** con el grafo, no hay radio de verdad. Los pesos salen de la distancia del mapa, no de medir con cronómetro, y supuse dos pabellones por piso con una escalera en cada extremo en B, C y P. Y el servidor corre en una laptop.
+**Plan B (si falla algo en >15 s):** pulsa **B** en el deck para mostrar las capturas reales; **R** vuelve.
 
-Lo siguiente es conectar Bluetooth real usando lo que ya diseñé en SéTú: la cola, el TTL y los acuses de que otro teléfono guardó la alerta. También, que cada teléfono calcule su propia ruta sin servidor, medir los tiempos con cronómetro y usar flujo máximo para detectar cuellos de botella.
+---
 
-## 12 · Cierre (0:15)
+## 11 · Limitaciones, rigor técnico y trabajo futuro (0:35)
 
-En resumen: dos grafos y dos algoritmos para una sola idea. BFS con TTL para que todos se enteren, Dijkstra para que todos salgan por la ruta más rápida. Muchas gracias. ¿Preguntas?
+Para ser totalmente honesto con el alcance:
+- Hoy es un **prototipo funcional**: la red Mesh está simulada sobre el grafo (sin radio Bluetooth/Wi-Fi Direct todavía) y los tiempos salen del plano de OpenStreetMap, no de medición con cronómetro.
+- Toda la lógica de grafos está hecha a mano sin librerías externas y validada con **31 pruebas automatizadas** (`unittest`: 23 de backend + 8 de API, PWA y paridad del mapa).
+- **Trabajo futuro:** integrar Bluetooth Low Energy / Wi-Fi Direct reales, cola DTN persistente, medición física de tiempos en el campus y flujo máximo para detectar cuellos de botella.
+
+---
+
+## 12 · Cierre (0:20)
+
+En resumen: **dos grafos, dos algoritmos y cero dependencia de internet** —BFS con TTL para que todos se enteren, y Dijkstra para que todos sepan por dónde salir en la UAM, funcionando en web LAN y en un APK autónomo de Android.
+
+Soy **James Fernández**, esto es **Unexuam**. Muchas gracias. ¿Preguntas?
+
+---
+
+## Respuestas rápidas para preguntas del jurado
+
+- **¿Por qué Dijkstra y no BFS en el campus?** Porque cada tramo pesa distinto en segundos; BFS minimiza saltos, Dijkstra minimiza tiempo total.
+- **¿Por qué grafo dirigido?** Escaleras asimétricas (12 s bajar vs 18 s subir), enlaces Mesh unidireccionales (`Carlos → Pedro`) y `aplicarAlerta` penaliza solo aristas que **entran** al peligro (no salir de él).
+- **¿Complejidad?** BFS con listas: $O(V^2 + E)$ (bajaría a $O(V+E)$ con `deque` y `set`). Dijkstra sin heap: $O(V^2 + E)$, y `rutaEvacuacion` corre sobre 12 zonas ($V=154, E=442$).
+- **¿Y si hay pesos negativos?** Dijkstra falla y habría que usar Bellman-Ford; aquí los tiempos y factores de congestión siempre son positivos.
+- **¿Cómo funciona el APK sin la PC?** `mobile/preparar_web.py` exporta el grafo exacto de `backend/datos.py` y Capacitor empaqueta el frontend con el mismo motor de grafos offline y persistencia en `localStorage`.

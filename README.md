@@ -120,7 +120,7 @@ La interfaz sigue una estética móvil de alta legibilidad para situaciones de e
 
 ![Nexa](https://img.shields.io/badge/Aa-Nexa-0B2A4A?style=flat-square)
 
-![](https://img.shields.io/badge/%20-0080FF?style=flat-square) `azul #0080FF` &nbsp;&nbsp; ![](https://img.shields.io/badge/%20-CC0000?style=flat-square) `rojo #CC0000` &nbsp;&nbsp; ![](https://img.shields.io/badge/%20-FCD222?style=flat-square) `amarillo #FCD222` &nbsp;&nbsp; ![](https://img.shields.io/badge/%20-0B2A4A?style=flat-square) `texto #0B2A4A`
+![](https://img.shields.io/badge/%20-0080FF?style=flat-square) `azul #0080FF` &nbsp;&nbsp; ![](https://img.shields.io/badge/%20-E23000?style=flat-square) `rojo #E23000` &nbsp;&nbsp; ![](https://img.shields.io/badge/%20-FCD222?style=flat-square) `amarillo #FCD222` &nbsp;&nbsp; ![](https://img.shields.io/badge/%20-00D656?style=flat-square) `verde #00D656`
 
 <br />
 

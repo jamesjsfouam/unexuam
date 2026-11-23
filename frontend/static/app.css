@@ -1,6 +1,6 @@
 /* Unexuam · web móvil Off-Grid.
  * Hoja de estilos principal de la aplicación.
- * Paleta: azul #0080ff, rojo #cc0000, amarillo #fcd222, blanco. Píldoras de radio 30 px.
+ * Paleta oficial del manual de marca: azul #0080ff, rojo #e23000, amarillo #fcd222, verde #00d656, blanco. Píldoras de radio 30 px.
  * Tipografía del diseño: Nexa. Si está instalada en el equipo se usa; si no, una sans gruesa del sistema
  * (no se descarga nada: la app funciona sin internet). */
 
@@ -26,8 +26,10 @@
   --azul: #0080ff;
   --azul-osc: #0066cc;
   --azul-claro: #e6f2ff;
-  --rojo: #cc0000;
-  --rojo-claro: #fde6e6;
+  --rojo: #e23000;
+  --rojo-claro: #fdebe6;
+  --verde: #00d656;
+  --verde-osc: #008f39;
   --amarillo: #fcd222;
   --amarillo-claro: #fff7d6;
   --blanco: #ffffff;
@@ -149,12 +151,12 @@ body {
 @keyframes splashPop {
   from {
     opacity: 0;
-    transform: scale(.65) rotate(-8deg);
+    transform: scale(.72);
   }
 
   to {
     opacity: 1;
-    transform: scale(1) rotate(0);
+    transform: scale(1);
   }
 }
 
@@ -266,7 +268,7 @@ code {
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: #1fbf5f;
+  background: var(--verde);
 }
 
 .chip-offgrid.caido {
@@ -489,6 +491,8 @@ main {
 }
 
 .historial li {
+  flex: none;
+  min-height: 38px;
   display: grid;
   grid-template-columns: 70px 1fr;
   align-items: stretch;
@@ -1700,7 +1704,7 @@ form.tarjeta {
 }
 
 .paso.t-zona {
-  border-color: #1e9e4a;
+  border-color: var(--verde);
 }
 
 .paso-cab {
@@ -1723,7 +1727,7 @@ form.tarjeta {
 }
 
 .paso.t-zona .paso-n {
-  background: #1e9e4a;
+  background: var(--verde);
 }
 
 .paso-texto {
@@ -1914,7 +1918,7 @@ form.tarjeta {
 }
 
 .e3-salida rect {
-  fill: #1e9e4a;
+  fill: var(--verde);
 }
 
 .e3-salida text {
@@ -2064,7 +2068,7 @@ form.tarjeta {
 }
 
 .r3-nodo.meta circle {
-  fill: #1e9e4a;
+  fill: var(--verde);
   stroke: var(--blanco);
 }
 
