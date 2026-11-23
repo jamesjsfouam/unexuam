@@ -1,6 +1,4 @@
-# Capa 2: navegacion por el campus.
-# Dijkstra hecho a mano con una lista (visitados) y dos diccionarios
-# (distancias y anteriores). Sin heapq ni NetworkX.
+
 
 INF = float("inf")
 
@@ -74,8 +72,6 @@ def rutaEvacuacion(campus, origen, zonasSeguras):
 
 
 def aplicarAlerta(campus, lugar, factor):
-    # Multiplica el peso de todas las aristas que ENTRAN a "lugar"
-    # (llegar ahi tarda mas por congestion o peligro).
     peligro = campus.buscarVertice(lugar)
     if peligro is None:
         return False

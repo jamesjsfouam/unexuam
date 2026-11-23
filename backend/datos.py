@@ -1,5 +1,4 @@
-# Datos: el campus real de la UAM (capa 2) y la red de telefonos de ejemplo (capa 1).
-# Solo se usan los metodos del Graph del profe.
+
 
 from backend.grafo import Graph
 

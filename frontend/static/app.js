@@ -764,13 +764,7 @@ const GIRO = 16 * Math.PI / 180, ACHATE = 0.58, COS_G = Math.cos(GIRO), SEN_G = 
 const ANCHO_ED = 12;         // ancho del edificio (m): aulas atrás, pabellón adelante
 const SEP_PISO = 13;         // separación entre pisos en la vista explotada (el real es 3.6 m)
 
-/* Fachadas según docs/mapa-campus/FOTOS.md.
- * - B y C: no hay fotos del exterior. Estilo común de la UAM: muro blanco (techo #fbfcfd, cara
- *   #e6eaef) con una franja de ventanas azuladas por piso.
- * - P «Copérnico» (fotos verificadas, entre ellas una de James desde el parqueo norte): muro
- *   #f2f4f6, pasillos abiertos con barandas grises #8a96a3 del lado NORTE, columnas grises
- *   #6f7c8a entre bahías (un aula por bahía), ventanas de vidrio oscuro #3a4552, techo con
- *   celdas solares y la torre del observatorio (cúpula blanca, franja verde, sello dorado) al ESTE. */
+/* Estilo de fachadas por edificio (B, C y P «Copérnico»). */
 const FACHADA = {
   B: { techo: "#fbfcfd", muro: "#e6eaef", ventana: "#9cc8f0", pasillo: "sur", nombre: "Edificio B" },
   C: { techo: "#fbfcfd", muro: "#e6eaef", ventana: "#9cc8f0", pasillo: "sur", nombre: "Edificio C" },

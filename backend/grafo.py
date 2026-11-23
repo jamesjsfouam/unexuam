@@ -1,9 +1,3 @@
-# Grafo DIRIGIDO y PONDERADO, con el estilo del profe.
-# - Vertex: nombre (del lugar o telefono) y neig (lista de tuplas (Vertex destino, peso)).
-#   (El profe lo llama "city"; aqui se renombro a "nombre" por claridad.)
-# - Graph: vertexs (lista de objetos Vertex).
-# - Los metodos devuelven True/False y NO imprimen nada.
-
 
 class Vertex:
     def __init__(self, nombre):

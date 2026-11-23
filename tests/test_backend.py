@@ -1,5 +1,3 @@
-# Pruebas del backend. Ejecutar desde la carpeta del proyecto:
-#   python -m unittest discover tests -v
 
 import unittest
 
