@@ -42,7 +42,7 @@ Verificado el 23/11 con el backend real (`backend/datos.py`, campus de la UAM, c
 - **Parqueo Oeste ×5:** 32 → 160, así que por ahí serían 195; Parqueo Sur 6 + 12 + 12 + 5 + 54 = **89**. Con ×2, ×3 o ×10 sale lo mismo.
 - Subir un piso cuesta 18 s y bajarlo 12 s; pasillo del P 10 s entre aulas, del B y C 8 s.
 
-Si cambias `backend/datos.py`, corrige a mano estos números, la diapositiva 9 (`EDIF_P` en el script de `deck.html`) y `guion.md`. La diapositiva 8 es un ejemplo pequeño que no depende del backend.
+Si cambias `backend/datos.py`, corrige a mano estos números, la diapositiva 9 (`EDIF_P` en el script de `deck.html`) y `guion.md`. La diapositiva 8 usa un subgrafo real de 7 vértices alrededor de B-210 (`CAMPUS` en el script de `deck.html`): B-210 → Edificio E → Plazoleta, 47 s, igual que el backend con el campus completo.
 
 ## Plan B: si algo falla
 

@@ -14,7 +14,7 @@ Ritmo de referencia: unas 130 palabras por minuto. Lo que está en *cursiva* es 
 | 5 | Capa 1: red Mesh | 0:40 | 3:00 |
 | 6 | BFS con TTL paso a paso | 1:15 | 4:15 |
 | 7 | Capa 2: el campus real | 0:35 | 4:50 |
-| 8 | Dijkstra paso a paso (ejemplo pequeño) | 1:30 | 6:20 |
+| 8 | Dijkstra paso a paso (trozo real, B-210) | 1:30 | 6:20 |
 | 9 | Campus real: evacuar el aula P-309 | 0:45 | 7:05 |
 | 10 | Demo en vivo | 2:00 | 9:05 |
 | 11 | Limitaciones y trabajo futuro | 0:40 | 9:45 |
@@ -80,26 +80,22 @@ Este es el campus real de la UAM como grafo, sacado del plano. Afuera hay 43 lug
 
 El peso son los segundos a pie: la distancia del mapa por 1.3, porque los caminos no son rectos, dividida entre 1.2 metros por segundo. Hay 12 destinos seguros, entre zonas y parqueos, y Dijkstra elige el más cercano.
 
-Y aquí se ve por qué tiene que ser dirigido: bajar un piso cuesta 12 segundos y subirlo 18.
+Y aquí se ve por qué tiene que ser dirigido: bajar un piso cuesta 12 segundos y subirlo 18. El plano sale de OpenStreetMap.
 
 ## 8 · Dijkstra paso a paso (1:30)
 
-Con 134 vértices no se puede seguir Dijkstra a mano, así que para ver cada paso uso un ejemplo pequeño: un edificio de dos pisos con 14 lugares. La pregunta: estoy en el Aula 201, ¿cuál es la salida más rápida? Al inicio, la distancia al Aula 201 es 0 y a todo lo demás infinito.
+Con 134 vértices no se puede seguir Dijkstra a mano, así que tomo un trozo real del campus: 7 vértices alrededor del aula B-210, en el segundo piso del Edificio B. Los pesos son los mismos del backend. La pregunta: estoy en B-210, ¿cuál es el lugar seguro más cercano? Al inicio, la distancia a B-210 es 0 y a todo lo demás infinito.
 
 La regla de Dijkstra es una sola: tomo el vértice **no visitado con la menor distancia** y reviso sus aristas. Si llegar por él es más barato, actualizo la distancia y anoto de dónde vine.
 
-*(Son 11 pasos: pulsa → a buen ritmo, unos 6 segundos por paso, y narra solo los que importan.)*
+▶ B-210, con 0: la escalera oeste del piso 2 queda a 6, y el Edificio E, por el pasillo elevado, a 15.
+▶ La escalera del piso 2, con 6, es la menor: bajar al piso 1 cuesta 12, así que la escalera del piso 1 queda a 18. Fíjense que subir costaría 18: el grafo es dirigido.
+▶ Edificio E, con 15: la Plazoleta queda a 15 + 32 = 47 y el Parqueo 20 Av a 15 + 44 = 59.
+▶ Escalera del piso 1, con 18: la salida oeste del B queda a 23.
+▶ Salida oeste, con 23: por aquí la Plazoleta costaría 23 + 49 = 72, que es peor que 47, así que **no se toca**. Esto es Dijkstra: solo cambia una distancia si encuentra algo mejor.
+▶ Sale la Plazoleta con 47. Como es el primer lugar seguro que sale, es el más cercano.
 
-▶ Aula 201: el Pasillo B queda a 10.
-▶ Pasillo B: Escalera Norte a 18, Escalera Sur a 30, y las aulas vecinas.
-▶ Escalera Norte, la menor con 18: el Pasillo A queda a 18 más 15, 33.
-▶ Aula 202 y Biblioteca no mejoran nada. ▶ Escalera Sur, con 30: Salida Este a 52.
-▶ Pasillo A, con 33: Salida Principal a 45. Por aquí la Salida Este costaría 73, peor que 52, así que no se toca.
-▶ Las aulas del piso 1 no mejoran nada. ▶ Salida Principal, con 45: la Cancha queda a 65 y el Parqueo a 105.
-▶ Cafetería, nada. ▶ Salida Este, con 52: el Parqueo baja de 105 a 77. **Esto es lo que hace Dijkstra: corrige una distancia cuando encuentra un camino mejor.**
-▶ Sale la Cancha con 65. Como es la primera zona segura que sale, es la más cercana.
-
-La ruta se reconstruye hacia atrás con la tabla de "de dónde vine": Aula 201, Pasillo B, Escalera Norte, Pasillo A, Salida Principal, Cancha. 65 segundos. Esto funciona porque ningún peso es negativo.
+La ruta se reconstruye hacia atrás con «de dónde vine»: B-210, Edificio E, Plazoleta. **47 segundos**: el pasillo elevado le gana a bajar las escaleras. Con el campus completo, el backend da exactamente lo mismo. Esto funciona porque ningún peso es negativo.
 
 ## 9 · Campus real: evacuar el aula P-309 (0:45)
 
