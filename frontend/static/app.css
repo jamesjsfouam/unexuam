@@ -372,3 +372,23 @@ form.tarjeta { margin: 0; }
 @media (min-width: 600px) {
   .banner { border-radius: 0 0 var(--radio) var(--radio); }
 }
+
+/* ---------- pantalla Campus: vista general por edificio y vista de pisos ---------- */
+.lienzo-cab { display: flex; align-items: center; gap: 10px; padding: 8px 14px; font-size: 13px; color: var(--azul); border-bottom: 2px solid var(--azul-claro); }
+.lienzo-cab b { font-weight: 900; }
+.credito { margin: 0; padding: 4px 14px 8px; font-size: 10.5px; color: var(--gris); text-align: right; }
+.credito a { color: var(--azul); }
+.fondo-campus .f-campus { fill: #eaf4e1; stroke: #c3d4ad; stroke-width: 1.2; }
+.fondo-campus .f-edificio { fill: #e3e8ef; stroke: #cbd3dd; stroke-width: .6; }
+.fondo-campus .f-cancha { fill: #c9ecc9; stroke: #9ad2a0; stroke-width: .6; }
+.fondo-campus .f-parqueo { fill: #edf0f4; stroke: #d5dbe3; stroke-width: .5; stroke-dasharray: 3 2; }
+.t-pisos circle.c { fill: var(--azul); stroke: var(--azul-osc); stroke-width: 2.5; }
+.t-pisos .ico { fill: var(--blanco); }
+.nodo .ico.aula { font-size: 9.5px; }
+.cab-piso { font-size: 12px; font-weight: 900; fill: var(--azul); text-anchor: middle; }
+.cab-lado { font-size: 10px; font-weight: 700; fill: var(--gris); }
+.vista-general .nodo .lbl { font-size: 8.5px; }
+.vista-general .nodo .ico { font-size: 8px; }
+.vista-general .arista { stroke-width: 1.4; }
+.vista-general .t-zona circle.c { fill: var(--verde, #1e9e4a); stroke: #fff; }
+.lienzo-cab .btn { white-space: nowrap; flex: none; }

@@ -197,7 +197,7 @@ function reordenar(cual) {
 
 /* ------------------------------------------------------------- dibujo */
 
-const R = 15;
+let R = 15;   // radio del nodo; cada dibujo puede pedir otro con o.r
 
 function etiqueta(nombre) {
   // hasta 2 líneas de ~12 caracteres
@@ -235,7 +235,8 @@ function geometria(A, B, curva) {
  * o.extraNodo(v, p) -> svg extra   o.unidad: texto tras el peso
  */
 function dibujar(svg, cual, g, o) {
-  const P = posiciones(cual, g);
+  R = o.r || 15;
+  const P = o.pos || posiciones(cual, g);
   const existe = new Set(g.aristas.map(a => clave(a.origen, a.destino)));
   const todas = [...g.aristas.map(a => ({ ...a, fantasma: false })),
                  ...(o.fantasmas || []).filter(a => P[a.origen] && P[a.destino] && !existe.has(clave(a.origen, a.destino)))
@@ -246,15 +247,15 @@ function dibujar(svg, cual, g, o) {
   for (const a of todas) {
     const A = P[a.origen], B = P[a.destino];
     if (!A || !B || a.origen === a.destino) continue;
-    const curva = pares.has(clave(a.destino, a.origen));
+    const curva = !o.sinFlechas && !a.doble && pares.has(clave(a.destino, a.origen));
     const gm = geometria(A, B, curva);
     const k = clave(a.origen, a.destino);
     const cls = a.fantasma ? "bloqueada" : (o.claseArista ? o.claseArista(a) : "");
     const peso = `${fmt(a.peso)}${o.unidad || ""}`;
     const html = `<g class="ar" data-a="${esc(k)}">
       <path class="arista ${cls}" d="${gm.d}" data-k="${esc(k)}"/>
-      ${a.fantasma ? "" : `<path class="flecha ${cls}" d="${gm.flecha}"/>`}
-      <text class="peso ${cls}" x="${gm.m.x}" y="${gm.m.y}">${a.fantasma ? "✕" : esc(peso)}</text>
+      ${a.fantasma || o.sinFlechas || a.doble ? "" : `<path class="flecha ${cls}" d="${gm.flecha}"/>`}
+      ${!o.pesos || o.pesos(a) || a.fantasma ? `<text class="peso ${cls}" x="${gm.m.x}" y="${gm.m.y}">${a.fantasma ? "✕" : esc(peso)}</text>` : ""}
       <path class="toque" d="${gm.d}"><title>${esc(a.origen)} ${FLECHA} ${esc(a.destino)} · ${esc(peso)}</title></path>
     </g>`;
     if (cls && cls !== "bloqueada") frente += html; else fondo += html;
@@ -263,7 +264,8 @@ function dibujar(svg, cual, g, o) {
   let nodos = "";
   for (const v of g.vertices) {
     const p = P[v];
-    const lin = etiqueta(v);
+    const corto = o.corto ? o.corto(v) : v;
+    const lin = corto ? etiqueta(corto) : [];
     const tipo = o.tipo ? o.tipo(v) : "";
     const icono = o.icono ? o.icono(v, tipo) : "";
     nodos += `<g class="nodo t-${tipo} ${o.claseNodo ? o.claseNodo(v) : ""}" data-n="${esc(v)}" transform="translate(${p.x},${p.y})">
@@ -284,7 +286,7 @@ function dibujar(svg, cual, g, o) {
     svg.setAttribute("viewBox", vb.map(n => Math.round(n)).join(" "));
   }
   svg.innerHTML = g.vertices.length
-    ? `<g>${fondo}</g><g>${frente}</g><g class="capa-chispa"></g><g>${nodos}</g>`
+    ? `${o.fondo || ""}<g>${fondo}</g><g>${frente}</g><g class="capa-chispa"></g><g>${nodos}</g>${o.extra || ""}`
     : `<text x="${W / 2}" y="100" text-anchor="middle" class="peso" style="font-size:13px">El grafo está vacío. Agrega vértices en Administrar.</text>`;
 }
 
@@ -562,48 +564,201 @@ async function animarAlerta(ua) {
 
 /* -------------------------------------------------------------- campus */
 
+/* El campus real tiene 134 vértices: en el celular se ve en dos niveles.
+ * - Vista general: un nodo por edificio o zona, en su posición real del plano (OpenStreetMap).
+ * - Vista de un edificio con aulas (B, C, P): sus pisos como columnas, con aulas, pasillo,
+ *   escaleras (bajar 12 s / subir 18 s) y salidas. La ruta se resalta en las dos vistas. */
+let PLANO = null;            // frontend/static/campus-plano.json (posiciones en metros y fondo)
+let edificioVista = null;    // "B" | "C" | "P" mientras se ven los pisos de ese edificio
+let ubicacionVista = null;
+let VISTA = null;            // última vista dibujada (para traducir toques a aristas reales)
+const CON_PISOS = /^([A-Z])(?:-\d{3}$| Escalera | Salida )/;
+
+fetch("/static/campus-plano.json").then(r => r.json()).then(j => { PLANO = j; if (E) renderCampus(); }).catch(() => {});
+
+function letraEdificio(v) { const m = CON_PISOS.exec(v); return m ? m[1] : null; }
+function grupoDe(v) { const l = letraEdificio(v); return l ? "Edificio " + l : v; }
+
+function poligonoSvg(pol, T, cls) {
+  return `<polygon class="${cls}" points="${pol.map(q => { const t = T(q); return `${t.x.toFixed(1)},${t.y.toFixed(1)}`; }).join(" ")}"/>`;
+}
+
+function vistaGeneral(c) {
+  const grupos = [];
+  for (const v of c.vertices) { const g = grupoDe(v); if (!grupos.includes(g)) grupos.push(g); }
+  const mejor = new Map(), real = new Map();
+  for (const a of c.aristas) {
+    const go = grupoDe(a.origen), gd = grupoDe(a.destino);
+    if (go === gd) continue;
+    const k = go < gd ? clave(go, gd) : clave(gd, go);   // una línea por par (sin flechas)
+    if (!mejor.has(k) || a.peso < mejor.get(k).peso) {
+      const [o1, d1] = go < gd ? [go, gd] : [gd, go];
+      mejor.set(k, { origen: o1, destino: d1, peso: a.peso });
+      real.set(k, go < gd ? [a.origen, a.destino] : [a.destino, a.origen]);
+    }
+  }
+  const fantasmas = c.bloqueados.filter(b => grupoDe(b.origen) !== grupoDe(b.destino))
+    .map(b => ({ origen: grupoDe(b.origen), destino: grupoDe(b.destino), peso: b.peso }));
+  // posiciones reales: 360 px de ancho para ~375 m de campus
+  const pos = {};
+  let fondo = "";
+  if (PLANO) {
+    const k = 340 / 376, T = q => ({ x: 10 + q[0] * k, y: 10 + q[1] * k });
+    for (const [n, q] of Object.entries(PLANO.posiciones)) pos[n] = T(q);
+    for (const L of ["B", "C", "P"]) {
+      const e = pos[L + " Salida Este"], o = pos[L + " Salida Oeste"];
+      if (e && o) pos["Edificio " + L] = { x: (e.x + o.x) / 2, y: (e.y + o.y) / 2 };
+    }
+    // B, C, Parqueo Central y Plazoleta están a 9-18 m entre sí: se separan unos píxeles para que se lean
+    const mueve = (n, dy) => { if (pos[n]) pos[n] = { x: pos[n].x, y: pos[n].y + dy }; };
+    mueve("Edificio B", -4); mueve("Edificio C", 2); mueve("Punto Seguro Parqueo Central", 10); mueve("Punto Seguro Plazoleta", -7);
+    mueve("Punto Seguro Parqueo Sur", -8); mueve("Edificio P", 3);
+    fondo = `<g class="fondo-campus">${poligonoSvg(PLANO.campus, T, "f-campus")}${PLANO.parqueos.map(q => poligonoSvg(q, T, "f-parqueo")).join("")}` +
+      `${PLANO.canchas.map(q => poligonoSvg(q, T, "f-cancha")).join("")}${PLANO.edificios.map(q => poligonoSvg(q, T, "f-edificio")).join("")}</g>`;
+  }
+  const P = {};
+  for (const g of grupos) P[g] = pos[g] || null;
+  for (const g of grupos) if (!P[g]) P[g] = hueco(Object.fromEntries(grupos.filter(u => P[u]).map(u => [u, P[u]])));
+  return { tipo: "general", vertices: grupos, aristas: [...mejor.values()], fantasmas, pos: P, real, fondo, r: 9, mapa: grupoDe };
+}
+
+function vistaEdificio(c, L) {
+  const dentro = c.vertices.filter(v => letraEdificio(v) === L);
+  const pisos = {};
+  for (const v of dentro) {
+    const m = /^[A-Z]-(\d)(\d\d)$/.exec(v);
+    if (m) (pisos[m[1]] = pisos[m[1]] || []).push(Number(m[2]));
+  }
+  const lista = Object.keys(pisos).map(Number).sort((a, b) => a - b);
+  const maxN = Math.max(...lista.map(p => Math.max(...pisos[p])));
+  const paso = lista.length > 1 ? Math.min(115, 230 / (lista.length - 1)) : 0;
+  const colX = p => 100 + lista.indexOf(p) * paso;
+  const yAula = n => 56 + n * 38, yOeste = yAula(maxN + 1);
+  const P = { [L + " Salida Este"]: { x: 34, y: 56 }, [L + " Salida Oeste"]: { x: 34, y: yOeste } };
+  for (const p of lista) {
+    P[`${L} Escalera Este P${p}`] = { x: colX(p), y: 56 };
+    P[`${L} Escalera Oeste P${p}`] = { x: colX(p), y: yOeste };
+    for (const n of pisos[p]) P[`${L}-${p}${String(n).padStart(2, "0")}`] = { x: colX(p), y: yAula(n) };
+  }
+  // vecinos de afuera unidos a un aula (p. ej., el pasillo elevado B-210 -> Edificio E)
+  const vertices = Object.keys(P).filter(v => c.vertices.includes(v));
+  const interior = new Set(vertices);
+  for (const a of c.aristas) {
+    // solo vecinos directos de un aula o escalera (no de las salidas ni en cadena)
+    if (interior.has(a.origen) && !P[a.destino] && !/ Salida /.test(a.origen)) {
+      P[a.destino] = { x: Math.min(330, P[a.origen].x + 62), y: P[a.origen].y };
+      vertices.push(a.destino);
+    }
+  }
+  const dentroSet = new Set(vertices);
+  const aristas = [];
+  for (const a of c.aristas) {
+    if (!dentroSet.has(a.origen) || !dentroSet.has(a.destino)) continue;
+    const vuelta = c.aristas.find(b => b.origen === a.destino && b.destino === a.origen);
+    if (vuelta && vuelta.peso === a.peso) {          // pasillo: una línea sin flecha
+      if (a.origen < a.destino) aristas.push({ ...a, doble: true });
+    } else aristas.push(a);                          // escaleras: bajar y subir pesan distinto
+  }
+  const fantasmas = c.bloqueados.filter(b => dentroSet.has(b.origen) && dentroSet.has(b.destino));
+  const extra = lista.map(p => `<text class="cab-piso" x="${colX(p)}" y="31">Piso ${p}</text>`).join("");
+  return { tipo: "edificio", letra: L, vertices, aristas, fantasmas, pos: P, real: new Map(), fondo: "", extra, r: 13, mapa: v => v };
+}
+
 function renderCampus() {
   const c = E.campus;
-  const P = posiciones("campus", c);
-  llenar($("#campus-ubicacion"), c.vertices.filter(v => !c.zonasSeguras.includes(v)).map(v => ({ v, t: v })), "Elige dónde estás…");
+  if (c.ubicacion !== ubicacionVista) {       // al elegir un aula se abre su edificio
+    ubicacionVista = c.ubicacion;
+    const l = c.ubicacion && letraEdificio(c.ubicacion);
+    if (l) edificioVista = l;
+  }
+  if (edificioVista && !c.vertices.some(v => letraEdificio(v) === edificioVista)) edificioVista = null;
+  const V = VISTA = edificioVista ? vistaEdificio(c, edificioVista) : vistaGeneral(c);
+
+  // selects agrupados por edificio
+  const conGrupo = lista => lista.map(x => ({ ...x, g: grupoDe(x.v) }));
+  llenarAgrupado($("#campus-ubicacion"), conGrupo(c.vertices.filter(v => !c.zonasSeguras.includes(v)).map(v => ({ v, t: v }))), "Elige dónde estás…");
   $("#campus-ubicacion").value = c.ubicacion || "";
-  llenar($("#bloq-paso"), c.aristas.map(a => ({ v: JSON.stringify([a.origen, a.destino]), t: `${a.origen} → ${a.destino} (${fmt(a.peso)} s)` })));
+  const pasosVista = V.tipo === "general" ? [...V.real.values()].map(([o, d]) => c.aristas.find(a => a.origen === o && a.destino === d)) : V.aristas;
+  llenar($("#bloq-paso"), pasosVista.filter(Boolean).map(a => ({ v: JSON.stringify([a.origen, a.destino]), t: `${a.origen} → ${a.destino} (${fmt(a.peso)} s)` })));
   if (seleccion) {
     const v = JSON.stringify(seleccion);
     if (c.aristas.some(a => a.origen === seleccion[0] && a.destino === seleccion[1])) $("#bloq-paso").value = v;
     else seleccion = null;
   }
-  llenar($("#cong-lugar"), c.vertices.map(v => ({ v, t: v + (c.congestion[v] ? ` (×${c.congestion[v]})` : "") })));
+  llenarAgrupado($("#cong-lugar"), conGrupo(c.vertices.map(v => ({ v, t: v + (c.congestion[v] ? ` (×${c.congestion[v]})` : "") }))));
   $$("#cong-factor button").forEach(b => b.setAttribute("aria-pressed", String(Number(b.dataset.f) === factor)));
 
+  // ruta traducida a la vista (en la general, una sola parada por edificio)
   const r = c.ruta;
+  const enVista = ruta => {
+    const out = [];
+    for (const n of ruta) { const m = V.mapa(n); if (out[out.length - 1] !== m) out.push(m); }
+    return out;
+  };
   const enRuta = new Set(), aristasRuta = new Set(), aristasAntes = new Set();
   if (r && r.ruta.length) {
-    r.ruta.forEach((n, i) => { enRuta.add(n); if (i) aristasRuta.add(clave(r.ruta[i - 1], n)); });
+    enVista(r.ruta).forEach((n, i, l) => { enRuta.add(n); if (i) aristasRuta.add(clave(l[i - 1], n)); });
   }
   if (rutaAnterior && rutaAnterior.ruta.length) {
-    rutaAnterior.ruta.forEach((n, i) => { if (i) aristasAntes.add(clave(rutaAnterior.ruta[i - 1], n)); });
+    enVista(rutaAnterior.ruta).forEach((n, i, l) => { if (i) aristasAntes.add(clave(l[i - 1], n)); });
   }
-  const congestionados = new Set(Object.keys(c.congestion));
+  const cong = {};
+  for (const [n, f] of Object.entries(c.congestion)) cong[V.mapa(n)] = Math.max(cong[V.mapa(n)] || 1, f);
+  const congestionados = new Set(Object.keys(cong));
+  const aqui = c.ubicacion ? V.mapa(c.ubicacion) : null;
   $("#lienzo-campus").classList.toggle("emergencia", c.bloqueados.length > 0 || congestionados.size > 0);
 
-  dibujar($("#svg-campus"), "campus", c, {
+  $("#svg-campus").classList.toggle("vista-general", V.tipo === "general");
+  $("#campus-cab").innerHTML = V.tipo === "general"
+    ? `<span><b>Campus</b> · toca B, C o P para ver sus pisos</span>`
+    : `<button class="btn mini" data-accion="campus-general">← Campus</button><span><b>Edificio ${V.letra}</b> · este arriba, oeste abajo</span>`;
+
+  const icono = (v, t) => {
+    if (V.tipo === "edificio") {
+      const m = /^[A-Z]-(\d{3})$/.exec(v);
+      if (m) return `<text class="ico aula">${m[1]}</text>`;
+      return `<text class="ico">${/ Escalera /.test(v) ? "E" : / Salida /.test(v) ? "S" : esc(v.slice(-1))}</text>`;
+    }
+    if (c.zonasSeguras.includes(v)) return "";
+    const ed = /^Edificio (\S+)$/.exec(v);
+    if (ed) return `<text class="ico">${esc(ed[1])}</text>`;
+    return `<text class="ico">${esc(v.split(/\s+/).filter(p => p.length > 2).map(p => p[0]).join("").slice(0, 2).toUpperCase())}</text>`;
+  };
+  const corto = v => {
+    if (V.tipo === "edificio") {
+      if (/^[A-Z]-\d{3}$/.test(v)) return "";
+      if (/ Escalera /.test(v)) return "Esc.";
+      if (/ Salida /.test(v)) return v.replace(/^[A-Z] /, "");
+      return v;
+    }
+    if (!c.zonasSeguras.includes(v)) return "";          // el nombre sale al tocarlo
+    return v.replace(/^Punto Seguro /, "").replace(/^Zona Segura /, "");
+  };
+
+  dibujar($("#svg-campus"), "campus", { vertices: V.vertices, aristas: V.aristas }, {
     unidad: "",
-    tipo: tipoLugar,
-    icono: (v, t) => `<text class="ico">${ICONO[t] || esc(v.replace(/[^A-Za-zÁÉÍÓÚÑáéíóúñ0-9]/g, "").slice(0, 1).toUpperCase())}</text>`,
-    fantasmas: c.bloqueados,
+    pos: V.pos,
+    r: V.r,
+    fondo: V.fondo,
+    extra: V.extra || "",
+    corto,
+    tipo: v => (V.tipo === "general" && /^Edificio [BCP]$/.test(v) ? "pisos" : tipoLugar(v)),
+    icono,
+    fantasmas: V.fantasmas,
+    sinFlechas: V.tipo === "general",
+    pesos: a => V.tipo === "edificio" || aristasRuta.has(clave(a.origen, a.destino)) || aristasRuta.has(clave(a.destino, a.origen)),
     claseArista: a => {
       const k = clave(a.origen, a.destino);
-      if (aristasRuta.has(k)) return "ruta";
-      if (seleccion && k === clave(seleccion[0], seleccion[1])) return "sel";
+      if (aristasRuta.has(k) || ((V.tipo === "general" || a.doble) && aristasRuta.has(clave(a.destino, a.origen)))) return "ruta";
+      if (seleccion && k === clave(V.mapa(seleccion[0]), V.mapa(seleccion[1]))) return "sel";
       if (aristasAntes.has(k)) return "anterior";
       if (congestionados.has(a.destino)) return "cara";
       return "";
     },
-    claseNodo: v => [v === c.ubicacion ? "aqui" : "", enRuta.has(v) ? "en-ruta" : ""].join(" "),
-    antesNodo: v => (v === c.ubicacion ? `<circle class="anillo" r="${R}"/>` : ""),
-    extraNodo: v => (c.congestion[v]
-      ? `<g class="insignia" transform="translate(${-R},${-R + 1})"><rect x="-11" y="-7" width="22" height="14" rx="7"/><text>×${fmt(c.congestion[v])}</text></g>`
+    claseNodo: v => [v === aqui ? "aqui" : "", enRuta.has(v) ? "en-ruta" : ""].join(" "),
+    antesNodo: v => (v === aqui ? `<circle class="anillo" r="${R}"/>` : ""),
+    extraNodo: v => (cong[v]
+      ? `<g class="insignia" transform="translate(${-R},${-R + 1})"><rect x="-11" y="-7" width="22" height="14" rx="7"/><text>×${fmt(cong[v])}</text></g>`
       : ""),
   });
 
@@ -627,6 +782,35 @@ function renderCampus() {
   info.innerHTML = `
     <div class="ruta-tiempo"><b>${fmt(r.tiempo)} s</b><span>hasta ${esc(r.ruta[r.ruta.length - 1])}</span>${cambio}</div>
     <ol class="pasos">${r.ruta.map((n, i) => (i ? `<li class="sep" aria-hidden="true">›</li>` : "") + `<li>${esc(n)}</li>`).join("")}</ol>`;
+}
+
+function tocarCampusNodo(v) {
+  const ed = /^Edificio ([A-Z])$/.exec(v);
+  if (VISTA && VISTA.tipo === "general" && ed && E.campus.vertices.some(x => letraEdificio(x) === ed[1])) {
+    edificioVista = ed[1];
+    renderCampus();
+    return;
+  }
+  tocarLugar(v);
+}
+
+function tocarCampusArista([o, d]) {
+  const real = VISTA && VISTA.real.get(clave(o, d));
+  tocarPaso(real || [o, d]);
+}
+
+function llenarAgrupado(sel, items, vacio) {
+  const prev = sel.value;
+  const grupos = [];
+  for (const it of items) {
+    let g = grupos.find(x => x.g === it.g);
+    if (!g) grupos.push(g = { g: it.g, items: [] });
+    g.items.push(it);
+  }
+  sel.innerHTML = (vacio ? `<option value="">${esc(vacio)}</option>` : "") + grupos.map(g => g.items.length > 1
+    ? `<optgroup label="${esc(g.g)}">${g.items.map(o => `<option value="${esc(o.v)}">${esc(o.t)}</option>`).join("")}</optgroup>`
+    : g.items.map(o => `<option value="${esc(o.v)}">${esc(o.t)}</option>`).join("")).join("");
+  if (items.some(o => o.v === prev)) sel.value = prev;
 }
 
 function tocarLugar(v) {
@@ -736,7 +920,7 @@ function eventos() {
       { txt: `Emitir alerta desde aquí (TTL ${ttl})`, cls: "alerta", fn: () => accion("emitir") },
     ]);
   });
-  interacciones($("#svg-campus"), "campus", tocarLugar, tocarPaso);
+  interacciones($("#svg-campus"), "campus", tocarCampusNodo, tocarCampusArista);
 
   // formularios de administrar
   $$("form[data-form]").forEach(form => form.addEventListener("submit", async ev => {
@@ -784,6 +968,9 @@ async function accion(a) {
     if (l) api("/api/campus/congestionar", { lugar: l, factor });
   } else if (a === "desbloquear") {
     api("/api/campus/desbloquear", {});
+  } else if (a === "campus-general") {
+    edificioVista = null;
+    renderCampus();
   } else if (a === "reiniciar-campus") {
     rutaAnterior = null; seleccion = null;
     api("/api/reiniciar", { grafo: "campus" });

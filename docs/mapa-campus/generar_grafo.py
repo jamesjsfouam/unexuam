@@ -198,6 +198,18 @@ def main():
         "ejemplo": {"origen": "C Salida Oeste", "ruta": ruta, "segundos": t},
     }, ensure_ascii=False, indent=1), encoding="utf-8")
     dibujo(nodos, pos, caminos, ruta)
+    # Plano liviano para la app (pantalla Campus): posiciones en metros y fondo del campus.
+    r1 = lambda p: [round(p[0], 1), round(p[1], 1)]
+    plano = {
+        "fuente": "© colaboradores de OpenStreetMap (ODbL)",
+        "posiciones": {l["nombre"]: r1(pos[l["nombre"]]) for l in nodos},
+        "campus": [r1(p) for p in PLANO["campus"]],
+        "edificios": [[r1(p) for p in e["pol"]] for e in PLANO["edificios"]],
+        "canchas": [[r1(p) for p in c["pol"]] for c in PLANO["canchas"]],
+        "parqueos": [[r1(p) for p in q["pol"]] for q in PLANO["parqueos"]],
+    }
+    destino = AQUI.parent.parent / "frontend" / "static" / "campus-plano.json"
+    destino.write_text(json.dumps(plano, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
     print(f"{len(nodos)} vertices, {len(caminos)} caminos ({2 * len(caminos)} aristas dirigidas)")
     print("Ejemplo C Salida Oeste:", " -> ".join(ruta), f"({t} s)")
     print("\n# ---- para backend/datos.py ----")

@@ -143,15 +143,16 @@
       </div>
 
       <div class="lienzo" id="lienzo-campus">
+        <div class="lienzo-cab" id="campus-cab"></div>
         <svg id="svg-campus" class="grafo" role="img" aria-label="Mapa del campus"></svg>
+        <p class="credito">Plano © colaboradores de <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> (ODbL)</p>
       </div>
       <div class="leyenda">
         <span class="chip azul"><i class="l-ruta"></i>Ruta</span>
         <span class="chip rojo"><i class="l-bloq"></i>Bloqueado</span>
         <span class="chip amarillo"><img src="{{ url_for('static', filename='img/ico-sismo.png') }}" alt="" class="ancha">Congestión</span>
-        <button class="btn mini" data-mover="campus" aria-pressed="false">Mover</button>
       </div>
-      <p class="intro">Toca un lugar o un pasillo del mapa. La ruta se calcula con Dijkstra hacia la zona segura más cercana.</p>
+      <p class="intro">Toca un edificio para ver sus pisos. La ruta se calcula con Dijkstra hacia la zona o punto seguro más cercano.</p>
 
       <h3 class="franja">Incidentes</h3>
       <div class="tarjeta">
