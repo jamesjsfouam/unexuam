@@ -13,9 +13,9 @@ Ritmo de referencia: unas 130 palabras por minuto. Lo que está en *cursiva* es 
 | 4 | Grafo dirigido y ponderado | 0:35 | 2:20 |
 | 5 | Capa 1: red Mesh | 0:40 | 3:00 |
 | 6 | BFS con TTL paso a paso | 1:15 | 4:15 |
-| 7 | Capa 2: campus | 0:35 | 4:50 |
-| 8 | Dijkstra paso a paso | 1:30 | 6:20 |
-| 9 | La alerta cambia el mapa | 0:45 | 7:05 |
+| 7 | Capa 2: el campus real | 0:35 | 4:50 |
+| 8 | Dijkstra paso a paso (ejemplo pequeño) | 1:30 | 6:20 |
+| 9 | Campus real: evacuar el aula P-309 | 0:45 | 7:05 |
 | 10 | Demo en vivo | 2:00 | 9:05 |
 | 11 | Limitaciones y trabajo futuro | 0:40 | 9:45 |
 | 12 | Cierre | 0:15 | 10:00 |
@@ -74,15 +74,17 @@ Veamos un ejemplo. Tel-Ana emite una alerta con TTL 2: puede llegar como mucho a
 
 ▶ Resultado: la alerta llegó a 5 de 8 teléfonos, y la función devuelve cada teléfono con su número de salto. Si subo el TTL a 5, llega a los ocho. El TTL sirve para que la alerta no rebote para siempre gastando batería en una red real.
 
-## 7 · Capa 2: campus (0:35)
+## 7 · Capa 2: el campus real (0:35)
 
-Este es el campus de ejemplo: 14 lugares. Arriba está el piso 2, con las aulas 201 y 202, la biblioteca y el Pasillo B. Abajo el piso 1. Las dos zonas seguras, Cancha y Parqueo, están en verde: solo tienen aristas de entrada, porque de una zona segura no se sale.
+Este es el campus real de la UAM como grafo, sacado del plano. Afuera hay 43 lugares: edificios, comedores, salidas y parqueos. Por dentro de los edificios B, C y P, cada aula y cada escalera es un vértice. En total son 134 vértices y 368 aristas dirigidas.
 
-Un detalle que justifica el grafo dirigido: por la Escalera Norte, bajar al Pasillo A cuesta 15 segundos y subir 25.
+El peso son los segundos a pie: la distancia del mapa por 1.3, porque los caminos no son rectos, dividida entre 1.2 metros por segundo. Hay 12 destinos seguros, entre zonas y parqueos, y Dijkstra elige el más cercano.
+
+Y aquí se ve por qué tiene que ser dirigido: bajar un piso cuesta 12 segundos y subirlo 18.
 
 ## 8 · Dijkstra paso a paso (1:30)
 
-Ahora, la pregunta: estoy en el Aula 201, ¿cuál es la salida más rápida? Al inicio, la distancia al Aula 201 es 0 y a todo lo demás infinito.
+Con 134 vértices no se puede seguir Dijkstra a mano, así que para ver cada paso uso un ejemplo pequeño: un edificio de dos pisos con 14 lugares. La pregunta: estoy en el Aula 201, ¿cuál es la salida más rápida? Al inicio, la distancia al Aula 201 es 0 y a todo lo demás infinito.
 
 La regla de Dijkstra es una sola: tomo el vértice **no visitado con la menor distancia** y reviso sus aristas. Si llegar por él es más barato, actualizo la distancia y anoto de dónde vine.
 
@@ -99,13 +101,13 @@ La regla de Dijkstra es una sola: tomo el vértice **no visitado con la menor di
 
 La ruta se reconstruye hacia atrás con la tabla de "de dónde vine": Aula 201, Pasillo B, Escalera Norte, Pasillo A, Salida Principal, Cancha. 65 segundos. Esto funciona porque ningún peso es negativo.
 
-## 9 · La alerta cambia el mapa (0:45)
+## 9 · Campus real: evacuar el aula P-309 (0:45)
 
-Aquí se juntan las dos capas. Supongamos que por la Mesh llega la alerta «humo en la Escalera Norte», justo la que usa mi ruta.
+Ahora el mismo algoritmo sobre el campus real. Estoy en el aula P-309, en el tercer piso del Edificio P. Dijkstra me baja por la escalera oeste y me manda al Parqueo Oeste: 6 más 12, más 12, más 5, más 32, **67 segundos**.
 
-▶ Llamo a `aplicarAlerta` con factor 3: las aristas que **entran** a la Escalera Norte se multiplican por tres. De 8 pasa a 24, y de 25 a 75.
+▶ Primera forma en que una alerta cambia el mapa: **cerrar** algo. Si la escalera oeste se bloquea entre el piso 3 y el 2, uso `eliminarArista`. Dijkstra ya no la ve: cruza todo el pasillo hasta P-301, baja por la escalera este y llega al Parqueo del Edificio P en **156 segundos**.
 
-▶ Vuelvo a correr Dijkstra con los pesos nuevos, y la ruta cambia sola: ahora voy por la Escalera Sur al Parqueo en 77 segundos. La ruta anterior costaría 81. No programé ningún caso especial: el algoritmo simplemente ve otros pesos. Y si el pasillo está bloqueado del todo, se elimina la arista y Dijkstra ni la considera.
+▶ Segunda forma: **encarecer** algo. Reabro la escalera, y por la Mesh llega la alerta de que el Parqueo Oeste está saturado. `aplicarAlerta` multiplica por 5 el costo de entrar: de 32 pasa a 160. Dijkstra cambia de destino solo: Parqueo Sur, **89 segundos**. No programé ningún caso especial: el algoritmo simplemente ve otros pesos.
 
 ## 10 · Demo en vivo (2:00)
 
@@ -113,9 +115,9 @@ Ahora lo muestro funcionando. *(Seguir `demo.md`.)*
 
 ## 11 · Limitaciones y trabajo futuro (0:40)
 
-Quiero ser honesto con lo que es y no es. Es un prototipo: la red Mesh está **simulada** con el grafo, no hay radio de verdad. Los pesos son estimados, no medidos. Y el servidor corre en una laptop.
+Quiero ser honesto con lo que es y no es. Es un prototipo: la red Mesh está **simulada** con el grafo, no hay radio de verdad. Los pesos salen de la distancia del mapa, no de medir con cronómetro, y supuse una escalera en cada extremo de B, C y P. Y el servidor corre en una laptop.
 
-Lo siguiente es conectar Bluetooth real usando lo que ya diseñé en SéTú: la cola, el TTL y los acuses de que otro teléfono guardó la alerta. También, que cada teléfono calcule su propia ruta sin servidor, medir los tiempos en el campus real y usar flujo máximo para detectar cuellos de botella.
+Lo siguiente es conectar Bluetooth real usando lo que ya diseñé en SéTú: la cola, el TTL y los acuses de que otro teléfono guardó la alerta. También, que cada teléfono calcule su propia ruta sin servidor, medir los tiempos con cronómetro y usar flujo máximo para detectar cuellos de botella.
 
 ## 12 · Cierre (0:15)
 

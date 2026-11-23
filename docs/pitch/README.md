@@ -8,4 +8,4 @@
 | `preguntas.md` | 10 preguntas probables sobre grafos, con respuestas. |
 | `capturas/` | Capturas del plan B (ver `demo.md`). Mientras falten, el deck muestra un aviso. |
 
-**Antes de exponer:** confirma que los pesos de `CAMPUS.edges` (al inicio del script de `deck.html`) son los mismos que los de `backend/datos.py`. El deck recalcula Dijkstra y la alerta a partir de esa lista; los números escritos en `guion.md` y `demo.md` hay que corregirlos a mano si cambian.
+**Datos:** las diapositivas 7 y 9 y la demo usan el campus real de `backend/datos.py` (134 vértices), verificado el 23/11: P-309 → 67 s; escalera oeste cerrada → 156 s; Parqueo Oeste ×5 → 89 s. La diapositiva 8 es un ejemplo pequeño de 14 lugares para seguir Dijkstra paso a paso (sus datos están en `CAMPUS.edges`, dentro del deck). Si cambia el backend, corrige `EDIF_P` en el deck, `guion.md` y `demo.md`.
