@@ -46,7 +46,7 @@ Varios teléfonos pueden abrirla a la vez: todos ven el mismo estado, y una aler
 |---|---|
 | Inicio | Estado de las dos redes, ruta actual y actividad |
 | Red Mesh | Teléfonos y enlaces dirigidos con su peso. «Emitir alerta» con TTL y animación salto a salto |
-| Campus | Mapa del grafo. «Estoy en…» muestra la ruta de evacuación y su tiempo. Permite bloquear o congestionar un pasillo y ver la ruta recalculada |
+| Campus | «Estoy en…» (por edificio y piso) da la **guía paso a paso** hasta el punto seguro más cercano, con su tiempo. Debajo, el mapa 3D de la UAM muestra la ruta como grafo: vértices numerados por paso y aristas dirigidas con su peso. «Simular bloqueo» en cualquier paso recalcula la ruta |
 | Administrar | Insertar y eliminar vértices y aristas en los dos grafos, y ver la lista de adyacencia |
 
 ## Estructura del repositorio
