@@ -7,19 +7,25 @@
 @font-face {
   font-family: "UnexoNexa";
   font-weight: 400;
-  src: local("Nexa Regular"), local("Nexa-Regular"), local("Nexa");
+  font-display: swap;
+  src: url("/static/fonts/Nexa-Regular.otf") format("opentype"),
+       local("Nexa Regular"), local("Nexa-Regular"), local("Nexa");
 }
 
 @font-face {
   font-family: "UnexoNexa";
   font-weight: 700;
-  src: local("Nexa Bold"), local("Nexa-Bold");
+  font-display: swap;
+  src: url("/static/fonts/Nexa-Bold.otf") format("opentype"),
+       local("Nexa Bold"), local("Nexa-Bold");
 }
 
 @font-face {
   font-family: "UnexoNexa";
   font-weight: 900;
-  src: local("Nexa Heavy"), local("Nexa-Heavy"), local("Nexa Black");
+  font-display: swap;
+  src: url("/static/fonts/Nexa-Heavy.otf") format("opentype"),
+       local("Nexa Heavy"), local("Nexa-Heavy"), local("Nexa Black");
 }
 
 :root {
