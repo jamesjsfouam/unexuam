@@ -1,52 +1,75 @@
-# Evacua UAM · Sistema de evacuación Off-Grid
+# Unexuam · Evacuación Off-Grid para el campus UAM
 
-Proyecto final de Estructuras de Datos No Lineales (UAM). Usa dos grafos dirigidos y ponderados:
+Proyecto final de **Estructuras de Datos No Lineales**, Universidad Americana (UAM), noviembre 2026.
+Autor: **Br. James Santiago Fernandez Obregon**.
 
-- **Red Mesh** (capa 1): teléfonos y enlaces con su retardo. La alerta se propaga con BFS limitado por TTL.
-- **Campus** (capa 2): aulas, pasillos, escaleras, salidas y zonas seguras. La ruta de evacuación se calcula con Dijkstra.
+Unexuam guía a la comunidad universitaria hacia las zonas seguras cuando se caen internet y la red celular. Todo funciona con **grafos dirigidos y ponderados**, implementados a mano en Python con la estructura vista en clase: `Vertex` con `city` y `neig` (lista de tuplas `(destino, peso)`) y `Graph` con `vertexs`. No usa NetworkX ni otras librerías de grafos.
 
-La interfaz es una web con aspecto de app móvil (Flask + HTML/CSS/JS sin librerías externas). Funciona sin internet: solo hace falta que el teléfono y el PC estén en la misma red Wi-Fi.
+## Las dos capas de grafos
+
+| Capa | Vértices | Aristas (peso) | Algoritmo |
+|---|---|---|---|
+| 1. Comunicación (red Mesh simulada) | teléfonos de los estudiantes | enlace entre teléfonos (retardo en s) | **BFS limitado por TTL**: la alerta salta de teléfono en teléfono, igual que el reenvío tolerante a retardos (DTN) |
+| 2. Navegación (campus) | aulas, pasillos, escaleras, salidas, zonas seguras | paso de un lugar a otro (tiempo en s) | **Dijkstra**: ruta de evacuación hacia la zona segura más cercana |
+
+Cuando llega una alerta, la capa 2 cambia: un pasillo congestionado **multiplica el peso** de sus aristas de entrada y un pasillo bloqueado **elimina la arista**. Después, Dijkstra recalcula la ruta.
+
+Este es un prototipo: la red Mesh se **simula** con el grafo. Usar Bluetooth o Wi-Fi Direct reales es trabajo futuro.
 
 ## Cómo ejecutarlo
+
+Requisitos: Python 3.10 o superior.
 
 ```powershell
 pip install flask
 python app.py
 ```
 
-Al arrancar, la consola muestra dos direcciones:
+La consola muestra dos direcciones:
 
 ```
  En este PC:        http://127.0.0.1:5000
  Desde el teléfono: http://192.168.x.x:5000  (misma Wi-Fi)
 ```
 
-## Cómo abrirlo desde el teléfono
+### Desde el teléfono
+1. Conecta el teléfono a la **misma Wi-Fi** que el PC, o crea un punto de acceso desde el teléfono y conecta el PC a él.
+2. En el navegador del teléfono, abre la dirección «Desde el teléfono».
+3. Si no abre, permite Python en el Firewall de Windows para **redes privadas**.
+4. Opcional: usa «Agregar a la pantalla de inicio» para abrirla como una app.
 
-1. Conecta el teléfono a la **misma Wi-Fi** que el PC (o crea un punto de acceso desde el teléfono y conecta el PC a él).
-2. En el navegador del teléfono, escribe la dirección "Desde el teléfono" que muestra la consola.
-3. Si no abre, permite Python en el Firewall de Windows para **redes privadas** (Windows lo pregunta la primera vez que se ejecuta `app.py`).
-4. Opcional: en el menú del navegador, "Agregar a la pantalla de inicio" para abrirlo como una app.
-
-Varias personas pueden abrirla a la vez: todas ven el mismo estado, y una alerta emitida desde un teléfono aparece animada en los demás.
+Varios teléfonos pueden abrirla a la vez: todos ven el mismo estado, y una alerta emitida desde uno aparece animada en los demás.
 
 ## Pantallas
 
 | Pestaña | Qué hace |
 |---|---|
-| Inicio | Estado de las dos redes, ruta actual, actividad y qué partes del backend están en uso |
-| Red Mesh | Dibujo de teléfonos y enlaces dirigidos con su peso. «Emitir alerta» con TTL y animación salto a salto (orden de `propagarAlerta`) |
-| Campus | Mapa del grafo. «Estoy en…» muestra la ruta de evacuación y su tiempo. Bloquear un pasillo (`eliminarArista`) o marcar congestión (`aplicarAlerta`) y ver la ruta recalculada |
+| Inicio | Estado de las dos redes, ruta actual y actividad |
+| Red Mesh | Teléfonos y enlaces dirigidos con su peso. «Emitir alerta» con TTL y animación salto a salto |
+| Campus | Mapa del grafo. «Estoy en…» muestra la ruta de evacuación y su tiempo. Permite bloquear o congestionar un pasillo y ver la ruta recalculada |
 | Administrar | Insertar y eliminar vértices y aristas en los dos grafos, y ver la lista de adyacencia |
 
-## Estructura
+## Estructura del repositorio
 
 ```
-app.py                      servidor Flask: estado en memoria (dos Graph) y endpoints JSON
-backend/                    lógica de grafos (James): grafo.py, mesh.py, evacuacion.py, datos.py
-frontend/templates/         index.html
-frontend/static/            app.css, app.js, icono y manifest
-frontend/_stub_backend.py   RELLENO TEMPORAL, no es la lógica entregable
+backend/                    lógica de grafos
+  grafo.py                  Vertex y Graph (insertar, buscar, eliminar, actualizar peso)
+  datos.py                  campus y red Mesh de ejemplo
+  evacuacion.py             Dijkstra, ruta más corta, ruta de evacuación, aplicarAlerta
+  mesh.py                   propagarAlerta (BFS con TTL)
+app.py                      servidor Flask: estado en memoria y endpoints JSON
+frontend/                   interfaz web móvil (HTML, CSS y JS sin dependencias externas)
+  _stub_backend.py          relleno temporal mientras se completa backend/ (no es la lógica entregada)
+docs/
+  CONTRATO.md               interfaz entre backend y frontend
+  REGLAS_PROFE.md           reglas de implementación de grafos del curso
+  propuesta/                propuesta del proyecto (.docx y .md)
+  pitch/                    deck, guion, demo y preguntas
 ```
 
-`app.py` solo usa la interfaz de `docs/CONTRATO.md`. Cada función se toma de `backend/`. Si todavía no existe, se usa `frontend/_stub_backend.py`, que solo sirve para probar la interfaz. La pestaña Inicio indica qué piezas son reales y cuáles vienen del stub.
+## Avance del backend
+
+- [ ] `grafo.py`
+- [ ] `datos.py`
+- [ ] `evacuacion.py`
+- [ ] `mesh.py`
