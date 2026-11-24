@@ -1451,7 +1451,7 @@ function renderAdmin() {
 /* ---------------------------------------------------------------- tabs */
 
 function irA(nombre) {
-  if (!["inicio", "campus", "mensajes", "admin"].includes(nombre) && !(nombre === "mesh" && $("#v-mesh"))) nombre = "inicio";
+  if (!["inicio", "campus", "mensajes", "admin", "ajustes"].includes(nombre) && !(nombre === "mesh" && $("#v-mesh"))) nombre = "inicio";
   if (nombre === "admin" && !document.body.classList.contains("es-admin")) nombre = "inicio";
   vista = nombre;
   $$(".vista").forEach(s => { s.hidden = s.id !== "v-" + nombre; });

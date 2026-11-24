@@ -951,7 +951,15 @@
     $("#login-form").addEventListener("submit", entrar);
     $("#login-demo").addEventListener("click", entrarDemo);
     $$("[data-modo]").forEach(b => b.addEventListener("click", () => cambiarModo(b.dataset.modo)));
-    $("#btn-cuenta").addEventListener("click", menuCuenta);
+    $("#btn-cuenta").addEventListener("click", () => (window.abrirAjustes ? window.abrirAjustes() : menuCuenta()));
+    window.__UNEXUAM_AJUSTES__ = {
+      perfil: menuCuenta,
+      edificio: elegirLugar,
+      salir,
+      probarSos: sonarAlerta,
+      avisar,
+      permisos: () => { verificarBluetoothYGPS(); avisar("Verificando permisos de Bluetooth y GPS."); },
+    };
     $("#mi-red").addEventListener("click", elegirLugar);
     const btnGps = $("#btn-gps");
     if (btnGps) btnGps.addEventListener("click", () => aproximarEdificioPorGPS(true));
