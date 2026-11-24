@@ -238,6 +238,7 @@
 
   window.actualizarMiLugar = async function (lugar) {
     if (!YO || YO.lugar === lugar) return;
+    if (window.__UNEXUAM_PREFS__?.compartirLugar === false) return;
     const j = await pedir("/api/yo/lugar", { lugar });
     if (j.ok) { YO = j.usuario; firmaMsj = ""; }
   };
@@ -511,6 +512,12 @@
       : "Nadie a tu alcance: tus mensajes esperan en cola";
     $("#mi-lugar-txt").textContent = YO.lugar;
     $("#mi-red").classList.toggle("aislado", !YO.vecinos.length);
+    const accLug = $("#acc-lugar-val");
+    if (accLug) accLug.textContent = YO.lugar ? `${YO.lugar} · Toca para cambiar o usar GPS` : "Toca para detectar por GPS";
+    const accMesh = $("#acc-mesh-val");
+    if (accMesh) accMesh.textContent = YO.vecinos.length
+      ? `${YO.vecinos.length} teléfono${YO.vecinos.length === 1 ? "" : "s"} cercano${YO.vecinos.length === 1 ? "" : "s"} · Abrir Canal General`
+      : "Sin vecinos cercanos · Mensajes en custodia DTN";
 
     const filtro = ($("#buscar-contacto").value || "").trim().toLowerCase();
     const ultimo = {}, orden = {};
@@ -1051,13 +1058,19 @@
     );
   }
 
-  function sonarAlerta() {
+  function sonarAlerta(forzar = false) {
     try {
-      if (window.UnexuamNativo && typeof window.UnexuamNativo.vibrarAlerta === "function") {
-        window.UnexuamNativo.vibrarAlerta();
-      } else if (navigator.vibrate) {
-        navigator.vibrate([240, 100, 240]);
+      const P = window.__UNEXUAM_PREFS__ || {};
+      const vib = forzar || P.vibrar !== false;
+      const ton = forzar || P.tono !== false;
+      if (vib) {
+        if (window.UnexuamNativo && typeof window.UnexuamNativo.vibrarAlerta === "function") {
+          window.UnexuamNativo.vibrarAlerta();
+        } else if (navigator.vibrate) {
+          navigator.vibrate([240, 100, 240]);
+        }
       }
+      if (!ton) return;
       const Ctx = window.AudioContext || window.webkitAudioContext;
       if (!Ctx) return;
       const ctx = new Ctx();
@@ -1185,7 +1198,14 @@
       perfil: menuCuenta,
       edificio: elegirLugar,
       salir,
-      probarSos: sonarAlerta,
+      probarSos: () => {
+        const P = window.__UNEXUAM_PREFS__ || {};
+        sonarAlerta(false);
+        const est = [];
+        if (P.vibrar !== false) est.push("vibración");
+        if (P.tono !== false) est.push("tono");
+        avisar(est.length ? `Prueba ejecutada (${est.join(" + ")}).` : "Vibración y tono están desactivados en Notificaciones.");
+      },
       avisar,
       permisos: () => { verificarBluetoothYGPS(); avisar("Verificando permisos de Bluetooth y GPS."); },
     };
@@ -1269,8 +1289,12 @@
       const card = ev.target.closest("[data-guia]");
       if (card) abrirGuia(card.dataset.guia);
     });
-    $$("#lista-prioridad .fila-figma").forEach(fila => {
-      activarDeslizable(fila, () => abrirGuia(fila.dataset.guia), "Desliza hacia la derecha para abrir esta guía →");
+    const btnAccLugar = $("#btn-acc-lugar");
+    if (btnAccLugar) btnAccLugar.addEventListener("click", elegirLugar);
+    const btnAccCanal = $("#btn-acc-canal");
+    if (btnAccCanal) btnAccCanal.addEventListener("click", () => {
+      location.hash = "#mensajes";
+      abrirChat("TODOS");
     });
     const btnSos = $("#btn-sos");
     if (btnSos) activarDeslizable(btnSos, enviarSOS, "Desliza hacia la derecha para enviar SOS →", true);
@@ -1281,12 +1305,15 @@
       if (vistaActual() === "mensajes") renderMensajes();
       if (!$("#chat").hidden) renderChat(true);
       const d = ev.detail || {};
+      const P = window.__UNEXUAM_PREFS__ || {};
       if (d.recalcularRuta) {
-        sonarAlerta();
         if (window.iniciarUnexuam) window.iniciarUnexuam();
-        avisar("Bloqueo recibido por Mesh: tu ruta de evacuación fue recalculada.", false);
+        if (P.bloqueos !== false) {
+          sonarAlerta();
+          avisar("Bloqueo recibido por Mesh: tu ruta de evacuación fue recalculada.", false);
+        }
       } else if (d.tipo === "conectado" && d.peer) {
-        avisar(`Teléfono cercano conectado: ${d.peer.nombre}`);
+        if (P.vecinos !== false) avisar(`Teléfono cercano conectado: ${d.peer.nombre}`);
       } else if (d.tipo === "ack") {
         avisar("Entrega confirmada: copias intermedias eliminadas.");
       } else if (d.tipo === "paquete" && d.paquete) {

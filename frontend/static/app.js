@@ -513,6 +513,12 @@ function renderInicio() {
   $("#c-nota").textContent = r
     ? (r.tiempo === null ? `Desde ${r.origen} no se llega a ningún punto seguro.` : `Desde ${r.origen}: evacúa hacia ${r.ruta[r.ruta.length - 1]}.`)
     : "Elige dónde estás en la pestaña Evacuar.";
+  const accRuta = $("#acc-ruta-val");
+  if (accRuta) {
+    accRuta.textContent = r && r.tiempo !== null
+      ? `${r.ruta[r.ruta.length - 1]} · ${minutos(r.tiempo)} caminando`
+      : "Ver ruta paso a paso en el mapa 3D";
+  }
 
   const emergencia = ua || c.bloqueados.length || nCong;
   $("#hero").className = "hero " + (emergencia ? "emergencia" : "calma");

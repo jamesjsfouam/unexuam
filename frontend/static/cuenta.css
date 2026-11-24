@@ -1068,6 +1068,149 @@ html[data-filtro-color="acromatopsia"] body { filter: grayscale(1); }
   40% { transform: translateX(16px); }
   70% { transform: translateX(6px); }
 }
+
+/* ---------- Tarjeta y Banner Mensajes sin internet (Foto UAM + 2 wireframes) ---------- */
+.tarjeta-mesh-uam > img {
+  filter: saturate(1.1) brightness(.72);
+}
+.mesh-uam-capa {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(160deg, rgba(0, 112, 46, .58) 0%, rgba(11, 42, 74, .42) 100%);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 6px;
+  padding: 12px 8px 0;
+  pointer-events: none;
+}
+.mini-wf {
+  width: 66px;
+  padding: 5px;
+  border-radius: 12px;
+  background: rgba(11, 42, 74, .92);
+  border: 1.5px solid rgba(255, 255, 255, .45);
+  box-shadow: 0 8px 18px rgba(0, 20, 50, .42);
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.mini-wf.wf-a { transform: rotate(-6deg) translateY(2px); }
+.mini-wf.wf-b { transform: rotate(6deg) translateY(10px); }
+.mini-wf-bar {
+  height: 5px;
+  width: 60%;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, .55);
+  margin-bottom: 2px;
+}
+.mini-wf-msg {
+  padding: 3px 5px;
+  border-radius: 7px;
+  font-size: 7px;
+  font-weight: 800;
+  line-height: 1.15;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.mini-wf-msg.mio { background: #0080ff; color: #ffffff; align-self: flex-end; }
+.mini-wf-msg.suyo { background: #ffffff; color: #0b2a4a; align-self: flex-start; }
+
+.banner-mesh-uam {
+  position: relative;
+  margin: 0 -16px;
+  height: 156px;
+  overflow: hidden;
+  background: #0b2a4a;
+  color: var(--blanco);
+}
+.banner-mesh-bg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: brightness(.55) saturate(1.15);
+}
+.banner-mesh-uam::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(120deg, rgba(0, 112, 46, .72) 0%, rgba(0, 98, 204, .65) 100%);
+}
+.banner-mesh-wfs {
+  position: absolute;
+  left: 14px;
+  top: 16px;
+  z-index: 2;
+  display: flex;
+  gap: 8px;
+}
+.banner-mesh-wfs .mini-wf { width: 82px; padding: 6px; }
+.banner-mesh-wfs .mini-wf-msg { font-size: 8px; }
+.banner-mesh-txt {
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  text-align: right;
+  line-height: .98;
+  text-shadow: 0 3px 10px rgba(0, 20, 50, .45);
+}
+.banner-mesh-txt small { font-size: 11.5px; font-weight: 800; opacity: .95; margin-bottom: 3px; }
+.banner-mesh-txt b { font-size: clamp(22px, 6.8vw, 30px); font-weight: 900; }
+.banner-mesh-txt strong { font-size: clamp(24px, 7.6vw, 34px); font-weight: 900; color: var(--amarillo); }
+
+/* ---------- Accesos rápidos del campus (reemplaza Qué hacer ahora) ---------- */
+.accesos-campus {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.acceso-item {
+  width: 100%;
+  min-height: 58px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border: 2px solid #cfe0f4;
+  border-radius: 22px;
+  background: var(--blanco);
+  color: var(--texto);
+  text-decoration: none;
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+  box-shadow: 0 3px 10px rgba(11, 42, 74, .08);
+  transition: transform .12s ease, border-color .15s ease, box-shadow .15s ease;
+}
+.acceso-item:hover { border-color: var(--azul-btn); box-shadow: 0 6px 14px rgba(0, 98, 204, .14); }
+.acceso-item:active { transform: scale(.98); }
+.acceso-item:focus-visible { outline: 3px solid var(--texto); outline-offset: 2px; box-shadow: var(--foco-anillo); }
+.acceso-ico {
+  width: 40px;
+  height: 40px;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  flex: none;
+  color: var(--blanco);
+}
+.acceso-ico svg { width: 22px; height: 22px; fill: currentColor; }
+.acceso-ico.azul { background: var(--azul-btn); }
+.acceso-ico.verde { background: var(--verde-btn); }
+.acceso-ico.rojo { background: var(--rojo); }
+.acceso-txt { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.acceso-txt b { font-size: 0.92rem; font-weight: 900; color: var(--texto); }
+.acceso-txt small { font-size: 0.78rem; font-weight: 600; color: var(--gris-texto); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.acceso-go { font-size: 22px; font-weight: 900; color: var(--azul-btn); flex: none; }
 .drag-asa svg { width: 14px; height: 22px; fill: var(--azul); opacity: .75; }
 .drag-asa:focus-visible { outline: 3px solid var(--amarillo); outline-offset: 2px; }
 body.arrastrando-lista, body.arrastrando-lista .drag-asa { cursor: grabbing !important; user-select: none; }
