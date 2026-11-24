@@ -182,7 +182,10 @@ def cargar_campus_compartido():
         campus.insertarArista(origen, destino, peso)
     S.update(campus=campus, zonas=datos["zonas"], bloqueados=datos["bloqueados"],
              congestion=datos["congestion"], ubicacion=anterior if anterior and campus.buscarVertice(anterior) else None)
-    invalidar_rutas()
+    if not datos["bloqueados"] and not datos["congestion"]:
+        precalcular_rutas()
+    else:
+        invalidar_rutas()
 
 
 def guardar_campus_compartido():
