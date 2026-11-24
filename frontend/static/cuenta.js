@@ -462,7 +462,11 @@
     $("#login-clave").value = "";
     $("#login-clave2").value = "";
     if (!j.usuario.admin) guardarLS("mi-cif", j.usuario.cif);
+    const esRegistro = modo === "registro";
     YO = j.usuario;
+    if (YO.lugar && window.sincronizarLugarInicial) {
+      window.sincronizarLugarInicial(YO.lugar, esRegistro);
+    }
     mostrarSesion();
     window.iniciarUnexuam();
     iniciarSondeoMensajes();
@@ -1638,17 +1642,21 @@
       if (!el) return;
       el.classList.add("fila-deslizable");
       const thumb = el.querySelector(".fila-icono");
+      const txtB = el.querySelector(".fila-texto b");
+      const txtOrig = txtB ? txtB.innerHTML : "";
       let sx = 0, sy = 0, dx = 0, maxDx = 0, activo = false, bloqueoHoriz = false;
       const reset = () => {
         activo = false; bloqueoHoriz = false; dx = 0;
         el.classList.remove("deslizando", "listo");
+        el.style.setProperty("--sos-p", "0");
         if (thumb) thumb.style.transform = "";
+        if (txtB && txtB.innerHTML !== txtOrig) txtB.innerHTML = txtOrig;
       };
       el.addEventListener("pointerdown", ev => {
         if (ev.button && ev.button !== 0) return;
         if (ev.target.closest(".drag-asa")) return;
         sx = ev.clientX; sy = ev.clientY; dx = 0;
-        maxDx = Math.max(80, el.clientWidth - (thumb ? thumb.offsetWidth : 100) - 6);
+        maxDx = Math.max(80, el.clientWidth - (thumb ? thumb.offsetWidth : 100) - 8);
         activo = true; bloqueoHoriz = false;
         el.classList.add("deslizando");
         try { el.setPointerCapture(ev.pointerId); } catch (_) {}
@@ -1662,13 +1670,17 @@
         }
         if (bloqueoHoriz) {
           dx = Math.max(0, Math.min(maxDx, mx));
+          const p = Math.min(1, dx / (maxDx * 0.55));
+          el.style.setProperty("--sos-p", p.toFixed(2));
           if (thumb) thumb.style.transform = `translateX(${dx}px)`;
-          el.classList.toggle("listo", dx >= maxDx * 0.6);
+          const listo = dx >= maxDx * 0.55;
+          el.classList.toggle("listo", listo);
+          if (txtB) txtB.textContent = listo ? "Suelta para enviar SOS" : "Sigue deslizando →";
         }
       });
       const fin = () => {
         if (!activo) return;
-        const disparo = bloqueoHoriz && dx >= maxDx * 0.6;
+        const disparo = bloqueoHoriz && dx >= maxDx * 0.55;
         const fueToque = !bloqueoHoriz && dx < 12;
         reset();
         if (disparo) {
@@ -1849,6 +1861,7 @@
     const j = await pedir("/api/yo");
     if (j.ok && j.sesion) {
       YO = j.usuario;
+      if (YO.lugar && window.sincronizarLugarInicial) window.sincronizarLugarInicial(YO.lugar, false);
       mostrarSesion();
       window.iniciarUnexuam();
       iniciarSondeoMensajes();

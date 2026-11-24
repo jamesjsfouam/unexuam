@@ -1032,21 +1032,46 @@ html[data-filtro-color="acromatopsia"] body { filter: grayscale(1); }
   touch-action: pan-y;
   user-select: none;
   -webkit-user-select: none;
+  background: var(--rojo) !important;
+  padding: 3px !important;
 }
 .fila-deslizable .fila-icono {
   position: relative;
-  z-index: 2;
-  background: var(--blanco);
+  z-index: 3;
+  flex: 0 0 auto;
+  min-width: 108px;
+  padding: 10px 14px;
+  background: #ffffff;
+  color: var(--rojo);
   border-radius: 999px;
-  box-shadow: 2px 0 10px rgba(11, 42, 74, .14);
+  box-shadow: 0 4px 14px rgba(11, 42, 74, .22);
   transition: transform .24s cubic-bezier(.22, 1, .36, 1);
   will-change: transform;
+  cursor: grab;
+}
+.fila-deslizable .fila-texto {
+  position: relative;
+  z-index: 1;
+  background: transparent !important;
+  border-radius: 0 !important;
+  padding: 6px 14px 6px 12px;
+  align-items: center;
+  text-align: center;
+  transition: opacity .15s ease;
 }
 .fila-deslizable.deslizando .fila-icono {
   transition: none;
+  cursor: grabbing;
 }
-.fila-deslizable.listo .fila-texto {
-  filter: brightness(1.08);
+.fila-deslizable.listo {
+  background: #00702e !important;
+  border-color: #00702e !important;
+}
+.fila-deslizable.listo .fila-icono {
+  color: #00702e;
+}
+.fila-deslizable.listo .fila-icono svg {
+  fill: #00702e;
 }
 .fila-deslizable.nudge .fila-icono {
   animation: nudgeDer .36s ease;

@@ -53,8 +53,14 @@
       { id: "contraste", label: "Nivel de contraste", tipo: "radio", opciones: [
         { v: "estandar", t: "Estándar" }, { v: "aumentado", t: "Aumentado" }, { v: "alto", t: "Alto" },
       ]},
-      { id: "sinAnim", label: "Reducir animaciones", tipo: "switch" },
-      { id: "accesibilidad-extra", label: "Lectura, enfoque y color", tipo: "subcat" },
+      { id: "filtroColor", label: "Filtro para daltonismo", tipo: "select", opciones: [
+        { v: "ninguno", t: "Ninguno" },
+        { v: "protanopia", t: "Protanopía (rojo-verde)" },
+        { v: "deuteranopia", t: "Deuteranopía (verde-rojo)" },
+        { v: "tritanopia", t: "Tritanopía (azul-amarillo)" },
+        { v: "acromatopsia", t: "Escala de grises" },
+      ]},
+      { id: "accesibilidad-extra", label: "Lectura, animaciones y enfoque", tipo: "subcat" },
       { id: "restablecerTodo", label: "Restablecer accesibilidad", tipo: "nav", peligro: true },
     ]},
     { id: "ayuda", nombre: "Ayuda", ico: "M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2Zm1 15h-2v-2h2Zm1.9-6.2-.9.9A2.6 2.6 0 0 0 13 14h-2v-.5a3.5 3.5 0 0 1 1-2.5l1.2-1.2A1.5 1.5 0 1 0 10.5 9H8.5a3.5 3.5 0 1 1 6.4 1.8Z", items: [
@@ -66,18 +72,12 @@
 
   const SUBCATS = {
     "accesibilidad-extra": {
-      id: "accesibilidad-extra", parent: "accesibilidad", nombre: "Lectura, enfoque y color",
+      id: "accesibilidad-extra", parent: "accesibilidad", nombre: "Lectura, animaciones y enfoque",
       items: [
         { id: "fuenteDislexia", label: "Fuente fácil de leer (dislexia)", tipo: "switch" },
         { id: "interlineado", label: "Interlineado", tipo: "range", min: 1.4, max: 2.0, step: 0.1, sufijo: "×" },
+        { id: "sinAnim", label: "Reducir animaciones", tipo: "switch" },
         { id: "modoEnfoque", label: "Modo enfoque (ocultar banners)", tipo: "switch" },
-        { id: "filtroColor", label: "Filtro para daltonismo", tipo: "select", opciones: [
-          { v: "ninguno", t: "Ninguno" },
-          { v: "protanopia", t: "Protanopía (rojo-verde)" },
-          { v: "deuteranopia", t: "Deuteranopía (verde-rojo)" },
-          { v: "tritanopia", t: "Tritanopía (azul-amarillo)" },
-          { v: "acromatopsia", t: "Escala de grises" },
-        ]},
       ],
     },
   };

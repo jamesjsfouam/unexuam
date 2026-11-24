@@ -2118,6 +2118,16 @@ function seleccionarLugar(lugar) {
   pedirRuta();
 }
 window.seleccionarLugar = seleccionarLugar;
+window.sincronizarLugarInicial = function (lugar, forzar = false) {
+  if (!lugar) return;
+  if (forzar || !miLugar) {
+    miLugar = lugar;
+    guardar("mi-lugar", miLugar);
+    rutaAnterior = null;
+    pasoActivo = -1;
+    if (E) pedirRuta();
+  }
+};
 
 function enfocarPaso(idx) {
   pasoActivo = idx;
