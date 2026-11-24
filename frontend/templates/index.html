@@ -73,9 +73,10 @@
 
       <div id="hero" class="hero calma">
         <img id="hero-icono" class="hero-icono" src="{{ url_for('static', filename='img/logo-x.png') }}" alt="">
-        <div>
+        <div class="hero-cuerpo">
           <p class="hero-titulo" id="hero-titulo">Todo en calma</p>
           <p class="hero-texto" id="hero-texto">Sin alertas activas.</p>
+          <button type="button" id="btn-fin-emergencia" class="btn blanco mini btn-fin-em solo-admin" hidden>Finalizar emergencia</button>
         </div>
       </div>
 
@@ -208,8 +209,12 @@
       <h2 id="t-campus" class="franja">Evacuar</h2>
 
       <div class="tarjeta" id="ruta-tarjeta">
+        <div class="ubic-acciones">
+          <button type="button" class="btn primario" id="btn-elegir-visual"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 21h18v-2H3v2Zm2-4h3v-3H5v3Zm0-5h3V9H5v3Zm0-5h3V4H5v3Zm5 10h4v-3h-4v3Zm0-5h4V9h-4v3Zm0-5h4V4h-4v3Zm6 10h3v-3h-3v3Zm0-5h3V9h-3v3Zm0-5h3V4h-3v3Z"/></svg> Elegir edificio 3D</button>
+          <button type="button" class="btn secundario" id="btn-gps"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5a6.6 6.6 0 0 0-6.6 6.6c0 4.9 6.6 12.4 6.6 12.4s6.6-7.5 6.6-12.4A6.6 6.6 0 0 0 12 2.5Zm0 9.2a2.6 2.6 0 1 1 0-5.2 2.6 2.6 0 0 1 0 5.2Z"/></svg> <span id="btn-gps-txt">GPS activo</span></button>
+        </div>
         <label class="campo">
-          <span>Tu aula o edificio</span>
+          <span>Buscar aula o edificio</span>
           <input id="campus-buscar" type="search" placeholder="Ej.: B-205, C-305, P-309…" autocomplete="off">
         </label>
         <div id="campus-sug" class="sugerencias" hidden></div>
@@ -220,11 +225,13 @@
           <button type="button" data-ir-lugar="B-101">B-101</button>
           <button type="button" data-ir-lugar="Auditorio Central">Auditorio</button>
         </div>
-        <button type="button" class="btn secundario ancho" id="btn-gps"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5a6.6 6.6 0 0 0-6.6 6.6c0 4.9 6.6 12.4 6.6 12.4s6.6-7.5 6.6-12.4A6.6 6.6 0 0 0 12 2.5Zm0 9.2a2.6 2.6 0 1 1 0-5.2 2.6 2.6 0 0 1 0 5.2Z"/></svg> Usar mi GPS</button>
-        <label class="campo">
-          <span>Estoy en…</span>
-          <select id="campus-ubicacion"></select>
-        </label>
+        <details class="lista-manual-det">
+          <summary>Elegir desde la lista completa</summary>
+          <label class="campo">
+            <span>Estoy en…</span>
+            <select id="campus-ubicacion"></select>
+          </label>
+        </details>
         <div id="ruta-info" class="ruta-info"></div>
       </div>
 
@@ -341,6 +348,16 @@
       </div>
 
       <div data-admin-panel="simulacros" hidden>
+      <div class="tarjeta">
+        <div class="tarjeta-cab"><h3>Control de emergencia</h3></div>
+        <div class="simulacros">
+          <button type="button" class="btn peligro" data-declarar-em="incendio">Declarar Incendio</button>
+          <button type="button" class="btn aviso-btn" data-declarar-em="sismo">Declarar Sismo</button>
+          <button type="button" class="btn primario" data-declarar-em="inundacion">Declarar Inundación</button>
+          <button type="button" class="btn seguro" data-accion="finalizar-emergencia">Finalizar emergencia</button>
+        </div>
+      </div>
+
       <div class="tarjeta">
         <div class="tarjeta-cab"><h3>Simulacros rápidos</h3></div>
         <div class="simulacros">
@@ -626,6 +643,43 @@
       </div>
       <div class="hoja-pie">
         <button type="button" class="btn secundario ancho hoja-cancelar" data-cerrar>Cancelar</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="modal-emergencia" class="modal-capa" hidden>
+    <div class="modal-fondo" data-cerrar-em></div>
+    <div class="modal-em-carta t-general" id="modal-em-carta" role="alertdialog" aria-modal="true" aria-labelledby="modal-em-titulo" aria-describedby="modal-em-desc">
+      <div class="modal-em-cab">
+        <span class="modal-em-badge" id="modal-em-badge">EMERGENCIA ACTIVA</span>
+        <h2 id="modal-em-titulo">Emergencia en el campus</h2>
+        <p id="modal-em-desc"></p>
+      </div>
+      <ol class="modal-em-pasos" id="modal-em-pasos"></ol>
+      <div class="modal-em-acciones">
+        <button type="button" class="btn primario ancho grande" id="modal-em-ir">Ver mi ruta segura →</button>
+        <button type="button" class="btn secundario ancho" data-cerrar-em>Entendido</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="modal-ubicacion" class="modal-capa" hidden>
+    <div class="modal-fondo" data-cerrar-ub></div>
+    <div class="modal-ub-carta" role="dialog" aria-modal="true" aria-labelledby="modal-ub-titulo">
+      <div class="modal-ub-cab">
+        <button type="button" class="btn mini secundario" id="ub-volver" hidden>← Campus</button>
+        <div class="modal-ub-tit">
+          <h3 id="modal-ub-titulo">Elige tu edificio</h3>
+          <small id="modal-ub-sub">Toca tu edificio en el mapa del campus UAM</small>
+        </div>
+        <button type="button" class="modal-ub-x" data-cerrar-ub aria-label="Cerrar">×</button>
+      </div>
+      <div id="ub-paso-campus" class="ub-paso">
+        <div id="ub-mapa-wrap" class="ub-mapa-wrap"></div>
+        <div id="ub-edificios-chips" class="ub-edificios-chips"></div>
+      </div>
+      <div id="ub-paso-frente" class="ub-paso" hidden>
+        <div id="ub-frente-3d" class="ub-frente-3d"></div>
       </div>
     </div>
   </div>

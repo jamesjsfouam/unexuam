@@ -230,6 +230,7 @@
     YO = null;
     pausar();
     detenerSondeoMensajes();
+    detenerSeguimientoGPS();
     cerrarChat();
     if (window.__cerrarFab) window.__cerrarFab();
     document.body.classList.add("sin-sesion");
@@ -363,13 +364,100 @@
     }
   }
 
+  let watchGpsId = null;
+  let timerGpsNativo = null;
+  let ultCoordsGps = null;
+  let ultLugarGps = "";
+
+  async function procesarCoordsContinuas(coords) {
+    if (!coords || !Number.isFinite(coords.lat) || !Number.isFinite(coords.lon)) return;
+    if (ultCoordsGps) {
+      const dLat = (coords.lat - ultCoordsGps.lat) * 110574;
+      const dLon = (coords.lon - ultCoordsGps.lon) * 111320 * Math.cos(coords.lat * Math.PI / 180);
+      if (Math.hypot(dLat, dLon) < 8) return;
+    }
+    ultCoordsGps = { lat: coords.lat, lon: coords.lon };
+    const U = window.UnexuamUbicacion;
+    let detectado = null;
+    if (U) {
+      try {
+        await U.cargar();
+        const r = U.identificar(U.aMetros(coords.lat, coords.lon), leerLS("mi-piso", 1));
+        if (r.area || r.dentroCampus) detectado = r.lugar;
+      } catch (_) {}
+    }
+    if (!detectado && window.__PLANO_CAMPUS__ && window.__PLANO_CAMPUS__.geo && window.__PLANO_CAMPUS__.posiciones) {
+      const geo = window.__PLANO_CAMPUS__.geo;
+      const x = (coords.lon - geo.lon0) * geo.cosLat * 111320;
+      const y = (geo.lat0 - coords.lat) * 110574;
+      let mejor = null;
+      for (const [nombre, xy] of Object.entries(window.__PLANO_CAMPUS__.posiciones)) {
+        if (/^(Punto|Zona) Segura /i.test(nombre)) continue;
+        const d = Math.hypot(x - xy[0], y - xy[1]);
+        if (!mejor || d < mejor.d) mejor = { nombre, d };
+      }
+      if (mejor && mejor.d <= 300) detectado = mejor.nombre;
+    }
+    if (!detectado || detectado === ultLugarGps) return;
+    ultLugarGps = detectado;
+    const sel = $("#campus-ubicacion");
+    if (sel && sel.value !== detectado) {
+      sel.value = detectado;
+      sel.dispatchEvent(new Event("change"));
+    }
+    if (YO && await guardarLugarEnRed(detectado, true)) {
+      cargarMensajes().then(renderMensajes);
+    }
+  }
+
+  function iniciarSeguimientoGPS() {
+    detenerSeguimientoGPS();
+    const lblGps = $("#btn-gps-txt");
+    if (navigator.geolocation) {
+      try {
+        watchGpsId = navigator.geolocation.watchPosition(
+          pos => {
+            if (lblGps) lblGps.textContent = "GPS en vivo";
+            if (!document.hidden) procesarCoordsContinuas({ lat: pos.coords.latitude, lon: pos.coords.longitude, acc: pos.coords.accuracy });
+          },
+          () => { if (lblGps) lblGps.textContent = "Usar mi GPS"; },
+          { enableHighAccuracy: true, maximumAge: 10000, timeout: 15000 }
+        );
+      } catch (_) {}
+    }
+    if (window.UnexuamNativo && typeof window.UnexuamNativo.ubicacionNativa === "function") {
+      timerGpsNativo = setInterval(() => {
+        if (document.hidden) return;
+        try {
+          const raw = window.UnexuamNativo.ubicacionNativa();
+          if (raw) {
+            const p = JSON.parse(raw);
+            if (Number.isFinite(p.lat) && Number.isFinite(p.lon)) {
+              if (lblGps) lblGps.textContent = "GPS en vivo";
+              procesarCoordsContinuas(p);
+            }
+          }
+        } catch (_) {}
+      }, 15000);
+    }
+  }
+
+  function detenerSeguimientoGPS() {
+    if (watchGpsId !== null && navigator.geolocation) {
+      try { navigator.geolocation.clearWatch(watchGpsId); } catch (_) {}
+    }
+    watchGpsId = null;
+    if (timerGpsNativo) clearInterval(timerGpsNativo);
+    timerGpsNativo = null;
+  }
+
   function verificarBluetoothYGPS() {
     try {
       if (window.UnexuamNativo && typeof window.UnexuamNativo.pedirPermisos === "function") {
         window.UnexuamNativo.pedirPermisos();
       }
     } catch (_) {}
-    setTimeout(() => { aproximarEdificioPorGPS(false); }, 900);
+    setTimeout(() => { aproximarEdificioPorGPS(false); iniciarSeguimientoGPS(); }, 900);
   }
 
   function trasEntrar(j) {
@@ -1279,6 +1367,7 @@
       osc.stop(audioCtxGlobal.currentTime + 0.22);
     } catch (_) {}
   }
+  window.sonarAlerta = sonarAlerta;
 
   let enviandoSos = false;
   async function enviarSOS() {
@@ -1552,6 +1641,14 @@
           sonarAlerta();
           avisar(String(d.paquete.texto), false);
           if (window.actualizarBannerEmergencia) window.actualizarBannerEmergencia(String(d.paquete.texto));
+          if (window.mostrarModalEmergencia) {
+            window.mostrarModalEmergencia({
+              clave: `sos:${d.paquete.id || d.paquete.hora}:${d.paquete.de}`,
+              tipo: /incendio|humo|fuego/i.test(d.paquete.texto) ? "incendio" : /sismo|temblor/i.test(d.paquete.texto) ? "sismo" : /inundaci/i.test(d.paquete.texto) ? "inundacion" : "general",
+              titulo: `Alerta SOS · ${d.paquete.deNombre || d.paquete.de}`,
+              texto: String(d.paquete.texto),
+            });
+          }
           if (!window.UnexuamNativo) notificarPush(`ALERTA SOS · ${d.paquete.deNombre || d.paquete.de}`, String(d.paquete.texto), "sos");
         } else if ($("#chat").hidden) {
           avisar(`Mensaje recibido de ${d.paquete.deNombre || d.paquete.de}`);
@@ -1615,6 +1712,8 @@
       if (!abriendoChatIntencional && !$("#chat").hidden) cerrarChat();
     });
     window.addEventListener("popstate", () => {
+      if (!$("#modal-ubicacion")?.hidden && window.cerrarSelectorUbicacion) { window.cerrarSelectorUbicacion(); return; }
+      if (!$("#modal-emergencia")?.hidden && window.cerrarModalEmergencia) { window.cerrarModalEmergencia(); return; }
       if (!$("#hoja").hidden && window.cerrarHoja) { window.cerrarHoja(); return; }
       if (!$("#fab-menu")?.hidden && window.__cerrarFab) { window.__cerrarFab(); return; }
       if (!$("#chat").hidden) { cerrarChat(); return; }
@@ -1653,6 +1752,7 @@
       mostrarSesion();
       window.iniciarUnexuam();
       iniciarSondeoMensajes();
+      iniciarSeguimientoGPS();
     } else {
       mostrarLogin();
     }

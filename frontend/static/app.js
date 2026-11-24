@@ -455,6 +455,7 @@ function aplicarEstado(est) {
   else if (!ua) { alertaVista = "nada"; alcanceMostrado = null; viaMostrada = {}; }
   render();
   actualizarBannerEmergencia();
+  evaluarEmergenciaAutomatica();
   // si el grafo del campus cambió (bloqueo, congestión, admin), recalcular la ruta de este teléfono
   const fc = JSON.stringify([est.campus.aristas, est.campus.zonasSeguras]);
   if (fc !== firmaCampus) { firmaCampus = fc; pedirRuta(); }
@@ -530,15 +531,19 @@ function renderInicio() {
       : "Ver ruta paso a paso en el mapa 3D";
   }
 
-  const emergencia = ua || c.bloqueados.length || nCong;
+  const emObj = E.emergencia;
+  const emergencia = !!(emObj || ua || c.bloqueados.length || nCong);
   $("#hero").className = "hero " + (emergencia ? "emergencia" : "calma");
   $("#hero-icono").src = emergencia ? IMG.fuego : IMG.x;
-  $("#hero-titulo").textContent = emergencia ? "Emergencia en curso" : "Todo en calma";
+  $("#hero-titulo").textContent = emObj ? emObj.titulo : (emergencia ? "Emergencia en curso" : "Todo en calma");
   const partes = [];
+  if (emObj && emObj.texto) partes.push(emObj.texto);
   if (ua) partes.push(`alerta propagada a ${alc} de ${tels} teléfonos`);
   if (c.bloqueados.length) partes.push(`${c.bloqueados.length} paso(s) bloqueado(s)`);
   if (nCong) partes.push(`${nCong} lugar(es) con congestión`);
-  $("#hero-texto").textContent = partes.length ? partes.join(" · ").replace(/^./, s => s.toUpperCase()) + "." : "No hay alertas activas en la red ni en el campus.";
+  $("#hero-texto").textContent = partes.length ? partes.join(" · ").replace(/^./, s => s.toUpperCase()) : "No hay alertas activas en la red ni en el campus.";
+  const btnFin = $("#btn-fin-emergencia");
+  if (btnFin) btnFin.hidden = !(emergencia && document.body.classList.contains("es-admin"));
 
   $("#historial").innerHTML = E.historial.length
     ? E.historial.map(h =>
@@ -1424,6 +1429,229 @@ function renderAdmin() {
 
 let bannerEmergenciaOculto = false;
 let textoEmergenciaExtra = "";
+let claveModalEmergencia = "";
+let focoPrevioModal = null;
+
+const PASOS_EMERGENCIA = {
+  sismo: [
+    "Agáchate y cúbrete cabeza y cuello lejos de ventanas.",
+    "Al terminar el movimiento, evacúa caminando a tu punto seguro.",
+  ],
+  incendio: [
+    "Aléjate del humo avanzando agachado; no uses elevadores.",
+    "Sigue tu ruta segura hacia Plazoleta o Canchas sin regresar.",
+  ],
+  inundacion: [
+    "Aléjate de parqueos bajos, drenajes y cables húmedos.",
+    "Resguárdate en piso 2 o 3 si el agua sube en planta baja.",
+  ],
+  general: [
+    "Mantén la calma y sigue la ruta más corta en Evacuar.",
+    "Reporta pasillos bloqueados o pide ayuda en el Canal General.",
+  ],
+};
+
+function mostrarModalEmergencia(opts = {}) {
+  const capa = $("#modal-emergencia");
+  const carta = $("#modal-em-carta");
+  if (!capa || !carta || document.body.classList.contains("sin-sesion")) return;
+  const clave = opts.clave || `${opts.tipo || "general"}:${opts.titulo || ""}:${opts.texto || ""}`;
+  if (clave === claveModalEmergencia && !opts.forzar) return;
+  claveModalEmergencia = clave;
+  const tipo = PASOS_EMERGENCIA[opts.tipo] ? opts.tipo : "general";
+  carta.className = `modal-em-carta t-${tipo}`;
+  const badges = { sismo: "SISMO / TEMBLOR", incendio: "INCENDIO ACTIVO", inundacion: "INUNDACIÓN", general: "EMERGENCIA ACTIVA" };
+  $("#modal-em-badge").textContent = badges[tipo];
+  $("#modal-em-titulo").textContent = opts.titulo || "Emergencia en el campus";
+  $("#modal-em-desc").textContent = opts.texto || "Sigue tu ruta de evacuación hacia el punto seguro más cercano.";
+  $("#modal-em-pasos").innerHTML = PASOS_EMERGENCIA[tipo].map((p, i) => `<li><b>${i + 1}</b><span>${esc(p)}</span></li>`).join("");
+  focoPrevioModal = document.activeElement;
+  capa.hidden = false;
+  if (history.pushState) history.pushState({ modalEm: true }, "");
+  if (window.sonarAlerta) window.sonarAlerta();
+  requestAnimationFrame(() => $("#modal-em-ir")?.focus());
+}
+window.mostrarModalEmergencia = mostrarModalEmergencia;
+
+function cerrarModalEmergencia() {
+  const capa = $("#modal-emergencia");
+  if (!capa || capa.hidden) return;
+  capa.hidden = true;
+  if (focoPrevioModal && typeof focoPrevioModal.focus === "function") focoPrevioModal.focus();
+  focoPrevioModal = null;
+}
+window.cerrarModalEmergencia = cerrarModalEmergencia;
+
+function evaluarEmergenciaAutomatica() {
+  if (!E || document.body.classList.contains("sin-sesion")) return;
+  const c = E.campus;
+  const em = E.emergencia;
+  const hayAlguna = !!(em || E.ultimaAlerta || (c && (c.bloqueados.length || Object.keys(c.congestion).length)));
+  if (!hayAlguna) {
+    claveModalEmergencia = "";
+    cerrarModalEmergencia();
+    return;
+  }
+  if (em) {
+    mostrarModalEmergencia({
+      clave: `em:${em.id || em.hora}:${em.tipo}`,
+      tipo: em.tipo,
+      titulo: em.titulo,
+      texto: em.texto,
+    });
+  } else if (c && c.bloqueados.length) {
+    const ult = c.bloqueados[c.bloqueados.length - 1];
+    mostrarModalEmergencia({
+      clave: `bloq:${c.bloqueados.length}:${ult.origen}:${ult.destino}`,
+      tipo: "general",
+      titulo: "Pasillo bloqueado en el campus",
+      texto: `Se bloqueó ${ult.origen} → ${ult.destino}. Tu ruta de evacuación fue recalculada.`,
+    });
+  } else if (c && Object.keys(c.congestion).length) {
+    const lugs = Object.keys(c.congestion);
+    mostrarModalEmergencia({
+      clave: `cong:${lugs.join(",")}`,
+      tipo: "general",
+      titulo: "Congestión en ruta de evacuación",
+      texto: `Alta congestión detectada en ${lugs[lugs.length - 1]}. Revisa tu ruta alternativa.`,
+    });
+  } else if (E.ultimaAlerta) {
+    mostrarModalEmergencia({
+      clave: `ua:${E.ultimaAlerta.hora}:${E.ultimaAlerta.origen}`,
+      tipo: "general",
+      titulo: "Alerta en la red Mesh",
+      texto: `Se propagó una alerta desde ${E.ultimaAlerta.origen} a las ${E.ultimaAlerta.hora}.`,
+    });
+  }
+}
+
+/* ---------- Selector Visual 3D de Campus y Fachada Frontal de Edificio ---------- */
+const EDIFICIOS_MULTI = ["B", "C", "P"];
+const LUGARES_DESTACADOS = [
+  { id: "B", label: "Edificio B", sub: "3 pisos · Aulas", multi: true, ref: "B Salida Oeste" },
+  { id: "C", label: "Edificio C", sub: "3 pisos · Aulas", multi: true, ref: "C Salida Este" },
+  { id: "P", label: "Edificio P · Copérnico", sub: "3 pisos · Aulas", multi: true, ref: "P Salida Oeste" },
+  { id: "Edificio E", label: "Edificio E", sub: "Planta baja", multi: false, ref: "Edificio E" },
+  { id: "Auditorio Central", label: "Auditorio Central", sub: "Campus", multi: false, ref: "Auditorio Central" },
+  { id: "Biblioteca", label: "Biblioteca", sub: "Campus", multi: false, ref: "Biblioteca" },
+  { id: "Edificio A", label: "Edificio A", sub: "Campus", multi: false, ref: "Edificio A" },
+  { id: "Edificio D", label: "Edificio D", sub: "Campus", multi: false, ref: "Edificio D" },
+  { id: "Cafetería", label: "Cafetería", sub: "Campus", multi: false, ref: "Cafetería" },
+];
+
+function abrirSelectorUbicacion() {
+  const capa = $("#modal-ubicacion");
+  if (!capa || !E) return;
+  focoPrevioModal = document.activeElement;
+  renderPasoCampus();
+  capa.hidden = false;
+  if (history.pushState) history.pushState({ modalUb: true }, "");
+  requestAnimationFrame(() => $(".modal-ub-x", capa)?.focus());
+}
+window.abrirSelectorUbicacion = abrirSelectorUbicacion;
+
+function cerrarSelectorUbicacion() {
+  const capa = $("#modal-ubicacion");
+  if (!capa || capa.hidden) return;
+  capa.hidden = true;
+  if (focoPrevioModal && typeof focoPrevioModal.focus === "function") focoPrevioModal.focus();
+  focoPrevioModal = null;
+}
+window.cerrarSelectorUbicacion = cerrarSelectorUbicacion;
+
+function renderPasoCampus() {
+  $("#ub-paso-campus").hidden = false;
+  $("#ub-paso-frente").hidden = true;
+  $("#ub-volver").hidden = true;
+  $("#modal-ub-titulo").textContent = "Elige tu edificio";
+  $("#modal-ub-sub").textContent = "Toca tu edificio en el mapa 3D del campus UAM";
+
+  const verts = new Set(E.campus.vertices);
+  const disponibles = LUGARES_DESTACADOS.filter(x => x.multi || verts.has(x.id));
+
+  const wrap = $("#ub-mapa-wrap");
+  if (PLANO && PROY) {
+    let pins = "";
+    for (const item of disponibles) {
+      let xy = null;
+      if (item.multi) {
+        const pe = PLANO.posiciones[`${item.id} Salida Este`];
+        const po = PLANO.posiciones[`${item.id} Salida Oeste`];
+        if (pe && po) xy = proyectar((pe[0] + po[0]) / 2, (pe[1] + po[1]) / 2, 16);
+      } else {
+        const q = PLANO.posiciones[item.ref];
+        if (q) xy = proyectar(q[0], q[1], 8);
+      }
+      if (!xy) continue;
+      const cortoTxt = item.multi ? `Edif. ${item.id}` : item.label.replace(/^Edificio /, "Edif. ").slice(0, 12);
+      const pw = Math.max(92, cortoTxt.length * 13 + 28);
+      pins += `<g class="ub-pin${item.multi ? " multinivel" : ""}" data-ub-ed="${esc(item.id)}" data-ub-multi="${item.multi ? "1" : "0"}" role="button" tabindex="0">
+        <rect x="${(xy.x - pw / 2).toFixed(1)}" y="${(xy.y - 22).toFixed(1)}" width="${pw}" height="44" rx="22"/>
+        <text x="${xy.x.toFixed(1)}" y="${xy.y.toFixed(1)}" font-size="22">${esc(cortoTxt)}</text>
+      </g>`;
+    }
+    wrap.innerHTML = `<svg class="ub-mapa-svg" viewBox="80 120 1440 820" role="img" aria-label="Mapa interactivo de edificios del campus UAM">
+      <image href="/static/img/mapa-campus-3d.svg" width="${MAPA_W}" height="${MAPA_H}"/>
+      ${pins}
+    </svg>`;
+  } else {
+    wrap.innerHTML = "";
+  }
+
+  $("#ub-edificios-chips").innerHTML = disponibles.map(item =>
+    `<button type="button" class="${item.multi ? "multi" : ""}" data-ub-ed="${esc(item.id)}" data-ub-multi="${item.multi ? "1" : "0"}">
+      <span>${esc(item.label)}</span><small>${esc(item.sub)} ${item.multi ? "›" : ""}</small>
+    </button>`
+  ).join("");
+}
+
+function renderPasoFrenteEdificio(L) {
+  $("#ub-paso-campus").hidden = true;
+  $("#ub-paso-frente").hidden = false;
+  $("#ub-volver").hidden = false;
+  const nombreEd = (FACHADA[L] && FACHADA[L].nombre) || `Edificio ${L}`;
+  $("#modal-ub-titulo").textContent = `${nombreEd} · Vista frontal`;
+  $("#modal-ub-sub").textContent = "Toca tu piso, pabellón o aula en el frente del edificio";
+
+  const pisosMap = new Map();
+  for (const v of E.campus.vertices) {
+    const info = lugarInfo(v);
+    if (info.ed !== L || !info.piso) continue;
+    if (!pisosMap.has(info.piso)) pisosMap.set(info.piso, { aulas: [], pabOeste: null, pabEste: null });
+    const entry = pisosMap.get(info.piso);
+    if (info.t === "aula") entry.aulas.push(v);
+    else if (info.t === "pabellon" && info.lado === "oeste") entry.pabOeste = v;
+    else if (info.t === "pabellon" && info.lado === "este") entry.pabEste = v;
+  }
+
+  const pisosOrden = [...pisosMap.keys()].sort((a, b) => b - a);
+  let html = `<div class="fachada-3d"><div class="fachada-techo" aria-hidden="true"></div>`;
+  for (const p of pisosOrden) {
+    const d = pisosMap.get(p);
+    d.aulas.sort((a, b) => a.localeCompare(b, "es", { numeric: true }));
+    const nomP = p === 1 ? "Planta baja (Piso 1)" : `Piso ${p}`;
+    html += `<div class="fachada-piso">
+      <div class="fachada-piso-cab"><b>${esc(nomP)}</b><span class="nota">${d.aulas.length} aulas</span></div>
+      <div class="fachada-alas">
+        ${d.pabOeste ? `<button type="button" class="fachada-ala-btn" data-ub-sel="${esc(d.pabOeste)}">Pabellón Oeste</button>` : ""}
+        ${d.pabEste ? `<button type="button" class="fachada-ala-btn" data-ub-sel="${esc(d.pabEste)}">Pabellón Este</button>` : ""}
+      </div>
+      <div class="fachada-aulas">
+        ${d.aulas.map(a => `<button type="button" class="fachada-aula-btn" data-ub-sel="${esc(a)}">${esc(a)}</button>`).join("")}
+      </div>
+    </div>`;
+  }
+  const sOeste = `${L} Salida Oeste`, sEste = `${L} Salida Este`;
+  const verts = new Set(E.campus.vertices);
+  if (verts.has(sOeste) || verts.has(sEste)) {
+    html += `<div class="fachada-base">
+      ${verts.has(sOeste) ? `<button type="button" data-ub-sel="${esc(sOeste)}">Salida Oeste</button>` : ""}
+      ${verts.has(sEste) ? `<button type="button" data-ub-sel="${esc(sEste)}">Salida Este</button>` : ""}
+    </div>`;
+  }
+  html += `</div>`;
+  $("#ub-frente-3d").innerHTML = html;
+}
 
 function actualizarBannerEmergencia(textoForzado) {
   const bar = $("#banner-emergencia");
@@ -1434,13 +1662,15 @@ function actualizarBannerEmergencia(textoForzado) {
     bannerEmergenciaOculto = false;
   }
   const c = E && E.campus;
-  const hayInc = !!(c && (c.bloqueados.length || Object.keys(c.congestion).length)) || !!(E && E.ultimaAlerta) || !!textoEmergenciaExtra;
+  const hayInc = !!(E && E.emergencia) || !!(c && (c.bloqueados.length || Object.keys(c.congestion).length)) || !!(E && E.ultimaAlerta) || !!textoEmergenciaExtra;
   if (!hayInc || vista === "campus" || bannerEmergenciaOculto || document.body.classList.contains("sin-sesion")) {
     bar.hidden = true;
     return;
   }
   if (textoEmergenciaExtra) {
     txt.textContent = textoEmergenciaExtra.slice(0, 72);
+  } else if (E && E.emergencia) {
+    txt.textContent = E.emergencia.titulo;
   } else if (c && c.bloqueados.length) {
     txt.textContent = `${c.bloqueados.length} pasillo(s) bloqueado(s) · Ruta recalculada`;
   } else if (c && Object.keys(c.congestion).length) {
@@ -1482,6 +1712,50 @@ function eventos() {
     const bar = $("#banner-emergencia");
     if (bar) bar.hidden = true;
   });
+  const btnFinEm = $("#btn-fin-emergencia");
+  if (btnFinEm) btnFinEm.addEventListener("click", () => accion("finalizar-emergencia"));
+  const btnElegirVis = $("#btn-elegir-visual");
+  if (btnElegirVis) btnElegirVis.addEventListener("click", abrirSelectorUbicacion);
+  const btnUbVolver = $("#ub-volver");
+  if (btnUbVolver) btnUbVolver.addEventListener("click", renderPasoCampus);
+  const btnModalEmIr = $("#modal-em-ir");
+  if (btnModalEmIr) btnModalEmIr.addEventListener("click", () => {
+    cerrarModalEmergencia();
+    location.hash = "#campus";
+    irA("campus");
+  });
+  document.addEventListener("click", ev => {
+    if (ev.target.closest("[data-cerrar-em]")) { cerrarModalEmergencia(); return; }
+    if (ev.target.closest("[data-cerrar-ub]")) { cerrarSelectorUbicacion(); return; }
+    const dec = ev.target.closest("[data-declarar-em]");
+    if (dec) {
+      const tipo = dec.dataset.declararEm;
+      const nombres = { incendio: "Incendio", sismo: "Sismo / Temblor", inundacion: "Inundación" };
+      hoja(`Declarar ${nombres[tipo] || "Emergencia"}`, "Se abrirá una ventana de alerta automática en todos los teléfonos conectados.", [
+        { txt: `Sí, declarar ${nombres[tipo] || "emergencia"}`, cls: "peligro", fn: () => api("/api/emergencia/declarar", { tipo }) },
+      ]);
+      return;
+    }
+    const ubEd = ev.target.closest("[data-ub-ed]");
+    if (ubEd) {
+      const id = ubEd.dataset.ubEd;
+      if (ubEd.dataset.ubMulti === "1") renderPasoFrenteEdificio(id);
+      else {
+        seleccionarLugar(id);
+        cerrarSelectorUbicacion();
+        aviso(`Ubicación seleccionada: ${id}`);
+      }
+      return;
+    }
+    const ubSel = ev.target.closest("[data-ub-sel]");
+    if (ubSel) {
+      const lugar = ubSel.dataset.ubSel;
+      seleccionarLugar(lugar);
+      cerrarSelectorUbicacion();
+      aviso(`Ubicación seleccionada: ${lugar}`);
+      return;
+    }
+  });
 
   document.addEventListener("click", ev => {
     const b = ev.target.closest("[data-accion]");
@@ -1509,7 +1783,11 @@ function eventos() {
     }
   });
   document.addEventListener("keydown", ev => {
-    if (ev.key === "Escape") cerrarHoja();
+    if (ev.key === "Escape") {
+      if (!$("#modal-ubicacion")?.hidden) { cerrarSelectorUbicacion(); return; }
+      if (!$("#modal-emergencia")?.hidden) { cerrarModalEmergencia(); return; }
+      cerrarHoja();
+    }
     if (ev.key === "Tab" && !$("#hoja").hidden) {
       const enfocables = [...$$(".hoja-carta button:not(:disabled), .hoja-carta select:not(:disabled), .hoja-carta input:not(:disabled), .hoja-carta textarea:not(:disabled), .hoja-carta a[href], .hoja-carta [tabindex]:not([tabindex='-1'])")]
         .filter(el => el.offsetParent !== null);
@@ -1798,6 +2076,21 @@ async function accion(a) {
     zoomCampus(1.38);
   } else if (a === "mapa-centrar") {
     if (camCampusIni) aplicarCamaraCampus(camCampusIni);
+  } else if (a === "finalizar-emergencia") {
+    hoja("Finalizar emergencia", "Se reabrirán los pasillos bloqueados, se limpiarán las alertas y el campus volverá a estar en calma.", [
+      {
+        txt: "Sí, finalizar emergencia",
+        cls: "primario",
+        fn: async () => {
+          bannerEmergenciaOculto = false;
+          textoEmergenciaExtra = "";
+          claveModalEmergencia = "";
+          rutaAnterior = null;
+          await api("/api/emergencia/finalizar", {});
+          cerrarModalEmergencia();
+        },
+      },
+    ]);
   } else if (a === "reiniciar-campus") {
     rutaAnterior = null;
     api("/api/reiniciar", { grafo: "campus" });

@@ -213,6 +213,7 @@
     bloqueados: [],
     congestion: {},
     ultimaAlerta: null,
+    emergencia: null,
     historial: [],
   };
 
@@ -254,6 +255,7 @@
   function reiniciarMesh() {
     S.red = construirGrafo(SEED.mesh);
     S.ultimaAlerta = null;
+    S.emergencia = null;
     for (const k of Object.keys(UBIC)) delete UBIC[k];
     if (SEED && SEED.ubicaciones) Object.assign(UBIC, SEED.ubicaciones);
     const yo = cuentaActual();
@@ -286,6 +288,7 @@
         bloqueados: S.bloqueados,
         congestion: S.congestion,
         ultimaAlerta: S.ultimaAlerta,
+        emergencia: S.emergencia,
         historial: S.historial,
       };
       window.localStorage.setItem(STORAGE_KEY, JSON.stringify(snap));
@@ -305,6 +308,7 @@
       S.bloqueados = Array.isArray(snap.bloqueados) ? snap.bloqueados : [];
       S.congestion = snap.congestion && typeof snap.congestion === "object" ? snap.congestion : {};
       S.ultimaAlerta = snap.ultimaAlerta || null;
+      S.emergencia = snap.emergencia || null;
       S.historial = Array.isArray(snap.historial) ? snap.historial : [];
       return true;
     } catch (_) {
@@ -355,6 +359,7 @@
         congestion: S.congestion,
       },
       ultimaAlerta: S.ultimaAlerta,
+      emergencia: S.emergencia,
       historial: S.historial,
     };
   }
@@ -554,7 +559,7 @@
 
   function despacharApi(ruta, d, searchParams) {
     const LIBRES = ["/api/yo", "/api/login", "/api/login/demo", "/api/registro", "/api/lugares", "/api/campus/publico", "/api/campus/ruta"];
-    const SOLO_ADMIN = ["/api/reiniciar", "/api/mesh/vertice", "/api/mesh/arista", "/api/mesh/alerta", "/api/campus/vertice", "/api/campus/arista", "/api/campus/ubicacion", "/api/campus/desbloquear", "/api/campus/congestionar", "/api/algoritmo"];
+    const SOLO_ADMIN = ["/api/reiniciar", "/api/mesh/vertice", "/api/mesh/arista", "/api/mesh/alerta", "/api/campus/vertice", "/api/campus/arista", "/api/campus/ubicacion", "/api/campus/desbloquear", "/api/campus/congestionar", "/api/algoritmo", "/api/emergencia/declarar", "/api/emergencia/finalizar"];
     if (!LIBRES.includes(ruta)) {
       const yo = cuentaActual();
       if (!yo) {
@@ -575,6 +580,49 @@
       if (cual === "campus" || cual === "ambos") reiniciarCampus();
       const nombres = { mesh: "la red Mesh", campus: "el campus", ambos: "los dos grafos" };
       return responder(true, `Se reinició ${nombres[cual]}.`);
+    }
+
+    if (ruta === "/api/emergencia/declarar") {
+      const EM = {
+        sismo: ["Sismo / Temblor", "Agáchate, cúbrete y al terminar evacúa hacia el punto seguro más cercano."],
+        incendio: ["Incendio en el campus", "Evacúa rápido y agachado si hay humo. No uses elevadores."],
+        inundacion: ["Inundación / Tormenta", "Aléjate de drenajes y parqueos bajos. Sube a piso 2 o 3 si es necesario."],
+        general: ["Emergencia en el campus", "Sigue tu ruta de evacuación hacia el punto seguro más cercano."],
+      };
+      const tipo = EM[String((d && d.tipo) || "general").toLowerCase()] ? String(d.tipo).toLowerCase() : "general";
+      const [tituloDef, textoDef] = EM[tipo];
+      const txtEm = texto(d, "texto", 200) || textoDef;
+      const idEm = generarId();
+      const horaEm = horaActual();
+      S.emergencia = { id: idEm, tipo, titulo: tituloDef, texto: txtEm, hora: horaEm };
+      const yoEm = cuentaActual();
+      if (yoEm) {
+        enviarPaqueteReal({
+          id: idEm, tipo: "incidente", accion: "emergencia", emergenciaTipo: tipo,
+          titulo: tituloDef, texto: `SOS · ${tituloDef}: ${txtEm}`,
+          de: yoEm.cif, deNombre: yoEm.u.nombre, deTel: yoEm.u.telefono,
+          para: "TODOS", hora: horaEm, ttl: 6, ruta: [yoEm.u.telefono],
+        });
+      }
+      return responder(true, `Emergencia declarada: ${tituloDef}.`);
+    }
+
+    if (ruta === "/api/emergencia/finalizar") {
+      const ubic = S.ubicacion;
+      reiniciarCampus();
+      S.ubicacion = ubic;
+      S.ultimaAlerta = null;
+      S.emergencia = null;
+      const yoFin = cuentaActual();
+      if (yoFin) {
+        enviarPaqueteReal({
+          id: generarId(), tipo: "incidente", accion: "finalizar",
+          texto: "Emergencia finalizada por el administrador. Campus en calma.",
+          de: yoFin.cif, deNombre: yoFin.u.nombre, deTel: yoFin.u.telefono,
+          para: "TODOS", hora: horaActual(), ttl: 6, ruta: [yoFin.u.telefono],
+        });
+      }
+      return responder(true, "Emergencia finalizada. El campus vuelve a estar en calma.");
     }
 
     if (ruta === "/api/mesh/alerta") {
@@ -1145,6 +1193,25 @@
             registrar(`Bloqueo recibido por Mesh: ${pq.origen} y ${pq.destino}.`, "error");
             guardarEstadoLocal();
           }
+        } else if (pq.tipo === "incidente" && pq.accion === "emergencia") {
+          S.emergencia = {
+            id: pq.id || generarId(),
+            tipo: String(pq.emergenciaTipo || "general"),
+            titulo: String(pq.titulo || "Emergencia en el campus"),
+            texto: String(pq.texto || "").slice(0, 200),
+            hora: String(pq.hora || horaActual()).slice(0, 8),
+          };
+          recalcularRuta = true;
+          guardarEstadoLocal();
+        } else if (pq.tipo === "incidente" && pq.accion === "finalizar") {
+          const ubic = S.ubicacion;
+          reiniciarCampus();
+          S.ubicacion = ubic;
+          S.ultimaAlerta = null;
+          S.emergencia = null;
+          recalcularRuta = true;
+          registrar("Emergencia finalizada por el administrador (vía Mesh).", "ok");
+          guardarEstadoLocal();
         }
         if (recalcularRuta || /^SOS\b/.test(String(pq.texto))) {
           try { window.UnexuamNativo && window.UnexuamNativo.vibrarAlerta && window.UnexuamNativo.vibrarAlerta(); } catch (_) {}

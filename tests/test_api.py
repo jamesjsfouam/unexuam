@@ -211,6 +211,21 @@ class TestSesionYMensajes(unittest.TestCase):
         self.assertEqual(r["pasos"][0]["actual"], "C-101")
         self.assertIn(r["ruta"][-1], r["zonasSeguras"])
 
+    def test_declarar_y_finalizar_emergencia(self):
+        est, _ = self.nuevo("EMG0001", "Estudiante", "C-101")
+        self.assertEqual(est.post("/api/emergencia/declarar", json={"tipo": "incendio"}).status_code, 403)
+        self.assertEqual(est.post("/api/emergencia/finalizar", json={}).status_code, 403)
+
+        adm = servidor.app.test_client()
+        adm.post("/api/login/demo", json={})
+        r1 = adm.post("/api/emergencia/declarar", json={"tipo": "incendio"}).get_json()
+        self.assertTrue(r1["ok"])
+        self.assertEqual(r1["estado"]["emergencia"]["tipo"], "incendio")
+        r2 = adm.post("/api/emergencia/finalizar", json={}).get_json()
+        self.assertTrue(r2["ok"])
+        self.assertIsNone(r2["estado"]["emergencia"])
+        self.assertEqual(r2["estado"]["campus"]["bloqueados"], [])
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -111,6 +111,7 @@ def reiniciar_mesh():
     S["red"] = crear_red_mesh()
     S["ubicaciones"] = ubicacionesTelefonos()   # teléfono -> lugar del campus
     S["ultimaAlerta"] = None
+    S["emergencia"] = None
     for cif in list(EN_LINEA):                  # los usuarios conectados vuelven a la red
         conectar_usuario(cif, DB.usuario(cif)["lugar"])
 
@@ -175,6 +176,7 @@ def estado():
             "congestion": S["congestion"],
         },
         "ultimaAlerta": S["ultimaAlerta"],
+        "emergencia": S.get("emergencia"),
         "historial": historial_visible(),
     }
 
@@ -255,7 +257,8 @@ LIBRES = {"/api/yo", "/api/login", "/api/login/demo", "/api/registro", "/api/lug
 # reabrir, congestionar, reiniciar y editar los grafos es solo del administrador.
 SOLO_ADMIN = ("/api/reiniciar", "/api/mesh/vertice", "/api/mesh/arista", "/api/mesh/alerta",
               "/api/campus/vertice", "/api/campus/arista", "/api/campus/ubicacion",
-              "/api/campus/desbloquear", "/api/campus/congestionar", "/api/algoritmo")
+              "/api/campus/desbloquear", "/api/campus/congestionar", "/api/algoritmo",
+              "/api/emergencia/declarar", "/api/emergencia/finalizar")
 LUGAR_INICIAL = "Edificio E"      # lugar por defecto al entrar (luego el GPS o la persona lo cambia)
 CIF_DEMO = "ADMIN"
 CIF_TODOS = "TODOS"     # Canal General: un "usuario" especial que representa a todo el campus
@@ -710,6 +713,44 @@ def api_reiniciar():
         reiniciar_mesh()          # también tras cambiar el campus: los enlaces dependen de las distancias
         nombres = {"mesh": "la red Mesh", "campus": "el campus", "ambos": "los dos grafos"}
         return responder(True, f"Se reinició {nombres[cual]}.")
+
+
+EMERGENCIAS_DEF = {
+    "sismo": ("Sismo / Temblor", "Agáchate, cúbrete y al terminar evacúa hacia el punto seguro más cercano."),
+    "incendio": ("Incendio en el campus", "Evacúa rápido y agachado si hay humo. No uses elevadores."),
+    "inundacion": ("Inundación / Tormenta", "Aléjate de drenajes y parqueos bajos. Sube a piso 2 o 3 si es necesario."),
+    "general": ("Emergencia en el campus", "Sigue tu ruta de evacuación hacia el punto seguro más cercano."),
+}
+
+
+@app.post("/api/emergencia/declarar")
+def api_declarar_emergencia():
+    d = cuerpo_json()
+    tipo = str(d.get("tipo", "general")).strip().lower()
+    if tipo not in EMERGENCIAS_DEF:
+        tipo = "general"
+    titulo_def, texto_def = EMERGENCIAS_DEF[tipo]
+    texto_em = texto(d, "texto", 200) or texto_def
+    with lock:
+        S["emergencia"] = {
+            "id": secrets.token_hex(6),
+            "tipo": tipo,
+            "titulo": titulo_def,
+            "texto": texto_em,
+            "hora": time.strftime("%H:%M:%S"),
+        }
+        return responder(True, f"Emergencia declarada: {titulo_def}.")
+
+
+@app.post("/api/emergencia/finalizar")
+def api_finalizar_emergencia():
+    with lock:
+        ubic = S.get("ubicacion")
+        reiniciar_campus()
+        S["ubicacion"] = ubic
+        S["ultimaAlerta"] = None
+        S["emergencia"] = None
+        return responder(True, "Emergencia finalizada. El campus vuelve a estar en calma.")
 
 
 # --- Capa 1: red Mesh --------------------------------------------------------
