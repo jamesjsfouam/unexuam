@@ -331,7 +331,7 @@ def error_backend(e):
 # Inicio de sesión (CIF + contraseña) y mensajería por la red Mesh
 # ----------------------------------------------------------------------------
 
-LIBRES = {"/api/capacidades", "/api/yo", "/api/login", "/api/login/demo", "/api/registro", "/api/lugares", "/api/campus/publico", "/api/campus/ruta"}
+LIBRES = {"/api/capacidades", "/api/yo", "/api/login", "/api/login/demo", "/api/registro", "/api/lugares", "/api/campus/publico", "/api/campus/ruta", "/api/mensajes/general"}
 # Reportar un pasillo bloqueado (/api/campus/bloquear) es una función de emergencia para todos;
 # reabrir, congestionar, reiniciar y editar los grafos es solo del administrador.
 SOLO_ADMIN = ("/api/reiniciar", "/api/mesh/vertice", "/api/mesh/arista", "/api/mesh/alerta",
@@ -691,6 +691,30 @@ def api_agregar_contacto():
             return jsonify({"ok": False, "mensaje": "No hay nadie con ese CIF."})
         DB.agregar_contacto(yo, cif)
         return jsonify({"ok": True, "contacto": ficha(cif, u, yo), "mensaje": f"{u['nombre']} está en tus contactos."})
+
+
+@app.route("/api/mensajes/general", methods=["GET", "POST"])
+def api_mensajes_general():
+    if request.method == "GET":
+        with lock:
+            todos = DB.usuarios()
+            lista = DB.mensajes_generales()
+            for m in lista:
+                m["deNombre"] = todos[m["de"]]["nombre"] if m["de"] in todos else m["de"]
+            return jsonify({"ok": True, "mensajes": lista})
+    d = cuerpo_json()
+    valor = d.get("texto")
+    texto_msj = valor.strip() if isinstance(valor, str) else ""
+    if not 1 <= len(texto_msj) <= 500:
+        return jsonify({"ok": False, "mensaje": "Escribe entre 1 y 500 caracteres."})
+    with lock:
+        u = usuario_sesion()
+        de = u["cif"] if u else "INVITADO"
+        tel = u["telefono"] if u else "Tel-Visitante"
+        nom = u["nombre"] if u else "Visitante UAM"
+        m = entregar(de, CIF_TODOS, texto_msj, ruta=[tel, "Todos"], retardo=0.5)
+        m["deNombre"] = nom
+        return jsonify({"ok": True, "mensaje": "Difundido en el Canal General del campus.", "enviado": m})
 
 
 @app.get("/api/mensajes")

@@ -18,7 +18,10 @@
       const r = await fetch(ruta, cuerpo === undefined ? {} : {
         method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(cuerpo),
       });
-      if (r.status === 401) { mostrarLogin(); return { ok: false, sesion: false }; }
+      if (r.status === 401) {
+        if (!document.body.classList.contains("modo-invitado")) mostrarLogin();
+        return { ok: false, sesion: false };
+      }
       return await r.json();
     } catch (e) {
       return { ok: false, mensaje: "Sin conexión con el servidor local." };
@@ -605,6 +608,23 @@
 
   async function cargarMensajes() {
     const solicitud = ++solicitudMsj;
+    if (!YO) {
+      const j = await pedir("/api/mensajes/general");
+      if (solicitud !== solicitudMsj || !j.ok) return;
+      const lugarInv = leerLS("mi-lugar", "Campus UAM") || "Campus UAM";
+      CONV = {
+        yo: null,
+        contactos: [{
+          cif: "TODOS", nombre: "Canal General · Campus", telefono: "Mesh-Todos",
+          enLinea: true, lugar: `Abierto · ${lugarInv}`, grupo: true,
+        }],
+        mensajes: j.mensajes || [],
+      };
+      actualizarBadge();
+      if (!$("#chat").hidden) renderChat();
+      else if (vistaActual() === "mensajes") renderMensajes();
+      return;
+    }
     const j = await pedir("/api/mensajes");
     if (solicitud !== solicitudMsj || !j.ok) return;
     const firma = JSON.stringify(j);
@@ -703,7 +723,31 @@
   }
 
   function renderMensajes() {
-    if (!YO) return;
+    const lblBus = $(".buscar-lbl"), formCif = $("#form-cif"), bloqCif = $("#bloqueo-cif-invitado");
+    if (!YO) {
+      if (lblBus) lblBus.hidden = true;
+      if (formCif) formCif.hidden = true;
+      if (bloqCif) bloqCif.hidden = false;
+      $("#mi-tel-nombre").textContent = "Visitante UAM";
+      $("#mi-vecinos").textContent = "Canal General abierto · Inicia sesión para chats privados";
+      $("#mi-lugar-txt").textContent = (CONV.contactos[0] && CONV.contactos[0].lugar) || "Campus UAM";
+      $("#mi-red").classList.remove("aislado");
+      const lista = CONV.contactos || [];
+      const u = CONV.mensajes[CONV.mensajes.length - 1];
+      $("#contactos").innerHTML = lista.map(c => {
+        const vista = u ? `${u.deNombre ? u.deNombre + ": " : ""}${u.texto}` : (c.lugar || "Canal abierto");
+        return `<li><button type="button" data-contacto="${esc(c.cif)}">
+          <span class="avatar-c" style="background:${colorDe(c.cif)}">${esc(iniciales(c.nombre))}<i class="en-linea"></i></span>
+          <span class="c-cuerpo">
+            <span class="c-fila"><b>${esc(c.nombre)}</b><time>${u ? esc((u.hora || "").slice(0, 5)) : ""}</time></span>
+            <span class="c-fila"><small>${esc(vista)}</small></span>
+          </span></button></li>`;
+      }).join("");
+      return;
+    }
+    if (lblBus) lblBus.hidden = false;
+    if (formCif) formCif.hidden = false;
+    if (bloqCif) bloqCif.hidden = true;
     $("#mi-tel-nombre").textContent = YO.telefono;
     $("#mi-vecinos").textContent = YO.vecinos.length
       ? `${YO.vecinos.length} teléfono${YO.vecinos.length === 1 ? "" : "s"} a tu alcance`
@@ -855,7 +899,8 @@
   }
 
   function renderItemChat(m, c) {
-    const mio = m.de === YO.cif;
+    const miCif = YO ? YO.cif : "INVITADO";
+    const mio = m.de === miCif;
     const entregado = m.estado === "entregado";
     const estado = { transmitiendo: "Recepción sin confirmar", vencido: "Envío vencido", "en cola": "En cola" }[m.estado] || "Pendiente";
     const tic = entregado
@@ -880,9 +925,10 @@
     $("#chat-titulo").textContent = c.nombre;
     $("#chat-estado").textContent = c.enLinea ? (c.lugar ? `en la red · ${c.lugar}` : "en la red") : "sin conexión";
     const esGrupo = c.cif === "TODOS";
+    const miCif = YO ? YO.cif : "INVITADO";
     const lista = esGrupo
       ? CONV.mensajes.filter(m => m.para === "TODOS")
-      : CONV.mensajes.filter(m => (m.de === YO.cif && m.para === c.cif) || (m.de === c.cif && m.para === YO.cif));
+      : CONV.mensajes.filter(m => (m.de === miCif && m.para === c.cif) || (m.de === c.cif && m.para === miCif));
     const ol = $("#chat-lista");
     const abajo = alFinal || ol.scrollHeight - ol.scrollTop - ol.clientHeight < 60;
 
@@ -908,7 +954,7 @@
         let li = elementos.get(key);
         if (!li) {
           li = document.createElement("li");
-          li.className = m.de === YO.cif ? "mio" : "suyo";
+          li.className = m.de === miCif ? "mio" : "suyo";
           li.dataset.msgId = key;
           li.dataset.msgFirma = firma;
           li.innerHTML = renderItemChat(m, c);
@@ -922,7 +968,7 @@
     if (abajo) ol.scrollTop = ol.scrollHeight;
     actualizarActividadChat(false, lista);
     renderRapidos(lista);
-    marcarLeidos(lista.filter(m => m.de !== YO.cif && m.estado === "entregado").map(m => m.id));
+    if (YO) marcarLeidos(lista.filter(m => m.de !== YO.cif && m.estado === "entregado").map(m => m.id));
     actualizarBadge();
   }
 
@@ -947,7 +993,8 @@
           (byte) => byte.toString(16).padStart(2, "0")).join("");
         intentoMsj = { para, texto, idempotencia };
       }
-      const j = await pedir("/api/mensajes/enviar", intentoMsj);
+      const endpoint = (!YO && conContacto === "TODOS") ? "/api/mensajes/general" : "/api/mensajes/enviar";
+      const j = await pedir(endpoint, intentoMsj);
       if (j.ok) intentoMsj = null;
       if (!j.ok) { actualizarActividadChat(false, []); t.value = texto; avisar(j.mensaje, false); return; }
       if (j.enviado && j.enviado.estado !== "entregado") avisar(j.mensaje, false);
@@ -1584,6 +1631,11 @@
         mostrarLogin();
         $('#login-error').textContent = "Conéctate para descargar el mapa del campus.";
       }
+    });
+    const btnIrLoginMsj = $("#btn-ir-login-mensajes");
+    if (btnIrLoginMsj) btnIrLoginMsj.addEventListener("click", () => {
+      document.body.classList.remove("modo-invitado");
+      mostrarLogin();
     });
     const btnAtras = $("#reg-atras");
     if (btnAtras) btnAtras.addEventListener("click", () => { if (regPaso > 1) { regPaso--; $("#login-error").textContent = ""; actualizarWizard(true); } });

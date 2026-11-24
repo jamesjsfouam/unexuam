@@ -556,7 +556,21 @@ body.sin-sesion main, body.sin-sesion .barra { visibility: hidden; }
 .buscar-ir:focus-visible { outline: 3px solid var(--texto); outline-offset: 2px; }
 .buscar-ir svg { width: 18px; height: 18px; fill: var(--blanco); }
 .resultado-cif { display: flex; align-items: center; gap: 12px; padding: 12px 14px; background: var(--blanco); border-radius: 20px; border: 2px solid var(--azul-claro); }
-.resultado-cif[hidden] { display: none; }
+.resultado-cif[hidden], .bloqueo-cif[hidden] { display: none; }
+.bloqueo-cif {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 20px;
+  border: 2px dashed var(--arista);
+  background: var(--azul-claro);
+}
+.bloqueo-cif p { margin: 0; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.bloqueo-cif b { font-size: 0.86rem; color: var(--texto); }
+.bloqueo-cif small { font-size: 0.76rem; color: var(--gris-texto); line-height: 1.3; }
+.bloqueo-cif .btn { flex: none; }
 .resultado-cif .c-cuerpo small { color: #5f6f82; font-size: 12px; font-weight: 600; }
 .resultado-cif .nota { margin: 0; }
 

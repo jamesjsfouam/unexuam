@@ -94,9 +94,11 @@ class BaseDatos:
         self.con.execute("PRAGMA journal_mode = WAL")
         self.con.executescript(ESQUEMA)
         self.lock = threading.Lock()
-        # Canal General: destinatario especial "TODOS" (no es una persona, no inicia sesión).
+        # Canal General y Visitante: destinatario especial "TODOS" y remitente invitado (no inician sesión).
         self._x("INSERT OR IGNORE INTO usuarios (cif, nombre, hash, telefono, lugar, admin, creado) "
                 "VALUES ('TODOS', 'Canal General · Campus', '!', 'Mesh-Todos', 'Edificio E', 0, ?)", (ahora(),))
+        self._x("INSERT OR IGNORE INTO usuarios (cif, nombre, hash, telefono, lugar, admin, creado) "
+                "VALUES ('INVITADO', 'Visitante UAM', '!', 'Tel-Visitante', 'Edificio E', 0, ?)", (ahora(),))
 
     def _q(self, sql, args=()):
         with self.lock:
@@ -214,6 +216,11 @@ class BaseDatos:
     def mensajes_de(self, cif, limite=400):
         filas = self._q("SELECT * FROM mensajes WHERE de_cif = ? OR para_cif = ? OR para_cif = 'TODOS' "
                         "ORDER BY enviado DESC, rowid DESC LIMIT ?", (cif, cif, limite))
+        return [self._msj(f) for f in reversed(filas)]
+
+    def mensajes_generales(self, limite=200):
+        filas = self._q("SELECT * FROM mensajes WHERE para_cif = 'TODOS' "
+                        "ORDER BY enviado DESC, rowid DESC LIMIT ?", (limite,))
         return [self._msj(f) for f in reversed(filas)]
 
     def en_cola(self):

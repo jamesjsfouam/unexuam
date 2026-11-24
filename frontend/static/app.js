@@ -68,7 +68,10 @@ async function api(ruta, cuerpo) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(cuerpo),
     });
-    if (r.status === 401) { if (window.mostrarLogin) window.mostrarLogin(); return { ok: false }; }
+    if (r.status === 401) {
+      if (!document.body.classList.contains("modo-invitado") && window.mostrarLogin) window.mostrarLogin();
+      return { ok: false };
+    }
     if (r.status === 403 || r.status === 409) {
       const j = await r.json().catch(() => ({ ok: false, mensaje: "No se pudo aplicar el cambio." }));
       marcarConexion(true);

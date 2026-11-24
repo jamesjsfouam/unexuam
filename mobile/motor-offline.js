@@ -603,7 +603,7 @@
   }
 
   async function despacharApi(ruta, d, searchParams) {
-    const LIBRES = ["/api/yo", "/api/login", "/api/login/demo", "/api/registro", "/api/lugares", "/api/campus/publico", "/api/campus/ruta"];
+    const LIBRES = ["/api/yo", "/api/login", "/api/login/demo", "/api/registro", "/api/lugares", "/api/campus/publico", "/api/campus/ruta", "/api/mensajes/general"];
     const SOLO_ADMIN = ["/api/reiniciar", "/api/mesh/vertice", "/api/mesh/arista", "/api/mesh/alerta", "/api/campus/vertice", "/api/campus/arista", "/api/campus/ubicacion", "/api/campus/desbloquear", "/api/campus/congestionar", "/api/algoritmo", "/api/emergencia/declarar", "/api/emergencia/finalizar"];
     if (!LIBRES.includes(ruta)) {
       const yo = cuentaActual();
@@ -913,6 +913,31 @@
         guardarEstadoLocal();
       }
       return { ok: true };
+    }
+    if (ruta === "/api/mensajes/general") {
+      const C = cuentas();
+      const yo = cuentaActual();
+      const textoMsj = texto(d, "texto", 500);
+      if (!textoMsj) {
+        return { ok: true, mensajes: C.mensajes.filter((m) => m.para === "TODOS").slice(-200) };
+      }
+      const ahora = horaActual();
+      const id = generarId();
+      const de = yo ? yo.cif : "INVITADO";
+      const deNombre = yo ? yo.u.nombre : "Visitante UAM";
+      const deTel = yo ? yo.u.telefono : "Tel-Visitante";
+      const enviadosReal = enviarPaqueteReal({
+        id, tipo: "mensaje", de, deNombre, deTel,
+        para: "TODOS", texto: textoMsj, hora: ahora, ttl: 6, ruta: [deTel],
+      });
+      const m = {
+        id, de, deNombre, para: "TODOS", texto: textoMsj, hora: ahora,
+        estado: "entregado", ruta: [deTel, "Todos"], retardo: 0.5, entregado: ahora, viaCola: false,
+      };
+      C.mensajes.push(m);
+      if (C.mensajes.length > 5000) C.mensajes.splice(0, C.mensajes.length - 5000);
+      guardarCuentas(C);
+      return { ok: true, enviado: m, mensaje: enviadosReal > 0 ? `Difundido a ${enviadosReal} teléfono(s) cercano(s).` : "Difundido en el Canal General." };
     }
     if (ruta.startsWith("/api/yo/") || ruta.startsWith("/api/mensajes") || ruta.startsWith("/api/contactos") || ruta === "/api/algoritmo") {
       const yo = cuentaActual();
