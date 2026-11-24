@@ -160,7 +160,13 @@
   function aplicarRol() {
     const admin = !!(YO && YO.admin);
     document.body.classList.toggle("es-admin", admin);
-    $$(".solo-admin").forEach(e => { e.hidden = !admin; });
+    $$(".solo-admin").forEach(e => {
+      if (e.id === "btn-fin-emergencia") {
+        if (!admin) e.hidden = true;
+      } else {
+        e.hidden = !admin;
+      }
+    });
     const b = $("#btn-cuenta");
     b.hidden = !YO;
     if (YO) {
@@ -312,8 +318,7 @@
           await U.cargar();
           const r = U.identificar(U.aMetros(coords.lat, coords.lon), leerLS("mi-piso", 1));
           if (r.area || r.dentroCampus) {
-            const sel = $("#campus-ubicacion");
-            if (sel) { sel.value = r.lugar; sel.dispatchEvent(new Event("change")); }
+            if (window.seleccionarLugar) window.seleccionarLugar(r.lugar);
             if (YO && await guardarLugarEnRed(r.lugar, true)) {
               cargarMensajes().then(renderMensajes);
             }
@@ -342,11 +347,7 @@
       if (!mejor) return null;
 
       if (mejor.d <= 300) {
-        const sel = $("#campus-ubicacion");
-        if (sel) {
-          sel.value = mejor.nombre;
-          sel.dispatchEvent(new Event("change"));
-        }
+        if (window.seleccionarLugar) window.seleccionarLugar(mejor.nombre);
         if (YO && await guardarLugarEnRed(mejor.nombre, true)) {
           cargarMensajes().then(renderMensajes);
         }
@@ -400,11 +401,7 @@
     }
     if (!detectado || detectado === ultLugarGps) return;
     ultLugarGps = detectado;
-    const sel = $("#campus-ubicacion");
-    if (sel && sel.value !== detectado) {
-      sel.value = detectado;
-      sel.dispatchEvent(new Event("change"));
-    }
+    if (window.seleccionarLugar) window.seleccionarLugar(detectado);
     if (YO && await guardarLugarEnRed(detectado, true)) {
       cargarMensajes().then(renderMensajes);
     }
@@ -971,8 +968,7 @@
           fn: async () => {
             const lugar = $("#hoja-lugar")?.value;
             if (!lugar) return;
-            const sel = $("#campus-ubicacion");
-            if (sel) { sel.value = lugar; sel.dispatchEvent(new Event("change")); }
+            if (window.seleccionarLugar) window.seleccionarLugar(lugar);
             if (window.__UNEXUAM_PREFS__?.compartirLugar === false) {
               YO = { ...YO, lugar };
               avisar(`Edificio guardado localmente: ${lugar} (sin compartir por Mesh).`);
@@ -1488,7 +1484,8 @@
           if (j.ok) {
             if (!j.pendiente) sonarAlerta();
             avisar(j.pendiente ? j.mensaje : `Bloqueo registrado: ${p.txt}`);
-            if (window.iniciarUnexuam) window.iniciarUnexuam();
+            if (window.refrescarEstado) window.refrescarEstado();
+            else if (window.iniciarUnexuam) window.iniciarUnexuam();
             firmaMsj = "";
             await cargarMensajes();
             if (!$("#chat").hidden) renderChat(true);
@@ -1725,7 +1722,8 @@
       const d = ev.detail || {};
       const P = window.__UNEXUAM_PREFS__ || {};
       if (d.recalcularRuta) {
-        if (window.iniciarUnexuam) window.iniciarUnexuam();
+        if (window.refrescarEstado) window.refrescarEstado();
+        else if (window.iniciarUnexuam) window.iniciarUnexuam();
         if (P.bloqueos !== false) {
           sonarAlerta();
           avisar("Bloqueo recibido por Mesh: tu ruta de evacuación fue recalculada.", false);

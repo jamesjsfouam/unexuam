@@ -456,12 +456,19 @@ function aplicarEstado(est) {
   if (k && alertaVista === null) { alertaVista = k; }
   else if (k && k !== alertaVista && !animando) { alertaVista = k; aviso(`Nueva alerta desde ${ua.origen}`, false); }
   else if (!ua) { alertaVista = "nada"; alcanceMostrado = null; viaMostrada = {}; }
-  render();
   actualizarBannerEmergencia();
   evaluarEmergenciaAutomatica();
   // si el grafo del campus cambió (bloqueo, congestión, admin), invalidar caché local y recalcular
   const fc = JSON.stringify([est.campus.aristas, est.campus.zonasSeguras]);
-  if (fc !== firmaCampus) { firmaCampus = fc; pedirRuta(); }
+  if (fc !== firmaCampus) {
+    firmaCampus = fc;
+    if (miLugar && est.campus.vertices.includes(miLugar)) {
+      pedirRuta();
+      if (vista === "admin") renderAdmin();
+      return;
+    }
+  }
+  render();
 }
 
 function render() {
@@ -851,7 +858,7 @@ function proyectar(x, y, z = 0) {
 
 fetch("/static/campus-plano.json").then(r => r.json()).then(j => {
   PLANO = j; prepararProyeccion();
-  if (E) renderCampus();
+  if (E && vista === "campus") renderCampus();
 }).catch(() => {});
 
 function corto(n) {
@@ -1496,7 +1503,7 @@ function mostrarModalEmergencia(opts = {}) {
   const capa = $("#modal-emergencia");
   const carta = $("#modal-em-carta");
   if (!capa || !carta || document.body.classList.contains("sin-sesion")) return;
-  const clave = opts.clave || `${opts.tipo || "general"}:${opts.titulo || ""}:${opts.texto || ""}`;
+  const clave = opts.clave || (opts.forzar ? `prueba:${Date.now()}` : `${opts.tipo || "general"}:${opts.titulo || ""}:${opts.texto || ""}`);
   if (clave === claveModalEmergencia && !opts.forzar) return;
   claveModalEmergencia = clave;
   const tipo = PASOS_EMERGENCIA[opts.tipo] ? opts.tipo : "general";
@@ -1539,6 +1546,7 @@ function evaluarEmergenciaAutomatica() {
   const em = E.emergencia;
   const hayAlguna = !!(em || E.ultimaAlerta || (c && (c.bloqueados.length || Object.keys(c.congestion).length)));
   if (!hayAlguna) {
+    if (claveModalEmergencia.startsWith("prueba:")) return;
     claveModalEmergencia = "";
     cerrarModalEmergencia();
     return;
@@ -1804,6 +1812,7 @@ window.actualizarBannerEmergencia = actualizarBannerEmergencia;
 function irA(nombre) {
   if (!["inicio", "campus", "mensajes", "admin", "ajustes"].includes(nombre)) nombre = "inicio";
   if (nombre === "admin" && !document.body.classList.contains("es-admin")) nombre = "inicio";
+  const cambio = vista !== nombre;
   vista = nombre;
   document.body.classList.toggle("vista-inicio", nombre === "inicio");
   $$(".vista").forEach(s => { s.hidden = s.id !== "v-" + nombre; });
@@ -1814,7 +1823,7 @@ function irA(nombre) {
     if (activa) a.setAttribute("aria-current", "page");
     else a.removeAttribute("aria-current");
   });
-  window.scrollTo(0, 0);
+  if (cambio) window.scrollTo(0, 0);
   render();
   actualizarBannerEmergencia();
   if (window.alEntrarVista) window.alEntrarVista(nombre);
@@ -1856,8 +1865,8 @@ function eventos() {
   const btnModalEmIr = $("#modal-em-ir");
   if (btnModalEmIr) btnModalEmIr.addEventListener("click", () => {
     cerrarModalEmergencia();
-    location.hash = "#campus";
-    irA("campus");
+    if (location.hash === "#campus") irA("campus");
+    else location.hash = "#campus";
   });
   document.addEventListener("click", ev => {
     if (ev.target.closest("[data-cerrar-em]")) { cerrarModalEmergencia(); return; }
@@ -1915,7 +1924,10 @@ function eventos() {
     const t = ev.target.closest("[data-ttl]");
     if (t) { ttl = Math.max(0, Math.min(20, ttl + Number(t.dataset.ttl))); $("#ttl").textContent = ttl; }
     const f = ev.target.closest("[data-f]");
-    if (f) { factor = Number(f.dataset.f); renderCampus(); }
+    if (f) {
+      factor = Number(f.dataset.f);
+      $$("#cong-factor button").forEach(b => b.setAttribute("aria-pressed", String(Number(b.dataset.f) === factor)));
+    }
     const inc = ev.target.closest("[data-inc]");
     if (inc) {
       $$("[data-inc]").forEach(x => x.setAttribute("aria-selected", String(x === inc)));
@@ -2093,6 +2105,8 @@ let leyendoVoz = false;
 function seleccionarLugar(lugar) {
   miLugar = lugar || "";
   guardar("mi-lugar", miLugar);
+  const sel = $("#campus-ubicacion");
+  if (sel && [...sel.options].some(o => o.value === miLugar)) sel.value = miLugar;
   // El lugar elegido es también donde está tu teléfono en la red Mesh (SOS, vecinos).
   if (miLugar && window.actualizarMiLugar) window.actualizarMiLugar(miLugar);
   rutaAnterior = null;
@@ -2103,6 +2117,7 @@ function seleccionarLugar(lugar) {
   if (sug) { sug.hidden = true; sug.innerHTML = ""; }
   pedirRuta();
 }
+window.seleccionarLugar = seleccionarLugar;
 
 function enfocarPaso(idx) {
   pasoActivo = idx;
@@ -2118,7 +2133,7 @@ function detenerVoz() {
   leyendoVoz = false;
   if ("speechSynthesis" in window) window.speechSynthesis.cancel();
   const btn = $("#btn-voz");
-  if (btn) btn.innerHTML = '<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4zm12.5 3a4.5 4.5 0 0 0-2.5-4v8a4.5 4.5 0 0 0 2.5-4ZM14 3.2v2.1a7 7 0 0 1 0 13.4v2.1a9 9 0 0 0 0-17.6Z"/></svg> Leer ruta';
+  if (btn) btn.innerHTML = '<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4zm12.5 3a4.5 4.5 0 0 0-2.5-4v8a4.5 4.5 0 0 0 2.5-4ZM14 3.2v2.1a7 7 0 0 1 0 13.4v2.1a9 9 0 0 0 0-17.6Z"/></svg> Leer ruta por voz';
 }
 
 function leerRutaVoz() {
@@ -2145,8 +2160,8 @@ async function ejecutarSimulacro(tipo) {
   if (!E) return;
   if (tipo === "alerta-mesh") {
     await api("/api/mesh/alerta", { origen: "Tel-Ana", ttl: 5 });
-    location.hash = "#inicio";
-    irA("inicio");
+    if (location.hash === "#inicio") irA("inicio");
+    else location.hash = "#inicio";
     return;
   }
   await api("/api/reiniciar", { grafo: "campus" });
@@ -2162,8 +2177,8 @@ async function ejecutarSimulacro(tipo) {
   }
   rutaAnterior = null;
   pasoActivo = -1;
-  location.hash = "#campus";
-  irA("campus");
+  if (location.hash === "#campus") irA("campus");
+  else location.hash = "#campus";
   await pedirRuta();
 }
 
@@ -2300,9 +2315,13 @@ if (!window.__UNEXUAM_OFFLINE__ && "serviceWorker" in navigator) {
 eventos();
 // La app arranca cuando hay sesión iniciada (ver cuenta.js).
 let appIniciada = false;
+window.refrescarEstado = function () {
+  return api("/api/estado");
+};
 window.iniciarUnexuam = function () {
   document.body.classList.remove("modo-invitado");
-  api("/api/estado").then(() => irA(location.hash.slice(1) || "inicio"));
+  irA(location.hash.slice(1) || "inicio");
+  api("/api/estado");
   if (appIniciada) return;
   appIniciada = true;
   if (!window.__UNEXUAM_OFFLINE__) {
@@ -2313,8 +2332,8 @@ window.iniciarUnexuam = function () {
 window.entrarModoEvacuacionInvitado = async function () {
   const j = await api("/api/campus/publico");
   if (j.ok) {
-    location.hash = "#campus";
-    irA("campus");
+    if (location.hash === "#campus") irA("campus");
+    else location.hash = "#campus";
     aviso(j.offline
       ? "Mapa descargado. Los bloqueos recientes pueden faltar."
       : "Modo evacuación rápido: elige tu aula o usa GPS.", !j.offline);
