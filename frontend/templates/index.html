@@ -78,7 +78,7 @@
           <span><b>Ruta más rápida</b>Evacuar</span>
         </a>
         <a href="#mensajes" class="tarjeta-figma verde">
-          <img src="{{ url_for('static', filename='img/figma/mochila-senal.jpg') }}" alt="">
+          <img src="{{ url_for('static', filename='img/figma/tarjeta-mensajes.svg') }}" alt="">
           <span><b>Sin internet</b>Mensajes</span>
         </a>
       </div>
@@ -95,8 +95,8 @@
             <button type="button" class="tarjeta-figma azul" data-guia="inundacion"><img src="{{ url_for('static', filename='img/figma/tarjeta-inundacion.jpg') }}" alt=""><span><b>Qué hacer</b>Inundaciones</span></button>
             <button type="button" class="tarjeta-figma rojo" data-guia="incendio"><img src="{{ url_for('static', filename='img/figma/tarjeta-incendio.jpg') }}" alt=""><span><b>Qué hacer</b>Incendios</span></button>
             <button type="button" class="tarjeta-figma amarillo" data-guia="sismo"><img src="{{ url_for('static', filename='img/figma/tarjeta-sismo.jpg') }}" alt=""><span><b>Qué hacer</b>Sismo</span></button>
-            <button type="button" class="tarjeta-figma verde" data-guia="auxilios"><img src="{{ url_for('static', filename='img/figma/mochila-alerta.jpg') }}" alt=""><span><b>Qué hacer</b>Auxilios</span></button>
-            <button type="button" class="tarjeta-figma azul" data-guia="mesh"><img src="{{ url_for('static', filename='img/figma/mochila-senal.jpg') }}" alt=""><span><b>Qué hacer</b>Sin señal</span></button>
+            <button type="button" class="tarjeta-figma verde" data-guia="auxilios"><img src="{{ url_for('static', filename='img/figma/tarjeta-auxilios.svg') }}" alt=""><span><b>Qué hacer</b>Auxilios</span></button>
+            <button type="button" class="tarjeta-figma azul" data-guia="mesh"><img src="{{ url_for('static', filename='img/figma/tarjeta-sin-senal.svg') }}" alt=""><span><b>Qué hacer</b>Sin señal</span></button>
           </div>
           <button type="button" class="carrusel-flecha" data-carrusel="1" aria-label="Siguiente"><img src="{{ url_for('static', filename='img/figma/flecha-der.png') }}" alt=""></button>
         </div>
@@ -198,7 +198,7 @@
       <div class="lienzo edificio3d" id="lienzo-edificio" hidden>
         <div class="lienzo-cab" id="edificio-cab"></div>
         <div id="vista-edificio" class="vista-3d"></div>
-        <p class="desliza">Desliza a los lados para recorrer el edificio ↔</p>
+        <p class="desliza">Desliza a los lados para recorrer el edificio </p>
       </div>
 
       <h3 class="franja">Tu ruta por el campus</h3>
@@ -214,8 +214,8 @@
         <span class="chip rojo"><i class="l-bloq"></i>Bloqueado</span>
       </div>
 
-      <h3 class="franja">Incidentes</h3>
-      <div class="tarjeta">
+      <h3 class="franja solo-admin" hidden>Incidentes</h3>
+      <div class="tarjeta solo-admin" hidden>
         <div class="segmentado" role="tablist">
           <button role="tab" aria-selected="true" data-inc="bloquear">Bloquear pasillo</button>
           <button role="tab" aria-selected="false" data-inc="congestionar">Congestión</button>

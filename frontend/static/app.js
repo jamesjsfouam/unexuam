@@ -388,7 +388,7 @@ function aplicarEstado(est) {
   const k = ua ? ua.hora + ua.origen + ua.ttl : null;
   if (k && alertaVista === null) { alertaVista = k; mostrarAlcanceFinal(ua); }
   else if (k && k !== alertaVista && !animando) { alertaVista = k; aviso(`Nueva alerta desde ${ua.origen}`, false); animarAlerta(ua); }
-  else if (!ua) { alertaVista = "nada"; alcanceMostrado = null; viaMostrada = {}; $("#saltos-tarjeta").hidden = true; }
+  else if (!ua) { alertaVista = "nada"; alcanceMostrado = null; viaMostrada = {}; const st = $("#saltos-tarjeta"); if (st) st.hidden = true; }
   render();
   // si el grafo del campus cambió (bloqueo, congestión, admin), recalcular la ruta de este teléfono
   const fc = JSON.stringify([est.campus.aristas, est.campus.zonasSeguras]);
@@ -454,6 +454,7 @@ function telIcono() {
 }
 
 function renderMesh() {
+  if (!$("#svg-mesh")) return;   // la vista de la red Mesh no está en esta versión de la interfaz
   const svg = $("#svg-mesh");
   const sel = $("#mesh-origen");
   if (!svg || !sel) return;
@@ -497,6 +498,7 @@ function padreDe(nombre, salto, previos) {
 }
 
 function mostrarAlcanceFinal(ua) {
+  if (!$("#svg-mesh")) return;   // la vista de la red Mesh no está en esta versión de la interfaz
   const lista = ordenar(ua.alcanzados, ua.origen);
   alcanceMostrado = {}; viaMostrada = {};
   lista.forEach(([n, s], i) => {
@@ -508,6 +510,7 @@ function mostrarAlcanceFinal(ua) {
 }
 
 function listaSaltos(lista, ua, hasta) {
+  if (!$("#svg-mesh")) return;   // la vista de la red Mesh no está en esta versión de la interfaz
   $("#saltos-tarjeta").hidden = false;
   const fuera = hasta >= lista.length ? E.mesh.vertices.filter(v => !lista.some(([n]) => n === v)) : [];
   $("#saltos").innerHTML = lista.slice(0, hasta).map(([n, s]) =>
@@ -548,6 +551,7 @@ function pulso(svg, nombre) {
 }
 
 async function animarAlerta(ua) {
+  if (!$("#svg-mesh")) return;   // la vista de la red Mesh no está en esta versión de la interfaz
   const svg = $("#svg-mesh");
   if (!svg) return;
   animando = true;
@@ -1447,7 +1451,7 @@ function renderAdmin() {
 /* ---------------------------------------------------------------- tabs */
 
 function irA(nombre) {
-  if (!["inicio", "mesh", "campus", "mensajes", "admin"].includes(nombre)) nombre = "inicio";
+  if (!["inicio", "campus", "mensajes", "admin"].includes(nombre) && !(nombre === "mesh" && $("#v-mesh"))) nombre = "inicio";
   if (nombre === "admin" && !document.body.classList.contains("es-admin")) nombre = "inicio";
   vista = nombre;
   $$(".vista").forEach(s => { s.hidden = s.id !== "v-" + nombre; });
@@ -1586,6 +1590,8 @@ let leyendoVoz = false;
 function seleccionarLugar(lugar) {
   miLugar = lugar || "";
   guardar("mi-lugar", miLugar);
+  // El lugar elegido es también donde está tu teléfono en la red Mesh (SOS, vecinos).
+  if (miLugar && window.actualizarMiLugar) window.actualizarMiLugar(miLugar);
   rutaAnterior = null;
   pasoActivo = -1;
   detenerVoz();

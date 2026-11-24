@@ -433,6 +433,7 @@
     const C = cuentas();
     const u = C.usuarios[cif];
     if (!Object.keys(UBIC).length) Object.assign(UBIC, SEED.ubicaciones || {});
+    if (u.admin) { u.lugar = lugar; guardarCuentas(C); return []; }   // el admin no entra a la red Mesh
     if (S.red.buscarVertice(u.telefono)) S.red.eliminarVertice(u.telefono);
     delete UBIC[u.telefono];
     const vecinos = conectarTelefono(S.red, S.campus, u.telefono, lugar, UBIC);
@@ -495,7 +496,7 @@
 
   function despacharApi(ruta, d, searchParams) {
     const LIBRES = ["/api/yo", "/api/login", "/api/login/demo", "/api/registro", "/api/lugares"];
-    const SOLO_ADMIN = ["/api/reiniciar", "/api/mesh/vertice", "/api/mesh/arista", "/api/campus/vertice", "/api/campus/arista"];
+    const SOLO_ADMIN = ["/api/reiniciar", "/api/mesh/vertice", "/api/mesh/arista", "/api/mesh/alerta", "/api/campus/vertice", "/api/campus/arista", "/api/campus/ubicacion", "/api/campus/desbloquear", "/api/campus/congestionar", "/api/algoritmo"];
     if (!LIBRES.includes(ruta)) {
       const yo = cuentaActual();
       if (!yo) {
@@ -573,7 +574,7 @@
       if (yoBloq) {
         const ahoraB = horaActual();
         const idB = Math.random().toString(16).slice(2, 14);
-        const txtB = `Bloqueo reportado: ${o} ↔ ${dst}. Recalculando rutas.`;
+        const txtB = `Bloqueo reportado: ${o} y ${dst}. Recalculando rutas.`;
         const envB = enviarPaqueteReal({
           id: idB, tipo: "incidente", accion: "bloquear", origen: o, destino: dst, ambos,
           de: yoBloq.cif, deNombre: yoBloq.u.nombre, deTel: yoBloq.u.telefono,
@@ -800,8 +801,10 @@
         // En red Mesh real (Android) para mensajes 1-a-1, queda en custodia ("en cola")
         // hasta que regrese el ACK de entrega del destinatario final (y purgue las copias intermedias).
         const esMeshReal = !!(window.UnexuamNativo && typeof window.UnexuamNativo.enviarPaqueteMesh === "function");
-        const entregadoInmediato = esTodos ? (enviadosReal > 0) : (!esMeshReal && rSim.length > 0);
-        const rutaFinal = rSim.length ? rSim : (enviadosReal > 0 ? [yo.u.telefono, dest.telefono] : []);
+        // Destinatario con cuenta en este mismo teléfono: se entrega directo.
+        const esLocal = !esTodos && C.usuarios[para] && !C.usuarios[para].real;
+        const entregadoInmediato = esLocal || (esTodos ? (enviadosReal > 0) : (!esMeshReal && rSim.length > 0));
+        const rutaFinal = rSim.length ? rSim : ((enviadosReal > 0 || esLocal) ? [yo.u.telefono, dest.telefono] : []);
         const retFinal = rSim.length ? num(retardoSim) : (enviadosReal > 0 ? 0.5 : null);
         const m = { id, de: yo.cif, deNombre: yo.u.nombre, para, texto: textoMsj, hora: ahora,
           estado: entregadoInmediato ? "entregado" : "en cola", ruta: rutaFinal, retardo: retFinal,
@@ -959,7 +962,8 @@
         const nombre = String(p.nombre || "Teléfono cercano").slice(0, 40);
         const telefono = String(p.telefono || `Tel-${cif}`).slice(0, 30);
         const lugar = String(p.lugar || "Cercano (Bluetooth)").slice(0, 60);
-        C.usuarios[cif] = { ...(C.usuarios[cif] || {}), nombre, telefono, lugar, real: true };
+        const previo = C.usuarios[cif];
+        if (!previo || previo.real) C.usuarios[cif] = { ...(previo || {}), nombre, telefono, lugar, real: true };   // nunca pisa cuentas locales
         guardarCuentas(C);
         S.red.insertarVertice(telefono);
         if (yo) {
@@ -1021,7 +1025,7 @@
             }
           }
           if (recalcularRuta) {
-            registrar(`Bloqueo recibido por Mesh: ${pq.origen} ↔ ${pq.destino}.`, "error");
+            registrar(`Bloqueo recibido por Mesh: ${pq.origen} y ${pq.destino}.`, "error");
             guardarEstadoLocal();
           }
         }
@@ -1042,7 +1046,7 @@
             C.mensajes.push({
               id: pq.id || Math.random().toString(16).slice(2, 14),
               de, deNombre: C.usuarios[de].nombre, para, texto: String(pq.texto).slice(0, 500),
-              hora: pq.hora || ahora, estado: "entregado",
+              hora: String(pq.hora || ahora).slice(0, 8), estado: "entregado",
               ruta: Array.isArray(pq.ruta) ? pq.ruta : [],
               retardo: 0.5, entregado: ahora, viaCola: false, real: true,
             });

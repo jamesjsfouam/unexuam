@@ -708,3 +708,6 @@ body.sin-sesion main, body.sin-sesion .barra { visibility: hidden; }
 .alg-controles .ico { margin: 0; width: 18px; height: 18px; }
 .ico-tic { width: 15px; height: 11px; fill: currentColor; vertical-align: -1px; }
 .tic.espera .ico-tic { width: 12px; height: 12px; }
+
+/* Simular bloqueo: solo el administrador */
+body:not(.es-admin) .paso-bloq { display: none; }

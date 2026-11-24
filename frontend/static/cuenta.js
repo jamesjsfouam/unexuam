@@ -166,6 +166,12 @@
   }
   window.mostrarLogin = mostrarLogin;
 
+  window.actualizarMiLugar = async function (lugar) {
+    if (!YO || YO.lugar === lugar) return;
+    const j = await pedir("/api/yo/lugar", { lugar });
+    if (j.ok) { YO = j.usuario; firmaMsj = ""; }
+  };
+
   function obtenerCoordsGPS() {
     return new Promise((resolve) => {
       const leerNativa = () => {
@@ -445,7 +451,7 @@
     $("#contactos").innerHTML = lista.length ? lista.map(c => {
       const u = ultimo[c.cif];
       const n = noLeidos(c.cif);
-      let vista = c.enLinea ? `En ${c.lugar}` : "Sin conexión";
+      let vista = c.enLinea ? (c.lugar ? `En ${c.lugar}` : "En la red") : "Sin conexión";
       if (u) vista = (u.de === YO.cif ? (u.estado === "entregado" ? "Entregado · " : "En cola · ") : "") + u.texto;
       return `<li><button type="button" data-contacto="${esc(c.cif)}">
         <span class="avatar-c" style="background:${colorDe(c.cif)}">${esc(iniciales(c.nombre))}${c.enLinea ? '<i class="en-linea"></i>' : ""}</span>
@@ -477,7 +483,7 @@
     av.textContent = iniciales(c.nombre);
     av.style.background = colorDe(c.cif);
     $("#chat-titulo").textContent = c.nombre;
-    $("#chat-estado").textContent = c.enLinea ? `en la red · ${c.lugar}` : "sin conexión";
+    $("#chat-estado").textContent = c.enLinea ? (c.lugar ? `en la red · ${c.lugar}` : "en la red") : "sin conexión";
     const esGrupo = c.cif === "TODOS";
     const lista = esGrupo
       ? CONV.mensajes.filter(m => m.para === "TODOS")
@@ -896,7 +902,8 @@
     sonarAlerta();
     const texto = `SOS · Necesito ayuda en ${YO.lugar || "el campus"} (${YO.nombre}).`;
     const j = await pedir("/api/mensajes/enviar", { para: "TODOS", texto });
-    avisar(j.ok ? "Alerta SOS enviada al Canal General." : (j.mensaje || "No se pudo enviar SOS."), j.ok);
+    const enCola = j.ok && j.enviado && j.enviado.estado !== "entregado";
+    avisar(!j.ok ? (j.mensaje || "No se pudo enviar el SOS.") : enCola ? (j.mensaje || "SOS guardado: saldrá al conectar un teléfono cercano.") : "SOS enviado al Canal General.", j.ok && !enCola);
     firmaMsj = "";
     await cargarMensajes();
     location.hash = "#mensajes";
@@ -910,10 +917,10 @@
     const acc = $("#hoja-acciones");
     acc.innerHTML = "";
     const pasos = [
-      { txt: "Escalera Oeste Edificio P (P3 ↔ P2)", o: "P Escalera Oeste P3", d: "P Escalera Oeste P2" },
-      { txt: "Escalera Central B–C (P3 ↔ P2)", o: "C Escalera Central P3", d: "B Escalera Central P2" },
-      { txt: "Pasarela Edificio B ↔ Edificio E", o: "Pasarela Edificio B", d: "Edificio E" },
-      { txt: "Salida Oeste B ↔ Auditorio Central", o: "B Salida Oeste", d: "Auditorio Central" },
+      { txt: "Escalera Oeste del Edificio P (piso 3 a 2)", o: "P Escalera Oeste P3", d: "P Escalera Oeste P2" },
+      { txt: "Escalera central B–C (piso 3 a 2)", o: "C Escalera Central P3", d: "B Escalera Central P2" },
+      { txt: "Pasarela del B hacia la Plazoleta", o: "Pasarela Edificio B", d: "Punto Seguro Plazoleta" },
+      { txt: "Salida oeste del B hacia el Auditorio", o: "B Salida Oeste", d: "Auditorio Central" },
     ];
     pasos.forEach(p => {
       const b = document.createElement("button");

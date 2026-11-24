@@ -213,7 +213,13 @@ def numero(d, clave, minimo, maximo):
 
 
 def existe(g, nombre):
-    return any(v.nombre == nombre for v in g.vertexs)
+    return g.buscarVertice(nombre) is not None
+
+
+def canonico(g, nombre):
+    """Nombre exacto del vértice (sin importar mayúsculas), o None si no existe."""
+    v = g.buscarVertice(nombre)
+    return v.nombre if v else None
 
 
 @app.errorhandler(Exception)
@@ -234,8 +240,10 @@ def error_backend(e):
 # ----------------------------------------------------------------------------
 
 LIBRES = {"/api/yo", "/api/login", "/api/login/demo", "/api/registro", "/api/lugares"}
+# Reportar un pasillo bloqueado (/api/campus/bloquear) es una función de emergencia para todos;
+# reabrir, congestionar, reiniciar y editar los grafos es solo del administrador.
 SOLO_ADMIN = ("/api/reiniciar", "/api/mesh/vertice", "/api/mesh/arista", "/api/mesh/alerta",
-              "/api/campus/vertice", "/api/campus/arista", "/api/campus/ubicacion", "/api/campus/bloquear",
+              "/api/campus/vertice", "/api/campus/arista", "/api/campus/ubicacion",
               "/api/campus/desbloquear", "/api/campus/congestionar", "/api/algoritmo")
 LUGAR_INICIAL = "Edificio E"      # lugar por defecto al entrar (luego el GPS o la persona lo cambia)
 CIF_DEMO = "ADMIN"
@@ -255,9 +263,9 @@ def exigir_sesion():
             return jsonify({"ok": False, "mensaje": "Inicia sesión con tu CIF y tu contraseña.", "sesion": False}), 401
         if request.path in SOLO_ADMIN and not u["admin"]:
             return jsonify({"ok": False, "mensaje": "Solo el administrador puede hacer esto."}), 403
-        if u["cif"] not in EN_LINEA:
+        if u["cif"] not in EN_LINEA or (not u["admin"] and S["red"].buscarVertice(u["telefono"]) is None):
             with lock:
-                if u["cif"] not in EN_LINEA:
+                if u["cif"] not in EN_LINEA or (not u["admin"] and S["red"].buscarVertice(u["telefono"]) is None):
                     conectar_usuario(u["cif"], u["lugar"])
                     repartir_cola()
 
@@ -276,8 +284,9 @@ def conectar_usuario(cif, lugar):
     """Pone el teléfono del usuario en la red Mesh, en `lugar`, enlazado con los que tiene cerca."""
     u = DB.usuario(cif)
     red = S["red"]
-    if not isinstance(lugar, str) or S["campus"].buscarVertice(lugar) is None:
-        lugar = LUGAR_INICIAL
+    lugar = canonico(S["campus"], lugar) if isinstance(lugar, str) else None
+    if lugar is None:
+        lugar = canonico(S["campus"], LUGAR_INICIAL) or S["campus"].vertexs[0].nombre
     if u["admin"]:
         # El administrador gestiona los grafos: su teléfono no entra a la red Mesh
         # para no alterar las rutas ni los saltos de los demás.
@@ -401,12 +410,14 @@ HASH_FICTICIO = generate_password_hash("unexuam-sin-cuenta")
 INTENTOS = {}          # cif -> [marcas de tiempo de intentos recientes]
 
 
-def intento_permitido(cif):
+def bloqueado_por_intentos(cif):
     ahora_s = time.time()
-    lista = [t for t in INTENTOS.get(cif, []) if ahora_s - t < 60]
-    lista.append(ahora_s)
-    INTENTOS[cif] = lista
-    return len(lista) <= 8      # máximo 8 intentos por minuto por CIF
+    INTENTOS[cif] = [t for t in INTENTOS.get(cif, []) if ahora_s - t < 60]
+    return len(INTENTOS[cif]) >= 8          # 8 fallos en un minuto: espera
+
+
+def registrar_fallo(cif):
+    INTENTOS.setdefault(cif, []).append(time.time())
 
 
 @app.post("/api/login")
@@ -414,11 +425,15 @@ def api_login():
     d = cuerpo_json()
     cif = leer_cif(d)
     clave = str(d.get("contrasena", ""))[:64]
+    if bloqueado_por_intentos(cif):
+        return jsonify({"ok": False, "mensaje": "Demasiados intentos. Espera un minuto."})
     u = DB.usuario(cif)
     hash_ = u["hash"] if u and not u["admin"] else HASH_FICTICIO
     valida = check_password_hash(hash_, clave)            # mismo tiempo exista o no el CIF
-    if u is None or u["admin"] or not valida or not intento_permitido(cif):
+    if u is None or u["admin"] or not valida:
+        registrar_fallo(cif)
         return jsonify({"ok": False, "mensaje": "CIF o contraseña incorrectos."})
+    INTENTOS.pop(cif, None)
     with lock:
         return abrir_sesion(cif, d.get("lugar"))
 
@@ -453,6 +468,7 @@ def api_mover():
     with lock:
         if S["campus"].buscarVertice(lugar) is None:
             return jsonify({"ok": False, "mensaje": f"El lugar «{lugar}» no existe."})
+        lugar = canonico(S["campus"], lugar)
         vecinos = conectar_usuario(cif, lugar)
         n = repartir_cola()
         extra = f" Salieron {n} mensaje(s) que estaban en cola." if n else ""
@@ -512,7 +528,6 @@ def entregar(de, para, texto_msj, tipo="texto", ruta=None, retardo=None):
     DB.guardar_mensaje(m)
     if para != CIF_TODOS:
         DB.agregar_contacto(de, para)
-        DB.agregar_contacto(para, de)
     return m
 
 
@@ -532,6 +547,8 @@ def api_enviar():
             m["deNombre"] = yo["nombre"]
             registrar(f"{yo['nombre']} escribió en el Canal General.", "ok", privado=True)
             return jsonify({"ok": True, "mensaje": "Difundido en el Canal General del campus.", "enviado": m})
+        if yo["admin"]:
+            return jsonify({"ok": False, "mensaje": "El administrador escribe a todos por el Canal General."})
         destino = DB.usuario(para)
         if destino is None or para == cif or destino["admin"]:
             return jsonify({"ok": False, "mensaje": "Elige a quién enviarle el mensaje."})
@@ -684,7 +701,7 @@ def api_ubicacion():
 @app.post("/api/campus/bloquear")
 def api_bloquear():
     d = cuerpo_json()
-    o, dst, ambos = texto(d, "origen"), texto(d, "destino"), bool(d.get("ambos", True))
+    o, dst, ambos = texto(d, "origen"), texto(d, "destino"), d.get("ambos", True) is not False
     with lock:
         g = S["campus"]
         pares = [(o, dst)] + ([(dst, o)] if ambos else [])
@@ -705,7 +722,8 @@ def api_desbloquear():
         g = S["campus"]
         n = 0
         for b in S["bloqueados"]:
-            if g.insertarArista(b["origen"], b["destino"], b["peso"]):
+            peso = b["peso"] * S["congestion"].get(b["destino"], 1)
+            if g.insertarArista(b["origen"], b["destino"], peso):
                 n += 1
         S["bloqueados"] = []
         return responder(True, f"Se reabrieron {n} pasos (insertarArista con su peso original).")

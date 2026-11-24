@@ -294,7 +294,12 @@ def fachada(poligono, alto, pisos, claro, oscuro, borde, acentos=()):
         if c is frente:
             for ac in acentos:
                 tipo = ac[0]
-                if tipo == "ladrillo":       # paño de ladrillo terracota entre balcones (Edificio M, foto)
+                if tipo == "aires":          # aires acondicionados alineados en planta baja (Clínicas)
+                    largo_f = math.dist(c["a"], c["b"])
+                    for k in range(int(largo_f // 4.5)):
+                        t0 = (k + .5) * 4.5 / largo_f
+                        g.append(f'<polygon points="{tramo(c, t0, t0 + .9 / largo_f, .2, .9)}" fill="#e3e7eb" stroke="#7d8a99" stroke-width=".4"/>')
+                elif tipo == "ladrillo":     # paño de ladrillo terracota entre balcones (Edificio M, foto)
                     g.append(f'<polygon points="{tramo(c, ac[1], ac[2], PISO, alto - 1.3)}" fill="#b5523b" stroke="#7a3322" stroke-width=".6"/>')
                     for f in range(2, 8):
                         (ax, ay), (bx, by) = c["a"], c["b"]
@@ -477,6 +482,33 @@ def observatorio(pol_p, alto_p):
     return "".join(g)
 
 
+def carport(pol):
+    """Cubierta de parqueo con celdas solares: hileras de paneles azul oscuro inclinados hacia el sur,
+    sobre postes y vigas metálicas (capturas de Google Maps entre el P y Clínicas)."""
+    xs = [q[0] for q in pol]
+    ys = [q[1] for q in pol]
+    x0, x1, y0, y1 = min(xs), max(xs), min(ys), max(ys)
+    zn, zs = 4.9, 3.7                                   # borde norte alto, borde sur bajo
+    n_filas = max(1, round((y1 - y0) / 7))
+    g = []
+    for f in range(n_filas):
+        ya, yb = y0 + (y1 - y0) * f / n_filas + .3, y0 + (y1 - y0) * (f + 1) / n_filas - .3
+        ym = (ya + yb) / 2
+        for k in range(int((x1 - x0) // 6.5) + 1):      # postes y vigas
+            x = min(x1 - .4, x0 + .4 + k * 6.5)
+            a, b = P(x, ym, 0), P(x, ym, (zn + zs) / 2 - .15)
+            g.append(f'<line x1="{a[0]:.1f}" y1="{a[1]:.1f}" x2="{b[0]:.1f}" y2="{b[1]:.1f}" stroke="#5d6873" stroke-width="1.3"/>')
+        panel = [(x0, ya, zn), (x1, ya, zn), (x1, yb, zs), (x0, yb, zs)]
+        d = " ".join(f"{u:.1f},{v:.1f}" for u, v in (P(*q) for q in panel))
+        g.append(f'<polygon points="{d}" fill="url(#solar)" stroke="#2b3a4c" stroke-width=".7" stroke-linejoin="round"/>')
+        g.append(f'<polygon points="{d}" fill="url(#brillo)"/>')
+        a, b = P(x0, yb, zs), P(x1, yb, zs)            # canto inferior de aluminio
+        g.append(f'<line x1="{a[0]:.1f}" y1="{a[1]:.1f}" x2="{b[0]:.1f}" y2="{b[1]:.1f}" stroke="#c3ccd5" stroke-width=".9"/>')
+        dx, dy = desplazo(zs)
+        SOMBRAS.append(f'<polygon points="{pts([(x0 + dx, ya + dy), (x1 + dx, ya + dy), (x1 + dx, yb + dy), (x0 + dx, yb + dy)])}"/>')
+    return "".join(g)
+
+
 def techado_mesas(poligono, alto):
     """Techo sobre columnas con mesas debajo (comedores al aire libre)."""
     xs = [q[0] for q in poligono]
@@ -551,7 +583,7 @@ ACENTOS = {
     "Edificio M": [("cornisa", "#4f5964", 1.1), ("ladrillo", .04, .24), ("cara_este", "#a9bad0")],
     # Clínicas + «Edificio N» (foto de James): zócalo turquesa, franja azul con letras doradas y
     # pasillo corrido del 2.º piso con baranda blanca
-    "Clínicas Odontológicas": [("franja",), ("zocalo", "#3fc1c9"), ("barandas", "#f4f6f8")],
+    "Clínicas Odontológicas": [("cornisa", "#8d97a2", .7), ("franja",), ("zocalo", "#3fc1c9"), ("barandas", "#f4f6f8"), ("aires",)],
     # Laboratorios (foto de James): crema, vidrio verdoso y pasillo del 2.º piso con baranda
     "Laboratorios": [("vidrio_verde",), ("barandas", "#6b7785")],
     # A (foto de James): bandas de ventanas de marco oscuro entre pilastras blancas y parapeto gris
@@ -1043,6 +1075,53 @@ def fantasmas():
     return f'<g opacity=".9">{"".join(g)}</g>'
 
 
+def plazoleta():
+    """Plazoleta (capturas de Google Maps): media cancha de baloncesto con su aro, gradas de concreto
+    hacia la pasarela y un busto sobre pedestal."""
+    g = []
+    x0, y0, x1, y1 = 208.5, 83.5, 224.5, 97.5            # media cancha; el aro en el lado norte
+    g.append(f'<polygon points="{pts(caja_r(x0, y0, x1, y1))}" fill="#eceeef" stroke="#ffffff" stroke-width="1.2"/>')
+    xm = (x0 + x1) / 2
+    g.append(f'<polygon points="{pts(caja_r(xm - 2.45, y0, xm + 2.45, y0 + 5.8))}" fill="#5b8fd0" stroke="#ffffff" stroke-width=".9"/>')
+    tres = [(xm + 6.75 * math.cos(t), y0 + 1.6 + 6.75 * math.sin(t)) for t in [k * math.pi / 16 for k in range(17)]]
+    g.append(f'<polyline points="{pts([(x0 + .9, y0)] + tres + [(x1 - .9, y0)])}" fill="none" stroke="#ffffff" stroke-width="1"/>')
+    a, b = P(xm, y0 - .4, 0), P(xm, y0 - .4, 3.4)          # poste, tablero y aro
+    g.append(f'<line x1="{a[0]:.1f}" y1="{a[1]:.1f}" x2="{b[0]:.1f}" y2="{b[1]:.1f}" stroke="#4f5964" stroke-width="1.4"/>')
+    g.append(cara_plana(xm - .9, y0 + .3, xm + .9, y0 + .3, 2.9, 3.95, "#ffffff", 'stroke="#4f5964" stroke-width=".5"'))
+    r0 = P(xm, y0 + 1.0, 3.05)
+    g.append(f'<ellipse cx="{r0[0]:.1f}" cy="{r0[1]:.1f}" rx="1.4" ry=".8" fill="none" stroke="#e23000" stroke-width=".8"/>')
+    # gradas de concreto al sur de la plaza, subiendo hacia la pasarela
+    for k in range(4):
+        st = caja_r(205.0, 106.5 + k * 1.0, 218.0, 107.5 + k * 1.0)
+        z = .3 * (k + 1)
+        g.append(paredes(st, 0, z, "#eceeef", "#b6bdc4", "#9aa6b3") +
+                 f'<polygon points="{pts(st, z)}" fill="#f4f5f6" stroke="#9aa6b3" stroke-width=".4"/>')
+    # busto sobre pedestal
+    ped = caja_r(229.4, 89.4, 230.6, 90.6)
+    g.append(paredes(ped, 0, 1.3, "#f2f3f4", "#aeb6be", "#7d8a99") +
+             f'<polygon points="{pts(ped, 1.3)}" fill="#f7f8f9" stroke="#7d8a99" stroke-width=".4"/>')
+    h = P(230, 90, 2.0)
+    g.append(f'<circle cx="{h[0]:.1f}" cy="{h[1]:.1f}" r="1.6" fill="#8c6d3f" stroke="#5e4626" stroke-width=".4"/>')
+    sombra(ped, 2.0)
+    return "".join(g)
+
+
+def andador():
+    """Andador de losas de concreto con borde de adoquín entre el Auditorio/F y el E, que llega a la
+    escalera de la pasarela (captura del Auditorio «Rubén Darío»)."""
+    x0, x1, y0, y1 = 182.4, 188.4, 72.0, 116.6
+    g = [f'<polygon points="{pts(caja_r(x0, y0, x1, y1))}" fill="#c9a77a" stroke="#a9875a" stroke-width=".5"/>',
+         f'<polygon points="{pts(caja_r(x0 + .6, y0, x1 - .6, y1))}" fill="#e7e8e6"/>']
+    d = []
+    y = y0 + 1.6
+    while y < y1:
+        a, b = P(x0 + .6, y), P(x1 - .6, y)
+        d.append(f"M{a[0]:.1f} {a[1]:.1f}L{b[0]:.1f} {b[1]:.1f}")
+        y += 1.6
+    g.append(f'<path d="{"".join(d)}" stroke="#bfc3c4" stroke-width=".5"/>')
+    return "".join(g)
+
+
 def construir(eds):
     S, PL, OB = [], [], []
 
@@ -1066,10 +1145,10 @@ def construir(eds):
             PL.append(f'<polygon points="{pts(pol)}" fill="none" stroke="{VERDE}" stroke-width="2.2" stroke-dasharray="7 5"/>')
     for pl in DATOS["plazas"]:
         pol = [tuple(q) for q in pl["pol"]]
-        PL.append(suelo(pol, "#efe2c2", borde="#d8c28d"))
+        PL.append(suelo(pol, "#d7d9d6", borde="#b9bdb8"))
         PL.append(suelo(pol, "url(#adoquin)"))
         cx, cy = centro(pol)
-        PL.append(suelo([(cx - 9, cy - 6), (cx + 9, cy - 6), (cx + 9, cy + 6), (cx - 9, cy + 6)], "#c9775a", borde=BLANCO))  # cancha
+        PL.append(plazoleta())
         PL.append(f'<polygon points="{pts(pol)}" fill="none" stroke="{VERDE}" stroke-width="2.4" stroke-dasharray="7 5"/>')
 
     # Zonas seguras: fútbol y béisbol (con contorno blanco discontinuo)
@@ -1102,6 +1181,7 @@ def construir(eds):
     PL.append(f'<g clip-path="url(#recorte)">{"".join(calles)}</g>')
     PL.append(frente_a())
     PL.append(parqueo_g())
+    PL.append(andador())
 
     # Árboles: arboledas de OSM y bordes libres del campus
     xs = [p[0] for p in CAMPUS]
@@ -1174,8 +1254,10 @@ def construir(eds):
             alto = 3.4
         elif e["tipo"] == "roof":
             alto = min(alto, 9 if not solar else 5)
-            svg = cubierta(pol, alto, "url(#solar)" if solar else "#f6f7f9",
-                           "#4b5f78" if solar else "#8a97a6", lado="#9fb3cc" if solar else "#f6f7f9")
+            if solar:
+                svg = carport(pol)
+            else:
+                svg = cubierta(pol, alto, "#f6f7f9", "#8a97a6", lado="#f6f7f9")
             alto += 1.4
         else:
             techo, claro, oscuro, borde = MURO_B if nombre in MUROS_CREMA else MURO
@@ -1212,7 +1294,7 @@ def construir(eds):
     for p in DATOS["parqueos"]:
         if p["id"] in CARPORTS:
             pol = [tuple(q) for q in p["pol"]]
-            OB.append((prof(*max(pol, key=lambda q: prof(*q))), cubierta(pol, 4.5, "url(#solar)", "#4b5f78", lado="#9fb3cc")))
+            OB.append((prof(*max(pol, key=lambda q: prof(*q))), carport(pol)))
     # Pasarela frente al Edificio B (James): va desde la entrada de la vía Universidad UAM hasta el
     # parqueo junto al Auditorio, pasa entre el Auditorio y el B y por debajo del pasillo B–E, y en
     # medio tiene una escalera que baja a la Plazoleta. Se dibuja por tramos para que el orden de

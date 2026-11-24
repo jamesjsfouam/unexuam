@@ -77,7 +77,7 @@ class TestApiYParidad(unittest.TestCase):
         with self.client.get("/sw.js") as r:
             self.assertEqual(r.status_code, 200)
             self.assertEqual(r.headers.get("Service-Worker-Allowed"), "/")
-            self.assertIn(b"unexuam-v15", r.data)
+            self.assertIn(b"unexuam-v16", r.data)
 
     def test_paridad_campus_plano_json(self):
         campus, _ = crearCampus()
@@ -168,8 +168,7 @@ class TestSesionYMensajes(unittest.TestCase):
 
     def test_estudiante_no_cambia_el_campus_de_todos(self):
         c, _ = self.nuevo("EST0001", "Estudiante", "Edificio E")
-        for ruta, cuerpo in [("/api/campus/bloquear", {"origen": "C-101", "destino": "C Pabellón Este P1"}),
-                             ("/api/campus/desbloquear", {}),
+        for ruta, cuerpo in [("/api/campus/desbloquear", {}),
                              ("/api/campus/congestionar", {"lugar": "Edificio E", "factor": 2}),
                              ("/api/mesh/alerta", {"origen": "Tel-Ana", "ttl": 2})]:
             self.assertEqual(c.post(ruta, json=cuerpo).status_code, 403, ruta)
