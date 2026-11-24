@@ -116,6 +116,40 @@ def reiniciar_mesh():
         conectar_usuario(cif, DB.usuario(cif)["lugar"])
 
 
+def num(x):
+    """float -> número JSON (inf no existe en JSON, se manda como null)."""
+    if x is None or (isinstance(x, float) and math.isinf(x)):
+        return None
+    return round(float(x), 2)
+
+
+def precalcular_rutas():
+    """Precalcula todas las rutas de evacuación del campus para consulta O(1)."""
+    cache = {}
+    for v in S["campus"].vertexs:
+        ruta, tiempo = B["rutaEvacuacion"](S["campus"], v.nombre, S["zonas"])
+        cache[v.nombre] = {"origen": v.nombre, "ruta": list(ruta), "tiempo": num(tiempo)}
+    S["rutasCache"] = cache
+    S["rutasPrecalculadas"] = True
+
+
+def invalidar_rutas():
+    """Invalida la tabla precalculada cuando ocurre un bloqueo, congestión o edición del grafo."""
+    S["rutasCache"] = {}
+    S["rutasPrecalculadas"] = False
+
+
+def obtener_ruta_campus(lugar):
+    cache = S.get("rutasCache")
+    if cache and lugar in cache:
+        return cache[lugar], bool(S.get("rutasPrecalculadas"))
+    ruta, tiempo = B["rutaEvacuacion"](S["campus"], lugar, S["zonas"])
+    res = {"origen": lugar, "ruta": list(ruta), "tiempo": num(tiempo)}
+    if cache is not None:
+        cache[lugar] = res
+    return res, False
+
+
 def reiniciar_campus():
     campus, zonas = crear_campus()
     S["campus"] = campus
@@ -123,6 +157,7 @@ def reiniciar_campus():
     S["ubicacion"] = None
     S["bloqueados"] = []       # [{origen, destino, peso}] para poder restaurarlos
     S["congestion"] = {}       # lugar -> factor acumulado
+    precalcular_rutas()
 
 
 def registrar(texto, tipo="info", privado=False):
@@ -134,13 +169,6 @@ S["historial"] = []
 reiniciar_mesh()
 reiniciar_campus()
 registrar("Servidor iniciado. Campus UAM y red Mesh cargados.")
-
-
-def num(x):
-    """float -> número JSON (inf no existe en JSON, se manda como null)."""
-    if x is None or (isinstance(x, float) and math.isinf(x)):
-        return None
-    return round(float(x), 2)
 
 
 def serializar(g):
@@ -155,8 +183,8 @@ def serializar(g):
 def calcular_ruta():
     if not S["ubicacion"]:
         return None
-    ruta, tiempo = B["rutaEvacuacion"](S["campus"], S["ubicacion"], S["zonas"])
-    return {"origen": S["ubicacion"], "ruta": list(ruta), "tiempo": num(tiempo)}
+    res, _ = obtener_ruta_campus(S["ubicacion"])
+    return res
 
 
 def estado():
@@ -779,16 +807,14 @@ def api_alerta():
 
 @app.post("/api/campus/ruta")
 def api_ruta():
-    # Ruta de evacuación para UN teléfono: cada estudiante está en un lugar distinto,
-    # así que no se guarda en el estado compartido (solo se calcula y se devuelve).
+    # Consulta O(1) sobre la tabla precalculada; solo se recalcula si hubo bloqueo o congestión.
     d = cuerpo_json()
     lugar = texto(d, "lugar", 60)
     with lock:
         if not existe(S["campus"], lugar):
             return jsonify({"ok": False, "mensaje": f"El lugar «{lugar}» no existe.", "ruta": None})
-        ruta, tiempo = B["rutaEvacuacion"](S["campus"], lugar, S["zonas"])
-        return jsonify({"ok": True, "mensaje": "",
-                        "ruta": {"origen": lugar, "ruta": list(ruta), "tiempo": num(tiempo)}})
+        res, precalc = obtener_ruta_campus(lugar)
+        return jsonify({"ok": True, "mensaje": "", "precalculada": precalc, "ruta": res})
 
 
 @app.post("/api/campus/ubicacion")
@@ -822,6 +848,7 @@ def api_bloquear():
                 quitadas.append(f"{a} → {b}")
         if not quitadas:
             return responder(False, f"No existe el paso {o} → {dst}.")
+        invalidar_rutas()
         return responder(True, "Pasillo bloqueado: " + ", ".join(quitadas) + ".")
 
 
@@ -835,6 +862,10 @@ def api_desbloquear():
             if g.insertarArista(b["origen"], b["destino"], peso):
                 n += 1
         S["bloqueados"] = []
+        if not S["congestion"]:
+            precalcular_rutas()
+        else:
+            invalidar_rutas()
         return responder(True, f"Se reabrieron {n} pasos con su tiempo original.")
 
 
@@ -854,6 +885,7 @@ def api_congestionar():
         if not B["aplicarAlerta"](S["campus"], lugar, factor):
             return responder(False, f"No se pudo aplicar congestión en «{lugar}».")
         S["congestion"][lugar] = round(S["congestion"].get(lugar, 1) * factor, 3)
+        invalidar_rutas()
         return responder(True, f"{lugar}: congestión aplicada (tiempos ×{factor:g}).")
 
 
@@ -874,6 +906,8 @@ def api_vertice(grafo):
                 return responder(False, f"«{nombre}» ya existe.")
             if grafo == "campus" and d.get("zonaSegura"):
                 S["zonas"].append(nombre)
+            if grafo == "campus":
+                invalidar_rutas()
             return responder(True, f"Vértice «{nombre}» agregado en {grafo}.")
         if accion == "eliminar":
             v_real = g.buscarVertice(nombre)
@@ -886,6 +920,7 @@ def api_vertice(grafo):
                 S["congestion"].pop(canon, None)
                 if S["ubicacion"] == canon:
                     S["ubicacion"] = None
+                invalidar_rutas()
             return responder(True, f"Vértice «{canon}» eliminado de {grafo} (y sus aristas entrantes).")
         return responder(False, "Acción no válida.")
 
@@ -905,13 +940,19 @@ def api_arista(grafo):
             if accion == "insertar":
                 if not g.insertarArista(o, dst, peso):
                     return responder(False, f"No se pudo agregar {o} → {dst}: falta algún vértice.")
+                if grafo == "campus":
+                    invalidar_rutas()
                 return responder(True, f"Arista {o} → {dst} (peso {peso:g}) agregada en {grafo}.")
             if not g.actualizarPeso(o, dst, peso):
                 return responder(False, f"No existe la arista {o} → {dst}.")
+            if grafo == "campus":
+                invalidar_rutas()
             return responder(True, f"Peso de {o} → {dst} actualizado a {peso:g}.")
         if accion == "eliminar":
             if not g.eliminarArista(o, dst):
                 return responder(False, f"No existe la arista {o} → {dst}.")
+            if grafo == "campus":
+                invalidar_rutas()
             return responder(True, f"Arista {o} → {dst} eliminada de {grafo}.")
         return responder(False, "Acción no válida.")
 

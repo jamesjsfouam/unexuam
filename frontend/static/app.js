@@ -456,9 +456,9 @@ function aplicarEstado(est) {
   render();
   actualizarBannerEmergencia();
   evaluarEmergenciaAutomatica();
-  // si el grafo del campus cambió (bloqueo, congestión, admin), recalcular la ruta de este teléfono
+  // si el grafo del campus cambió (bloqueo, congestión, admin), invalidar caché local y recalcular
   const fc = JSON.stringify([est.campus.aristas, est.campus.zonasSeguras]);
-  if (fc !== firmaCampus) { firmaCampus = fc; pedirRuta(); }
+  if (fc !== firmaCampus) { firmaCampus = fc; cacheRutasLocal.clear(); pedirRuta(); }
 }
 
 function render() {
@@ -688,10 +688,19 @@ const minutos = s => (s < 60 ? `${Math.round(s)} s` : `${Math.floor(s / 60)} min
 let miLugar = leer("mi-lugar", "");   // cada teléfono guarda dónde está su estudiante
 let miRuta = null;                    // {origen, ruta, tiempo} calculada para este teléfono
 let firmaCampus = "";                 // para recalcular cuando el grafo del campus cambia
+const cacheRutasLocal = new Map();    // caché O(1) en cliente: se limpia solo ante bloqueo/congestión
 
 async function pedirRuta() {
   if (!E || !miLugar || !E.campus.vertices.includes(miLugar)) {
     miRuta = null;
+    if (vista === "campus") renderCampus();
+    else if (vista === "inicio") renderInicio();
+    return;
+  }
+  if (cacheRutasLocal.has(miLugar)) {
+    const nueva = cacheRutasLocal.get(miLugar);
+    if (!miRuta || !nueva || miRuta.origen !== nueva.origen) rutaAnterior = null;
+    miRuta = nueva;
     if (vista === "campus") renderCampus();
     else if (vista === "inicio") renderInicio();
     return;
@@ -702,6 +711,7 @@ async function pedirRuta() {
     const j = await r.json();
     if (!j.ok) { aviso(j.mensaje || "No se pudo calcular la ruta.", false); return; }
     const nueva = j.ruta;
+    if (nueva) cacheRutasLocal.set(miLugar, nueva);
     if (miRuta && nueva && miRuta.origen === nueva.origen &&
         (JSON.stringify(miRuta.ruta) !== JSON.stringify(nueva.ruta) || miRuta.tiempo !== nueva.tiempo)) rutaAnterior = miRuta;
     else if (!miRuta || !nueva || miRuta.origen !== nueva.origen) rutaAnterior = null;

@@ -38,6 +38,7 @@ class TestApiYParidad(unittest.TestCase):
     def test_flujo_usuario_c305_y_bloqueo_escalera_central(self):
         r1 = self.client.post("/api/campus/ruta", json={"lugar": "C-305"}).get_json()
         self.assertTrue(r1["ok"])
+        self.assertTrue(r1["precalculada"])
         self.assertEqual(r1["ruta"]["tiempo"], 58)
         self.assertEqual(r1["ruta"]["ruta"][-1], "Punto Seguro Plazoleta")
 
@@ -49,6 +50,7 @@ class TestApiYParidad(unittest.TestCase):
         self.assertTrue(b["ok"])
 
         r2 = self.client.post("/api/campus/ruta", json={"lugar": "C-305"}).get_json()
+        self.assertFalse(r2["precalculada"])
         self.assertEqual(r2["ruta"]["tiempo"], 70)
         self.assertNotIn("C Escalera Central P3", r2["ruta"]["ruta"])
 

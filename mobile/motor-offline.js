@@ -205,6 +205,35 @@
 
   let SEED = null;
   let listoPromesa = null;
+  let RUTAS_CACHE = new Map();
+  let rutasPrecalculadas = false;
+
+  function cargarCacheBase() {
+    RUTAS_CACHE.clear();
+    if (SEED && SEED.rutasBase && typeof SEED.rutasBase === "object") {
+      for (const [k, v] of Object.entries(SEED.rutasBase)) {
+        RUTAS_CACHE.set(k, v);
+      }
+      rutasPrecalculadas = true;
+    } else {
+      rutasPrecalculadas = false;
+    }
+  }
+
+  function invalidarCacheRutas() {
+    RUTAS_CACHE.clear();
+    rutasPrecalculadas = false;
+  }
+
+  function obtenerRutaCampus(lugar) {
+    if (RUTAS_CACHE.has(lugar)) {
+      return { ruta: RUTAS_CACHE.get(lugar), precalculada: rutasPrecalculadas };
+    }
+    const [r, tiempo] = rutaEvacuacion(S.campus, lugar, S.zonas);
+    const res = { origen: lugar, ruta: r, tiempo: num(tiempo) };
+    RUTAS_CACHE.set(lugar, res);
+    return { ruta: res, precalculada: false };
+  }
   const S = {
     red: null,
     campus: null,
@@ -270,6 +299,7 @@
     S.ubicacion = null;
     S.bloqueados = [];
     S.congestion = {};
+    cargarCacheBase();
   }
 
   function guardarEstadoLocal() {
@@ -310,6 +340,8 @@
       S.ultimaAlerta = snap.ultimaAlerta || null;
       S.emergencia = snap.emergencia || null;
       S.historial = Array.isArray(snap.historial) ? snap.historial : [];
+      if (!S.bloqueados.length && !Object.keys(S.congestion).length) cargarCacheBase();
+      else invalidarCacheRutas();
       return true;
     } catch (_) {
       return false;
@@ -646,8 +678,8 @@
       if (!existe(S.campus, lugar)) {
         return { ok: false, mensaje: `El lugar «${lugar}» no existe.`, ruta: null };
       }
-      const [r, tiempo] = rutaEvacuacion(S.campus, lugar, S.zonas);
-      return { ok: true, mensaje: "", ruta: { origen: lugar, ruta: r, tiempo: num(tiempo) } };
+      const { ruta: resRuta, precalculada } = obtenerRutaCampus(lugar);
+      return { ok: true, mensaje: "", precalculada, ruta: resRuta };
     }
 
     if (ruta === "/api/campus/ubicacion") {
@@ -675,6 +707,7 @@
         }
       }
       if (!quitadas.length) return responder(false, `No existe el paso ${o} → ${dst}.`);
+      invalidarCacheRutas();
       // Difundir el bloqueo por Mesh real a todos los teléfonos cercanos para recalcular sus rutas
       const yoBloq = cuentaActual();
       if (yoBloq) {
@@ -704,6 +737,8 @@
         if (S.campus.insertarArista(b.origen, b.destino, pesoFinal)) n++;
       }
       S.bloqueados = [];
+      if (!Object.keys(S.congestion).length) cargarCacheBase();
+      else invalidarCacheRutas();
       return responder(true, `Se reabrieron ${n} pasos con su tiempo original.`);
     }
 
@@ -720,6 +755,7 @@
         return responder(false, `No se pudo aplicar congestión en «${lugar}».`);
       }
       S.congestion[lugar] = Math.round(acumulado * 1000) / 1000;
+      invalidarCacheRutas();
       return responder(true, `${lugar}: congestión aplicada (tiempos ×${factor}).`);
     }
 
@@ -733,6 +769,7 @@
       if (accion === "insertar") {
         if (!g.insertarVertice(nombre)) return responder(false, `«${nombre}» ya existe.`);
         if (grafo === "campus" && d.zonaSegura) S.zonas.push(nombre);
+        if (grafo === "campus") invalidarCacheRutas();
         return responder(true, `Vértice «${nombre}» agregado en ${grafo}.`);
       }
       if (accion === "eliminar") {
@@ -744,6 +781,7 @@
           S.bloqueados = S.bloqueados.filter((b) => b.origen !== canon && b.destino !== canon);
           delete S.congestion[canon];
           if (S.ubicacion === canon) S.ubicacion = null;
+          invalidarCacheRutas();
         }
         return responder(true, `Vértice «${canon}» eliminado de ${grafo} (y sus aristas entrantes).`);
       }
@@ -764,13 +802,16 @@
           if (!g.insertarArista(o, dst, peso)) {
             return responder(false, `No se pudo agregar ${o} → ${dst}: falta algún vértice o la arista ya existe.`);
           }
+          if (grafo === "campus") invalidarCacheRutas();
           return responder(true, `Arista ${o} → ${dst} (peso ${peso}) agregada en ${grafo}.`);
         }
         if (!g.actualizarPeso(o, dst, peso)) return responder(false, `No existe la arista ${o} → ${dst}.`);
+        if (grafo === "campus") invalidarCacheRutas();
         return responder(true, `Peso de ${o} → ${dst} actualizado a ${peso}.`);
       }
       if (accion === "eliminar") {
         if (!g.eliminarArista(o, dst)) return responder(false, `No existe la arista ${o} → ${dst}.`);
+        if (grafo === "campus") invalidarCacheRutas();
         return responder(true, `Arista ${o} → ${dst} eliminada de ${grafo}.`);
       }
       return responder(false, "Acción no válida.");
@@ -1190,6 +1231,7 @@
             }
           }
           if (recalcularRuta) {
+            invalidarCacheRutas();
             registrar(`Bloqueo recibido por Mesh: ${pq.origen} y ${pq.destino}.`, "error");
             guardarEstadoLocal();
           }

@@ -9,7 +9,9 @@ from pathlib import Path
 RAIZ = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(RAIZ))
 
+import math
 from backend.datos import crearCampus, crearRedMesh, ubicacionesTelefonos
+from backend.evacuacion import rutaEvacuacion
 
 
 def serializar(g):
@@ -33,11 +35,17 @@ def main():
     # Exportar los grafos reales desde backend/datos.py (fuente única de verdad)
     campus, zonas = crearCampus()
     red = crearRedMesh()
+    rutas_base = {}
+    for v in campus.vertexs:
+        ruta, tiempo = rutaEvacuacion(campus, v.nombre, zonas)
+        t_val = None if (tiempo is None or (isinstance(tiempo, float) and math.isinf(tiempo))) else round(float(tiempo), 2)
+        rutas_base[v.nombre] = {"origen": v.nombre, "ruta": list(ruta), "tiempo": t_val}
     datos = {
         "campus": serializar(campus),
         "zonas": list(zonas),
         "mesh": serializar(red),
         "ubicaciones": ubicacionesTelefonos(),
+        "rutasBase": rutas_base,
     }
     (static_dst / "datos-iniciales.json").write_text(
         json.dumps(datos, ensure_ascii=False, separators=(",", ":")),
