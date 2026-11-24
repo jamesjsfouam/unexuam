@@ -80,7 +80,7 @@ class TestApiYParidad(unittest.TestCase):
         with self.client.get("/sw.js") as r:
             self.assertEqual(r.status_code, 200)
             self.assertEqual(r.headers.get("Service-Worker-Allowed"), "/")
-            self.assertIn(b"unexuam-v26", r.data)
+            self.assertIn(b"unexuam-v27", r.data)
 
     def test_operador_real_puede_iniciar_sesion(self):
         resultado = servidor.app.test_cli_runner().invoke(

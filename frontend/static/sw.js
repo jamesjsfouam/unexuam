@@ -1,5 +1,5 @@
 /* Service Worker de Unexuam: caché de assets estáticos para operar offline. */
-const CACHE = "unexuam-v26";
+const CACHE = "unexuam-v27";
 const CAMPUS_OFFLINE = "/campus-offline.json";
 const ASSETS = [
   "/",
@@ -31,6 +31,8 @@ const ASSETS = [
   "/static/img/figma/tarjeta-sismo.jpg",
   "/static/img/figma/tarjeta-auxilios.jpg",
   "/static/img/figma/tarjeta-sin-senal.jpg",
+  "/static/img/figma/campus-uam-inicio.jpg",
+  "/static/img/figma/campus-uam-evacuar.jpg",
   "/static/img/figma/campus-uam-mesh.jpg",
   "/static/img/figma/flecha-izq.png",
   "/static/img/figma/flecha-der.png",
