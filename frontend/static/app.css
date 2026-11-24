@@ -91,6 +91,10 @@ html[data-tema="oscuro"] .navbar,
 html[data-tema="oscuro"] .contactos button,
 html[data-tema="oscuro"] .mi-red,
 html[data-tema="oscuro"] .acceso-item,
+html[data-tema="oscuro"] .lista-manual-det,
+html[data-tema="oscuro"] .paso,
+html[data-tema="oscuro"] .modal-ub-carta,
+html[data-tema="oscuro"] .ub-edificios-chips button,
 html[data-tema="oscuro"] .chat-form,
 html[data-tema="oscuro"] .chat-lista li.suyo {
   background: #131c29;
@@ -98,8 +102,21 @@ html[data-tema="oscuro"] .chat-lista li.suyo {
   color: var(--texto);
 }
 
+html[data-tema="oscuro"] .paso-3d,
+html[data-tema="oscuro"] .ub-modelo-3d-wrap,
+html[data-tema="oscuro"] .ub-mapa-wrap {
+  background: #162233;
+  border-color: #2a3f5c;
+}
+
+html[data-tema="oscuro"] .ub-aulas-chips button {
+  background: #1a2c44;
+  border-color: #389bff;
+  color: #eef4fc;
+}
+
 html[data-tema="oscuro"] .chat-lista {
-  background: #0b121c !important;
+  background-color: #0b121c !important;
 }
 
 html[data-tema="oscuro"] .navbar a {
@@ -2124,20 +2141,35 @@ form.tarjeta {
 }
 
 .guia {
+  position: relative;
   list-style: none;
   margin: 0 -8px;
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
+}
+
+.guia::before {
+  content: "";
+  position: absolute;
+  left: 26px;
+  top: 26px;
+  bottom: 26px;
+  width: 3px;
+  border-radius: 3px;
+  background: linear-gradient(180deg, var(--azul) 0%, var(--verde) 100%);
+  opacity: .28;
+  pointer-events: none;
 }
 
 .paso {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 8px;
   cursor: pointer;
-  border: 3px solid var(--azul);
+  border: 2.5px solid var(--azul);
   border-radius: 22px;
   padding: 10px 10px 8px;
   background: var(--blanco);
@@ -2391,6 +2423,7 @@ form.tarjeta {
 .e3-arista {
   stroke: var(--azul);
   stroke-linecap: round;
+  filter: drop-shadow(0 0 2px rgba(0, 128, 255, .45));
 }
 
 .e3-arista.punta {
@@ -2400,6 +2433,7 @@ form.tarjeta {
 
 .e3-arista.resaltada {
   stroke: #e05a00;
+  filter: drop-shadow(0 0 3px rgba(224, 90, 0, .6));
 }
 
 .e3-arista.resaltada.punta {
@@ -2449,6 +2483,7 @@ form.tarjeta {
 .r3-arista {
   stroke: var(--azul);
   stroke-linecap: round;
+  filter: drop-shadow(0 0 4px rgba(0, 128, 255, .5));
 }
 
 .r3-arista.punta {
@@ -2458,6 +2493,7 @@ form.tarjeta {
 
 .r3-arista.resaltada {
   stroke: #e05a00;
+  filter: drop-shadow(0 0 5px rgba(224, 90, 0, .65));
 }
 
 .r3-arista.resaltada.punta {

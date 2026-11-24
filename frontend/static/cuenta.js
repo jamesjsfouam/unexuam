@@ -712,10 +712,17 @@
     $("#mi-red").classList.toggle("aislado", !YO.vecinos.length);
     const accLug = $("#acc-lugar-val");
     if (accLug) accLug.textContent = YO.lugar ? `${YO.lugar} · Toca para cambiar o usar GPS` : "Toca para detectar por GPS";
+    const accLugChip = $("#acc-lugar-chip");
+    if (accLugChip && YO.lugar) accLugChip.textContent = YO.lugar;
     const accMesh = $("#acc-mesh-val");
     if (accMesh) accMesh.textContent = YO.vecinos.length
       ? `${YO.vecinos.length} teléfono${YO.vecinos.length === 1 ? "" : "s"} cercano${YO.vecinos.length === 1 ? "" : "s"} · Abrir Canal General`
       : "Sin vecinos cercanos · Mensajes en custodia DTN";
+    const accMeshChip = $("#acc-mesh-chip");
+    if (accMeshChip) {
+      accMeshChip.textContent = YO.vecinos.length ? `${YO.vecinos.length} cerca` : "DTN";
+      accMeshChip.className = `acceso-chip ${YO.vecinos.length ? "verde" : "ambar"}`;
+    }
 
     const filtro = ($("#buscar-contacto").value || "").trim().toLowerCase();
     const ultimo = {}, orden = {};

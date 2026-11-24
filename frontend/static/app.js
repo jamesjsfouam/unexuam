@@ -540,6 +540,17 @@ function renderInicio() {
       ? `${r.ruta[r.ruta.length - 1]} · ${minutos(r.tiempo)} caminando`
       : "Ver ruta paso a paso en el mapa 3D";
   }
+  const accRutaChip = $("#acc-ruta-chip");
+  if (accRutaChip) {
+    if (r && r.tiempo !== null) {
+      accRutaChip.textContent = minutos(r.tiempo);
+      accRutaChip.hidden = false;
+    } else {
+      accRutaChip.hidden = true;
+    }
+  }
+  const accLugChip = $("#acc-lugar-chip");
+  if (accLugChip && miLugar) accLugChip.textContent = miLugar;
 
   const emObj = E.emergencia;
   const emergencia = !!(emObj || ua || c.bloqueados.length || nCong);
