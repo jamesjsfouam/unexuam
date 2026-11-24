@@ -1735,7 +1735,7 @@ function renderPasoCampus() {
         <text x="${xy.x.toFixed(1)}" y="${xy.y.toFixed(1)}" font-size="25">${esc(cortoTxt)}</text>
       </g>`;
     }
-    wrap.innerHTML = `<svg class="ub-mapa-svg" viewBox="${ubCam.join(" ")}" role="img" aria-label="Mapa interactivo 3D del campus UAM">
+    wrap.innerHTML = `<svg class="ub-mapa-svg" viewBox="${ubCam.join(" ")}" preserveAspectRatio="xMidYMid slice" role="img" aria-label="Mapa interactivo 3D del campus UAM">
       <image href="/static/img/mapa-campus-3d.svg" width="${MAPA_W}" height="${MAPA_H}"/>
       ${pins}
     </svg>
