@@ -96,7 +96,7 @@ Se entra con **CIF y la contraseña** elegida al crear la cuenta (se guarda con 
 |---|---|
 | ![Inicio](https://img.shields.io/badge/-Inicio-0080FF?style=flat-square) | Estado de las dos redes y actividad en vivo. |
 | ![Evacuar](https://img.shields.io/badge/-Evacuar-0B2A4A?style=flat-square) | **GPS** («Activar»): detecta en qué edificio o zona segura estás (polígonos de OpenStreetMap en `ubicacion-campus.json`) y te guía; la ruta se recalcula al moverte. Buscador de aulas, guía paso a paso con voz, selector de piso para los edificios B, C y P y mapa 3D con la ruta dibujada como grafo. |
-| ![Mensajes](https://img.shields.io/badge/-Mensajes-00D656?style=flat-square) | Chats tipo WhatsApp. Los contactos se agregan buscando su **CIF**. Cada mensaje muestra sus saltos y su retardo por la red Mesh (Dijkstra por retardo); sin camino espera en la **cola DTN** y se entrega cuando aparece uno. El botón rojo **Alerta** envía una alerta desde tu teléfono propagada con **BFS + TTL** (alcance 1–5). |
+| ![Mensajes](https://img.shields.io/badge/-Mensajes-00D656?style=flat-square) | Chats tipo WhatsApp. Los contactos se agregan buscando su **CIF**. Cada mensaje muestra sus saltos y su retardo por la red Mesh (Dijkstra por retardo); sin camino espera en la **cola DTN** y se entrega cuando aparece uno. Arriba está el **Canal General · Campus**, que llega a todos; el botón **🆘 SOS** de Inicio envía tu edificio a ese canal con un toque. |
 | ![Admin](https://img.shields.io/badge/-Admin-0066CC?style=flat-square) | Solo administrador. Paneles **Grafos** (editar vértices y aristas), **Dijkstra 2D** (paso a paso, por ejemplo desde `C-101` hasta el punto seguro más cercano) y **Simulacros**. Desde aquí se bloquean o congestionan pasillos y se abre **«Ver la red Mesh (BFS con TTL)»**, con los teléfonos, sus enlaces dirigidos y la alerta animada salto a salto. |
 | ![Consola](https://img.shields.io/badge/-Menú_CLI-262626?style=flat-square) | Interfaz de consola clásica del curso (`python -m backend.menu`) para probar operaciones de grafos sin levantar el servidor web. |
 
@@ -114,7 +114,7 @@ Se entra con **CIF y la contraseña** elegida al crear la cuenta (se guarda con 
 | ![Frontend](https://img.shields.io/badge/-Frontend-0B2A4A?style=flat-square&logo=javascript&logoColor=white) | **HTML5 · CSS3 · JS vanilla** | Interfaz móvil sin frameworks ni CDNs: funciona completamente sin internet. |
 | ![Móvil](https://img.shields.io/badge/-App_Android-3DDC84?style=flat-square&logo=android&logoColor=white) | **Capacitor + Nearby Connections** | APK autónomo (`ni.edu.uam.unexuam`) con el grafo exportado desde `backend/datos.py`, motor offline y enlace directo entre teléfonos por Bluetooth / Wi-Fi. |
 | ![Cartografía](https://img.shields.io/badge/-Mapa_UAM-7EBC6F?style=flat-square&logo=openstreetmap&logoColor=white) | **OpenStreetMap + SVG 3D** | Geometría real del campus (`campus-plano.json`, `ubicacion-campus.json` y `img/mapa-campus-3d.svg`). |
-| ![Pruebas](https://img.shields.io/badge/-Pruebas-1FBF5F?style=flat-square) | **unittest** | Suite de 55 pruebas de backend, API, sesión, mensajería y paridad del mapa. |
+| ![Pruebas](https://img.shields.io/badge/-Pruebas-1FBF5F?style=flat-square) | **unittest** | Suite de 56 pruebas de backend, API, sesión, mensajería y paridad del mapa. |
 
 ### Sistema de diseño
 
@@ -147,9 +147,8 @@ unexuam/
 │   ├── templates/index.html   # Estructura de la aplicación
 │   └── static/
 │       ├── app.js             # Inicio, Evacuar, mapa 3D y Admin (grafos, simulacros, red Mesh)
-│       ├── cuenta.js          # Sesión con CIF, contactos, mensajes, Alerta y Dijkstra 2D
+│       ├── cuenta.js          # Sesión con CIF, contactos por CIF, mensajes, SOS, GPS y Dijkstra 2D
 │       ├── ubicacion.js       # GPS: punto dentro de polígono sobre ubicacion-campus.json
-│       ├── nearby.js          # Puente con el plugin Nearby de Android (mensajes entre teléfonos)
 │       ├── ubicacion-campus.json · campus-plano.json
 │       └── fonts/ · img/ · sw.js · manifest.json
 ├── tests/
@@ -157,7 +156,7 @@ unexuam/
 │   └── test_api.py            # API, sesión, permisos de administrador, mensajes y paridad
 ├── mobile/                    # App Android autónoma (Capacitor)
 │   ├── motor-offline.js       # Motor de grafos, cuentas y mensajes en el teléfono
-│   └── android/.../unexuam/UnexuamNearbyPlugin.java   # Nearby Connections (Bluetooth / Wi-Fi)
+│   └── android/.../unexuam/MeshNativa.java   # Nearby Connections (Bluetooth / Wi-Fi Direct) y puente con MainActivity
 └── docs/
     ├── propuesta/             # Propuesta formal del proyecto (.docx y .md)
     ├── pitch/                 # Diapositivas (deck.html) y capturas
@@ -260,7 +259,7 @@ La consola imprimirá las direcciones de acceso:
 2. En cada uno toca **Crear cuenta** con un CIF distinto y una contraseña.
 3. En **Mensajes**, busca el CIF de la otra persona y agrégala. Abre el chat y escribe.
 4. Cada mensaje indica cuántos saltos dio y su retardo. Si un teléfono queda lejos de todos (en **Evacuar** con el GPS o cambiando su lugar), el mensaje espera en la cola DTN y se entrega solo cuando vuelve a haber camino.
-5. Toca **Alerta**, elige el alcance (1–5) y envíala: llega a quienes estén dentro de ese número de saltos.
+5. En **Inicio** toca **🆘 SOS**: tu edificio llega al **Canal General** de todos los teléfonos de la red.
 
 **B. App Android, por Nearby y sin servidor**
 
@@ -294,7 +293,7 @@ El APK queda en `mobile/android/app/build/outputs/apk/debug/app-debug.apk`.
 |---|---|
 | `python app.py` | Levanta el servidor en `http://0.0.0.0:5000` y `https://0.0.0.0:5443` |
 | `python -m backend.menu` | Abre el menú interactivo de consola para operar los grafos |
-| `python -m unittest discover -s tests -v` | Ejecuta las 55 pruebas |
+| `python -m unittest discover -s tests -v` | Ejecuta las 56 pruebas |
 | `cd mobile && npm run sync` | Sincroniza el grafo de `backend/datos.py` y el frontend con Android |
 
 <br />
@@ -303,7 +302,7 @@ El APK queda en `mobile/android/app/build/outputs/apk/debug/app-debug.apk`.
 
 ## Pruebas y validación
 
-La suite en [`tests/`](tests/) incluye **55 pruebas automatizadas** (`test_backend.py` + `test_api.py`):
+La suite en [`tests/`](tests/) incluye **56 pruebas automatizadas** (`test_backend.py` + `test_api.py`):
 
 ```powershell
 python -m unittest discover -s tests -v
