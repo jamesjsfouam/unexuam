@@ -12,3 +12,4 @@ mobile/android/local.properties
 mobile/*.apk
 datos/
 _apoyo/
+.superdesign/tmp/
