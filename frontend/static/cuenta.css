@@ -1810,3 +1810,53 @@ html[data-filtro-color="acromatopsia"] body { filter: grayscale(1); }
 .acceso-chip.verde { background: #dcfce7; color: var(--verde-btn); }
 .acceso-chip.ambar { background: var(--amarillo-claro); color: var(--amarillo-txt); }
 .acceso-go { font-size: 22px; font-weight: 900; color: var(--azul-btn); flex: none; }
+
+/* ---------- Números de emergencia Nicaragua (3 tarjetas compactas abajo) ---------- */
+.emergencias-ni {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 4px;
+}
+.emergencias-ni-tit {
+  margin: 0;
+  padding-left: 4px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  color: var(--gris-texto);
+}
+.emergencias-ni-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+.em-ni-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  min-height: 68px;
+  padding: 8px 6px;
+  border-radius: 18px;
+  border: 2px solid #cfe0f4;
+  background: var(--blanco);
+  color: var(--texto);
+  text-decoration: none;
+  text-align: center;
+  box-shadow: 0 2px 8px rgba(11, 42, 74, .06);
+  transition: transform .12s ease, border-color .15s ease;
+}
+.em-ni-card:active { transform: scale(.97); }
+.em-ni-card b { font-size: 1.08rem; font-weight: 900; line-height: 1.05; }
+.em-ni-card span { font-size: 0.72rem; font-weight: 800; line-height: 1.15; }
+.em-ni-card small { font-size: 0.63rem; font-weight: 600; color: var(--gris-texto); line-height: 1.1; }
+.em-ni-card.rojo { border-color: rgba(217, 43, 0, .35); }
+.em-ni-card.rojo b { color: var(--rojo); }
+.em-ni-card.verde { border-color: rgba(0, 112, 46, .35); }
+.em-ni-card.verde b { color: var(--verde-btn); }
+.em-ni-card.azul { border-color: rgba(0, 98, 204, .35); }
+.em-ni-card.azul b { color: var(--azul-btn); }
+html[data-tema="oscuro"] .em-ni-card { background: #131c29; border-color: #263952; color: var(--texto); }
