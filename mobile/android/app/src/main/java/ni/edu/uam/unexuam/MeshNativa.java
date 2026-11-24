@@ -31,6 +31,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ThreadLocalRandom;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import org.json.JSONArray;
@@ -53,6 +54,8 @@ public class MeshNativa {
     private static final Strategy ESTRATEGIA = Strategy.P2P_CLUSTER;
     private static final int MAX_CUSTODIA = 200;
     private static final int MAX_CONECTADOS = 4;
+    private static final int MAX_TRANSFERENCIAS = 128;
+    private static final int MAX_REINTENTOS = 3;
     private static final int MAX_BYTES_PAYLOAD = 30000;
     private static final long TIMEOUT_PENDIENTE_MS = 15_000L;
     private static final long TTL_BROADCAST_MS = 60L * 60L * 1000L; // 60 min para SOS/bloqueos
@@ -83,6 +86,9 @@ public class MeshNativa {
     private final Map<String, JSONObject> conectados = new ConcurrentHashMap<>();
     private final Map<String, JSONObject> pendientes = new ConcurrentHashMap<>();
     private final Map<String, Long> pendientesTs = new ConcurrentHashMap<>();
+    private final Map<Long, Integer> transferencias = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<Long, Runnable> reintentos = new ConcurrentHashMap<>();
+    private volatile long generacionTransporte;
     private final Map<String, EntradaCustodia> custodia = Collections.synchronizedMap(new LinkedHashMap<>());
     private final Set<String> vistos = Collections.synchronizedSet(new LinkedHashSet<>());
     private final Set<String> confirmados = Collections.synchronizedSet(new LinkedHashSet<>());
@@ -222,6 +228,9 @@ public class MeshNativa {
 
     public synchronized void detener() {
         deseandoActivo = false;
+        generacionTransporte++;
+        transferencias.clear();
+        reintentos.clear();
         anunciando = false;
         buscando = false;
         try {
@@ -265,16 +274,44 @@ public class MeshNativa {
         byte[] bytes = firmado.getBytes(StandardCharsets.UTF_8);
         int enviados = 0;
         for (String endpointId : new ArrayList<>(conectados.keySet())) {
-            enviarSeguro(endpointId, bytes);
-            enviados++;
+            if (enviarSeguro(endpointId, bytes)) enviados++;
         }
         return enviados;
     }
 
-    private void enviarSeguro(String endpointId, byte[] bytes) {
-        if (bytes == null || bytes.length > MAX_BYTES_PAYLOAD) return;
-        client.sendPayload(endpointId, Payload.fromBytes(bytes))
-                .addOnFailureListener(e -> Log.w(TAG, "sendPayload falló hacia " + endpointId + ": " + e.getMessage()));
+    private boolean enviarSeguro(String endpointId, byte[] bytes) {
+        return intentarEnvio(endpointId, bytes, 0, generacionTransporte);
+    }
+
+    private synchronized boolean intentarEnvio(String endpointId, byte[] bytes, int intento, long generacion) {
+        if (!deseandoActivo || generacion != generacionTransporte || !conectados.containsKey(endpointId)
+                || bytes == null || bytes.length > MAX_BYTES_PAYLOAD
+                || transferencias.size() + reintentos.size() >= MAX_TRANSFERENCIAS) return false;
+        Payload payload = Payload.fromBytes(bytes);
+        long id = payload.getId();
+        if (intento < MAX_REINTENTOS) {
+            reintentos.put(id, () -> intentarEnvio(endpointId, bytes, intento + 1, generacion));
+        }
+        transferencias.put(id, intento);
+        mainHandler.postDelayed(() -> {
+            transferencias.remove(id);
+            reintentos.remove(id);
+        }, 30000);
+        client.sendPayload(endpointId, payload).addOnFailureListener(e -> transferirDeNuevo(id, endpointId));
+        return true;
+    }
+
+    private synchronized void transferirDeNuevo(long id, String endpointId) {
+        Integer intento = transferencias.remove(id);
+        if (intento == null) return;
+        Runnable reintento = reintentos.remove(id);
+        if (reintento != null && conectados.containsKey(endpointId)) {
+            long espera = (750L << intento) + ThreadLocalRandom.current().nextLong(300);
+            reintentos.put(id, reintento);
+            mainHandler.postDelayed(() -> {
+                if (reintentos.remove(id, reintento)) reintento.run();
+            }, espera);
+        }
     }
 
     public String vecinosJson() {
@@ -299,8 +336,11 @@ public class MeshNativa {
                 for (Map.Entry<String, EntradaCustodia> e : custodia.entrySet()) {
                     if (!e.getValue().prioritario) { victima = e.getKey(); break; }
                 }
-                if (victima == null && !custodia.isEmpty()) victima = custodia.keySet().iterator().next();
-                if (victima != null) custodia.remove(victima);
+                if (victima == null) {
+                    if (!prioritario) return;
+                    victima = custodia.keySet().iterator().next();
+                }
+                custodia.remove(victima);
             }
             custodia.put(id, new EntradaCustodia(paqueteJson, System.currentTimeMillis() + ttlMs, prioritario));
         }
@@ -400,6 +440,15 @@ public class MeshNativa {
         }
     }
 
+    private synchronized boolean reservarConexion(String endpointId, JSONObject peer, boolean entrante) {
+        if (!deseandoActivo || conectados.containsKey(endpointId)) return false;
+        if (pendientes.containsKey(endpointId)) return entrante;
+        if (conectados.size() + pendientes.size() >= MAX_CONECTADOS) return false;
+        pendientes.put(endpointId, peer);
+        pendientesTs.put(endpointId, System.currentTimeMillis());
+        return true;
+    }
+
     private final EndpointDiscoveryCallback discoveryCallback = new EndpointDiscoveryCallback() {
         @Override
         public void onEndpointFound(String endpointId, DiscoveredEndpointInfo info) {
@@ -416,17 +465,13 @@ public class MeshNativa {
             }
             if (!cifLocal.isEmpty() && !cifRemoto.isEmpty() && cifLocal.compareTo(cifRemoto) > 0) {
                 mainHandler.postDelayed(() -> {
-                    if (!deseandoActivo || conectados.size() >= MAX_CONECTADOS
-                            || conectados.containsKey(endpointId) || pendientes.containsKey(endpointId)) return;
-                    pendientes.put(endpointId, peer);
-                    pendientesTs.put(endpointId, System.currentTimeMillis());
+                    if (!reservarConexion(endpointId, peer, false)) return;
                     client.requestConnection(nombreEndpointLocal(), endpointId, lifecycleCallback)
                             .addOnFailureListener(e -> { pendientes.remove(endpointId); pendientesTs.remove(endpointId); });
                 }, 1200);
                 return;
             }
-            pendientes.put(endpointId, peer);
-            pendientesTs.put(endpointId, System.currentTimeMillis());
+            if (!reservarConexion(endpointId, peer, false)) return;
             client.requestConnection(nombreEndpointLocal(), endpointId, lifecycleCallback)
                     .addOnFailureListener(e -> {
                         pendientes.remove(endpointId);
@@ -445,13 +490,11 @@ public class MeshNativa {
     private final ConnectionLifecycleCallback lifecycleCallback = new ConnectionLifecycleCallback() {
         @Override
         public void onConnectionInitiated(String endpointId, ConnectionInfo info) {
-            if (conectados.size() >= MAX_CONECTADOS) {
+            JSONObject peer = parsearEndpoint(endpointId, info.getEndpointName());
+            if (!reservarConexion(endpointId, peer, true)) {
                 client.rejectConnection(endpointId);
                 return;
             }
-            JSONObject peer = parsearEndpoint(endpointId, info.getEndpointName());
-            pendientes.put(endpointId, peer);
-            pendientesTs.put(endpointId, System.currentTimeMillis());
             client.acceptConnection(endpointId, payloadCallback)
                     .addOnFailureListener(e -> {
                         pendientes.remove(endpointId);
@@ -465,7 +508,10 @@ public class MeshNativa {
             JSONObject peer = pendientes.remove(endpointId);
             pendientesTs.remove(endpointId);
             if (result.getStatus().getStatusCode() == ConnectionsStatusCodes.STATUS_OK) {
-                if (peer == null) peer = parsearEndpoint(endpointId, "");
+                if (peer == null || !deseandoActivo || conectados.size() >= MAX_CONECTADOS) {
+                    client.disconnectFromEndpoint(endpointId);
+                    return;
+                }
                 // Deduplicar por CIF si el vecino reconectó con otro endpointId
                 String cifNuevo = peer.optString("cif", "");
                 if (!cifNuevo.isEmpty()) {
@@ -597,8 +643,13 @@ public class MeshNativa {
 
         @Override
         public void onPayloadTransferUpdate(String endpointId, PayloadTransferUpdate update) {
+            long id = update.getPayloadId();
             if (update.getStatus() == PayloadTransferUpdate.Status.FAILURE) {
-                Log.w(TAG, "Transferencia fallida con " + endpointId + " (payloadId=" + update.getPayloadId() + ")");
+                transferirDeNuevo(id, endpointId);
+            } else if (update.getStatus() == PayloadTransferUpdate.Status.SUCCESS
+                    || update.getStatus() == PayloadTransferUpdate.Status.CANCELED) {
+                transferencias.remove(id);
+                reintentos.remove(id);
             }
         }
     };

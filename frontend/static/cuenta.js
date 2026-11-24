@@ -563,6 +563,8 @@
   let CONV = { yo: null, contactos: [], mensajes: [] };
   let conContacto = null;
   let sondeoMsj = null;
+  let generacionSondeoMsj = 0;
+  let solicitudMsj = 0;
   let firmaMsj = "";
 
   let leidosCache = null;
@@ -601,8 +603,9 @@
   }
 
   async function cargarMensajes() {
+    const solicitud = ++solicitudMsj;
     const j = await pedir("/api/mensajes");
-    if (!j.ok) return;
+    if (solicitud !== solicitudMsj || !j.ok) return;
     const firma = JSON.stringify(j);
     if (firma === firmaMsj) return;
     firmaMsj = firma;
@@ -637,11 +640,22 @@
 
   function iniciarSondeoMensajes() {
     detenerSondeoMensajes();
-    cargarMensajes();
-    if (window.__UNEXUAM_OFFLINE__) return;
-    sondeoMsj = setInterval(() => { if (!document.hidden) cargarMensajes(); }, 2500);
+    const generacion = generacionSondeoMsj;
+    async function sondear(inicial = false) {
+      if (inicial || !document.hidden) await cargarMensajes();
+      if (generacion === generacionSondeoMsj && !window.__UNEXUAM_OFFLINE__) {
+        sondeoMsj = setTimeout(sondear, 2500);
+      }
+    }
+    sondear(true);
   }
-  function detenerSondeoMensajes() { if (sondeoMsj) clearInterval(sondeoMsj); sondeoMsj = null; }
+
+  function detenerSondeoMensajes() {
+    generacionSondeoMsj++;
+    solicitudMsj++;
+    clearTimeout(sondeoMsj);
+    sondeoMsj = null;
+  }
 
   /* ------------------------------------------------------------ contactos por CIF */
 
@@ -1465,15 +1479,15 @@
       "Reportar pasillo bloqueado",
       window.UnexuamNativo
         ? "El bloqueo se guarda en este teléfono y se intenta compartir por Mesh."
-        : "El bloqueo actualiza la ruta de quienes estén conectados al servidor.",
+        : "El administrador revisará el reporte antes de actualizar las rutas.",
       pasos.map(p => ({
         txt: p.txt,
         cls: "peligro",
         fn: async () => {
           const j = await pedir("/api/campus/bloquear", { origen: p.o, destino: p.d, ambos: true });
           if (j.ok) {
-            sonarAlerta();
-            avisar(`Bloqueo registrado: ${p.txt}`);
+            if (!j.pendiente) sonarAlerta();
+            avisar(j.pendiente ? j.mensaje : `Bloqueo registrado: ${p.txt}`);
             if (window.iniciarUnexuam) window.iniciarUnexuam();
             firmaMsj = "";
             await cargarMensajes();
@@ -1557,7 +1571,11 @@
       $("#v-login").hidden = true;
       document.body.classList.remove("sin-sesion");
       document.body.classList.add("modo-invitado");
-      if (window.entrarModoEvacuacionInvitado) await window.entrarModoEvacuacionInvitado();
+      if (!await window.entrarModoEvacuacionInvitado?.()) {
+        document.body.classList.remove("modo-invitado");
+        mostrarLogin();
+        $('#login-error').textContent = "Conéctate para descargar el mapa del campus.";
+      }
     });
     const btnAtras = $("#reg-atras");
     if (btnAtras) btnAtras.addEventListener("click", () => { if (regPaso > 1) { regPaso--; $("#login-error").textContent = ""; actualizarWizard(true); } });

@@ -8,21 +8,21 @@
   font-family: "UnexoNexa";
   font-weight: 400;
   font-display: swap;
-  src: url("/static/fonts/Montserrat-Regular.ttf") format("truetype");
+  src: url("/static/fonts/Montserrat-Regular.woff2") format("woff2");
 }
 
 @font-face {
   font-family: "UnexoNexa";
   font-weight: 700;
   font-display: swap;
-  src: url("/static/fonts/Montserrat-Bold.ttf") format("truetype");
+  src: url("/static/fonts/Montserrat-Bold.woff2") format("woff2");
 }
 
 @font-face {
   font-family: "UnexoNexa";
   font-weight: 900;
   font-display: swap;
-  src: url("/static/fonts/Montserrat-Black.ttf") format("truetype");
+  src: url("/static/fonts/Montserrat-Black.woff2") format("woff2");
 }
 
 :root {

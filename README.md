@@ -109,7 +109,7 @@ Se entra con **CIF y la contraseña** elegida al crear la cuenta (se guarda con 
 | Categoría | Tecnología | Detalle |
 |---|---|---|
 | ![Backend](https://img.shields.io/badge/-Lenguaje-3776AB?style=flat-square&logo=python&logoColor=white) | **Python 3.10+** | Lógica completa de grafos, BFS y Dijkstra implementada desde cero sin librerías externas. |
-| ![Servidor](https://img.shields.io/badge/-Servidor-0080FF?style=flat-square&logo=flask&logoColor=white) | **Flask** | Grafos en memoria protegidos con `threading.Lock`, API REST JSON y servicio por http (5000) y https (5443, certificado autofirmado con `cryptography`). |
+| ![Servidor](https://img.shields.io/badge/-Servidor-0080FF?style=flat-square&logo=flask&logoColor=white) | **Flask** | Grafo del campus y emergencia activa persistidos en SQLite, API REST JSON y TLS configurable. |
 | ![Base de datos](https://img.shields.io/badge/-Base_de_datos-003B57?style=flat-square&logo=sqlite&logoColor=white) | **SQLite** | Cuentas, contactos y mensajes en `datos/unexuam.db` mediante `basedatos.py` (incluido en Python, sin internet). |
 | ![Frontend](https://img.shields.io/badge/-Frontend-0B2A4A?style=flat-square&logo=javascript&logoColor=white) | **HTML5 · CSS3 · JS vanilla** | Interfaz móvil sin frameworks ni CDNs: funciona completamente sin internet. |
 | ![Móvil](https://img.shields.io/badge/-App_Android-3DDC84?style=flat-square&logo=android&logoColor=white) | **Capacitor + Nearby Connections** | APK autónomo (`ni.edu.uam.unexuam`) con el grafo exportado desde `backend/datos.py`, motor offline y enlace directo entre teléfonos por Bluetooth / Wi-Fi. |
@@ -208,7 +208,7 @@ Todas las rutas requieren sesión salvo `lugares`, `yo`, `registro`, `login` y `
 ### Requisitos previos
 
 - **Python 3.10** o superior
-- **Flask** y **cryptography** (`pip install flask cryptography`)
+- **Flask** (`pip install -r requirements.txt`)
 - Para la app Android: Node.js 18+, JDK 17+ y Android SDK (ver paso 5)
 
 ### 1. Clonar e instalar
@@ -216,40 +216,38 @@ Todas las rutas requieren sesión salvo `lugares`, `yo`, `registro`, `login` y `
 ```powershell
 git clone https://github.com/jamesjsfouam/unexuam.git
 cd unexuam
-pip install flask cryptography
+pip install -r requirements.txt
 ```
 
-`cryptography` genera el certificado autofirmado que activa **https**; sin él el servidor arranca solo por http y el GPS del navegador no funciona.
-
-### 2. Ejecutar el servidor
+### 2. Ejecutar el servidor local
 
 ```powershell
 python app.py
 ```
 
-La consola imprimirá las direcciones de acceso:
-
-```text
- En este PC:        http://127.0.0.1:5000
- Desde el teléfono: http://192.168.x.x:5000  (misma Wi-Fi)
- Con GPS (https):   https://192.168.x.x:5443  (acepta el aviso del certificado)
-```
-
-> [!IMPORTANT]
-> El navegador solo permite el **GPS** en páginas **https**. Usa la dirección `https://IP-del-PC:5443` y acepta el aviso del certificado autofirmado («Configuración avanzada» → «Continuar»).
+Abre `http://127.0.0.1:5000` en el equipo que ejecuta el servidor.
 
 ### 3. Conectar teléfonos en la misma red
 
-1. Conecta los teléfonos a la **misma Wi-Fi** que el PC (o crea un punto de acceso desde el teléfono y conecta el PC a él).
-2. Abre en el navegador del teléfono la dirección **«Con GPS (https)»** (o la de http si no usarás el GPS).
-3. Si no carga, en el **Firewall de Windows** permite Python en **redes privadas** o abre los puertos TCP `5000` y `5443`:
+Configura un certificado válido para el nombre que usarán los teléfonos y una clave privada correspondiente. Los dispositivos deben confiar en la autoridad emisora.
 
-   ```powershell
-   # PowerShell como administrador
-   New-NetFirewallRule -DisplayName "Unexuam" -Direction Inbound -Protocol TCP -LocalPort 5000,5443 -Action Allow -Profile Private
-   ```
+```powershell
+$env:UNEXUAM_TLS_CERT = "C:\certificados\campus.pem"
+$env:UNEXUAM_TLS_KEY = "C:\certificados\campus.key"
+python app.py
+```
 
-4. Opcional: usa **«Agregar a la pantalla de inicio»** para abrirla como aplicación móvil (`manifest.json`).
+Conecta los teléfonos a la misma Wi-Fi y abre el nombre HTTPS del certificado en el puerto 5443. Si un proxy inverso termina TLS, publica el servicio solo por HTTPS y ejecuta Flask con `UNEXUAM_SECURE_COOKIES=1`.
+
+La PWA permite consultar rutas de evacuación como invitado después de descargar el mapa. Al perder la conexión, muestra que los bloqueos recientes pueden faltar.
+
+Para habilitar el control de emergencias en el servidor web, crea una cuenta desde su consola. El comando solicita la contraseña de forma interactiva.
+
+```powershell
+python -m flask --app app crear-admin UAM0001 "Operador de campus"
+```
+
+Los reportes de usuarios aparecen en **Admin → Simulacros → Reportes de bloqueo**. El operador puede aprobar el bloqueo o descartar el reporte. Los reportes pendientes caducan después de una hora.
 
 ### 4. Prueba con dos teléfonos
 
