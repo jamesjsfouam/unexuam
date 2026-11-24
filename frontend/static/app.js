@@ -939,8 +939,10 @@ function edificio3D(L, o) {
   }
 
   for (const p of G.pisos) {
-    const z = zPiso(p), activo = pisosRuta.has(p);
+    const z = zPiso(p), activo = pisosRuta.has(p) || (o.interactivo && (!o.pisoFiltro || o.pisoFiltro === p));
     const cls = activo ? " activo" : "";
+    const aten = o.interactivo && o.pisoFiltro && o.pisoFiltro !== p ? ' opacity="0.32"' : "";
+    svg += `<g${aten}>`;
     // losa del piso (con sombra proyectada y canto)
     svg += poli([P(-0.01, -W / 2 + 1, z - 1.5), P(1.03, -W / 2 + 1, z - 1.5), P(1.03, W / 2 + 1.2, z - 1.5), P(-0.01, W / 2 + 1.2, z - 1.5)], "e3-sombra");
     svg += poli([P(-0.02, -W / 2, z), P(1.02, -W / 2, z), P(1.02, W / 2, z), P(-0.02, W / 2, z)], "e3-losa" + cls, `stroke-width="${0.9 * k}"`);
@@ -960,7 +962,15 @@ function edificio3D(L, o) {
     for (let a = 1; a <= n; a++) {
       const u = 0.1 + 0.8 * (a - 0.5) / n, d0 = P(u - 0.012, vMuro, z), d1 = P(u + 0.012, vMuro, z + 2.1);
       if (sg > 0) svg += `<rect class="e3-puerta" x="${Math.min(d0.x, d1.x)}" y="${d1.y}" width="${Math.abs(d1.x - d0.x) + 0.4 * k}" height="${d0.y - d1.y}"/>`;
-      if (!o.mini) {
+      const codAula = `${L}-${p}${String(a).padStart(2, "0")}`;
+      if (o.interactivo && (!o.pisoFiltro || o.pisoFiltro === p)) {
+        const hit = P(u, vMuro, z + h + 0.6);
+        const bw = 18 * k, bh = 11.5 * k;
+        svg += `<g class="e3-aula-hit" data-ub-sel="${esc(codAula)}" role="button" tabindex="0">
+          <rect x="${(hit.x - bw / 2).toFixed(2)}" y="${(hit.y - bh / 2).toFixed(2)}" width="${bw.toFixed(2)}" height="${bh.toFixed(2)}" rx="${(bh / 2).toFixed(2)}" stroke-width="${1.2 * k}"/>
+          <text x="${hit.x.toFixed(2)}" y="${hit.y.toFixed(2)}" font-size="${6.2 * k}">${p}${String(a).padStart(2, "0")}</text>
+        </g>`;
+      } else if (!o.mini) {
         const t = P(u, vMuro, z + h + 0.35);
         svg += `<text class="e3-num" x="${t.x}" y="${t.y}" font-size="${5.6 * k}">${p}${String(a).padStart(2, "0")}</text>`;
       }
@@ -984,15 +994,25 @@ function edificio3D(L, o) {
     const rp = P(alOeste ? 1.12 : -0.09, -W / 2, z + 3.2);
     svg += `<text class="e3-piso${cls}" style="text-anchor:${alOeste ? "end" : "start"}" x="${rp.x}" y="${rp.y}" font-size="${(o.mini ? 7.6 : 8.2) * k}">${p === 1 ? "Planta baja" : "Piso " + p}</text>`;
     if (!o.mini) {
-      for (const [u, txt] of [[0.28, "Pab. Este"], [0.72, "Pab. Oeste"]]) {
+      for (const [u, txt, ladoNom] of [[0.28, "Pab. Este", "Este"], [0.72, "Pab. Oeste", "Oeste"]]) {
         const t = P(u, sg * (W / 2 - 0.5), z);
-        svg += `<text class="e3-pabtxt" x="${t.x}" y="${t.y}" font-size="${5.8 * k}">${txt}</text>`;
+        if (o.interactivo && (!o.pisoFiltro || o.pisoFiltro === p)) {
+          const bw = 34 * k, bh = 10.5 * k;
+          const pabNom = `${L} Pabellón ${ladoNom} P${p}`;
+          svg += `<g class="e3-pab-hit" data-ub-sel="${esc(pabNom)}" role="button" tabindex="0">
+            <rect x="${(t.x - bw / 2).toFixed(2)}" y="${(t.y - bh / 2).toFixed(2)}" width="${bw.toFixed(2)}" height="${bh.toFixed(2)}" rx="${(bh / 2).toFixed(2)}" stroke-width="${1 * k}"/>
+            <text x="${t.x.toFixed(2)}" y="${t.y.toFixed(2)}" font-size="${5.5 * k}">${txt}</text>
+          </g>`;
+        } else {
+          svg += `<text class="e3-pabtxt" x="${t.x}" y="${t.y}" font-size="${5.8 * k}">${txt}</text>`;
+        }
       }
       if ((L === "B" || L === "C") && p === 1) {
         const tc = P(0.5, sg * (W / 2 + 1.8), z);
         svg += `<text class="e3-central-txt" x="${tc.x}" y="${tc.y}" font-size="${5.5 * k}">Esc. Central B–C</text>`;
       }
     }
+    svg += `</g>`;
   }
   // techo y detalles del último piso
   const zt = zPiso(top) + 3;
@@ -1565,17 +1585,88 @@ function cerrarSelectorUbicacion() {
 }
 window.cerrarSelectorUbicacion = cerrarSelectorUbicacion;
 
+let ubCam = [380, 180, 860, 640];
+let ubEdificioActual = null;
+let ubPisoFiltro = 0;
+
+function aplicarCamUb(vb) {
+  const svg = $("#ub-mapa-wrap svg.ub-mapa-svg");
+  if (!svg || !vb) return;
+  let [x, y, w, h] = vb;
+  const ratio = h / (w || 1);
+  w = Math.min(MAPA_W, Math.max(320, w));
+  h = w * ratio;
+  if (h > MAPA_H) { h = MAPA_H; w = h / ratio; }
+  x = Math.min(Math.max(x, 0), MAPA_W - w);
+  y = Math.min(Math.max(y, 60), MAPA_H - h);
+  ubCam = [x, y, w, h];
+  svg.setAttribute("viewBox", ubCam.map(n => n.toFixed(1)).join(" "));
+}
+
+function conectarPanZoomUb() {
+  const wrap = $("#ub-mapa-wrap");
+  if (!wrap || wrap.dataset.pzUb) return;
+  wrap.dataset.pzUb = "1";
+  let ptrs = new Map(), st = null;
+  const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+  const mid = (a, b) => ({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 });
+  const ini = () => {
+    const arr = [...ptrs.values()];
+    if (arr.length === 1) st = { m: "pan", p0: { ...arr[0] }, vb0: [...ubCam], mov: false };
+    else if (arr.length >= 2) st = { m: "pinch", d0: dist(arr[0], arr[1]) || 1, m0: mid(arr[0], arr[1]), vb0: [...ubCam], mov: true };
+  };
+  wrap.addEventListener("pointerdown", ev => {
+    if (ev.target.closest(".ub-zoom-bar")) return;
+    ptrs.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
+    ini();
+  });
+  wrap.addEventListener("pointermove", ev => {
+    if (!ptrs.has(ev.pointerId) || !st) return;
+    ptrs.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
+    const svg = wrap.querySelector("svg.ub-mapa-svg");
+    if (!svg) return;
+    const r = svg.getBoundingClientRect();
+    if (!r.width || !r.height) return;
+    if (st.m === "pan" && ptrs.size === 1) {
+      const p = ptrs.get(ev.pointerId);
+      if (Math.hypot(p.x - st.p0.x, p.y - st.p0.y) > 8) st.mov = true;
+      if (!st.mov) return;
+      const dx = (p.x - st.p0.x) * (st.vb0[2] / r.width);
+      const dy = (p.y - st.p0.y) * (st.vb0[3] / r.height);
+      aplicarCamUb([st.vb0[0] - dx, st.vb0[1] - dy, st.vb0[2], st.vb0[3]]);
+    } else if (ptrs.size >= 2) {
+      const [a, b] = [...ptrs.values()];
+      const escF = st.d0 / (dist(a, b) || 1);
+      const nw = st.vb0[2] * escF, nh = st.vb0[3] * escF;
+      const m = mid(a, b);
+      const fx = (st.m0.x - r.left) / r.width, fy = (st.m0.y - r.top) / r.height;
+      const sx = st.vb0[0] + fx * st.vb0[2], sy = st.vb0[1] + fy * st.vb0[3];
+      const f2x = (m.x - r.left) / r.width, f2y = (m.y - r.top) / r.height;
+      aplicarCamUb([sx - f2x * nw, sy - f2y * nh, nw, nh]);
+    }
+  });
+  const fin = ev => {
+    ptrs.delete(ev.pointerId);
+    if (ptrs.size === 0) st = null;
+    else ini();
+  };
+  wrap.addEventListener("pointerup", fin);
+  wrap.addEventListener("pointercancel", fin);
+}
+
 function renderPasoCampus() {
   $("#ub-paso-campus").hidden = false;
   $("#ub-paso-frente").hidden = true;
   $("#ub-volver").hidden = true;
   $("#modal-ub-titulo").textContent = "Elige tu edificio";
-  $("#modal-ub-sub").textContent = "Toca tu edificio en el mapa 3D del campus UAM";
+  $("#modal-ub-sub").textContent = "Arrastra, acerca y toca tu edificio en el mapa 3D";
+  ubCam = [380, 180, 860, 640];
 
   const verts = new Set(E.campus.vertices);
   const disponibles = LUGARES_DESTACADOS.filter(x => x.multi || verts.has(x.id));
 
   const wrap = $("#ub-mapa-wrap");
+  conectarPanZoomUb();
   if (PLANO && PROY) {
     let pins = "";
     for (const item of disponibles) {
@@ -1590,16 +1681,21 @@ function renderPasoCampus() {
       }
       if (!xy) continue;
       const cortoTxt = item.multi ? `Edif. ${item.id}` : item.label.replace(/^Edificio /, "Edif. ").slice(0, 12);
-      const pw = Math.max(92, cortoTxt.length * 13 + 28);
+      const pw = Math.max(122, cortoTxt.length * 16 + 34);
       pins += `<g class="ub-pin${item.multi ? " multinivel" : ""}" data-ub-ed="${esc(item.id)}" data-ub-multi="${item.multi ? "1" : "0"}" role="button" tabindex="0">
-        <rect x="${(xy.x - pw / 2).toFixed(1)}" y="${(xy.y - 22).toFixed(1)}" width="${pw}" height="44" rx="22"/>
-        <text x="${xy.x.toFixed(1)}" y="${xy.y.toFixed(1)}" font-size="22">${esc(cortoTxt)}</text>
+        <rect x="${(xy.x - pw / 2).toFixed(1)}" y="${(xy.y - 30).toFixed(1)}" width="${pw}" height="60" rx="30"/>
+        <text x="${xy.x.toFixed(1)}" y="${xy.y.toFixed(1)}" font-size="25">${esc(cortoTxt)}</text>
       </g>`;
     }
-    wrap.innerHTML = `<svg class="ub-mapa-svg" viewBox="80 120 1440 820" role="img" aria-label="Mapa interactivo de edificios del campus UAM">
+    wrap.innerHTML = `<svg class="ub-mapa-svg" viewBox="${ubCam.join(" ")}" role="img" aria-label="Mapa interactivo 3D del campus UAM">
       <image href="/static/img/mapa-campus-3d.svg" width="${MAPA_W}" height="${MAPA_H}"/>
       ${pins}
-    </svg>`;
+    </svg>
+    <div class="ub-zoom-bar">
+      <button type="button" data-ub-zoom="0.72" aria-label="Acercar mapa">+</button>
+      <button type="button" data-ub-zoom="1.35" aria-label="Alejar mapa">−</button>
+      <button type="button" data-ub-zoom="reset" aria-label="Centrar mapa">◎</button>
+    </div>`;
   } else {
     wrap.innerHTML = "";
   }
@@ -1611,52 +1707,44 @@ function renderPasoCampus() {
   ).join("");
 }
 
-function renderPasoFrenteEdificio(L) {
+function renderPasoFrenteEdificio(L, pisoSel = 0) {
+  ubEdificioActual = L;
+  ubPisoFiltro = pisoSel;
   $("#ub-paso-campus").hidden = true;
   $("#ub-paso-frente").hidden = false;
   $("#ub-volver").hidden = false;
   const nombreEd = (FACHADA[L] && FACHADA[L].nombre) || `Edificio ${L}`;
-  $("#modal-ub-titulo").textContent = `${nombreEd} · Vista frontal`;
-  $("#modal-ub-sub").textContent = "Toca tu piso, pabellón o aula en el frente del edificio";
+  $("#modal-ub-titulo").textContent = `${nombreEd} · Modelo 3D`;
+  $("#modal-ub-sub").textContent = "Desliza el modelo 3D y toca tu salón o pabellón";
 
-  const pisosMap = new Map();
-  for (const v of E.campus.vertices) {
-    const info = lugarInfo(v);
-    if (info.ed !== L || !info.piso) continue;
-    if (!pisosMap.has(info.piso)) pisosMap.set(info.piso, { aulas: [], pabOeste: null, pabEste: null });
-    const entry = pisosMap.get(info.piso);
-    if (info.t === "aula") entry.aulas.push(v);
-    else if (info.t === "pabellon" && info.lado === "oeste") entry.pabOeste = v;
-    else if (info.t === "pabellon" && info.lado === "este") entry.pabEste = v;
-  }
+  const G = geomEdificio(L);
+  const pisos = G ? [...G.pisos].sort((a, b) => b - a) : [3, 2, 1];
+  const aulasPiso = E.campus.vertices
+    .filter(v => {
+      const i = lugarInfo(v);
+      return i.ed === L && i.t === "aula" && (!pisoSel || i.piso === pisoSel);
+    })
+    .sort((a, b) => a.localeCompare(b, "es", { numeric: true }));
 
-  const pisosOrden = [...pisosMap.keys()].sort((a, b) => b - a);
-  let html = `<div class="fachada-3d"><div class="fachada-techo" aria-hidden="true"></div>`;
-  for (const p of pisosOrden) {
-    const d = pisosMap.get(p);
-    d.aulas.sort((a, b) => a.localeCompare(b, "es", { numeric: true }));
-    const nomP = p === 1 ? "Planta baja (Piso 1)" : `Piso ${p}`;
-    html += `<div class="fachada-piso">
-      <div class="fachada-piso-cab"><b>${esc(nomP)}</b><span class="nota">${d.aulas.length} aulas</span></div>
-      <div class="fachada-alas">
-        ${d.pabOeste ? `<button type="button" class="fachada-ala-btn" data-ub-sel="${esc(d.pabOeste)}">Pabellón Oeste</button>` : ""}
-        ${d.pabEste ? `<button type="button" class="fachada-ala-btn" data-ub-sel="${esc(d.pabEste)}">Pabellón Este</button>` : ""}
-      </div>
-      <div class="fachada-aulas">
-        ${d.aulas.map(a => `<button type="button" class="fachada-aula-btn" data-ub-sel="${esc(a)}">${esc(a)}</button>`).join("")}
-      </div>
-    </div>`;
-  }
-  const sOeste = `${L} Salida Oeste`, sEste = `${L} Salida Este`;
-  const verts = new Set(E.campus.vertices);
-  if (verts.has(sOeste) || verts.has(sEste)) {
-    html += `<div class="fachada-base">
-      ${verts.has(sOeste) ? `<button type="button" data-ub-sel="${esc(sOeste)}">Salida Oeste</button>` : ""}
-      ${verts.has(sEste) ? `<button type="button" data-ub-sel="${esc(sEste)}">Salida Este</button>` : ""}
-    </div>`;
-  }
-  html += `</div>`;
-  $("#ub-frente-3d").innerHTML = html;
+  const filtrosHtml = `<div class="ub-piso-tabs" role="tablist" aria-label="Filtrar piso">
+    <button type="button" role="tab" aria-selected="${pisoSel === 0}" data-ub-piso="0">Todos</button>
+    ${pisos.map(p => `<button type="button" role="tab" aria-selected="${pisoSel === p}" data-ub-piso="${p}">${p === 1 ? "Planta baja" : "Piso " + p}</button>`).join("")}
+  </div>`;
+
+  const svg3d = edificio3D(L, { interactivo: true, pisoFiltro: pisoSel });
+  const aulasBar = aulasPiso.length
+    ? `<div class="ub-aulas-rapidas"><span class="nota">O toca tu aula aquí:</span><div class="ub-aulas-chips">${aulasPiso.map(a => `<button type="button" data-ub-sel="${esc(a)}">${esc(a)}</button>`).join("")}</div></div>`
+    : "";
+
+  $("#ub-frente-3d").innerHTML = `${filtrosHtml}
+    <div class="ub-modelo-3d-wrap" id="ub-modelo-3d-wrap">${svg3d}</div>
+    <p class="desliza">Desliza el modelo 3D a los lados y toca tu salón</p>
+    ${aulasBar}`;
+
+  requestAnimationFrame(() => {
+    const w = $("#ub-modelo-3d-wrap");
+    if (w) w.scrollLeft = Math.max(0, (w.scrollWidth - w.clientWidth) / 2);
+  });
 }
 
 function actualizarBannerEmergencia(textoForzado) {
@@ -1740,6 +1828,22 @@ function eventos() {
       hoja(`Declarar ${nombres[tipo] || "Emergencia"}`, "Se abrirá una ventana de alerta automática en todos los teléfonos conectados.", [
         { txt: `Sí, declarar ${nombres[tipo] || "emergencia"}`, cls: "peligro", fn: () => api("/api/emergencia/declarar", { tipo }) },
       ]);
+      return;
+    }
+    const ubZoom = ev.target.closest("[data-ub-zoom]");
+    if (ubZoom) {
+      const z = ubZoom.dataset.ubZoom;
+      if (z === "reset") { aplicarCamUb([380, 180, 860, 640]); return; }
+      const f = Number(z);
+      const [x, y, w, h] = ubCam;
+      const cx = x + w / 2, cy = y + h / 2;
+      const nw = w * f, nh = h * f;
+      aplicarCamUb([cx - nw / 2, cy - nh / 2, nw, nh]);
+      return;
+    }
+    const ubPiso = ev.target.closest("[data-ub-piso]");
+    if (ubPiso && ubEdificioActual) {
+      renderPasoFrenteEdificio(ubEdificioActual, Number(ubPiso.dataset.ubPiso));
       return;
     }
     const ubEd = ev.target.closest("[data-ub-ed]");

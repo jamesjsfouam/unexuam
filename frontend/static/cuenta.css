@@ -1420,19 +1420,19 @@ html[data-filtro-color="acromatopsia"] body { filter: grayscale(1); }
   min-height: 52px;
 }
 
-/* ---------- Selector Visual 3D de Campus y Frente de Edificio ---------- */
+/* ---------- Selector Visual 3D de Campus y Modelo 3D del Edificio (Pantalla Completa) ---------- */
+#modal-ubicacion { padding: 0; z-index: 80; }
 .modal-ub-carta {
   position: relative;
   z-index: 1;
   width: 100%;
-  max-width: 460px;
-  max-height: 90dvh;
+  height: 100dvh;
+  max-height: 100dvh;
   display: flex;
   flex-direction: column;
-  border-radius: 28px;
+  border-radius: 0;
   background: var(--blanco);
   color: var(--texto);
-  box-shadow: 0 22px 52px rgba(0, 15, 40, .42);
   overflow: hidden;
   animation: modalPop .2s ease-out both;
 }
@@ -1440,9 +1440,10 @@ html[data-filtro-color="acromatopsia"] body { filter: grayscale(1); }
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 14px 14px 12px;
+  padding: calc(12px + env(safe-area-inset-top)) 14px 12px;
   background: var(--azul-btn);
   color: #ffffff;
+  flex: none;
 }
 .modal-ub-tit { flex: 1; min-width: 0; }
 .modal-ub-tit h3 { margin: 0; font-size: 1.05rem; font-weight: 900; color: #ffffff; }
@@ -1460,7 +1461,9 @@ html[data-filtro-color="acromatopsia"] body { filter: grayscale(1); }
   cursor: pointer;
 }
 .ub-paso {
-  padding: 12px 14px 16px;
+  flex: 1;
+  min-height: 0;
+  padding: 12px 14px calc(16px + env(safe-area-inset-bottom));
   overflow-y: auto;
   display: flex;
   flex-direction: column;
@@ -1469,126 +1472,127 @@ html[data-filtro-color="acromatopsia"] body { filter: grayscale(1); }
 .ub-paso[hidden] { display: none; }
 .ub-mapa-wrap {
   position: relative;
-  border-radius: 20px;
+  flex: 1 1 auto;
+  min-height: 52dvh;
+  border-radius: 22px;
   overflow: hidden;
   border: 2px solid #cfe0f4;
   background: #eaf3fc;
+  touch-action: none;
 }
-.ub-mapa-svg { display: block; width: 100%; height: auto; }
-.ub-pin { cursor: pointer; }
-.ub-pin rect { fill: var(--azul-btn); stroke: #ffffff; stroke-width: 3; transition: transform .15s ease; }
+.ub-mapa-svg { display: block; width: 100%; height: 100%; min-height: 52dvh; }
+.ub-zoom-bar {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.ub-zoom-bar button {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 2px solid var(--azul-btn);
+  background: rgba(255, 255, 255, .95);
+  color: var(--azul-btn);
+  font: 900 18px/1 var(--fuente);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0, 40, 100, .2);
+}
+.ub-pin { cursor: pointer; filter: drop-shadow(0 6px 10px rgba(0, 20, 60, .35)); }
+.ub-pin rect { fill: var(--azul-btn); stroke: #ffffff; stroke-width: 4; }
 .ub-pin.multinivel rect { fill: var(--rojo); }
 .ub-pin text { fill: #ffffff; font-weight: 900; text-anchor: middle; dominant-baseline: central; pointer-events: none; }
-.ub-edificios-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.ub-edificios-chips {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  scrollbar-width: none;
+  flex: none;
+}
+.ub-edificios-chips::-webkit-scrollbar { display: none; }
 .ub-edificios-chips button {
-  flex: 1 1 44%;
-  min-height: 44px;
-  padding: 8px 12px;
-  border-radius: 16px;
+  flex: none;
+  min-height: 46px;
+  padding: 8px 14px;
+  border-radius: 999px;
   border: 2px solid #cfe0f4;
   background: var(--blanco);
   color: var(--texto);
   font: 800 0.84rem var(--fuente);
   cursor: pointer;
-  text-align: left;
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  justify-content: space-between;
   gap: 6px;
+  white-space: nowrap;
 }
-.ub-edificios-chips button.multi { border-color: var(--azul-btn); background: var(--azul-claro); color: var(--azul-osc); }
-.ub-edificios-chips button small { font-size: 0.7rem; font-weight: 700; opacity: .82; }
+.ub-edificios-chips button.multi { border-color: var(--rojo); background: var(--rojo-claro); color: var(--rojo); }
+.ub-edificios-chips button small { font-size: 0.72rem; font-weight: 700; opacity: .85; }
 
-/* Fachada 3D frontal interactiva del edificio */
-.fachada-3d {
+/* Modelo 3D real interactivo del edificio */
+.ub-piso-tabs {
   display: flex;
-  flex-direction: column;
-  gap: 10px;
-  perspective: 900px;
-}
-.fachada-techo {
-  height: 16px;
-  margin: 0 8px -6px;
-  border-radius: 12px 12px 2px 2px;
-  background: linear-gradient(180deg, #004fa8 0%, #0062cc 100%);
-  transform: rotateX(22deg);
-  box-shadow: 0 4px 10px rgba(0, 50, 120, .2);
-}
-.fachada-piso {
-  border: 2px solid #b9d2ee;
-  border-radius: 18px;
-  background: linear-gradient(180deg, #f8fbff 0%, #eaf2fb 100%);
-  padding: 10px;
-  box-shadow: 0 5px 0 #c9dcf2;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-html[data-tema="oscuro"] .fachada-piso {
-  background: linear-gradient(180deg, #162233 0%, #101926 100%);
-  border-color: #2f4663;
-  box-shadow: 0 5px 0 #090f18;
-}
-.fachada-piso-cab {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-.fachada-piso-cab b { font-size: 0.85rem; font-weight: 900; color: var(--azul-btn); }
-.fachada-alas {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
   gap: 6px;
+  overflow-x: auto;
+  padding: 2px 0;
+  flex: none;
 }
-.fachada-ala-btn {
+.ub-piso-tabs button {
+  flex: 1 0 auto;
   min-height: 44px;
-  padding: 6px 10px;
-  border-radius: 12px;
+  padding: 6px 12px;
+  border-radius: 999px;
   border: 2px solid var(--azul-btn);
   background: var(--blanco);
   color: var(--azul-btn);
-  font: 800 0.78rem var(--fuente);
+  font: 800 0.82rem var(--fuente);
   cursor: pointer;
 }
-.fachada-ala-btn:active { background: var(--azul-btn); color: #ffffff; }
-.fachada-aulas {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(64px, 1fr));
-  gap: 6px;
+.ub-piso-tabs button[aria-selected="true"] {
+  background: var(--azul-btn);
+  color: #ffffff;
 }
-.fachada-aula-btn {
+.ub-modelo-3d-wrap {
+  border-radius: 22px;
+  border: 2px solid #cfe0f4;
+  background: #f5f9ff;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  padding: 8px 4px;
+}
+.ub-modelo-3d-wrap svg.e3d {
+  display: block;
+  width: 185%;
+  min-width: 580px;
+  height: auto;
+}
+.e3-aula-hit { cursor: pointer; }
+.e3-aula-hit rect { fill: #0062cc; stroke: #ffffff; }
+.e3-aula-hit text { fill: #ffffff; font-weight: 900; text-anchor: middle; dominant-baseline: central; pointer-events: none; }
+.e3-pab-hit { cursor: pointer; }
+.e3-pab-hit rect { fill: #fcd222; stroke: #0b2a4a; }
+.e3-pab-hit text { fill: #0b2a4a; font-weight: 900; text-anchor: middle; dominant-baseline: central; pointer-events: none; }
+.ub-aulas-rapidas { display: flex; flex-direction: column; gap: 6px; }
+.ub-aulas-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.ub-aulas-chips button {
   min-height: 44px;
-  padding: 6px 4px;
-  border-radius: 12px;
-  border: 1.5px solid #9cc2eb;
-  background: linear-gradient(180deg, #ffffff 0%, #e6f2ff 100%);
-  color: #0b2a4a;
-  font: 800 0.78rem var(--fuente);
-  cursor: pointer;
-  box-shadow: inset 0 -2px 0 rgba(0, 98, 204, .18);
-}
-.fachada-aula-btn:active { background: var(--azul-btn); color: #ffffff; border-color: var(--azul-btn); }
-html[data-tema="oscuro"] .fachada-aula-btn {
-  background: #1b2a3f;
-  color: #eef4fc;
-  border-color: #3a5678;
-}
-.fachada-base {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-  padding-top: 4px;
-}
-.fachada-base button {
-  min-height: 44px;
+  min-width: 64px;
+  padding: 6px 12px;
   border-radius: 14px;
-  border: 2px solid var(--verde-btn);
-  background: var(--blanco);
-  color: var(--verde-btn);
-  font: 800 0.8rem var(--fuente);
+  border: 2px solid var(--azul-btn);
+  background: var(--azul-claro);
+  color: var(--azul-osc);
+  font: 800 0.84rem var(--fuente);
   cursor: pointer;
 }
+.ub-aulas-chips button:active { background: var(--azul-btn); color: #ffffff; }
 
 /* ---------- Accesos rápidos del campus (reemplaza Qué hacer ahora) ---------- */
 .accesos-campus {
