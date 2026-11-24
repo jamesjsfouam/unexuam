@@ -2,7 +2,7 @@
 Servidor web de Unexuam, sistema de evacuación Off-Grid (frontend del proyecto).
 
 Uso:
-    pip install flask
+    pip install flask cryptography
     python app.py
 
 Abre en el teléfono la dirección http://<IP-del-PC>:5000 que se imprime al arrancar
@@ -30,6 +30,7 @@ from backend.datos import crearCampus, crearRedMesh, ubicacionesTelefonos
 from backend.evacuacion import aplicarAlerta, dijkstraPasos, rutaEvacuacion
 from backend.mensajeria import ALCANCE, conectarTelefono, desconectarTelefono, procesarCola, rutaMensaje
 from backend.mesh import propagarAlerta
+from basedatos import BaseDatos
 
 B = {
     "propagarAlerta": propagarAlerta,
@@ -76,21 +77,6 @@ def ruta_datos(nombre):
     return os.path.join(CARPETA_DATOS, nombre)
 
 
-def leer_json(nombre, defecto):
-    try:
-        with open(ruta_datos(nombre), encoding="utf-8") as f:
-            return json.load(f)
-    except (OSError, ValueError):
-        return defecto
-
-
-def guardar_json(nombre, datos):
-    tmp = ruta_datos(nombre + ".tmp")
-    with open(tmp, "w", encoding="utf-8") as f:
-        json.dump(datos, f, ensure_ascii=False, indent=1)
-    os.replace(tmp, ruta_datos(nombre))
-
-
 def clave_secreta():
     archivo = ruta_datos("clave.secret")
     if not os.path.exists(archivo):
@@ -106,8 +92,7 @@ app.config["PERMANENT_SESSION_LIFETIME"] = 60 * 60 * 24 * 30   # 30 días
 
 lock = threading.Lock()
 S = {}
-USUARIOS = leer_json("usuarios.json", {})     # cif -> {nombre, hash, telefono, lugar}
-MENSAJES = leer_json("mensajes.json", [])     # lista de mensajes
+DB = BaseDatos(ruta_datos("unexuam.db"))     # usuarios, contactos y mensajes (SQLite)
 EN_LINEA = set()                              # CIF con el teléfono conectado a la red Mesh
 
 
@@ -116,7 +101,7 @@ def reiniciar_mesh():
     S["ubicaciones"] = ubicacionesTelefonos()   # teléfono -> lugar del campus
     S["ultimaAlerta"] = None
     for cif in list(EN_LINEA):                  # los usuarios conectados vuelven a la red
-        conectar_usuario(cif, USUARIOS[cif]["lugar"])
+        conectar_usuario(cif, DB.usuario(cif)["lugar"])
 
 
 def reiniciar_campus():
@@ -128,9 +113,9 @@ def reiniciar_campus():
     S["congestion"] = {}       # lugar -> factor acumulado
 
 
-def registrar(texto, tipo="info"):
-    S["historial"].insert(0, {"hora": time.strftime("%H:%M:%S"), "texto": texto, "tipo": tipo})
-    del S["historial"][40:]
+def registrar(texto, tipo="info", privado=False):
+    S["historial"].insert(0, {"hora": time.strftime("%H:%M:%S"), "texto": texto, "tipo": tipo, "privado": privado})
+    del S["historial"][60:]
 
 
 S["historial"] = []
@@ -166,7 +151,8 @@ def estado():
     try:
         ruta = calcular_ruta()
     except Exception as e:  # el backend puede estar a medias
-        ruta = {"origen": S["ubicacion"], "ruta": [], "tiempo": None, "error": str(e)}
+        app.logger.exception("No se pudo calcular la ruta compartida: %s", e)
+        ruta = {"origen": S["ubicacion"], "ruta": [], "tiempo": None}
     return {
         "mesh": serializar(S["red"]),
         "campus": {
@@ -178,8 +164,15 @@ def estado():
             "congestion": S["congestion"],
         },
         "ultimaAlerta": S["ultimaAlerta"],
-        "historial": S["historial"],
+        "historial": historial_visible(),
     }
+
+
+def historial_visible():
+    u = usuario_sesion() if request else None
+    if u and u["admin"]:
+        return S["historial"][:40]
+    return [h for h in S["historial"] if not h.get("privado")][:40]
 
 
 def responder(ok, mensaje, **extra):
@@ -237,51 +230,72 @@ def error_backend(e):
 # ----------------------------------------------------------------------------
 
 # ----------------------------------------------------------------------------
-# Inicio de sesión (CIF + carnet) y mensajería por la red Mesh
+# Inicio de sesión (CIF + contraseña) y mensajería por la red Mesh
 # ----------------------------------------------------------------------------
 
 LIBRES = {"/api/yo", "/api/login", "/api/login/demo", "/api/registro", "/api/lugares"}
-SOLO_ADMIN = ("/api/reiniciar", "/api/mesh/vertice", "/api/mesh/arista", "/api/campus/vertice", "/api/campus/arista")
-LUGAR_INICIAL = "Edificio E"      # lugar por defecto al entrar (luego cada quien elige dónde está)
+SOLO_ADMIN = ("/api/reiniciar", "/api/mesh/vertice", "/api/mesh/arista", "/api/mesh/alerta",
+              "/api/campus/vertice", "/api/campus/arista", "/api/campus/ubicacion", "/api/campus/bloquear",
+              "/api/campus/desbloquear", "/api/campus/congestionar", "/api/algoritmo")
+LUGAR_INICIAL = "Edificio E"      # lugar por defecto al entrar (luego el GPS o la persona lo cambia)
 CIF_DEMO = "ADMIN"
+CIF_TODOS = "TODOS"     # Canal General: un "usuario" especial que representa a todo el campus
+
+
+def usuario_sesion():
+    cif = session.get("cif")
+    return DB.usuario(cif) if cif else None
 
 
 @app.before_request
 def exigir_sesion():
     if request.path.startswith("/api/") and request.path not in LIBRES:
-        cif = session.get("cif")
-        if cif not in USUARIOS:
+        u = usuario_sesion()
+        if u is None:
             return jsonify({"ok": False, "mensaje": "Inicia sesión con tu CIF y tu contraseña.", "sesion": False}), 401
-        if request.path in SOLO_ADMIN and not USUARIOS[cif].get("admin"):
-            return jsonify({"ok": False, "mensaje": "Solo el administrador puede editar los grafos."}), 403
+        if request.path in SOLO_ADMIN and not u["admin"]:
+            return jsonify({"ok": False, "mensaje": "Solo el administrador puede hacer esto."}), 403
+        if u["cif"] not in EN_LINEA:
+            with lock:
+                if u["cif"] not in EN_LINEA:
+                    conectar_usuario(u["cif"], u["lugar"])
+                    repartir_cola()
 
 
 def nombre_telefono(cif, nombre):
     base = "Tel-" + (nombre.split()[0] if nombre.split() else "UAM")
-    usados = {u["telefono"] for u in USUARIOS.values()} | set(ubicacionesTelefonos())
-    for sufijo in (cif[-3:], cif):
-        candidato = f"{base}-{sufijo}"
-        if candidato not in usados:
+    usados = {t.lower() for t in DB.telefonos_usados() | set(ubicacionesTelefonos())}
+    usados |= {v.nombre.lower() for v in S["red"].vertexs}
+    for candidato in (f"{base}-{cif[-3:]}", f"{base}-{cif}", f"Tel-{cif}"):
+        if candidato.lower() not in usados:
             return candidato
-    return f"Tel-{cif}"
+    return f"Tel-{cif}-{secrets.token_hex(2)}"
 
 
 def conectar_usuario(cif, lugar):
     """Pone el teléfono del usuario en la red Mesh, en `lugar`, enlazado con los que tiene cerca."""
-    u = USUARIOS[cif]
+    u = DB.usuario(cif)
     red = S["red"]
+    if not isinstance(lugar, str) or S["campus"].buscarVertice(lugar) is None:
+        lugar = LUGAR_INICIAL
+    if u["admin"]:
+        # El administrador gestiona los grafos: su teléfono no entra a la red Mesh
+        # para no alterar las rutas ni los saltos de los demás.
+        DB.mover_usuario(cif, lugar)
+        EN_LINEA.add(cif)
+        return []
     if red.buscarVertice(u["telefono"]) is not None:
         desconectarTelefono(red, u["telefono"])
     S["ubicaciones"].pop(u["telefono"], None)
     vecinos = conectarTelefono(red, S["campus"], u["telefono"], lugar, S["ubicaciones"])
     S["ubicaciones"][u["telefono"]] = lugar
-    u["lugar"] = lugar
+    DB.mover_usuario(cif, lugar)
     EN_LINEA.add(cif)
     return vecinos
 
 
 def desconectar_usuario(cif):
-    u = USUARIOS.get(cif)
+    u = DB.usuario(cif)
     if not u:
         return
     desconectarTelefono(S["red"], u["telefono"])
@@ -289,24 +303,17 @@ def desconectar_usuario(cif):
     EN_LINEA.discard(cif)
 
 
-def telefono_de(cif):
-    return USUARIOS[cif]["telefono"] if cif in USUARIOS else None
-
-
 def repartir_cola():
     """DTN: intenta entregar los mensajes en cola ahora que la red cambió."""
-    cola = [{"id": m["id"], "origen": telefono_de(m["de"]), "destino": telefono_de(m["para"])}
-            for m in MENSAJES if m["estado"] == "en cola"]
-    if not cola:
+    pendientes = DB.en_cola()
+    if not pendientes:
         return 0
+    tel = {c: u["telefono"] for c, u in DB.usuarios().items()}
+    cola = [{"id": m["id"], "origen": tel.get(m["de"]), "destino": tel.get(m["para"])} for m in pendientes]
     entregados = procesarCola(S["red"], cola)
-    por_id = {m["id"]: m for m in MENSAJES}
     for ident, ruta, retardo in entregados:
-        por_id[ident].update(estado="entregado", ruta=list(ruta), retardo=num(retardo),
-                             entregado=time.strftime("%H:%M:%S"), viaCola=True)
-        registrar(f"Mensaje en cola entregado: {' → '.join(ruta)} ({num(retardo)} s).", "ok")
-    if entregados:
-        guardar_json("mensajes.json", MENSAJES)
+        DB.marcar_entregado(ident, list(ruta), num(retardo))
+        registrar(f"Mensaje en cola entregado: {' → '.join(ruta)} ({num(retardo)} s).", "ok", privado=True)
     return len(entregados)
 
 
@@ -316,10 +323,36 @@ def vecinos_de(telefono):
 
 
 def datos_usuario(cif):
-    u = USUARIOS[cif]
+    u = DB.usuario(cif)
     return {"cif": cif, "nombre": u["nombre"], "telefono": u["telefono"], "lugar": u["lugar"],
-            "admin": bool(u.get("admin")), "enLinea": cif in EN_LINEA,
+            "admin": bool(u["admin"]), "enLinea": cif in EN_LINEA,
             "vecinos": vecinos_de(u["telefono"]), "alcance": ALCANCE}
+
+
+def ficha(cif, u=None, para=None):
+    """Datos públicos de un contacto. Su lugar solo se ve si los dos se tienen agregados."""
+    u = u or DB.usuario(cif)
+    en_linea = cif in EN_LINEA
+    mutuo = para is not None and cif in DB.contactos_de(para) and para in DB.contactos_de(cif)
+    return {"cif": cif, "nombre": u["nombre"], "telefono": u["telefono"], "enLinea": en_linea,
+            "lugar": u["lugar"] if en_linea and mutuo else None}
+
+
+def leer_cif(d):
+    return re.sub(r"\s+", "", str(d.get("cif", ""))).upper()[:15]
+
+
+def abrir_sesion(cif, lugar=None):
+    u = DB.usuario(cif)
+    if not isinstance(lugar, str) or S["campus"].buscarVertice(lugar) is None:
+        lugar = u["lugar"] or LUGAR_INICIAL
+    session.clear()
+    session["cif"] = cif
+    session.permanent = True
+    vecinos = conectar_usuario(cif, lugar)
+    registrar(f"{u['nombre']} entró a la red desde {lugar}: {len(vecinos)} teléfono(s) a su alcance.", "ok", privado=True)
+    repartir_cola()
+    return jsonify({"ok": True, "usuario": datos_usuario(cif)})
 
 
 @app.get("/api/lugares")
@@ -330,154 +363,216 @@ def api_lugares():
 
 @app.get("/api/yo")
 def api_yo():
-    cif = session.get("cif")
+    u = usuario_sesion()
     with lock:
-        if cif not in USUARIOS:
+        if u is None:
             return jsonify({"ok": False, "sesion": False})
-        if cif not in EN_LINEA:            # el servidor se reinició: vuelve a la red donde estaba
-            conectar_usuario(cif, USUARIOS[cif]["lugar"])
+        if u["cif"] not in EN_LINEA:       # el servidor se reinició: vuelve a la red donde estaba
+            conectar_usuario(u["cif"], u["lugar"])
             repartir_cola()
-        return jsonify({"ok": True, "sesion": True, "usuario": datos_usuario(cif)})
-
-
-def leer_cif(d):
-    return re.sub(r"\s+", "", str(d.get("cif", ""))).upper()[:15]
-
-
-def abrir_sesion(cif, lugar=None):
-    u = USUARIOS[cif]
-    if not lugar or S["campus"].buscarVertice(lugar) is None:
-        lugar = u.get("lugar") or LUGAR_INICIAL
-    session.clear()
-    session["cif"] = cif
-    session.permanent = True
-    vecinos = conectar_usuario(cif, lugar)
-    guardar_json("usuarios.json", USUARIOS)
-    registrar(f"{u['nombre']} entró a la red desde {lugar}: {len(vecinos)} teléfono(s) a su alcance.", "ok")
-    repartir_cola()
-    return jsonify({"ok": True, "usuario": datos_usuario(cif)})
+        return jsonify({"ok": True, "sesion": True, "usuario": datos_usuario(u["cif"])})
 
 
 @app.post("/api/registro")
 def api_registro():
     d = cuerpo_json()
     cif = leer_cif(d)
-    nombre = " ".join(texto(d, "nombre", 40).split())
-    clave = texto(d, "contrasena", 64)
+    nombre = " ".join(str(d.get("nombre", "")).split())[:40]
+    clave = str(d.get("contrasena", ""))[:64]
     if not re.fullmatch(r"[0-9A-Z-]{4,15}", cif) or cif == CIF_DEMO:
         return jsonify({"ok": False, "mensaje": "Escribe un CIF válido (4 a 15 letras o números)."})
     if len(nombre) < 2:
         return jsonify({"ok": False, "mensaje": "Escribe tu nombre."})
     if len(clave) < 6:
         return jsonify({"ok": False, "mensaje": "La contraseña debe tener al menos 6 caracteres."})
+    hash_clave = generate_password_hash(clave)          # lento a propósito: fuera del candado
     with lock:
-        if len(USUARIOS) >= 500:
+        if DB.total_usuarios() >= 500:
             return jsonify({"ok": False, "mensaje": "Límite de cuentas alcanzado en este servidor."})
-        if cif in USUARIOS:
+        if DB.usuario(cif):
             return jsonify({"ok": False, "mensaje": "Ese CIF ya tiene cuenta. Inicia sesión."})
-        USUARIOS[cif] = {"nombre": nombre, "hash": generate_password_hash(clave),
-                         "telefono": nombre_telefono(cif, nombre), "lugar": LUGAR_INICIAL}
-        registrar(f"Nueva cuenta: {nombre} ({USUARIOS[cif]['telefono']}).", "ok")
-        return abrir_sesion(cif, texto(d, "lugar", 60) or None)
+        telefono = nombre_telefono(cif, nombre)
+        DB.crear_usuario(cif, nombre, hash_clave, telefono, LUGAR_INICIAL)
+        registrar(f"Nueva cuenta: {nombre} ({telefono}).", "ok", privado=True)
+        return abrir_sesion(cif, d.get("lugar"))
+
+
+HASH_FICTICIO = generate_password_hash("unexuam-sin-cuenta")
+INTENTOS = {}          # cif -> [marcas de tiempo de intentos recientes]
+
+
+def intento_permitido(cif):
+    ahora_s = time.time()
+    lista = [t for t in INTENTOS.get(cif, []) if ahora_s - t < 60]
+    lista.append(ahora_s)
+    INTENTOS[cif] = lista
+    return len(lista) <= 8      # máximo 8 intentos por minuto por CIF
 
 
 @app.post("/api/login")
 def api_login():
     d = cuerpo_json()
     cif = leer_cif(d)
-    clave = texto(d, "contrasena", 64)
+    clave = str(d.get("contrasena", ""))[:64]
+    u = DB.usuario(cif)
+    hash_ = u["hash"] if u and not u["admin"] else HASH_FICTICIO
+    valida = check_password_hash(hash_, clave)            # mismo tiempo exista o no el CIF
+    if u is None or u["admin"] or not valida or not intento_permitido(cif):
+        return jsonify({"ok": False, "mensaje": "CIF o contraseña incorrectos."})
     with lock:
-        u = USUARIOS.get(cif)
-        if u is None or u.get("admin") or not check_password_hash(u["hash"], clave):
-            return jsonify({"ok": False, "mensaje": "CIF o contraseña incorrectos."})
-        return abrir_sesion(cif, texto(d, "lugar", 60) or None)
+        return abrir_sesion(cif, d.get("lugar"))
 
 
 @app.post("/api/login/demo")
 def api_login_demo():
-    # Acceso rápido de demostración (desactivable en producción con UNEXUAM_DISABLE_DEMO=1).
+    # Acceso rápido de demostración (desactivable con UNEXUAM_DISABLE_DEMO=1).
     if os.environ.get("UNEXUAM_DISABLE_DEMO") == "1":
         return jsonify({"ok": False, "mensaje": "El acceso demo está deshabilitado."}), 403
     with lock:
-        if CIF_DEMO not in USUARIOS:
-            USUARIOS[CIF_DEMO] = {"nombre": "Administrador", "hash": "", "admin": True,
-                                  "telefono": "Tel-Admin", "lugar": LUGAR_INICIAL}
+        if DB.usuario(CIF_DEMO) is None:
+            DB.crear_usuario(CIF_DEMO, "Administrador", "!", "Tel-Admin", LUGAR_INICIAL, admin=True)
         return abrir_sesion(CIF_DEMO)
 
 
 @app.post("/api/logout")
 def api_logout():
-    cif = session.get("cif")
+    u = usuario_sesion()
     with lock:
-        if cif in USUARIOS:
-            desconectar_usuario(cif)
-            registrar(f"{USUARIOS[cif]['nombre']} salió: su teléfono dejó la red (eliminarVertice).")
+        if u:
+            desconectar_usuario(u["cif"])
+            registrar(f"{u['nombre']} salió: su teléfono dejó la red (eliminarVertice).", privado=True)
     session.clear()
     return jsonify({"ok": True})
 
 
 @app.post("/api/yo/lugar")
 def api_mover():
-    lugar = texto(cuerpo_json(), "lugar", 60)
+    d = cuerpo_json()
+    lugar = str(d.get("lugar", "")).strip()[:60]
     cif = session["cif"]
     with lock:
         if S["campus"].buscarVertice(lugar) is None:
             return jsonify({"ok": False, "mensaje": f"El lugar «{lugar}» no existe."})
         vecinos = conectar_usuario(cif, lugar)
-        guardar_json("usuarios.json", USUARIOS)
         n = repartir_cola()
         extra = f" Salieron {n} mensaje(s) que estaban en cola." if n else ""
+        fuente = "GPS: " if d.get("gps") else ""
         return jsonify({"ok": True, "usuario": datos_usuario(cif),
-                        "mensaje": f"Ahora estás en {lugar}: {len(vecinos)} teléfono(s) a tu alcance.{extra}"})
+                        "mensaje": f"{fuente}estás en {lugar} · {len(vecinos)} teléfono(s) a tu alcance.{extra}"})
+
+
+@app.post("/api/contactos/buscar")
+def api_buscar_contacto():
+    cif = leer_cif(cuerpo_json())
+    yo = session["cif"]
+    with lock:
+        u = DB.usuario(cif)
+        if u is None or u["admin"] or cif in (yo, CIF_TODOS):
+            return jsonify({"ok": False, "mensaje": "No hay nadie con ese CIF."})
+        return jsonify({"ok": True, "contacto": ficha(cif, u, yo), "agregado": cif in DB.contactos_de(yo)})
+
+
+@app.post("/api/contactos/agregar")
+def api_agregar_contacto():
+    cif = leer_cif(cuerpo_json())
+    yo = session["cif"]
+    with lock:
+        u = DB.usuario(cif)
+        if u is None or u["admin"] or cif in (yo, CIF_TODOS):
+            return jsonify({"ok": False, "mensaje": "No hay nadie con ese CIF."})
+        DB.agregar_contacto(yo, cif)
+        return jsonify({"ok": True, "contacto": ficha(cif, u, yo), "mensaje": f"{u['nombre']} está en tus contactos."})
 
 
 @app.get("/api/mensajes")
 def api_mensajes():
     cif = session["cif"]
     with lock:
-        contactos = [{"cif": c, "nombre": u["nombre"], "telefono": u["telefono"], "enLinea": c in EN_LINEA,
-                      "lugar": u["lugar"] if c in EN_LINEA else None}
-                     for c, u in USUARIOS.items() if c != cif]
-        contactos.sort(key=lambda x: (not x["enLinea"], x["nombre"].lower()))
-        canal = {"cif": "TODOS", "nombre": "Canal General · Campus", "telefono": "Mesh-Todos",
-                 "enLinea": True, "lugar": f"{len(EN_LINEA)} en la red", "grupo": True}
-        contactos.insert(0, canal)
-        mios = [m for m in MENSAJES if cif in (m["de"], m["para"]) or m["para"] == "TODOS"]
-        return jsonify({"ok": True, "yo": datos_usuario(cif), "contactos": contactos, "mensajes": mios[-300:]})
+        mios = DB.mensajes_de(cif)
+        cifs = list(DB.contactos_de(cif))
+        for m in mios:                         # quien te escribió aparece aunque no lo hayas agregado
+            otro = m["para"] if m["de"] == cif else m["de"]
+            if otro not in cifs:
+                cifs.append(otro)
+        todos = DB.usuarios()
+        contactos = [ficha(c, todos[c], cif) for c in cifs if c in todos and c != CIF_TODOS]
+        contactos.insert(0, {"cif": CIF_TODOS, "nombre": "Canal General · Campus", "telefono": "Mesh-Todos",
+                             "enLinea": True, "lugar": f"{len(EN_LINEA)} en la red", "grupo": True})
+        for m in mios:
+            m["deNombre"] = todos[m["de"]]["nombre"] if m["de"] in todos else m["de"]
+        return jsonify({"ok": True, "yo": datos_usuario(cif), "contactos": contactos, "mensajes": mios})
+
+
+def entregar(de, para, texto_msj, tipo="texto", ruta=None, retardo=None):
+    """Guarda un mensaje: entregado si hay `ruta`; si no, queda en cola (DTN)."""
+    ruta = list(ruta or [])
+    m = {"id": secrets.token_hex(8), "de": de, "para": para, "tipo": tipo, "texto": texto_msj,
+         "fecha": time.strftime("%Y-%m-%dT%H:%M:%S"), "estado": "entregado" if ruta else "en cola",
+         "ruta": ruta, "retardo": num(retardo) if ruta else None, "viaCola": False}
+    DB.guardar_mensaje(m)
+    if para != CIF_TODOS:
+        DB.agregar_contacto(de, para)
+        DB.agregar_contacto(para, de)
+    return m
 
 
 @app.post("/api/mensajes/enviar")
 def api_enviar():
     d = cuerpo_json()
     cif = session["cif"]
-    para = texto(d, "para", 15).upper()
-    texto_msj = texto(d, "texto", 500)
+    para = leer_cif({"cif": d.get("para", "")})
+    texto_msj = str(d.get("texto", "")).strip()[:500]
     with lock:
-        es_todos = para == "TODOS"
-        if (not es_todos and para not in USUARIOS) or para == cif:
-            return jsonify({"ok": False, "mensaje": "Elige a quién enviarle el mensaje."})
         if not texto_msj:
             return jsonify({"ok": False, "mensaje": "El mensaje está vacío."})
-        ahora = time.strftime("%H:%M:%S")
-        if es_todos:
-            ruta = [telefono_de(cif), "Todos"]
-            retardo = 0.5
-        else:
-            ruta, retardo = rutaMensaje(S["red"], telefono_de(cif), telefono_de(para))
-        m = {"id": secrets.token_hex(6), "de": cif, "deNombre": USUARIOS[cif]["nombre"], "para": para,
-             "texto": texto_msj, "hora": ahora, "estado": "entregado" if ruta else "en cola", "ruta": list(ruta),
-             "retardo": num(retardo) if ruta else None, "entregado": ahora if ruta else None, "viaCola": False}
-        MENSAJES.append(m)
-        del MENSAJES[:-5000]
-        guardar_json("mensajes.json", MENSAJES)
-        if es_todos:
-            msj = "Difundido en el Canal General del campus."
-        elif ruta:
+        yo = DB.usuario(cif)
+        if para == CIF_TODOS:
+            # Canal General: difusión a toda la red del campus.
+            m = entregar(cif, CIF_TODOS, texto_msj, ruta=[yo["telefono"], "Todos"], retardo=0.5)
+            m["deNombre"] = yo["nombre"]
+            registrar(f"{yo['nombre']} escribió en el Canal General.", "ok", privado=True)
+            return jsonify({"ok": True, "mensaje": "Difundido en el Canal General del campus.", "enviado": m})
+        destino = DB.usuario(para)
+        if destino is None or para == cif or destino["admin"]:
+            return jsonify({"ok": False, "mensaje": "Elige a quién enviarle el mensaje."})
+        ruta, retardo = rutaMensaje(S["red"], yo["telefono"], destino["telefono"])
+        m = entregar(cif, para, texto_msj, ruta=ruta, retardo=retardo)
+        m["deNombre"] = yo["nombre"]
+        if ruta:
             msj = f"Entregado en {len(ruta) - 1} salto(s), {num(retardo)} s de retardo."
         else:
-            msj = "Sin camino en la red Mesh: el mensaje queda en cola (DTN) y sale cuando aparezca uno."
-        registrar(f"Mensaje {telefono_de(cif)} → {'Todos' if es_todos else telefono_de(para)}: {m['estado']}.", "ok" if ruta else "info")
+            msj = "Sin camino en la red Mesh: el mensaje queda en cola y sale cuando aparezca uno."
+        registrar(f"Mensaje {yo['telefono']} → {destino['telefono']}: {m['estado']}.", "ok" if ruta else "info", privado=True)
         return jsonify({"ok": True, "mensaje": msj, "enviado": m})
+
+
+@app.post("/api/mensajes/alerta")
+def api_alerta_red():
+    """Alerta a la red: se propaga desde TU teléfono con BFS limitado por TTL (propagarAlerta)."""
+    d = cuerpo_json()
+    cif = session["cif"]
+    ttl = numero(d, "ttl", 1, 10)
+    texto_msj = str(d.get("texto", "")).strip()[:200] or "¡Emergencia! Necesito ayuda."
+    with lock:
+        yo = DB.usuario(cif)
+        if ttl is None:
+            return jsonify({"ok": False, "mensaje": "El alcance debe estar entre 1 y 10 saltos."})
+        alcanzados = B["propagarAlerta"](S["red"], yo["telefono"], int(ttl))
+        por_tel = {u["telefono"]: c for c, u in DB.usuarios().items() if c in EN_LINEA}
+        avisados = []
+        for tel, salto in alcanzados:
+            otro = por_tel.get(tel)
+            if otro and otro != cif:
+                ruta, retardo = rutaMensaje(S["red"], yo["telefono"], tel)
+                entregar(cif, otro, f"{texto_msj} · desde {yo['lugar']}", tipo="alerta", ruta=ruta, retardo=retardo)
+                avisados.append(DB.usuario(otro)["nombre"])
+        S["ultimaAlerta"] = {"origen": yo["telefono"], "ttl": int(ttl), "hora": time.strftime("%H:%M:%S"),
+                             "alcanzados": [[c, int(s)] for c, s in alcanzados]}
+        reenviaron = max(0, len(alcanzados) - 1)
+        registrar(f"Alerta de {yo['nombre']} (TTL {int(ttl)}): {reenviaron} teléfono(s) la recibieron.", "ok")
+        n = len(avisados)
+        return jsonify({"ok": True, "alcanzados": S["ultimaAlerta"]["alcanzados"], "avisados": avisados,
+                        "mensaje": f"Alerta propagada a {reenviaron} teléfono(s); {n} persona(s) la recibieron."})
 
 
 # --- Dijkstra paso a paso (grafo 2D) -----------------------------------------
@@ -485,7 +580,7 @@ def api_enviar():
 @app.route("/api/algoritmo", methods=["GET", "POST"])
 def api_algoritmo():
     d = cuerpo_json()
-    origen = (texto(d, "origen", 60) or str(request.args.get("origen") or "C-101").strip()[:60])
+    origen = str(d.get("origen") or request.args.get("origen") or "C-101").strip()[:60]
     with lock:
         if S["campus"].buscarVertice(origen) is None:
             return jsonify({"ok": False, "mensaje": f"El lugar «{origen}» no existe."})
@@ -525,10 +620,9 @@ def api_reiniciar():
         with lock:
             return responder(False, "Grafo desconocido.")
     with lock:
-        if cual in ("mesh", "ambos"):
-            reiniciar_mesh()
         if cual in ("campus", "ambos"):
             reiniciar_campus()
+        reiniciar_mesh()          # también tras cambiar el campus: los enlaces dependen de las distancias
         nombres = {"mesh": "la red Mesh", "campus": "el campus", "ambos": "los dos grafos"}
         return responder(True, f"Se reinició {nombres[cual]}.")
 
@@ -627,6 +721,9 @@ def api_congestionar():
             return responder(False, f"El lugar «{lugar}» no existe.")
         if factor is None:
             return responder(False, "El factor debe estar entre 0.1 y 20.")
+        acumulado = S["congestion"].get(lugar, 1) * factor
+        if not 0.1 <= acumulado <= 100:
+            return responder(False, "Esa congestión ya llegó a su límite (entre ×0.1 y ×100).")
         if not B["aplicarAlerta"](S["campus"], lugar, factor):
             return responder(False, f"aplicarAlerta devolvió False para «{lugar}».")
         S["congestion"][lugar] = round(S["congestion"].get(lugar, 1) * factor, 3)
@@ -705,15 +802,67 @@ def ip_local():
         s.close()
 
 
+def certificado_local(ip):
+    """Crea (una sola vez) un certificado autofirmado para servir HTTPS en la red local.
+    El GPS del navegador solo funciona en páginas seguras (https)."""
+    cert, clave = ruta_datos("unexuam-cert.pem"), ruta_datos("unexuam-clave.pem")
+    marca = ruta_datos("unexuam-cert.ip")
+    if os.path.exists(cert) and os.path.exists(clave) and os.path.exists(marca):
+        with open(marca, encoding="utf-8") as f:
+            if f.read().strip() == ip:
+                return cert, clave
+    try:
+        import datetime
+        import ipaddress
+        from cryptography import x509
+        from cryptography.hazmat.primitives import hashes, serialization
+        from cryptography.hazmat.primitives.asymmetric import rsa
+        from cryptography.x509.oid import NameOID
+    except ImportError:
+        return None
+    k = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    nombre = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, "Unexuam")])
+    alt = [x509.DNSName("localhost"), x509.IPAddress(ipaddress.ip_address("127.0.0.1"))]
+    if ip != "127.0.0.1":
+        alt.append(x509.IPAddress(ipaddress.ip_address(ip)))
+    ahora_utc = datetime.datetime.now(datetime.timezone.utc)
+    c = (x509.CertificateBuilder().subject_name(nombre).issuer_name(nombre).public_key(k.public_key())
+         .serial_number(x509.random_serial_number()).not_valid_before(ahora_utc - datetime.timedelta(days=1))
+         .not_valid_after(ahora_utc + datetime.timedelta(days=825))
+         .add_extension(x509.SubjectAlternativeName(alt), critical=False).sign(k, hashes.SHA256()))
+    for ruta_f, datos_f in ((clave, k.private_bytes(serialization.Encoding.PEM, serialization.PrivateFormat.TraditionalOpenSSL,
+                                                    serialization.NoEncryption())),
+                            (cert, c.public_bytes(serialization.Encoding.PEM))):
+        with open(ruta_f + ".tmp", "wb") as f:
+            f.write(datos_f)
+        os.replace(ruta_f + ".tmp", ruta_f)
+    with open(marca, "w", encoding="utf-8") as f:
+        f.write(ip)
+    return cert, clave
+
+
 if __name__ == "__main__":
     try:
         sys.stdout.reconfigure(errors="replace")  # consolas de Windows sin UTF-8
     except AttributeError:
         pass
     puerto = int(os.environ.get("PORT", "5000"))
-    print("=" * 60)
+    puerto_https = int(os.environ.get("PORT_HTTPS", "5443"))
+    ip = ip_local()
+    print("=" * 64)
     print(" Unexuam · Evacuación Off-Grid")
     print(f" En este PC:        http://127.0.0.1:{puerto}")
-    print(f" Desde el teléfono: http://{ip_local()}:{puerto}  (misma Wi-Fi)")
-    print("=" * 60)
+    print(f" Desde el teléfono: http://{ip}:{puerto}  (misma Wi-Fi)")
+    par = certificado_local(ip)
+    if par:
+        from werkzeug.serving import make_server
+        try:
+            segura = make_server("0.0.0.0", puerto_https, app, threaded=True, ssl_context=par)
+            threading.Thread(target=segura.serve_forever, daemon=True).start()
+            print(f" Con GPS (https):   https://{ip}:{puerto_https}  (acepta el aviso del certificado)")
+        except OSError as e:
+            print(f" No se pudo abrir https en el puerto {puerto_https}: {e}")
+    else:
+        print(" Para usar el GPS instala 'cryptography' (pip install cryptography): activa https.")
+    print("=" * 64)
     app.run(host="0.0.0.0", port=puerto, debug=False, threaded=True)

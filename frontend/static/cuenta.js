@@ -195,8 +195,30 @@
     }
     const coords = await obtenerCoordsGPS();
     if (!coords) {
-      if (manual) avisar("No se pudo obtener tu GPS. Activa la ubicación y concede el permiso.", false);
+      if (manual && !window.isSecureContext && !window.UnexuamNativo) {
+        avisar(`El GPS del navegador necesita conexión segura: abre https://${location.hostname}:5443`, false);
+      } else if (manual) {
+        avisar("No se pudo obtener tu GPS. Activa la ubicación y concede el permiso.", false);
+      }
       return null;
+    }
+    const U = window.UnexuamUbicacion;
+    if (U) {
+      try {
+        await U.cargar();
+        const r = U.identificar(U.aMetros(coords.lat, coords.lon), leerLS("mi-piso", 1));
+        if (r.area || r.dentroCampus) {
+          const sel = $("#campus-ubicacion");
+          if (sel) { sel.value = r.lugar; sel.dispatchEvent(new Event("change")); }
+          if (YO) {
+            const j = await pedir("/api/yo/lugar", { lugar: r.lugar, gps: true });
+            if (j.ok) { YO = j.usuario; firmaMsj = ""; cargarMensajes().then(renderMensajes); }
+          }
+          const donde = r.segura ? `estás en zona segura (${r.area})` : `estás en ${r.area || r.lugar}${r.edificio ? `, piso ${leerLS("mi-piso", 1)}` : ""}`;
+          avisar(`📍 GPS: ${donde}${coords.acc ? ` · ±${Math.round(coords.acc)} m` : ""}.`);
+          return r.lugar;
+        }
+      } catch (_) { /* sigue con la aproximación por cercanía */ }
     }
     if (!window.__PLANO_CAMPUS__) {
       try { window.__PLANO_CAMPUS__ = await (await fetch("/static/campus-plano.json")).json(); } catch (_) { window.__PLANO_CAMPUS__ = {}; }
@@ -368,6 +390,33 @@
   }
   function detenerSondeoMensajes() { if (sondeoMsj) clearInterval(sondeoMsj); sondeoMsj = null; }
 
+  /* ------------------------------------------------------------ contactos por CIF */
+
+  async function buscarCif(ev) {
+    ev.preventDefault();
+    const cif = $("#buscar-contacto").value.trim();
+    const caja = $("#resultado-cif");
+    if (!cif) { caja.hidden = true; return; }
+    const ya = CONV.contactos.find(c => c.cif.toLowerCase() === cif.toLowerCase());
+    if (ya) { $("#buscar-contacto").value = ""; caja.hidden = true; abrirChat(ya.cif); return; }
+    const j = await pedir("/api/contactos/buscar", { cif });
+    caja.hidden = false;
+    if (!j.ok) { caja.innerHTML = `<p class="nota">${esc(j.mensaje || "No hay nadie con ese CIF.")}</p>`; return; }
+    const c = j.contacto;
+    caja.innerHTML = `<span class="avatar-c" style="background:${colorDe(c.cif)}">${esc(iniciales(c.nombre))}${c.enLinea ? '<i class="en-linea"></i>' : ""}</span>
+      <span class="c-cuerpo"><b>${esc(c.nombre)}</b><small>CIF ${esc(c.cif)} · ${c.enLinea ? "en la red" : "sin conexión"}</small></span>
+      <button type="button" class="btn mini" id="agregar-cif">${j.agregado ? "Escribir" : "Agregar"}</button>`;
+    $("#agregar-cif").onclick = async () => {
+      const r = await pedir("/api/contactos/agregar", { cif: c.cif });
+      if (!r.ok) { avisar(r.mensaje, false); return; }
+      caja.hidden = true;
+      $("#buscar-contacto").value = "";
+      firmaMsj = "";
+      await cargarMensajes();
+      abrirChat(c.cif);
+    };
+  }
+
   function renderMensajes() {
     if (!YO) return;
     $("#mi-tel-nombre").textContent = YO.telefono;
@@ -404,7 +453,7 @@
           <span class="c-fila"><b>${esc(c.nombre)}</b><time class="${n ? "nuevo" : ""}">${u ? esc(u.hora.slice(0, 5)) : ""}</time></span>
           <span class="c-fila"><small>${esc(vista)}</small>${n ? `<em class="badge">${n}</em>` : ""}</span>
         </span></button></li>`;
-    }).join("") : `<li class="vacio">${filtro ? "Sin resultados." : "Aún no hay nadie más. Cuando otra persona cree su cuenta aparecerá aquí."}</li>`;
+    }).join("") : `<li class="vacio">${filtro ? "Pulsa 🔍 para buscar ese CIF." : "Escribe el CIF de una persona arriba para agregarla."}</li>`;
   }
 
   function abrirChat(cif) {
@@ -932,7 +981,8 @@
         }
       }
     });
-    $("#buscar-contacto").addEventListener("input", renderMensajes);
+    $("#buscar-contacto").addEventListener("input", () => { $("#resultado-cif").hidden = true; renderMensajes(); });
+    $("#form-cif").addEventListener("submit", buscarCif);
     $("#chat-form").addEventListener("submit", enviar);
     $("#chat-volver").addEventListener("click", cerrarChat);
     const ta = $("#chat-texto");

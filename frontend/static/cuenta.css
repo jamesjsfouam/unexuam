@@ -346,3 +346,45 @@ body.sin-sesion main, body.sin-sesion .barra { visibility: hidden; }
 .alg-frontera li.primero { color: var(--azul-osc); font-weight: 800; }
 .alg-frontera li.mas { list-style: none; color: var(--gris); }
 #alg-barra { border: 0; background: none; padding: 0; min-height: 28px; box-shadow: none; }
+
+/* ================= Identidad de marca: red de grafos, piezas y franja de 4 colores ================= */
+.red-fondo { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.red-aristas line { stroke: rgba(255, 255, 255, .38); stroke-width: 1.6; stroke-linecap: round; stroke-dasharray: 260; stroke-dashoffset: 260; animation: trazo 1.1s ease-out forwards; animation-delay: calc(var(--i) * 45ms); }
+.red-nodos circle { opacity: 0; transform-box: fill-box; transform-origin: center; animation: nodo .5s cubic-bezier(.22, 1.28, .36, 1) forwards; animation-delay: calc(180ms + var(--i) * 70ms); filter: drop-shadow(0 0 6px rgba(255, 255, 255, .45)); }
+@keyframes trazo { to { stroke-dashoffset: 0; } }
+@keyframes nodo { from { opacity: 0; transform: scale(.2); } to { opacity: .95; transform: scale(1); } }
+.piezas { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+.pz { position: absolute; display: block; border-radius: 46% 54% 60% 40% / 52% 40% 60% 48%; opacity: .9; animation: flota 7s ease-in-out infinite; }
+.pz.amarillo { width: 150px; height: 150px; background: var(--amarillo); top: -48px; right: -40px; }
+.pz.verde { width: 96px; height: 96px; background: var(--verde); bottom: 120px; left: -36px; animation-delay: -2s; border-radius: 50%; }
+.pz.rojo { width: 70px; height: 70px; background: var(--rojo); bottom: -20px; right: 22%; animation-delay: -4s; border-radius: 30% 70% 50% 50%; }
+.pz.azul { width: 120px; height: 120px; background: #38b6ff; top: 22%; left: -70px; animation-delay: -1s; }
+@keyframes flota { 50% { transform: translateY(-10px) rotate(6deg); } }
+.franja-marca { display: flex; height: 6px; }
+.franja-marca i { flex: 1; }
+.franja-marca i:nth-child(1) { background: var(--azul); }
+.franja-marca i:nth-child(2) { background: var(--amarillo); }
+.franja-marca i:nth-child(3) { background: var(--verde); }
+.franja-marca i:nth-child(4) { background: var(--rojo); }
+.splash { overflow: hidden; }
+.splash-centro { position: relative; z-index: 2; }
+.splash > .franja-marca { position: absolute; left: 0; right: 0; bottom: 0; height: 8px; }
+.splash-lema { margin: 0; font-size: 12px; font-weight: 700; opacity: .85; letter-spacing: .02em; }
+.login { overflow: hidden; }
+.login > .red-fondo { opacity: .55; }
+.login > :not(.red-fondo):not(.piezas) { position: relative; z-index: 2; }
+.login-carta { overflow: hidden; }
+.login-carta > .franja-marca { margin: -18px -18px 16px; }
+@media (prefers-reduced-motion: reduce) {
+  .red-aristas line, .red-nodos circle, .pz { animation: none; stroke-dashoffset: 0; opacity: .9; }
+}
+
+/* ================= Mensajes: contactos por CIF ================= */
+#form-cif { display: flex; align-items: center; background: var(--gris-claro); border-radius: 999px; padding-right: 4px; }
+#form-cif input { flex: 1; min-width: 0; background: none; font-size: 16px; }
+.buscar-ir { display: grid; place-items: center; width: 36px; height: 36px; border: 0; border-radius: 50%; background: var(--azul); cursor: pointer; flex: none; }
+.buscar-ir svg { width: 18px; height: 18px; fill: var(--blanco); }
+.resultado-cif { display: flex; align-items: center; gap: 12px; padding: 12px 14px; background: var(--blanco); border-radius: 20px; border: 2px solid var(--azul-claro); }
+.resultado-cif[hidden] { display: none; }
+.resultado-cif .c-cuerpo small { color: #5f6f82; font-size: 12px; font-weight: 600; }
+.resultado-cif .nota { margin: 0; }

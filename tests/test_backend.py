@@ -255,9 +255,13 @@ class TestMensajeria(unittest.TestCase):
             for vecino in v.neig:
                 self.assertNotEqual(vecino[0].nombre, "Tel-Yo")
 
+
+
+class TestCustodia(unittest.TestCase):
     def test_confirmar_entrega_ack_purga_custodia(self):
-        campus, red, ubic = self.preparar()
-        conectarTelefono(red, campus, "Tel-Yo", "Edificio M", ubic)
+        campus, zonas = crearCampus()
+        red = crearRedMesh()
+        conectarTelefono(red, campus, "Tel-Yo", "Edificio M", ubicacionesTelefonos())
         custodias = {"Tel-Yo": ["m1"], "Tel-Ana": ["m1"], "Tel-Luis": ["m1", "m2"]}
         rutaVuelta, retardoVuelta, purgados = confirmarEntrega(red, "Tel-Yo", "Tel-Ana", custodias, "m1")
         self.assertGreater(len(rutaVuelta), 0)
@@ -265,6 +269,53 @@ class TestMensajeria(unittest.TestCase):
         self.assertEqual(set(purgados), {"Tel-Yo", "Tel-Ana", "Tel-Luis"})
         self.assertEqual(custodias["Tel-Luis"], ["m2"])
 
+
+class TestCasosLimite(unittest.TestCase):
+    def test_pesos_negativos_y_duplicados(self):
+        g = grafoABC()
+        self.assertFalse(g.insertarArista("A", "C", -5))          # Dijkstra no admite negativos
+        self.assertFalse(g.insertarArista("A", "B", 1))           # ya existe A -> B
+        self.assertFalse(g.actualizarPeso("A", "B", -1))
+        self.assertFalse(g.insertarVertice("   "))
+        self.assertIsNone(g.buscarVertice(None))
+        self.assertFalse(aplicarAlerta(g, "B", -1))
+        self.assertFalse(aplicarAlerta(g, "B", 0))
+
+    def test_empate_igual_en_las_dos_funciones(self):
+        g = Graph()
+        for n in ["O", "Z1", "Z2"]:
+            g.insertarVertice(n)
+        g.insertarArista("O", "Z2", 5)
+        g.insertarArista("O", "Z1", 5)
+        ruta, t = rutaEvacuacion(g, "O", ["Z2", "Z1"])
+        pasos, ruta2, t2 = dijkstraPasos(g, "O", ["Z2", "Z1"])
+        self.assertEqual((ruta, t), (ruta2, t2))
+
+    def test_zonas_sin_importar_mayusculas(self):
+        g = Graph()
+        g.insertarVertice("O")
+        g.insertarVertice("Zona")
+        g.insertarArista("O", "Zona", 3)
+        self.assertEqual(rutaEvacuacion(g, "O", ["zona"])[1], 3)
+        self.assertEqual(dijkstraPasos(g, "O", ["zona"])[2], 3)
+
+    def test_ttl_negativo(self):
+        self.assertEqual(propagarAlerta(crearRedMesh(), "Tel-Ana", -1), [])
+
+    def test_reconectar_no_duplica_enlaces(self):
+        campus, zonas = crearCampus()
+        red = crearRedMesh()
+        ubic = ubicacionesTelefonos()
+        conectarTelefono(red, campus, "Tel-Yo", "Edificio E", ubic)
+        conectarTelefono(red, campus, "Tel-Yo", "Edificio E", ubic)
+        destinos = [w.nombre for w, p in red.buscarVertice("Tel-Yo").neig]
+        self.assertEqual(len(destinos), len(set(destinos)))
+        self.assertNotIn("Tel-Yo", destinos)
+
+    def test_cola_con_pendiente_incompleto(self):
+        cola = [{"id": 1, "origen": None, "destino": "Tel-Ana"}]
+        self.assertEqual(procesarCola(crearRedMesh(), cola), [])
+        self.assertEqual(len(cola), 1)
 
 if __name__ == "__main__":
     unittest.main()

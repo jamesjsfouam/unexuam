@@ -66,16 +66,19 @@ def rutaEvacuacion(campus, origen, zonasSeguras):
     if campus.buscarVertice(origen) is None:
         return [], INF
     distancias, anteriores = dijkstra(campus, origen)
-    mejorZona = None
-    mejorTiempo = INF
+    zonas = []
     for zona in zonasSeguras:
         vZona = campus.buscarVertice(zona)
-        if vZona is None:
-            continue
-        tiempo = distancias[vZona.nombre]
-        if tiempo < mejorTiempo:
-            mejorZona = vZona.nombre
-            mejorTiempo = tiempo
+        if vZona is not None:
+            zonas.append(vZona)
+    # Si dos zonas empatan gana la primera de campus.vertexs: la misma que
+    # dijkstraPasos saca primero, asi la guia y la pantalla paso a paso coinciden.
+    mejorZona = None
+    mejorTiempo = INF
+    for v in campus.vertexs:
+        if v in zonas and distancias[v.nombre] < mejorTiempo:
+            mejorZona = v.nombre
+            mejorTiempo = distancias[v.nombre]
     if mejorZona is None:
         return [], INF
     ruta = []

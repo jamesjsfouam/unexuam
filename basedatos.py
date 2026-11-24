@@ -1,0 +1,143 @@
+"""
+Base de datos de Unexuam (SQLite, incluida en Python: funciona sin internet).
+
+Tablas
+------
+usuarios   : una fila por persona. La clave es el CIF.
+contactos  : quién tiene a quién en su lista (se agrega buscando por CIF).
+mensajes   : cada mensaje con su estado (entregado / en cola), la ruta que siguió
+             por la red Mesh y su retardo.
+
+    usuarios (cif PK) 1 ──< contactos >── 1 usuarios
+    usuarios (cif PK) 1 ──< mensajes (de_cif, para_cif)
+
+Las contraseñas se guardan con hash (werkzeug), nunca en texto plano.
+"""
+
+import json
+import sqlite3
+import threading
+import time
+
+ESQUEMA = """
+CREATE TABLE IF NOT EXISTS usuarios (
+    cif        TEXT PRIMARY KEY,
+    nombre     TEXT NOT NULL,
+    hash       TEXT NOT NULL,
+    telefono   TEXT NOT NULL UNIQUE,      -- nombre del vértice en la red Mesh
+    lugar      TEXT NOT NULL,             -- vértice del campus donde está
+    admin      INTEGER NOT NULL DEFAULT 0,
+    creado     TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS contactos (
+    dueno_cif    TEXT NOT NULL REFERENCES usuarios(cif) ON DELETE CASCADE,
+    contacto_cif TEXT NOT NULL REFERENCES usuarios(cif) ON DELETE CASCADE,
+    agregado     TEXT NOT NULL,
+    PRIMARY KEY (dueno_cif, contacto_cif),
+    CHECK (dueno_cif <> contacto_cif)
+);
+
+CREATE TABLE IF NOT EXISTS mensajes (
+    id         TEXT PRIMARY KEY,
+    de_cif     TEXT NOT NULL REFERENCES usuarios(cif) ON DELETE CASCADE,
+    para_cif   TEXT NOT NULL REFERENCES usuarios(cif) ON DELETE CASCADE,
+    tipo       TEXT NOT NULL DEFAULT 'texto' CHECK (tipo IN ('texto', 'alerta')),
+    texto      TEXT NOT NULL,
+    enviado    TEXT NOT NULL,             -- fecha y hora ISO
+    estado     TEXT NOT NULL CHECK (estado IN ('entregado', 'en cola')),
+    ruta       TEXT NOT NULL DEFAULT '[]',-- lista JSON de teléfonos (vértices) recorridos
+    retardo    REAL,                      -- segundos por la red Mesh
+    entregado  TEXT,
+    via_cola   INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE INDEX IF NOT EXISTS ix_mensajes_de   ON mensajes(de_cif, enviado);
+CREATE INDEX IF NOT EXISTS ix_mensajes_para ON mensajes(para_cif, enviado);
+CREATE INDEX IF NOT EXISTS ix_mensajes_cola ON mensajes(estado);
+"""
+
+
+def ahora():
+    return time.strftime("%Y-%m-%dT%H:%M:%S")
+
+
+class BaseDatos:
+    def __init__(self, ruta):
+        self.con = sqlite3.connect(ruta, check_same_thread=False)
+        self.con.row_factory = sqlite3.Row
+        self.con.execute("PRAGMA foreign_keys = ON")
+        self.con.execute("PRAGMA journal_mode = WAL")
+        self.con.executescript(ESQUEMA)
+        self.lock = threading.Lock()
+        # Canal General: destinatario especial "TODOS" (no es una persona, no inicia sesión).
+        self._x("INSERT OR IGNORE INTO usuarios (cif, nombre, hash, telefono, lugar, admin, creado) "
+                "VALUES ('TODOS', 'Canal General · Campus', '!', 'Mesh-Todos', 'Edificio E', 0, ?)", (ahora(),))
+
+    def _q(self, sql, args=()):
+        with self.lock:
+            return self.con.execute(sql, args).fetchall()
+
+    def _x(self, sql, args=()):
+        with self.lock, self.con:
+            self.con.execute(sql, args)
+
+    # ---------------------------------------------------------------- usuarios
+    def usuario(self, cif):
+        filas = self._q("SELECT * FROM usuarios WHERE cif = ?", (cif,))
+        return dict(filas[0]) if filas else None
+
+    def total_usuarios(self):
+        return self._q("SELECT COUNT(*) AS n FROM usuarios WHERE cif <> 'TODOS'")[0]["n"]
+
+    def usuarios(self):
+        return {f["cif"]: dict(f) for f in self._q("SELECT * FROM usuarios")}
+
+    def telefonos_usados(self):
+        return {f["telefono"] for f in self._q("SELECT telefono FROM usuarios")}
+
+    def crear_usuario(self, cif, nombre, hash_, telefono, lugar, admin=False):
+        self._x("INSERT INTO usuarios (cif, nombre, hash, telefono, lugar, admin, creado) VALUES (?,?,?,?,?,?,?)",
+                (cif, nombre, hash_, telefono, lugar, int(admin), ahora()))
+
+    def mover_usuario(self, cif, lugar):
+        self._x("UPDATE usuarios SET lugar = ? WHERE cif = ?", (lugar, cif))
+
+    # ---------------------------------------------------------------- contactos
+    def agregar_contacto(self, dueno, contacto):
+        if dueno != contacto:
+            self._x("INSERT OR IGNORE INTO contactos (dueno_cif, contacto_cif, agregado) VALUES (?,?,?)",
+                    (dueno, contacto, ahora()))
+
+    def contactos_de(self, cif):
+        return [f["contacto_cif"] for f in self._q(
+            "SELECT contacto_cif FROM contactos WHERE dueno_cif = ? ORDER BY agregado", (cif,))]
+
+    # ---------------------------------------------------------------- mensajes
+    @staticmethod
+    def _msj(f):
+        return {"id": f["id"], "de": f["de_cif"], "para": f["para_cif"], "tipo": f["tipo"], "texto": f["texto"],
+                "fecha": f["enviado"], "hora": f["enviado"][11:19], "estado": f["estado"],
+                "ruta": json.loads(f["ruta"]), "retardo": f["retardo"],
+                "entregado": f["entregado"][11:19] if f["entregado"] else None, "viaCola": bool(f["via_cola"])}
+
+    def guardar_mensaje(self, m):
+        self._x("INSERT INTO mensajes (id, de_cif, para_cif, tipo, texto, enviado, estado, ruta, retardo, entregado, via_cola)"
+                " VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+                (m["id"], m["de"], m["para"], m.get("tipo", "texto"), m["texto"], m["fecha"], m["estado"],
+                 json.dumps(m["ruta"], ensure_ascii=False), m["retardo"],
+                 m["fecha"] if m["estado"] == "entregado" else None, int(m.get("viaCola", False))))
+
+    def mensajes_de(self, cif, limite=400):
+        filas = self._q("SELECT * FROM mensajes WHERE de_cif = ? OR para_cif = ? OR para_cif = 'TODOS' "
+                        "ORDER BY enviado DESC, rowid DESC LIMIT ?", (cif, cif, limite))
+        return [self._msj(f) for f in reversed(filas)]
+
+    def en_cola(self):
+        # La cola DTN guarda los mensajes 24 horas; después se descartan del reparto.
+        limite = time.strftime("%Y-%m-%dT%H:%M:%S", time.localtime(time.time() - 24 * 3600))
+        return [self._msj(f) for f in self._q("SELECT * FROM mensajes WHERE estado = 'en cola' AND enviado >= ? ORDER BY enviado", (limite,))]
+
+    def marcar_entregado(self, ident, ruta, retardo):
+        self._x("UPDATE mensajes SET estado = 'entregado', ruta = ?, retardo = ?, entregado = ?, via_cola = 1 WHERE id = ?",
+                (json.dumps(ruta, ensure_ascii=False), retardo, ahora(), ident))

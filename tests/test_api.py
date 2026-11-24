@@ -15,7 +15,6 @@ class TestApiYParidad(unittest.TestCase):
     def setUp(self):
         self.client = servidor.app.test_client()
         self.client.post("/api/login/demo", json={})      # perfil administrador
-        servidor.desconectar_usuario(servidor.CIF_DEMO)  # su teléfono no altera la red de ejemplo
         self.client.post("/api/reiniciar", json={"grafo": "ambos"})
 
     def test_cabeceras_y_estado_inicial(self):
@@ -78,7 +77,7 @@ class TestApiYParidad(unittest.TestCase):
         with self.client.get("/sw.js") as r:
             self.assertEqual(r.status_code, 200)
             self.assertEqual(r.headers.get("Service-Worker-Allowed"), "/")
-            self.assertIn(b"unexuam-v12", r.data)
+            self.assertIn(b"unexuam-v13", r.data)
 
     def test_paridad_campus_plano_json(self):
         campus, _ = crearCampus()
@@ -137,6 +136,71 @@ class TestSesionYMensajes(unittest.TestCase):
         self.assertEqual(m["ruta"][-1], ub["telefono"])
         directo = a.post("/api/mensajes/enviar", json={"para": "MSJ0002", "texto": "Voy en camino"}).get_json()
         self.assertEqual(directo["enviado"]["estado"], "entregado")
+
+    def test_contactos_por_cif(self):
+        a, _ = self.nuevo("CON0001", "Busca", "Edificio E")
+        self.nuevo("CON0002", "Buscada", "Edificio E")
+        personas = lambda: [c["cif"] for c in a.get("/api/mensajes").get_json()["contactos"] if not c.get("grupo")]
+        self.assertEqual(personas(), [])                                  # nadie aparece solo
+        self.assertFalse(a.post("/api/contactos/buscar", json={"cif": "NOEXISTE"}).get_json()["ok"])
+        self.assertFalse(a.post("/api/contactos/buscar", json={"cif": "ADMIN"}).get_json()["ok"])
+        r = a.post("/api/contactos/buscar", json={"cif": "con0002"}).get_json()
+        self.assertTrue(r["ok"])
+        self.assertEqual(r["contacto"]["nombre"], "Buscada")
+        self.assertTrue(a.post("/api/contactos/agregar", json={"cif": "CON0002"}).get_json()["ok"])
+        self.assertEqual(personas(), ["CON0002"])
+
+    def test_alerta_bfs_a_la_red(self):
+        a, _ = self.nuevo("ALE0001", "Emisora", "Edificio E")
+        b, _ = self.nuevo("ALE0002", "Cercana", "Edificio E")
+        r = a.post("/api/mensajes/alerta", json={"ttl": 2, "texto": "Humo en el pasillo"}).get_json()
+        self.assertTrue(r["ok"], r)
+        self.assertIn("Cercana", r["avisados"])
+        recibidas = [m for m in b.get("/api/mensajes").get_json()["mensajes"] if m["tipo"] == "alerta"]
+        self.assertTrue(recibidas and recibidas[-1]["texto"].startswith("Humo en el pasillo"))
+
+    def test_base_de_datos_persiste(self):
+        self.nuevo("PER0001", "Persistente", "Edificio E")
+        from basedatos import BaseDatos
+        otra = BaseDatos(servidor.ruta_datos("unexuam.db"))      # otra conexión al mismo archivo
+        self.assertEqual(otra.usuario("PER0001")["nombre"], "Persistente")
+        self.assertNotIn("clave123", otra.usuario("PER0001")["hash"])  # la contraseña va con hash
+
+    def test_estudiante_no_cambia_el_campus_de_todos(self):
+        c, _ = self.nuevo("EST0001", "Estudiante", "Edificio E")
+        for ruta, cuerpo in [("/api/campus/bloquear", {"origen": "C-101", "destino": "C Pabellón Este P1"}),
+                             ("/api/campus/desbloquear", {}),
+                             ("/api/campus/congestionar", {"lugar": "Edificio E", "factor": 2}),
+                             ("/api/mesh/alerta", {"origen": "Tel-Ana", "ttl": 2})]:
+            self.assertEqual(c.post(ruta, json=cuerpo).status_code, 403, ruta)
+        self.assertTrue(c.post("/api/campus/ruta", json={"lugar": "C-101"}).get_json()["ok"])
+
+    def test_vuelve_a_la_red_tras_reiniciar_el_servidor(self):
+        a, ua = self.nuevo("REI0001", "Reinicio", "Edificio E")
+        with servidor.lock:
+            servidor.EN_LINEA.clear()
+            servidor.reiniciar_mesh()
+        self.assertIsNone(servidor.S["red"].buscarVertice(ua["telefono"]))
+        a.get("/api/mensajes")                                     # cualquier petición lo reconecta
+        self.assertIsNotNone(servidor.S["red"].buscarVertice(ua["telefono"]))
+
+    def test_telefonos_distintos_aunque_cambien_mayusculas(self):
+        _, u1 = self.nuevo("XXX0123", "Ana", "Edificio E")
+        _, u2 = self.nuevo("YYY0123", "ana", "Edificio E")
+        self.assertNotEqual(u1["telefono"].lower(), u2["telefono"].lower())
+
+    def test_json_invalido_no_rompe(self):
+        c = servidor.app.test_client()
+        self.assertFalse(c.post("/api/login", json=["x"]).get_json()["ok"])
+        r = c.post("/api/registro", json={"cif": "TIP0001", "nombre": "Tipos", "contrasena": "clave123", "lugar": 5})
+        self.assertEqual(r.status_code, 200)
+        self.assertTrue(r.get_json()["ok"])
+
+    def test_ubicacion_solo_entre_contactos_mutuos(self):
+        a, _ = self.nuevo("VIS0001", "Mira", "Edificio E")
+        self.nuevo("VIS0002", "Mirada", "C-305")
+        r = a.post("/api/contactos/buscar", json={"cif": "VIS0002"}).get_json()
+        self.assertIsNone(r["contacto"]["lugar"])
 
     def test_algoritmo_paso_a_paso(self):
         c = servidor.app.test_client()

@@ -730,9 +730,29 @@
       }
       return { ok: true };
     }
-    if (ruta.startsWith("/api/yo/") || ruta.startsWith("/api/mensajes") || ruta === "/api/algoritmo") {
+    if (ruta.startsWith("/api/yo/") || ruta.startsWith("/api/mensajes") || ruta.startsWith("/api/contactos") || ruta === "/api/algoritmo") {
       const yo = cuentaActual();
       if (!yo) return { _status: 401, ok: false, sesion: false, mensaje: "Inicia sesión con tu CIF y tu contraseña." };
+      // Contactos por CIF: cada cuenta guarda su propia lista (la base de datos local del teléfono).
+      const ficha = (C, cif) => {
+        const u = C.usuarios[cif];
+        const enLinea = !!(u && (u.real ? vecinosRealesCount() > 0 : S.red.buscarVertice(u.telefono)));
+        return { cif, nombre: u.nombre, telefono: u.telefono, enLinea, lugar: null };
+      };
+      if (ruta === "/api/contactos/buscar" || ruta === "/api/contactos/agregar") {
+        const C = cuentas();
+        const cif = texto(d, "cif", 20).replace(/\s+/g, "").toUpperCase();
+        const u = C.usuarios[cif];
+        if (!u || u.admin || cif === yo.cif) return { ok: false, mensaje: "No hay nadie con ese CIF en este teléfono ni cerca por la red Mesh." };
+        C.contactos = C.contactos || {};
+        const lista = C.contactos[yo.cif] || (C.contactos[yo.cif] = []);
+        if (ruta === "/api/contactos/agregar") {
+          if (!lista.includes(cif)) lista.push(cif);
+          guardarCuentas(C);
+          return { ok: true, contacto: ficha(C, cif), mensaje: `${u.nombre} está en tus contactos.` };
+        }
+        return { ok: true, contacto: ficha(C, cif), agregado: lista.includes(cif) };
+      }
       if (ruta === "/api/yo/lugar") {
         const lugar = texto(d, "lugar", 60);
         if (!S.campus.buscarVertice(lugar)) return { ok: false, mensaje: `El lugar «${lugar}» no existe.` };
@@ -745,11 +765,13 @@
       }
       if (ruta === "/api/mensajes") {
         const C = cuentas();
-        const contactos = Object.entries(C.usuarios).filter(([c]) => c !== yo.cif).map(([c, u]) => ({
-          cif: c, nombre: u.nombre, telefono: u.telefono, enLinea: !!S.red.buscarVertice(u.telefono),
-          lugar: S.red.buscarVertice(u.telefono) ? u.lugar : null,
-        }));
-        contactos.sort((a, b) => (a.enLinea === b.enLinea ? a.nombre.localeCompare(b.nombre) : a.enLinea ? -1 : 1));
+        const mios0 = C.mensajes.filter((m) => m.de === yo.cif || m.para === yo.cif);
+        const cifs = ((C.contactos || {})[yo.cif] || []).slice();
+        for (const m of mios0) {
+          const otro = m.de === yo.cif ? m.para : m.de;
+          if (otro !== "TODOS" && !cifs.includes(otro)) cifs.push(otro);
+        }
+        const contactos = cifs.filter((c) => C.usuarios[c] && !C.usuarios[c].admin).map((c) => ficha(C, c));
         const reales = vecinosRealesCount();
         contactos.unshift({
           cif: "TODOS", nombre: "Canal General · Campus", telefono: "Mesh-Todos",
