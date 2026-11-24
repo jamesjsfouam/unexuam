@@ -218,7 +218,7 @@ body.con-chat .toast { bottom: calc(86px + env(safe-area-inset-bottom)); z-index
 }
 .badge[hidden] { display: none; }
 
-/* ---------- inicio de sesión ---------- */
+/* ---------- inicio de sesión (Split Sheet moderno estilo iOS / Material You) ---------- */
 body.sin-sesion main, body.sin-sesion .barra { visibility: hidden; }
 .login {
   position: fixed;
@@ -227,36 +227,115 @@ body.sin-sesion main, body.sin-sesion .barra { visibility: hidden; }
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 22px;
-  padding: calc(24px + env(safe-area-inset-top)) 16px calc(24px + env(safe-area-inset-bottom));
+  justify-content: flex-end;
+  padding: calc(20px + env(safe-area-inset-top)) 0 0;
   background:
-    radial-gradient(120% 60% at 50% 0%, #38b6ff 0%, rgba(56, 182, 255, 0) 60%),
-    linear-gradient(180deg, var(--azul) 0%, var(--azul-osc) 100%);
+    radial-gradient(95% 55% at 50% 0%, rgba(56, 182, 255, .42) 0%, rgba(56, 182, 255, 0) 68%),
+    linear-gradient(165deg, #003a8c 0%, #0062cc 52%, #0080ff 100%);
   overflow-y: auto;
 }
 .login[hidden] { display: none; }
-.login-marca { text-align: center; color: var(--blanco); margin-top: auto; }
-.login-logo { width: 76px; height: 76px; border-radius: 22px; box-shadow: 0 10px 26px rgba(0, 40, 100, .35); }
-.login-wordmark { display: block; height: 26px; width: auto; margin: 14px auto 6px; }
-.login-marca p { margin: 0; font-size: 14px; opacity: .92; font-weight: 600; }
+.login-marca {
+  text-align: center;
+  color: #ffffff;
+  margin: auto 0;
+  padding: 12px 20px 18px;
+}
+.login-emblema {
+  width: 68px;
+  height: 68px;
+  margin: 0 auto 12px;
+  border-radius: 22px;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(145deg, rgba(255, 255, 255, .28), rgba(255, 255, 255, .08));
+  border: 1.5px solid rgba(255, 255, 255, .45);
+  box-shadow: 0 12px 30px rgba(0, 20, 60, .28);
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+}
+.login-x { width: 34px; height: auto; display: block; }
+.login-wordmark { display: block; height: 24px; width: auto; margin: 0 auto 6px; }
+.login-marca p { margin: 0; font-size: 0.85rem; opacity: .9; font-weight: 600; }
 .login-carta {
   width: 100%;
-  max-width: 380px;
-  margin-bottom: auto;
+  max-width: 440px;
   background: var(--blanco);
-  border-radius: var(--radio);
-  padding: 18px 18px 20px;
-  box-shadow: 0 18px 40px rgba(0, 30, 80, .28);
+  border-radius: 32px 32px 0 0;
+  padding: 22px 20px calc(24px + env(safe-area-inset-bottom));
+  box-shadow: 0 -10px 36px rgba(0, 24, 70, .24);
 }
-.login-tabs { margin-bottom: 14px; }
-.login-carta form { display: grid; gap: 10px; }
-.login-carta .campo { margin: 0; }
-.login-carta .campo input { width: 100%; }
+@media (min-width: 520px) {
+  .login { justify-content: center; padding: 24px 16px; }
+  .login-marca { margin: 0 0 18px; padding: 0; }
+  .login-carta { border-radius: 30px; padding: 24px; box-shadow: 0 22px 48px rgba(0, 24, 70, .3); }
+}
+.login-tabs {
+  margin-bottom: 18px;
+  padding: 4px;
+  border: 0 !important;
+  border-radius: 999px;
+  background: var(--gris-claro);
+}
+.login-tabs button {
+  border: 0 !important;
+  background: transparent;
+  color: var(--gris-texto);
+  font-weight: 800;
+  min-height: 44px;
+}
+.login-tabs button[aria-selected="true"] {
+  background: var(--blanco) !important;
+  color: var(--azul-btn) !important;
+  box-shadow: 0 2px 8px rgba(11, 42, 74, .12);
+}
+.login-carta form { display: grid; gap: 12px; }
+.login-carta .campo { margin: 0; gap: 5px; }
+.login-carta .campo > span { font-size: 0.78rem; color: var(--gris-texto); padding-left: 6px; }
+.login-carta .campo input,
+.login-carta .campo select {
+  width: 100%;
+  min-height: 48px;
+  padding: 10px 16px;
+  border: 1.5px solid #dbe6f3;
+  border-radius: 16px;
+  background: #f4f7fc;
+  color: var(--texto);
+  font-size: 0.95rem;
+  box-shadow: none;
+}
+.login-carta .campo input:focus,
+.login-carta .campo select:focus {
+  border-color: var(--azul-btn);
+  background: var(--blanco);
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(0, 98, 204, .14);
+}
 .login-carta .campo[hidden] { display: none; }
 .login-error { color: var(--rojo); margin: 0; font-size: 13px; font-weight: 700; }
 .login-error:empty { display: none; }
-.login-sep { display: flex; align-items: center; gap: 10px; margin: 14px 0 12px; color: var(--gris-texto); font-size: 12px; }
-.login-sep::before, .login-sep::after { content: ""; flex: 1; height: 1px; background: var(--gris-claro); }
+.login-sep { display: flex; align-items: center; gap: 10px; margin: 16px 0 12px; color: var(--gris-texto); font-size: 0.75rem; font-weight: 700; }
+.login-sep::before, .login-sep::after { content: ""; flex: 1; height: 1px; background: #e2eaf4; }
+.login-demo-link {
+  display: block;
+  width: 100%;
+  min-height: 44px;
+  margin-top: 8px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--azul-btn);
+  font: 800 0.84rem var(--fuente);
+  cursor: pointer;
+}
+.login-demo-link:hover { background: var(--azul-claro); }
+.login-demo-link[hidden] { display: none; }
+html[data-tema="oscuro"] .login-carta .campo input,
+html[data-tema="oscuro"] .login-carta .campo select {
+  background: #0f1724;
+  border-color: #2c405c;
+  color: var(--texto);
+}
 
 /* ---------- Wizard de registro en 3 pasos (Ley de Hick) ---------- */
 .wiz-prog { display: flex; flex-direction: column; gap: 6px; margin-bottom: 4px; }
@@ -1811,52 +1890,40 @@ html[data-filtro-color="acromatopsia"] body { filter: grayscale(1); }
 .acceso-chip.ambar { background: var(--amarillo-claro); color: var(--amarillo-txt); }
 .acceso-go { font-size: 22px; font-weight: 900; color: var(--azul-btn); flex: none; }
 
-/* ---------- Números de emergencia Nicaragua (3 tarjetas compactas abajo) ---------- */
-.emergencias-ni {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  margin-top: 4px;
-}
-.emergencias-ni-tit {
-  margin: 0;
-  padding-left: 4px;
-  font-size: 0.72rem;
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: .04em;
-  color: var(--gris-texto);
-}
+/* ---------- Números de emergencia Nicaragua (3 botones pequeños debajo de SOS) ---------- */
 .emergencias-ni-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
+  gap: 6px;
 }
 .em-ni-card {
-  display: flex;
-  flex-direction: column;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 2px;
-  min-height: 68px;
-  padding: 8px 6px;
-  border-radius: 18px;
-  border: 2px solid #cfe0f4;
+  gap: 5px;
+  min-height: 44px;
+  padding: 6px 6px;
+  border-radius: 999px;
+  border: 1.5px solid #cfe0f4;
   background: var(--blanco);
   color: var(--texto);
   text-decoration: none;
-  text-align: center;
-  box-shadow: 0 2px 8px rgba(11, 42, 74, .06);
-  transition: transform .12s ease, border-color .15s ease;
+  box-shadow: 0 2px 6px rgba(11, 42, 74, .06);
+  transition: transform .12s ease;
+  min-width: 0;
 }
-.em-ni-card:active { transform: scale(.97); }
-.em-ni-card b { font-size: 1.08rem; font-weight: 900; line-height: 1.05; }
-.em-ni-card span { font-size: 0.72rem; font-weight: 800; line-height: 1.15; }
-.em-ni-card small { font-size: 0.63rem; font-weight: 600; color: var(--gris-texto); line-height: 1.1; }
-.em-ni-card.rojo { border-color: rgba(217, 43, 0, .35); }
-.em-ni-card.rojo b { color: var(--rojo); }
-.em-ni-card.verde { border-color: rgba(0, 112, 46, .35); }
-.em-ni-card.verde b { color: var(--verde-btn); }
-.em-ni-card.azul { border-color: rgba(0, 98, 204, .35); }
-.em-ni-card.azul b { color: var(--azul-btn); }
-html[data-tema="oscuro"] .em-ni-card { background: #131c29; border-color: #263952; color: var(--texto); }
+.em-ni-card:active { transform: scale(.96); }
+.em-ni-ico { width: 15px; height: 15px; flex: none; fill: currentColor; }
+.em-ni-lbl {
+  font-size: 0.7rem;
+  font-weight: 800;
+  line-height: 1.1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.em-ni-lbl b { font-weight: 900; }
+.em-ni-card.rojo { border-color: rgba(217, 43, 0, .35); color: var(--rojo); }
+.em-ni-card.verde { border-color: rgba(0, 112, 46, .35); color: var(--verde-btn); }
+.em-ni-card.azul { border-color: rgba(0, 98, 204, .35); color: var(--azul-btn); }
+html[data-tema="oscuro"] .em-ni-card { background: #131c29; border-color: #263952; }
