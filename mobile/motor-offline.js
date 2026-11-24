@@ -588,7 +588,7 @@
         });
         guardarCuentas(CB);
       }
-      return responder(true, `Pasillo bloqueado (eliminarArista): ${quitadas.join(", ")}.`);
+      return responder(true, `Pasillo bloqueado: ${quitadas.join(", ")}.`);
     }
 
     if (ruta === "/api/campus/desbloquear") {
@@ -597,7 +597,7 @@
         if (S.campus.insertarArista(b.origen, b.destino, b.peso)) n++;
       }
       S.bloqueados = [];
-      return responder(true, `Se reabrieron ${n} pasos (insertarArista con su peso original).`);
+      return responder(true, `Se reabrieron ${n} pasos con su tiempo original.`);
     }
 
     if (ruta === "/api/campus/congestionar") {
@@ -606,10 +606,10 @@
       if (!existe(S.campus, lugar)) return responder(false, `El lugar «${lugar}» no existe.`);
       if (factor === null) return responder(false, "El factor debe estar entre 0.1 y 20.");
       if (!aplicarAlerta(S.campus, lugar, factor)) {
-        return responder(false, `aplicarAlerta devolvió False para «${lugar}».`);
+        return responder(false, `No se pudo aplicar congestión en «${lugar}».`);
       }
       S.congestion[lugar] = Math.round((S.congestion[lugar] || 1) * factor * 1000) / 1000;
-      return responder(true, `${lugar}: los pasos que entran se multiplicaron ×${factor} (aplicarAlerta).`);
+      return responder(true, `${lugar}: congestión aplicada (tiempos ×${factor}).`);
     }
 
     const mVert = ruta.match(/^\/api\/(mesh|campus)\/vertice$/);
@@ -622,7 +622,7 @@
       if (accion === "insertar") {
         if (!g.insertarVertice(nombre)) return responder(false, `«${nombre}» ya existe.`);
         if (grafo === "campus" && d.zonaSegura) S.zonas.push(nombre);
-        return responder(true, `Vértice «${nombre}» insertado en ${grafo}.`);
+        return responder(true, `Vértice «${nombre}» agregado en ${grafo}.`);
       }
       if (accion === "eliminar") {
         const vReal = g.buscarVertice(nombre);
@@ -651,9 +651,9 @@
         if (peso === null) return responder(false, "El peso debe ser un número mayor o igual a 0.");
         if (accion === "insertar") {
           if (!g.insertarArista(o, dst, peso)) {
-            return responder(false, `No se pudo insertar ${o} → ${dst}: falta algún vértice o la arista ya existe.`);
+            return responder(false, `No se pudo agregar ${o} → ${dst}: falta algún vértice o la arista ya existe.`);
           }
-          return responder(true, `Arista ${o} → ${dst} (peso ${peso}) insertada en ${grafo}.`);
+          return responder(true, `Arista ${o} → ${dst} (peso ${peso}) agregada en ${grafo}.`);
         }
         if (!g.actualizarPeso(o, dst, peso)) return responder(false, `No existe la arista ${o} → ${dst}.`);
         return responder(true, `Peso de ${o} → ${dst} actualizado a ${peso}.`);

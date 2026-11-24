@@ -102,7 +102,7 @@
         </div>
 
         <h3 class="franja-figma">Qué hacer ahora</h3>
-        <ul class="filas-figma">
+        <ul class="filas-figma" id="lista-prioridad">
           <li><button type="button" class="fila-figma azul" data-guia="inundacion">
             <span class="fila-icono"><img src="{{ url_for('static', filename='img/figma/ico-lluvia.png') }}" alt=""><b>Inundación</b></span>
             <span class="fila-texto"><b>Sube a un piso alto</b><small><em>Necesidad:</em> alejarte del agua y la corriente</small></span>
@@ -123,12 +123,18 @@
           <h3>Capa 1 · Mensajes</h3>
           <a href="#mensajes" class="btn mini">Abrir</a>
         </div>
-        <div class="metricas">
+        <div class="metrica-hero">
+          <div class="metrica-hero-val"><b id="m-alc">–</b><span>con la alerta</span></div>
+          <div class="metrica-spark" id="spark-mesh"></div>
+        </div>
+        <div class="metricas metricas-sec">
           <div><b id="m-tels">0</b><span>teléfonos</span></div>
           <div><b id="m-enl">0</b><span>enlaces</span></div>
-          <div><b id="m-alc">–</b><span>con la alerta</span></div>
         </div>
-        <p class="nota" id="m-nota"></p>
+        <details class="metrica-det">
+          <summary>Detalles técnicos</summary>
+          <p class="nota" id="m-nota"></p>
+        </details>
       </div>
 
       <div class="tarjeta solo-admin" hidden>
@@ -136,17 +142,23 @@
           <h3>Capa 2 · Campus</h3>
           <a href="#campus" class="btn mini">Abrir</a>
         </div>
-        <div class="metricas">
+        <div class="metrica-hero">
+          <div class="metrica-hero-val"><b id="c-tie">–</b><span>tu ruta</span></div>
+          <div class="metrica-spark" id="spark-campus"></div>
+        </div>
+        <div class="metricas metricas-sec">
           <div><b id="c-lug">0</b><span>lugares</span></div>
           <div><b id="c-pas">0</b><span>pasos</span></div>
           <div><b id="c-zon">0</b><span>zonas seguras</span></div>
         </div>
-        <div class="metricas">
+        <div class="metricas metricas-sec">
           <div><b id="c-blo">0</b><span>bloqueados</span></div>
           <div><b id="c-con">0</b><span>congestión</span></div>
-          <div><b id="c-tie">–</b><span>tu ruta</span></div>
         </div>
-        <p class="nota" id="c-nota"></p>
+        <details class="metrica-det">
+          <summary>Detalles técnicos</summary>
+          <p class="nota" id="c-nota"></p>
+        </details>
       </div>
 
       <h3 class="franja solo-admin" hidden>Actividad</h3>
@@ -230,7 +242,7 @@
             <input type="checkbox" id="bloq-ambos" checked>
             <span>Bloquear también el sentido contrario</span>
           </label>
-          <button class="btn peligro ancho" data-accion="bloquear">Bloquear (eliminarArista)</button>
+          <button class="btn peligro ancho" data-accion="bloquear"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 7h12l-1 14H7L6 7Zm3-3h6l1 2H8l1-2Z"/></svg> Bloquear pasillo</button>
         </div>
 
         <div data-panel="congestionar" class="panel" hidden>
@@ -247,7 +259,7 @@
               <button type="button" data-f="5">×5</button>
             </div>
           </div>
-          <button class="btn aviso-btn ancho" data-accion="congestionar">Aplicar alerta (aplicarAlerta)</button>
+          <button class="btn aviso-btn ancho" data-accion="congestionar"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 17.25V21h3.75L17.8 9.94l-3.75-3.75L3 17.25Zm17.7-10.2a1 1 0 0 0 0-1.4l-2.35-2.35a1 1 0 0 0-1.4 0l-1.8 1.8 3.75 3.75 1.8-1.8Z"/></svg> Aplicar congestión</button>
         </div>
 
         <p class="nota" id="incidentes-activos"></p>
@@ -280,7 +292,10 @@
           <button type="button" class="btn redondo" data-alg="adelante" aria-label="Paso siguiente"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg></button>
           <button type="button" class="btn redondo" data-alg="fin" aria-label="Último paso"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M16 5h2v14h-2zM4 5v14l10.5-7z"/></svg></button>
         </div>
-        <input type="range" id="alg-barra" min="0" max="0" value="0" aria-label="Paso">
+        <label class="campo" for="alg-barra">
+          <span>Paso del algoritmo</span>
+          <input type="range" id="alg-barra" min="0" max="0" value="0">
+        </label>
       </div>
 
       <div class="lienzo alg-lienzo" id="alg-lienzo">
@@ -329,7 +344,7 @@
       </div>
 
       <form class="tarjeta" data-form="v-insertar">
-        <h3>Insertar vértice</h3>
+        <h3>Agregar vértice</h3>
         <label class="campo">
           <span id="lbl-nombre">Nombre del teléfono</span>
           <input name="nombre" maxlength="40" autocomplete="off" required placeholder="Ej.: Tel-Camila">
@@ -338,11 +353,11 @@
           <input type="checkbox" name="zonaSegura">
           <span>Es una zona segura</span>
         </label>
-        <button class="btn primario ancho">insertarVertice</button>
+        <button class="btn primario ancho"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M11 4h2v7h7v2h-7v7h-2v-7H4v-2h7V4Z"/></svg> Agregar vértice</button>
       </form>
 
       <form class="tarjeta" data-form="a-insertar">
-        <h3>Insertar arista dirigida</h3>
+        <h3>Agregar o actualizar arista</h3>
         <div class="fila">
           <label class="campo"><span>Origen</span><select name="origen" data-vertices></select></label>
           <label class="campo"><span>Destino</span><select name="destino" data-vertices></select></label>
@@ -352,23 +367,23 @@
           <input name="peso" type="number" inputmode="decimal" min="0" step="any" required value="1">
         </label>
         <div class="fila">
-          <button class="btn primario" name="accion" value="insertar">insertarArista</button>
-          <button class="btn secundario" name="accion" value="actualizar">actualizarPeso</button>
+          <button class="btn primario" name="accion" value="insertar"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M11 4h2v7h7v2h-7v7h-2v-7H4v-2h7V4Z"/></svg> Agregar arista</button>
+          <button class="btn secundario" name="accion" value="actualizar"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 17.25V21h3.75L17.8 9.94l-3.75-3.75L3 17.25Zm17.7-10.2a1 1 0 0 0 0-1.4l-2.35-2.35a1 1 0 0 0-1.4 0l-1.8 1.8 3.75 3.75 1.8-1.8Z"/></svg> Actualizar peso</button>
         </div>
       </form>
 
       <form class="tarjeta" data-form="eliminar">
-        <h3>Eliminar</h3>
+        <h3>Eliminar elementos</h3>
         <label class="campo">
           <span>Arista</span>
           <select name="arista" data-aristas></select>
         </label>
-        <button class="btn peligro ancho" name="que" value="arista">eliminarArista</button>
+        <button class="btn peligro ancho" name="que" value="arista"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 7h12l-1 14H7L6 7Zm3-3h6l1 2H8l1-2Z"/></svg> Eliminar arista</button>
         <label class="campo">
-          <span>Vértice (también quita sus aristas entrantes)</span>
+          <span>Vértice (también elimina sus aristas entrantes)</span>
           <select name="vertice" data-vertices></select>
         </label>
-        <button class="btn peligro ancho" name="que" value="vertice">eliminarVertice</button>
+        <button class="btn peligro ancho" name="que" value="vertice"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 7h12l-1 14H7L6 7Zm3-3h6l1 2H8l1-2Z"/></svg> Eliminar vértice</button>
       </form>
 
       <div class="tarjeta">
@@ -390,8 +405,9 @@
         <span class="mi-red-txt"><b id="mi-tel-nombre">Tu teléfono</b><small id="mi-vecinos"></small></span>
         <span class="mi-red-lugar" id="mi-lugar-txt"></span>
       </button>
+      <label class="buscar-lbl" for="buscar-contacto">Buscar o agregar contacto por CIF</label>
       <form class="buscar-chat" id="form-cif" autocomplete="off">
-        <input type="search" id="buscar-contacto" placeholder="Buscar o agregar por CIF" autocapitalize="characters" spellcheck="false" enterkeyhint="search" aria-label="Buscar contacto por CIF">
+        <input type="search" id="buscar-contacto" placeholder="Ej.: 24010001 o nombre" autocapitalize="characters" spellcheck="false" enterkeyhint="search">
         <button class="buscar-ir" aria-label="Buscar CIF"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 3.5a6.5 6.5 0 0 1 5.2 10.4l4.9 4.9-1.4 1.4-4.9-4.9A6.5 6.5 0 1 1 10 3.5Zm0 2a4.5 4.5 0 1 0 0 9 4.5 4.5 0 0 0 0-9Z"/></svg></button>
       </form>
       <div id="resultado-cif" class="resultado-cif" hidden></div>
@@ -402,13 +418,55 @@
     <section id="v-ajustes" class="vista" aria-labelledby="t-ajustes" hidden></section>
   </main>
 
-  <nav class="nav navbar" id="navbar" aria-label="Secciones">
+  <nav class="nav navbar" id="navbar" role="tablist" aria-label="Secciones">
     <span class="nav-capsula" aria-hidden="true"></span>
-      <a href="#inicio" data-tab="inicio"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.2 2.8 11h2.7v9.3h5V15h3v5.3h5V11h2.7z"/></svg><span>Inicio</span></a>
-      <a href="#campus" data-tab="campus"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5a6.6 6.6 0 0 0-6.6 6.6c0 4.9 6.6 12.4 6.6 12.4s6.6-7.5 6.6-12.4A6.6 6.6 0 0 0 12 2.5Zm0 9.2a2.6 2.6 0 1 1 0-5.2 2.6 2.6 0 0 1 0 5.2Z"/></svg><span>Evacuar</span></a>
-      <a href="#mensajes" data-tab="mensajes"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3C6.8 3 2.7 6.6 2.7 11c0 2.3 1.1 4.4 3 5.9L4.9 21l4.4-2.3c.9.2 1.8.3 2.7.3 5.2 0 9.3-3.6 9.3-8S17.2 3 12 3Zm-4.3 9.3a1.3 1.3 0 1 1 0-2.6 1.3 1.3 0 0 1 0 2.6Zm4.3 0a1.3 1.3 0 1 1 0-2.6 1.3 1.3 0 0 1 0 2.6Zm4.3 0a1.3 1.3 0 1 1 0-2.6 1.3 1.3 0 0 1 0 2.6Z"/></svg><span>Mensajes</span><b id="badge-mensajes" class="badge" hidden></b></a>
-      <a href="#admin" data-tab="admin" class="solo-admin" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13.9 2.6h-3.8l-.5 2.6c-.6.2-1.1.5-1.6.9L5.5 5.2 3.6 8.5l2 1.7a6 6 0 0 0 0 1.8l-2 1.7 1.9 3.3 2.5-.9c.5.4 1 .7 1.6.9l.5 2.6h3.8l.5-2.6c.6-.2 1.1-.5 1.6-.9l2.5.9 1.9-3.3-2-1.7a6 6 0 0 0 0-1.8l2-1.7-1.9-3.3-2.5.9c-.5-.4-1-.7-1.6-.9ZM12 14.6a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7Z"/></svg><span>Admin</span></a>
+      <a href="#inicio" data-tab="inicio" role="tab" aria-selected="true" aria-controls="v-inicio" tabindex="0">
+        <svg class="ico-out" viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" d="M3.5 11 12 3.5 20.5 11v9h-5.5v-5.5h-6V20H3.5Z"/></svg>
+        <svg class="ico-fill" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.2 2.8 11h2.7v9.3h5V15h3v5.3h5V11h2.7z"/></svg>
+        <span>Inicio</span>
+      </a>
+      <a href="#campus" data-tab="campus" role="tab" aria-selected="false" aria-controls="v-campus" tabindex="-1">
+        <svg class="ico-out" viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" d="M12 3a6.2 6.2 0 0 0-6.2 6.2c0 4.6 6.2 11.8 6.2 11.8s6.2-7.2 6.2-11.8A6.2 6.2 0 0 0 12 3Zm0 8.5a2.3 2.3 0 1 1 0-4.6 2.3 2.3 0 0 1 0 4.6Z"/></svg>
+        <svg class="ico-fill" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5a6.6 6.6 0 0 0-6.6 6.6c0 4.9 6.6 12.4 6.6 12.4s6.6-7.5 6.6-12.4A6.6 6.6 0 0 0 12 2.5Zm0 9.2a2.6 2.6 0 1 1 0-5.2 2.6 2.6 0 0 1 0 5.2Z"/></svg>
+        <span>Evacuar</span>
+      </a>
+      <a href="#mensajes" data-tab="mensajes" role="tab" aria-selected="false" aria-controls="v-mensajes" tabindex="-1">
+        <svg class="ico-out" viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" d="M12 3.5C7 3.5 3 6.9 3 11c0 2.1 1 4 2.8 5.4L5 20.5l4.2-2.1c.9.2 1.8.3 2.8.3 5 0 9-3.4 9-7.7s-4-7.5-9-7.5Z"/></svg>
+        <svg class="ico-fill" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3C6.8 3 2.7 6.6 2.7 11c0 2.3 1.1 4.4 3 5.9L4.9 21l4.4-2.3c.9.2 1.8.3 2.7.3 5.2 0 9.3-3.6 9.3-8S17.2 3 12 3Zm-4.3 9.3a1.3 1.3 0 1 1 0-2.6 1.3 1.3 0 0 1 0 2.6Zm4.3 0a1.3 1.3 0 1 1 0-2.6 1.3 1.3 0 0 1 0 2.6Zm4.3 0a1.3 1.3 0 1 1 0-2.6 1.3 1.3 0 0 1 0 2.6Z"/></svg>
+        <span>Mensajes</span><b id="badge-mensajes" class="badge" aria-live="polite" hidden></b>
+      </a>
+      <a href="#ajustes" data-tab="ajustes" role="tab" aria-selected="false" aria-controls="v-ajustes" tabindex="-1">
+        <svg class="ico-out" viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" d="M4 7h10M18 7h2M4 12h4M12 12h8M4 17h12M20 17h0M14 5v4M8 10v4M16 15v4"/></svg>
+        <svg class="ico-fill" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h10V4h3v6h-3V8H3V6Zm0 5h4V9h3v6H7v-2H3v-2Zm0 5h12v-2h3v6h-3v-2H3v-2Zm15-10h3v2h-3V6Zm-6 5h9v2h-9v-2Zm7 5h2v2h-2v-2Z"/></svg>
+        <span>Ajustes</span>
+      </a>
+      <a href="#admin" data-tab="admin" class="solo-admin" role="tab" aria-selected="false" aria-controls="v-admin" tabindex="-1" hidden>
+        <svg class="ico-out" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="2"/><path fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" d="M12 2.8v2.2m0 14v2.2M4.8 6l1.7 1.3m11 9.4 1.7 1.3M2.8 12H5m14 0h2.2M4.8 18l1.7-1.3m11-9.4L19.2 6"/></svg>
+        <svg class="ico-fill" viewBox="0 0 24 24" aria-hidden="true"><path d="M13.9 2.6h-3.8l-.5 2.6c-.6.2-1.1.5-1.6.9L5.5 5.2 3.6 8.5l2 1.7a6 6 0 0 0 0 1.8l-2 1.7 1.9 3.3 2.5-.9c.5.4 1 .7 1.6.9l.5 2.6h3.8l.5-2.6c.6-.2 1.1-.5 1.6-.9l2.5.9 1.9-3.3-2-1.7a6 6 0 0 0 0-1.8l2-1.7-1.9-3.3-2.5.9c-.5-.4-1-.7-1.6-.9ZM12 14.6a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7Z"/></svg>
+        <span>Admin</span>
+      </a>
   </nav>
+
+  <div id="fab-scrim" class="fab-scrim" hidden></div>
+  <div id="fab-dial" class="fab-dial" aria-label="Acciones rápidas de emergencia">
+    <div id="fab-menu" class="fab-menu" role="menu" aria-label="Opciones de emergencia" hidden>
+      <button type="button" class="fab-mini-btn" role="menuitem" data-fab="gps">
+        <span class="fab-lbl">Usar GPS</span>
+        <span class="fab-mini-ico azul" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 2.5a6.6 6.6 0 0 0-6.6 6.6c0 4.9 6.6 12.4 6.6 12.4s6.6-7.5 6.6-12.4A6.6 6.6 0 0 0 12 2.5Zm0 9.2a2.6 2.6 0 1 1 0-5.2 2.6 2.6 0 0 1 0 5.2Z"/></svg></span>
+      </button>
+      <button type="button" class="fab-mini-btn" role="menuitem" data-fab="bloqueo">
+        <span class="fab-lbl">Reportar bloqueo</span>
+        <span class="fab-mini-ico amarillo" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 7h18v6H3zm2 2v2l2-2zm5 0-2 2h3l2-2zm6 0-2 2h3l2-2zM5 13h2v6H5zm12 0h2v6h-2z"/></svg></span>
+      </button>
+      <button type="button" class="fab-mini-btn" role="menuitem" data-fab="sos">
+        <span class="fab-lbl">Enviar SOS</span>
+        <span class="fab-mini-ico rojo" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 2.5 1.8 20.5h20.4L12 2.5Zm-1 6h2v6h-2v-6Zm0 8h2v2h-2v-2Z"/></svg></span>
+      </button>
+    </div>
+    <button type="button" id="fab-main" class="fab-main" aria-expanded="false" aria-controls="fab-menu" aria-label="Abrir acciones rápidas de emergencia">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 4h2v7h7v2h-7v7h-2v-7H4v-2h7V4Z"/></svg>
+    </button>
+  </div>
 
   <section id="chat" class="chat" aria-labelledby="chat-titulo" hidden>
     <header class="chat-cab">
@@ -421,16 +479,22 @@
         <small id="chat-estado"></small>
       </div>
     </header>
-    <ol id="chat-lista" class="chat-lista"></ol>
+    <ol id="chat-lista" class="chat-lista" role="log" aria-live="polite" aria-relevant="additions text" aria-label="Historial de mensajes"></ol>
+    <div id="chat-actividad" class="chat-actividad" role="status" aria-live="polite" hidden>
+      <span class="puntos-envio" aria-hidden="true"><i></i><i></i><i></i></span>
+      <span id="chat-actividad-txt">Transmitiendo por red Mesh…</span>
+    </div>
+    <p id="chat-live" class="sr" aria-live="polite"></p>
     <form id="chat-form" class="chat-form" autocomplete="off">
-      <div class="chips chat-rapidos" id="chat-rapidos">
+      <div class="chips chat-rapidos" id="chat-rapidos" role="group" aria-label="Respuestas rápidas">
         <button type="button" data-rapido="Estoy bien, voy a la zona segura.">Estoy bien</button>
         <button type="button" data-rapido="SOS · Necesito ayuda, no puedo salir.">Necesito ayuda</button>
         <button type="button" id="btn-reportar-bloqueo"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7h18v6H3zm2 2v2l2-2zm5 0-2 2h3l2-2zm6 0-2 2h3l2-2zM5 13h2v6H5zm12 0h2v6h-2z"/></svg> Reportar bloqueo</button>
       </div>
+      <label class="chat-lbl" for="chat-texto">Mensaje</label>
       <div class="chat-entrada">
-        <textarea id="chat-texto" rows="1" maxlength="500" placeholder="Mensaje" aria-label="Mensaje"></textarea>
-        <button class="chat-enviar" aria-label="Enviar">
+        <textarea id="chat-texto" rows="1" maxlength="500" placeholder="Escribe un mensaje…"></textarea>
+        <button class="chat-enviar" aria-label="Enviar mensaje">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 20.5 21.5 12 3 3.5l.1 6.6L15 12 3.1 13.9z"/></svg>
         </button>
       </div>
@@ -454,24 +518,54 @@
         <button type="button" role="tab" aria-selected="false" data-modo="registro">Crear cuenta</button>
       </div>
       <form id="login-form" autocomplete="on" novalidate>
-        <label class="campo">
+        <nav id="reg-progreso" class="wiz-prog solo-registro" aria-label="Progreso de registro" hidden>
+          <p id="reg-paso-txt" class="wiz-txt" aria-live="polite">Paso 1 de 3 · Cuenta</p>
+          <ol class="wiz-stepper">
+            <li data-wstep="1" aria-current="step"><span>1</span>Cuenta</li>
+            <li data-wstep="2"><span>2</span>Seguridad</li>
+            <li data-wstep="3"><span>3</span>Ubicación</li>
+          </ol>
+        </nav>
+        <label class="campo" data-reg-step="1">
           <span>CIF</span>
           <input name="cif" id="login-cif" required maxlength="15" autocomplete="username" autocapitalize="characters" spellcheck="false" placeholder="Tu CIF">
         </label>
-        <label class="campo solo-registro" hidden>
+        <label class="campo solo-registro" data-reg-step="1" hidden>
           <span>Nombre</span>
           <input name="nombre" id="login-nombre" maxlength="40" autocomplete="name" placeholder="Cómo te verán los demás">
         </label>
-        <label class="campo">
+        <label class="campo" data-reg-step="2">
           <span>Contraseña</span>
           <input name="contrasena" id="login-clave" type="password" required maxlength="64" autocomplete="current-password" placeholder="••••••">
         </label>
-        <label class="campo solo-registro" hidden>
+        <label class="campo solo-registro" data-reg-step="2" hidden>
           <span>Repite la contraseña</span>
           <input id="login-clave2" type="password" maxlength="64" autocomplete="new-password" placeholder="••••••">
         </label>
+        <div id="reg-paso-3" class="panel solo-registro" data-reg-step="3" hidden>
+          <label class="campo">
+            <span>Tu edificio habitual en el campus</span>
+            <select id="reg-lugar" name="lugar"></select>
+          </label>
+          <button type="button" id="reg-gps" class="btn secundario ancho">Detectar con GPS</button>
+          <details class="wiz-opt">
+            <summary>Opciones adicionales (opcional)</summary>
+            <label class="campo">
+              <span>Piso habitual</span>
+              <select id="reg-piso">
+                <option value="1">Piso 1</option>
+                <option value="2">Piso 2</option>
+                <option value="3">Piso 3</option>
+              </select>
+            </label>
+          </details>
+          <p id="reg-resumen" class="nota"></p>
+        </div>
         <p class="login-error" id="login-error" role="alert"></p>
-        <button class="btn primario ancho grande" id="login-btn">Entrar</button>
+        <div class="wiz-acciones">
+          <button type="button" class="btn secundario" id="reg-atras" hidden>Atrás</button>
+          <button class="btn primario ancho grande" id="login-btn">Entrar</button>
+        </div>
       </form>
       <div class="login-sep"><span>o</span></div>
       <button type="button" class="btn secundario ancho" id="login-demo">Demo rápida · Admin</button>
@@ -481,19 +575,32 @@
   <div id="hoja" class="hoja" hidden>
     <div class="hoja-fondo" data-cerrar></div>
     <div class="hoja-carta" role="dialog" aria-modal="true" aria-labelledby="hoja-titulo" aria-describedby="hoja-texto">
-      <div class="hoja-asa"></div>
-      <h3 id="hoja-titulo"></h3>
-      <p id="hoja-texto" class="nota"></p>
-      <div id="hoja-acciones" class="hoja-acciones"></div>
-      <button class="btn secundario ancho" data-cerrar>Cancelar</button>
+      <div class="hoja-asa" aria-hidden="true"></div>
+      <div class="hoja-cuerpo">
+        <h3 id="hoja-titulo"></h3>
+        <p id="hoja-texto" class="nota"></p>
+        <div id="hoja-acciones" class="hoja-acciones"></div>
+      </div>
+      <div class="hoja-pie">
+        <button type="button" class="btn secundario ancho hoja-cancelar" data-cerrar>Cancelar</button>
+      </div>
     </div>
   </div>
 
   <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
 
+  <svg class="sr" aria-hidden="true" focusable="false">
+    <defs>
+      <filter id="cb-protanopia"><feColorMatrix type="matrix" values="0.567 0.433 0 0 0  0.558 0.442 0 0 0  0 0.242 0.758 0 0  0 0 0 1 0"/></filter>
+      <filter id="cb-deuteranopia"><feColorMatrix type="matrix" values="0.625 0.375 0 0 0  0.7 0.3 0 0 0  0 0.3 0.7 0 0  0 0 0 1 0"/></filter>
+      <filter id="cb-tritanopia"><feColorMatrix type="matrix" values="0.95 0.05 0 0 0  0 0.433 0.567 0 0  0 0.475 0.525 0 0  0 0 0 1 0"/></filter>
+    </defs>
+  </svg>
+
   <script src="{{ url_for('static', filename='app.js') }}"></script>
   <script src="{{ url_for('static', filename='ubicacion.js') }}"></script>
   <script src="{{ url_for('static', filename='cuenta.js') }}"></script>
   <script src="{{ url_for('static', filename='ajustes.js') }}"></script>
+  <script src="{{ url_for('static', filename='lista-ordenable.js') }}"></script>
 </body>
 </html>

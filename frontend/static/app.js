@@ -339,33 +339,87 @@ function interacciones(svg, cual, alTocarNodo, alTocarArista) {
   svg.addEventListener("pointercancel", () => { ini = null; svg.classList.remove("arrastrando"); });
 }
 
-/* ------------------------------------------------------- hoja inferior */
+/* ------------------------------------------------------- hoja inferior (Action Sheet) */
 
 let focoPrevioHoja = null;
 
-function hoja(titulo, texto, acciones) {
+function hoja(titulo, texto, acciones = [], opts = {}) {
   focoPrevioHoja = document.activeElement;
   $("#hoja-titulo").textContent = titulo;
   $("#hoja-texto").textContent = texto || "";
   const cont = $("#hoja-acciones");
-  cont.innerHTML = "";
-  for (const a of acciones) {
+  cont.innerHTML = opts.extraHtml || "";
+  if (typeof opts.onMount === "function") opts.onMount(cont);
+
+  const lista = Array.isArray(acciones) ? acciones : [];
+  const normales = lista.filter(a => !/\b(peligro|alerta)\b/.test(a.cls || ""));
+  const destructivas = lista.filter(a => /\b(peligro|alerta)\b/.test(a.cls || ""));
+  const ordenadas = [...normales, ...destructivas];
+  const MAX_VISIBLES = 5;
+
+  const crearBtn = a => {
     const b = document.createElement("button");
+    b.type = "button";
     b.className = "btn ancho " + (a.cls || "secundario");
-    b.textContent = a.txt;
-    b.addEventListener("click", () => { cerrarHoja(); a.fn(); });
-    cont.append(b);
+    if (a.html) b.innerHTML = a.html;
+    else b.textContent = a.txt;
+    b.addEventListener("click", () => {
+      if (!a.mantenerAbierta) cerrarHoja();
+      if (typeof a.fn === "function") a.fn();
+    });
+    return b;
+  };
+
+  let sepAgregado = false;
+  const agregarItem = (a, padre) => {
+    if (!sepAgregado && normales.length && destructivas.includes(a)) {
+      const sep = document.createElement("div");
+      sep.className = "hoja-sep-peligro";
+      sep.setAttribute("aria-hidden", "true");
+      padre.append(sep);
+      sepAgregado = true;
+    }
+    padre.append(crearBtn(a));
+  };
+
+  ordenadas.slice(0, MAX_VISIBLES).forEach(a => agregarItem(a, cont));
+  if (ordenadas.length > MAX_VISIBLES) {
+    const extraWrap = document.createElement("div");
+    extraWrap.className = "hoja-acciones";
+    extraWrap.hidden = true;
+    ordenadas.slice(MAX_VISIBLES).forEach(a => agregarItem(a, extraWrap));
+    const masBtn = document.createElement("button");
+    masBtn.type = "button";
+    masBtn.className = "btn secundario ancho";
+    masBtn.setAttribute("aria-expanded", "false");
+    masBtn.textContent = `Más opciones (${ordenadas.length - MAX_VISIBLES})…`;
+    masBtn.addEventListener("click", () => {
+      const abrir = extraWrap.hidden;
+      extraWrap.hidden = !abrir;
+      masBtn.setAttribute("aria-expanded", String(abrir));
+      masBtn.textContent = abrir ? "Ver menos" : `Más opciones (${ordenadas.length - MAX_VISIBLES})…`;
+    });
+    cont.append(masBtn, extraWrap);
   }
+
+  const carta = $(".hoja-carta");
+  if (carta) { carta.style.transform = ""; carta.style.transition = ""; }
   $("#hoja").hidden = false;
-  const primero = $(".hoja-carta button");
+  const primero = $(".hoja-carta button, .hoja-carta select, .hoja-carta input");
   if (primero) primero.focus();
 }
+
 function cerrarHoja() {
   if ($("#hoja").hidden) return;
   $("#hoja").hidden = true;
+  const carta = $(".hoja-carta");
+  if (carta) { carta.style.transform = ""; carta.style.transition = ""; }
   if (focoPrevioHoja && typeof focoPrevioHoja.focus === "function") focoPrevioHoja.focus();
   focoPrevioHoja = null;
 }
+
+window.abrirHoja = hoja;
+window.cerrarHoja = cerrarHoja;
 
 /* ---------------------------------------------------------- selects */
 
@@ -405,6 +459,18 @@ function render() {
 
 /* ---------------------------------------------------------------- inicio */
 
+function sparklineSvg(vals, label, color = "#0062cc") {
+  const nums = (vals && vals.length ? vals : [0, 0]).map(Number);
+  const max = Math.max(1, ...nums), min = Math.min(0, ...nums), span = Math.max(1, max - min);
+  const w = 112, h = 30, pad = 3;
+  const pts = nums.map((v, i) => {
+    const x = nums.length === 1 ? w / 2 : pad + (i * (w - pad * 2)) / (nums.length - 1);
+    const y = h - pad - ((v - min) / span) * (h - pad * 2);
+    return `${x.toFixed(1)},${y.toFixed(1)}`;
+  }).join(" ");
+  return `<svg class="sparkline" viewBox="0 0 ${w} ${h}" role="img" aria-label="${esc(label)}"><polyline fill="none" stroke="${color}" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" points="${pts}"/></svg><span class="sr">${esc(label)}</span>`;
+}
+
 function renderInicio() {
   const m = E.mesh, c = E.campus, ua = E.ultimaAlerta;
   const tels = m.vertices.length;
@@ -413,9 +479,15 @@ function renderInicio() {
   $("#m-enl").textContent = m.aristas.length;
   $("#m-alc").textContent = ua ? `${alc}/${tels}` : "–";
   $("#m-alc").className = ua ? (alc < tels ? "ambar" : "rojo") : "";
+  const spMesh = $("#spark-mesh");
+  if (spMesh) {
+    const grados = m.vertices.map(v => m.aristas.filter(a => a.origen === v).length);
+    const prom = grados.length ? (grados.reduce((s, x) => s + x, 0) / grados.length).toFixed(1) : "0";
+    spMesh.innerHTML = sparklineSvg(grados.slice(0, 12), `Conectividad Mesh: promedio ${prom} enlaces por teléfono`, "#0062cc");
+  }
   const sinSalida = m.vertices.filter(v => !m.aristas.some(a => a.origen === v));
   $("#m-nota").textContent = (ua ? `Última alerta: ${ua.origen}, TTL ${ua.ttl}, a las ${ua.hora}. ` : "") +
-    (sinSalida.length ? `Sin enlaces de salida: ${sinSalida.join(", ")}.` : "");
+    (sinSalida.length ? `Sin enlaces de salida: ${sinSalida.join(", ")}.` : "Todos los teléfonos tienen al menos un enlace saliente.");
 
   const nCong = Object.keys(c.congestion).length;
   $("#c-lug").textContent = c.vertices.length;
@@ -428,9 +500,19 @@ function renderInicio() {
   const r = miRuta;   // la ruta de ESTE teléfono (cada estudiante está en un lugar distinto)
   $("#c-tie").textContent = r ? (r.tiempo === null ? "sin ruta" : `${fmt(r.tiempo)} s`) : "–";
   $("#c-tie").className = r ? (r.tiempo === null ? "rojo" : "verde") : "";
+  const spCamp = $("#spark-campus");
+  if (spCamp) {
+    const serie = r && r.ruta && r.ruta.length > 1
+      ? pasosDeRuta(r.ruta).map(p => p.segundos)
+      : [c.zonasSeguras.length, Math.max(0, c.aristas.length - c.bloqueados.length), c.bloqueados.length, nCong];
+    const lbl = r && r.tiempo !== null
+      ? `Duración de pasos de tu ruta: total ${fmt(r.tiempo)} segundos`
+      : `Estado del campus: ${c.bloqueados.length} bloqueados y ${nCong} con congestión`;
+    spCamp.innerHTML = sparklineSvg(serie, lbl, r && r.tiempo === null ? "#d92b00" : "#00702e");
+  }
   $("#c-nota").textContent = r
     ? (r.tiempo === null ? `Desde ${r.origen} no se llega a ningún punto seguro.` : `Desde ${r.origen}: evacúa hacia ${r.ruta[r.ruta.length - 1]}.`)
-    : "Elige dónde estás en la pestaña Campus.";
+    : "Elige dónde estás en la pestaña Evacuar.";
 
   const emergencia = ua || c.bloqueados.length || nCong;
   $("#hero").className = "hero " + (emergencia ? "emergencia" : "calma");
@@ -782,17 +864,23 @@ function renderCampus() {
   const pasos = r.ruta.length > 1 ? pasosDeRuta(r.ruta) : [];
   pasosActuales = pasos;
   if (pasoActivo >= pasos.length) pasoActivo = -1;
+  const sparkRuta = pasos.length ? sparklineSvg(pasos.map(p => p.segundos), `Perfil de tiempos por paso: ${pasos.length} pasos en ${minutos(r.tiempo)}`, "#0062cc") : "";
   info.innerHTML = `
     <div class="destino">
       <span class="destino-etq">Evacúa hacia</span>
       <b class="destino-nombre">${esc(destino)}</b>
-      <span class="destino-tiempo">${minutos(r.tiempo)} caminando · ${pasos.length} paso${pasos.length === 1 ? "" : "s"}</span>
+      <div class="destino-hero">
+        <strong class="destino-hero-num">${minutos(r.tiempo)}</strong>
+        ${sparkRuta}
+      </div>
+      <span class="destino-tiempo">Caminando · ${pasos.length} paso${pasos.length === 1 ? "" : "s"}</span>
       ${cambio}
     </div>
+    ${r.ruta.length > 1 ? `<details class="metrica-det"><summary>Ver ruta vértice a vértice (${r.ruta.length} nodos)</summary><p class="nota">${r.ruta.map(esc).join(" → ")}</p></details>` : ""}
     ${r.ruta.length === 1 ? `<p class="nota">Ya estás en un punto seguro.</p>` : `
-      <div class="paso-herramientas">
+      <div class="paso-herramientas cta-pulgar">
         <button type="button" class="btn mini secundario" data-accion="paso-ant">← Anterior</button>
-        <button type="button" class="btn mini" data-accion="leer-voz" id="btn-voz"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4zm12.5 3a4.5 4.5 0 0 0-2.5-4v8a4.5 4.5 0 0 0 2.5-4ZM14 3.2v2.1a7 7 0 0 1 0 13.4v2.1a9 9 0 0 0 0-17.6Z"/></svg> Leer ruta</button>
+        <button type="button" class="btn primario" data-accion="leer-voz" id="btn-voz"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4zm12.5 3a4.5 4.5 0 0 0-2.5-4v8a4.5 4.5 0 0 0 2.5-4ZM14 3.2v2.1a7 7 0 0 1 0 13.4v2.1a9 9 0 0 0 0-17.6Z"/></svg> Leer ruta</button>
         <button type="button" class="btn mini secundario" data-accion="paso-sig">Siguiente →</button>
       </div>
       <p class="nota">Toca un paso para resaltarlo en el mapa 3D.</p>`}
@@ -1455,7 +1543,13 @@ function irA(nombre) {
   if (nombre === "admin" && !document.body.classList.contains("es-admin")) nombre = "inicio";
   vista = nombre;
   $$(".vista").forEach(s => { s.hidden = s.id !== "v-" + nombre; });
-  $$(".nav a").forEach(a => (a.dataset.tab === nombre ? a.setAttribute("aria-current", "page") : a.removeAttribute("aria-current")));
+  $$(".nav a").forEach(a => {
+    const activa = a.dataset.tab === nombre;
+    a.setAttribute("aria-selected", String(activa));
+    a.tabIndex = activa ? 0 : -1;
+    if (activa) a.setAttribute("aria-current", "page");
+    else a.removeAttribute("aria-current");
+  });
   window.scrollTo(0, 0);
   render();
   if (window.alEntrarVista) window.alEntrarVista(nombre);
@@ -1494,10 +1588,11 @@ function eventos() {
   document.addEventListener("keydown", ev => {
     if (ev.key === "Escape") cerrarHoja();
     if (ev.key === "Tab" && !$("#hoja").hidden) {
-      const botones = [...$$(".hoja-carta button")];
-      if (!botones.length) return;
-      const primero = botones[0], ultimo = botones[botones.length - 1];
-      if (!botones.includes(document.activeElement)) { ev.preventDefault(); primero.focus(); }
+      const enfocables = [...$$(".hoja-carta button:not(:disabled), .hoja-carta select:not(:disabled), .hoja-carta input:not(:disabled), .hoja-carta textarea:not(:disabled), .hoja-carta a[href], .hoja-carta [tabindex]:not([tabindex='-1'])")]
+        .filter(el => el.offsetParent !== null);
+      if (!enfocables.length) return;
+      const primero = enfocables[0], ultimo = enfocables[enfocables.length - 1];
+      if (!enfocables.includes(document.activeElement)) { ev.preventDefault(); primero.focus(); }
       else if (ev.shiftKey && document.activeElement === primero) { ev.preventDefault(); ultimo.focus(); }
       else if (!ev.shiftKey && document.activeElement === ultimo) { ev.preventDefault(); primero.focus(); }
     }
@@ -1506,6 +1601,33 @@ function eventos() {
       document.activeElement.click();
     }
   });
+
+  // Gesto swipe-down para descartar la hoja inferior en móvil
+  const hojaCarta = $(".hoja-carta");
+  if (hojaCarta) {
+    let sy = 0, dy = 0, tocando = false;
+    hojaCarta.addEventListener("pointerdown", ev => {
+      const cuerpo = $(".hoja-cuerpo", hojaCarta);
+      if (ev.target.closest("button, select, input, textarea, a")) return;
+      if (cuerpo && cuerpo.scrollTop > 0 && !ev.target.closest(".hoja-asa")) return;
+      tocando = true; sy = ev.clientY; dy = 0;
+      hojaCarta.style.transition = "none";
+    });
+    hojaCarta.addEventListener("pointermove", ev => {
+      if (!tocando) return;
+      dy = Math.max(0, ev.clientY - sy);
+      if (dy > 4) hojaCarta.style.transform = `translateY(${dy}px)`;
+    });
+    const finSwipe = () => {
+      if (!tocando) return;
+      tocando = false;
+      hojaCarta.style.transition = "transform .18s ease";
+      if (dy > 75) cerrarHoja();
+      else hojaCarta.style.transform = "";
+    };
+    hojaCarta.addEventListener("pointerup", finSwipe);
+    hojaCarta.addEventListener("pointercancel", finSwipe);
+  }
 
   if ($("#mesh-origen")) $("#mesh-origen").addEventListener("change", () => { if (!animando) { alcanceMostrado = null; viaMostrada = {}; renderMesh(); } });
   $("#campus-ubicacion").addEventListener("change", ev => {
@@ -1571,14 +1693,16 @@ function eventos() {
       if (boton?.value === "vertice") {
         const v = fd.get("vertice");
         if (!v) { aviso("No hay vértices para eliminar.", false); return; }
-        hoja(`Eliminar «${v}»`, "Se eliminará el vértice y todas sus aristas entrantes y salientes.", [
-          { txt: "Sí, eliminar", cls: "peligro", fn: () => api(`${base}/vertice`, { accion: "eliminar", nombre: v }) },
+        hoja(`Eliminar vértice «${v}»`, "Se eliminará el vértice y todas sus aristas entrantes y salientes.", [
+          { txt: "Eliminar vértice", cls: "peligro", fn: () => api(`${base}/vertice`, { accion: "eliminar", nombre: v }) },
         ]);
       } else {
         const a = fd.get("arista");
         if (!a) { aviso("No hay aristas para eliminar.", false); return; }
         const [o, d] = JSON.parse(a);
-        await api(`${base}/arista`, { accion: "eliminar", origen: o, destino: d });
+        hoja(`Eliminar arista «${o} → ${d}»`, "Esta conexión dejará de existir en el grafo.", [
+          { txt: "Eliminar arista", cls: "peligro", fn: () => api(`${base}/arista`, { accion: "eliminar", origen: o, destino: d }) },
+        ]);
       }
     }
   }));

@@ -91,18 +91,25 @@
   function navEventos() {
     const nav = $("#navbar");
     let arrastrando = false;
+    let movio = false;
+    let xIni = 0;
     const indiceEn = x => {
       const tabs = pestanas();
       const r = nav.getBoundingClientRect();
       return Math.max(0, Math.min(tabs.length - 1, Math.floor((x - r.left) / (r.width / tabs.length))));
     };
     nav.addEventListener("pointerdown", ev => {
+      if (ev.pointerType === "mouse" && ev.button !== 0) return;
       arrastrando = true;
+      movio = false;
+      xIni = ev.clientX;
       try { nav.setPointerCapture(ev.pointerId); } catch (e) { /* sin captura */ }
       moverCapsula(0, ev.clientX - nav.getBoundingClientRect().left);
     });
     nav.addEventListener("pointermove", ev => {
-      if (arrastrando) moverCapsula(0, ev.clientX - nav.getBoundingClientRect().left);
+      if (!arrastrando) return;
+      if (Math.abs(ev.clientX - xIni) > 6) movio = true;
+      moverCapsula(0, ev.clientX - nav.getBoundingClientRect().left);
     });
     nav.addEventListener("pointerup", ev => {
       if (!arrastrando) return;
@@ -112,10 +119,33 @@
       requestAnimationFrame(capsulaActual);
     });
     nav.addEventListener("pointercancel", () => { arrastrando = false; capsulaActual(); });
-    nav.addEventListener("click", ev => ev.preventDefault());
+    nav.addEventListener("click", ev => {
+      if (movio) { ev.preventDefault(); movio = false; return; }
+      const a = ev.target.closest("a");
+      if (a) requestAnimationFrame(capsulaActual);
+    });
     nav.addEventListener("keydown", ev => {
       const a = ev.target.closest("a");
-      if (a && (ev.key === "Enter" || ev.key === " ")) { ev.preventDefault(); location.hash = a.getAttribute("href"); }
+      if (!a) return;
+      const tabs = pestanas();
+      const idx = tabs.indexOf(a);
+      if (ev.key === "ArrowRight" || ev.key === "ArrowLeft" || ev.key === "Home" || ev.key === "End") {
+        ev.preventDefault();
+        let next = idx;
+        if (ev.key === "ArrowRight") next = (idx + 1) % tabs.length;
+        else if (ev.key === "ArrowLeft") next = (idx - 1 + tabs.length) % tabs.length;
+        else if (ev.key === "Home") next = 0;
+        else if (ev.key === "End") next = tabs.length - 1;
+        const dest = tabs[next];
+        if (dest) {
+          dest.focus();
+          if (location.hash !== dest.getAttribute("href")) location.hash = dest.getAttribute("href");
+          requestAnimationFrame(capsulaActual);
+        }
+      } else if (ev.key === "Enter" || ev.key === " ") {
+        ev.preventDefault();
+        location.hash = a.getAttribute("href");
+      }
     });
     window.addEventListener("resize", capsulaActual);
   }
@@ -144,19 +174,59 @@
     aplicarRol();
   }
 
+  let regPaso = 1;
+  const REG_TITULOS = { 1: "Cuenta", 2: "Seguridad", 3: "Ubicación" };
+
+  async function actualizarWizard(enfocar = false) {
+    const esReg = modo === "registro";
+    const prog = $("#reg-progreso"), atras = $("#reg-atras"), btn = $("#login-btn");
+    if (prog) prog.hidden = !esReg;
+    if (atras) atras.hidden = !esReg || regPaso === 1;
+    $$("#login-form [data-reg-step]").forEach(el => {
+      const s = Number(el.dataset.regStep);
+      if (!esReg) el.hidden = el.classList.contains("solo-registro");
+      else el.hidden = s !== regPaso;
+    });
+    if (esReg) {
+      const txt = $("#reg-paso-txt");
+      if (txt) txt.textContent = `Paso ${regPaso} de 3 · ${REG_TITULOS[regPaso]}`;
+      $$("#reg-progreso [data-wstep]").forEach(li => {
+        const s = Number(li.dataset.wstep);
+        li.classList.toggle("hecho", s < regPaso);
+        if (s === regPaso) li.setAttribute("aria-current", "step");
+        else li.removeAttribute("aria-current");
+      });
+      if (btn) btn.textContent = regPaso < 3 ? "Continuar" : "Crear cuenta";
+      if (regPaso === 3) {
+        await cargarLugares();
+        const sel = $("#reg-lugar");
+        if (sel && !sel.options.length) llenarLugares(sel, "Edificio E");
+        const res = $("#reg-resumen");
+        if (res) res.textContent = `Cuenta: ${$("#login-nombre").value.trim() || "Estudiante"} (CIF ${$("#login-cif").value.trim().toUpperCase()}).`;
+      }
+      if (enfocar) {
+        const primero = $(`#login-form [data-reg-step="${regPaso}"] input, #login-form [data-reg-step="${regPaso}"] select`);
+        if (primero) primero.focus();
+      }
+    } else if (btn) {
+      btn.textContent = "Entrar";
+    }
+  }
+
   function cambiarModo(m) {
     modo = m;
-    $$("[data-modo]").forEach(b => b.setAttribute("aria-selected", b.dataset.modo === m));
-    $$(".solo-registro").forEach(e => { e.hidden = m !== "registro"; });
-    $("#login-btn").textContent = m === "registro" ? "Crear cuenta" : "Entrar";
+    regPaso = 1;
+    $$("[data-modo]").forEach(b => b.setAttribute("aria-selected", String(b.dataset.modo === m)));
     $("#login-clave").autocomplete = m === "registro" ? "new-password" : "current-password";
     $("#login-error").textContent = "";
+    actualizarWizard(false);
   }
 
   function mostrarLogin() {
     YO = null;
     detenerSondeoMensajes();
     cerrarChat();
+    if (window.__cerrarFab) window.__cerrarFab();
     document.body.classList.add("sin-sesion");
     aplicarRol();
     const v = $("#v-login");
@@ -294,12 +364,33 @@
     ev.preventDefault();
     const cif = $("#login-cif").value.trim(), clave = $("#login-clave").value;
     const err = $("#login-error");
-    if (!cif || !clave) { err.textContent = "Escribe tu CIF y tu contraseña."; return; }
-    if (modo === "registro" && clave !== $("#login-clave2").value) { err.textContent = "Las contraseñas no coinciden."; return; }
+    err.textContent = "";
+    if (modo === "registro") {
+      if (regPaso === 1) {
+        if (!cif || cif.length < 3) { err.textContent = "Escribe un CIF válido (mínimo 3 caracteres)."; $("#login-cif").focus(); return; }
+        if (!$("#login-nombre").value.trim()) { err.textContent = "Escribe tu nombre."; $("#login-nombre").focus(); return; }
+        regPaso = 2;
+        await actualizarWizard(true);
+        return;
+      }
+      if (regPaso === 2) {
+        if (!clave || clave.length < 4) { err.textContent = "La contraseña debe tener al menos 4 caracteres."; $("#login-clave").focus(); return; }
+        if (clave !== $("#login-clave2").value) { err.textContent = "Las contraseñas no coinciden."; $("#login-clave2").focus(); return; }
+        regPaso = 3;
+        await actualizarWizard(true);
+        return;
+      }
+      const piso = Number($("#reg-piso")?.value || 1);
+      guardarLS("mi-piso", piso);
+    } else if (!cif || !clave) {
+      err.textContent = "Escribe tu CIF y tu contraseña.";
+      return;
+    }
     const btn = $("#login-btn");
     btn.disabled = true;
+    const lugarSel = $("#reg-lugar")?.value || "Edificio E";
     const j = modo === "registro"
-      ? await pedir("/api/registro", { cif, nombre: $("#login-nombre").value, contrasena: clave })
+      ? await pedir("/api/registro", { cif, nombre: $("#login-nombre").value.trim(), contrasena: clave, lugar: lugarSel })
       : await pedir("/api/login", { cif, contrasena: clave });
     btn.disabled = false;
     if (!j.ok) { err.textContent = j.mensaje || "No se pudo entrar."; return; }
@@ -314,25 +405,13 @@
 
   function menuCuenta() {
     if (!YO) return;
-    const hoja = $("#hoja");
-    $("#hoja-titulo").textContent = YO.nombre;
-    $("#hoja-texto").textContent = YO.admin ? `Administrador · ${YO.telefono}` : `CIF ${YO.cif} · ${YO.telefono}`;
-    const acc = $("#hoja-acciones");
-    acc.innerHTML = "";
     const instalar = $("#btn-instalar");
-    if (instalar && !instalar.hidden) {
-      const b = document.createElement("button");
-      b.className = "btn ancho";
-      b.textContent = "Instalar la app";
-      b.onclick = () => { hoja.hidden = true; instalar.click(); };
-      acc.appendChild(b);
+    const acc = [];
+    if (instalar && !instalar.hidden) acc.push({ txt: "Instalar la app", cls: "secundario", fn: () => instalar.click() });
+    acc.push({ txt: "Cerrar sesión", cls: "peligro", fn: salir });
+    if (window.abrirHoja) {
+      window.abrirHoja(YO.nombre, YO.admin ? `Administrador · ${YO.telefono}` : `CIF ${YO.cif} · ${YO.telefono}`, acc);
     }
-    const salirB = document.createElement("button");
-    salirB.className = "btn peligro ancho";
-    salirB.textContent = "Cerrar sesión";
-    salirB.onclick = () => { hoja.hidden = true; salir(); };
-    acc.appendChild(salirB);
-    hoja.hidden = false;
   }
 
   async function salir() {
@@ -387,6 +466,7 @@
     const b = $("#badge-mensajes");
     b.hidden = !n;
     b.textContent = n > 99 ? "99+" : n;
+    b.setAttribute("aria-label", n ? `${n} mensaje${n === 1 ? "" : "s"} sin leer` : "");
   }
 
   function iniciarSondeoMensajes() {
@@ -464,6 +544,7 @@
 
   function abrirChat(cif) {
     conContacto = cif;
+    if (window.__cerrarFab) window.__cerrarFab();
     $("#chat").hidden = false;
     document.body.classList.add("con-chat");
     renderChat(true);
@@ -474,6 +555,89 @@
     $("#chat").hidden = true;
     document.body.classList.remove("con-chat");
     if (YO && vistaActual() === "mensajes") renderMensajes();
+  }
+
+  let chatContactoRender = null;
+  let firmaRapidos = "";
+
+  function anunciarChat(txt) {
+    const live = $("#chat-live");
+    if (live) { live.textContent = ""; requestAnimationFrame(() => { live.textContent = txt; }); }
+  }
+
+  function actualizarActividadChat(enviando, lista) {
+    const box = $("#chat-actividad");
+    const txt = $("#chat-actividad-txt");
+    if (!box || !txt) return;
+    const enCola = (lista || []).some(m => m.de === YO?.cif && m.estado !== "entregado");
+    if (enviando) {
+      txt.textContent = "Enviando mensaje por red Mesh…";
+      box.hidden = false;
+    } else if (enCola) {
+      txt.textContent = "En custodia DTN: buscando teléfono cercano para relevar…";
+      box.hidden = false;
+    } else {
+      box.hidden = true;
+    }
+  }
+
+  function sugerenciasContextuales(lista) {
+    const ultimo = [...(lista || [])].reverse().find(m => m.de !== YO?.cif) || (lista || [])[lista.length - 1];
+    const t = String(ultimo?.texto || "").toLowerCase();
+    if (/sos|ayuda|atrapad|herid|emergencia/.test(t)) {
+      return [
+        { lbl: "Voy en camino", txt: "Voy en camino a ayudarte, mantén la calma." },
+        { lbl: "¿En qué aula?", txt: "¿En qué edificio o aula exacta estás?" },
+        { lbl: "Aviso a brigada", txt: "Ya estoy avisando a la brigada de emergencia." },
+      ];
+    }
+    if (/bloque|cerrad|escalera|derrumbe|pasillo/.test(t)) {
+      return [
+        { lbl: "Gracias, recalculo", txt: "Gracias por avisar, ya estoy recalculando mi ruta." },
+        { lbl: "¿Qué salida sirve?", txt: "¿Qué salida alternativa está despejada?" },
+        { lbl: "Voy a Plazoleta", txt: "Voy hacia el Punto Seguro Plazoleta." },
+      ];
+    }
+    if (/d[oó]nde|ubicaci[oó]n|est[aá]s|edificio/.test(t)) {
+      return [
+        { lbl: `En ${YO?.lugar || "campus"}`, txt: `Estoy en ${YO?.lugar || "el campus"} ahora mismo.` },
+        { lbl: "Saliendo ya", txt: "Ya voy saliendo hacia la zona segura." },
+        { lbl: "Estoy en zona segura", txt: "Ya llegué a la zona segura, estoy bien." },
+      ];
+    }
+    return [
+      { lbl: "Estoy bien", txt: "Estoy bien, voy a la zona segura." },
+      { lbl: "Necesito ayuda", txt: "SOS · Necesito ayuda, no puedo salir." },
+      { lbl: `En ${YO?.lugar || "campus"}`, txt: `Estoy en ${YO?.lugar || "el campus"}, todo despejado.` },
+    ];
+  }
+
+  function renderRapidos(lista) {
+    const box = $("#chat-rapidos");
+    if (!box) return;
+    const sugs = sugerenciasContextuales(lista);
+    const firma = sugs.map(s => s.lbl).join("|");
+    if (firma === firmaRapidos) return;
+    firmaRapidos = firma;
+    box.innerHTML = sugs.map((s, i) => `<button type="button" data-rapido="${esc(s.txt)}" data-hotkey="${i + 1}"><kbd>${i + 1}</kbd>${esc(s.lbl)}</button>`).join("") +
+      `<button type="button" data-escribir-otro="1"><kbd>${sugs.length + 1}</kbd>Escribir otro…</button>` +
+      `<button type="button" id="btn-reportar-bloqueo"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7h18v6H3zm2 2v2l2-2zm5 0-2 2h3l2-2zm6 0-2 2h3l2-2zM5 13h2v6H5zm12 0h2v6h-2z"/></svg> Reportar bloqueo</button>`;
+  }
+
+  function renderItemChat(m, c) {
+    const mio = m.de === YO.cif;
+    const entregado = m.estado === "entregado";
+    const tic = entregado
+      ? '<span class="tic"><svg class="ico-tic" viewBox="0 0 24 16" aria-hidden="true"><path d="M1 8.5 5 12.5 13 4.5l-1.4-1.4L5 9.7 2.4 7.1zM9.5 11.1l1.4 1.4L19.9 3.5l-1.4-1.4z"/></svg><span class="sr">Entregado</span></span>'
+      : '<span class="tic espera"><svg class="ico-tic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18Zm0 2a7 7 0 1 1 0 14 7 7 0 0 1 0-14Zm-1 2v6l5 3 1-1.7-4-2.3V7z"/></svg><span class="sr">En custodia</span></span>';
+    const detalle = entregado
+      ? `${Math.max(1, m.ruta.length - 1)} salto${m.ruta.length === 2 ? "" : "s"} · ${seg(m.retardo)}${m.viaCola ? " · salió de la cola" : ""}`
+      : "En cola: sin camino en la red";
+    const nombrePar = m.deNombre || c.nombre || m.de;
+    const cab = mio
+      ? `<div class="chat-msg-cab"><span class="chat-autor">Tú</span></div>`
+      : `<div class="chat-msg-cab"><span class="chat-msg-av" style="background:${colorDe(m.de)}" aria-hidden="true">${esc(iniciales(nombrePar))}</span><span class="chat-autor">${esc(nombrePar)}</span></div>`;
+    return `${cab}<p>${esc(m.texto)}</p><span class="meta"><time>${esc(m.hora.slice(0, 5))}</time>${mio ? tic : ""}</span><details><summary>${esc(detalle)}</summary>${m.ruta.length ? `<span>${m.ruta.map(esc).join(" → ")}</span>` : ""}</details>`;
   }
 
   function renderChat(alFinal) {
@@ -490,21 +654,38 @@
       : CONV.mensajes.filter(m => (m.de === YO.cif && m.para === c.cif) || (m.de === c.cif && m.para === YO.cif));
     const ol = $("#chat-lista");
     const abajo = alFinal || ol.scrollHeight - ol.scrollTop - ol.clientHeight < 60;
-    ol.innerHTML = lista.length ? lista.map(m => {
-      const mio = m.de === YO.cif;
-      const tic = m.estado === "entregado" ? '<span class="tic"><svg class="ico-tic" viewBox="0 0 24 16" aria-hidden="true"><path d="M1 8.5 5 12.5 13 4.5l-1.4-1.4L5 9.7 2.4 7.1zM9.5 11.1l1.4 1.4L19.9 3.5l-1.4-1.4z"/></svg></span>' : '<span class="tic espera"><svg class="ico-tic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18Zm0 2a7 7 0 1 1 0 14 7 7 0 0 1 0-14Zm-1 2v6l5 3 1-1.7-4-2.3V7z"/></svg></span>';
-      const detalle = m.estado === "entregado"
-        ? `${Math.max(1, m.ruta.length - 1)} salto${m.ruta.length === 2 ? "" : "s"} · ${seg(m.retardo)}${m.viaCola ? " · salió de la cola" : ""}`
-        : "En cola: sin camino en la red";
-      const autor = esGrupo && !mio ? `<small style="display:block;font-weight:700;color:var(--azul);margin-bottom:2px">${esc(m.deNombre || m.de)}</small>` : "";
-      return `<li class="${mio ? "mio" : "suyo"}">
-        ${autor}
-        <p>${esc(m.texto)}</p>
-        <span class="meta"><time>${esc(m.hora.slice(0, 5))}</time>${mio ? tic : ""}</span>
-        <details><summary>${esc(detalle)}</summary>${m.ruta.length ? `<span>${m.ruta.map(esc).join(" → ")}</span>` : ""}</details>
-      </li>`;
-    }).join("") : '<li class="vacio">Escribe el primer mensaje. Viajará de teléfono en teléfono por la red Mesh sin internet.</li>';
+
+    if (chatContactoRender !== conContacto) {
+      ol.innerHTML = "";
+      chatContactoRender = conContacto;
+      firmaRapidos = "";
+    }
+    if (!lista.length) {
+      if (!ol.querySelector(".vacio")) {
+        ol.innerHTML = '<li class="vacio">Escribe el primer mensaje. Viajará de teléfono en teléfono por la red Mesh sin internet.</li>';
+      }
+    } else {
+      ol.querySelector(".vacio")?.remove();
+      for (const m of lista) {
+        const key = String(m.id);
+        const firma = `${m.estado}|${(m.ruta || []).length}|${m.retardo}|${m.viaCola ? 1 : 0}`;
+        let li = ol.querySelector(`li[data-msg-id="${CSS.escape(key)}"]`);
+        if (!li) {
+          li = document.createElement("li");
+          li.className = m.de === YO.cif ? "mio" : "suyo";
+          li.dataset.msgId = key;
+          li.dataset.msgFirma = firma;
+          li.innerHTML = renderItemChat(m, c);
+          ol.appendChild(li);
+        } else if (li.dataset.msgFirma !== firma) {
+          li.dataset.msgFirma = firma;
+          li.innerHTML = renderItemChat(m, c);
+        }
+      }
+    }
     if (abajo) ol.scrollTop = ol.scrollHeight;
+    actualizarActividadChat(false, lista);
+    renderRapidos(lista);
     marcarLeidos(lista.filter(m => m.de !== YO.cif && m.estado === "entregado").map(m => m.id));
     actualizarBadge();
   }
@@ -516,43 +697,44 @@
     if (!texto || !conContacto) return;
     t.value = "";
     t.style.height = "";
+    actualizarActividadChat(true, []);
     const j = await pedir("/api/mensajes/enviar", { para: conContacto, texto });
-    if (!j.ok) { t.value = texto; avisar(j.mensaje, false); return; }
+    if (!j.ok) { actualizarActividadChat(false, []); t.value = texto; avisar(j.mensaje, false); return; }
     if (j.enviado && j.enviado.estado !== "entregado") avisar(j.mensaje, false);
     firmaMsj = "";
     await cargarMensajes();
     renderChat(true);
+    anunciarChat("Mensaje enviado.");
   }
 
   async function elegirLugar() {
     await cargarLugares();
-    const hoja = $("#hoja");
-    $("#hoja-titulo").textContent = "¿Dónde estás?";
-    $("#hoja-texto").textContent = "Tu teléfono se enlaza con los que estén cerca.";
-    const acc = $("#hoja-acciones");
-    acc.innerHTML = '<label class="campo"><span>Lugar</span><select id="hoja-lugar"></select></label>';
-    llenarLugares($("#hoja-lugar"), YO.lugar);
-    const bGps = document.createElement("button");
-    bGps.type = "button";
-    bGps.className = "btn secundario ancho";
-    bGps.innerHTML = '<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5a6.6 6.6 0 0 0-6.6 6.6c0 4.9 6.6 12.4 6.6 12.4s6.6-7.5 6.6-12.4A6.6 6.6 0 0 0 12 2.5Zm0 9.2a2.6 2.6 0 1 1 0-5.2 2.6 2.6 0 0 1 0 5.2Z"/></svg> Detectar mi edificio (GPS)';
-    bGps.onclick = async () => {
-      hoja.hidden = true;
-      await aproximarEdificioPorGPS(true);
-    };
-    acc.appendChild(bGps);
-    const b = document.createElement("button");
-    b.className = "btn primario ancho";
-    b.textContent = "Guardar";
-    b.onclick = async () => {
-      const lugar = $("#hoja-lugar").value;
-      hoja.hidden = true;
-      const j = await pedir("/api/yo/lugar", { lugar });
-      avisar(j.mensaje, j.ok);
-      if (j.ok) { firmaMsj = ""; await cargarMensajes(); renderMensajes(); }
-    };
-    acc.appendChild(b);
-    hoja.hidden = false;
+    if (!window.abrirHoja) return;
+    window.abrirHoja(
+      "¿Dónde estás?",
+      "Tu teléfono se enlaza con los que estén cerca.",
+      [
+        {
+          html: '<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5a6.6 6.6 0 0 0-6.6 6.6c0 4.9 6.6 12.4 6.6 12.4s6.6-7.5 6.6-12.4A6.6 6.6 0 0 0 12 2.5Zm0 9.2a2.6 2.6 0 1 1 0-5.2 2.6 2.6 0 0 1 0 5.2Z"/></svg> Detectar mi edificio (GPS)',
+          cls: "secundario",
+          fn: () => aproximarEdificioPorGPS(true),
+        },
+        {
+          txt: "Guardar",
+          cls: "primario",
+          fn: async () => {
+            const lugar = $("#hoja-lugar")?.value;
+            const j = await pedir("/api/yo/lugar", { lugar });
+            avisar(j.mensaje, j.ok);
+            if (j.ok) { firmaMsj = ""; await cargarMensajes(); renderMensajes(); }
+          },
+        },
+      ],
+      {
+        extraHtml: '<label class="campo"><span>Lugar</span><select id="hoja-lugar"></select></label>',
+        onMount: cont => llenarLugares($("#hoja-lugar", cont), YO.lugar),
+      }
+    );
   }
 
   /* ------------------------------------------------------------ Dijkstra 2D */
@@ -860,19 +1042,13 @@
 
   function abrirGuia(clave) {
     const g = GUIAS[clave];
-    if (!g) return;
-    const hoja = $("#hoja");
-    $("#hoja-titulo").textContent = g.titulo;
-    $("#hoja-texto").textContent = g.sub;
-    const acc = $("#hoja-acciones");
-    acc.innerHTML = `<ol class="guia-pasos">${g.pasos.map((p, i) => `<li><b>${i + 1}</b><span>${esc(p)}</span></li>`).join("")}</ol>`;
-    const b = document.createElement("button");
-    b.type = "button";
-    b.className = "btn primario ancho";
-    b.textContent = g.btn.txt;
-    b.onclick = () => { hoja.hidden = true; location.hash = g.btn.hash; };
-    acc.appendChild(b);
-    hoja.hidden = false;
+    if (!g || !window.abrirHoja) return;
+    window.abrirHoja(
+      g.titulo,
+      g.sub,
+      [{ txt: g.btn.txt, cls: "primario", fn: () => { location.hash = g.btn.hash; } }],
+      { extraHtml: `<ol class="guia-pasos">${g.pasos.map((p, i) => `<li><b>${i + 1}</b><span>${esc(p)}</span></li>`).join("")}</ol>` }
+    );
   }
 
   function sonarAlerta() {
@@ -911,45 +1087,98 @@
   }
 
   function abrirReportarBloqueo() {
-    const hoja = $("#hoja");
-    $("#hoja-titulo").textContent = "Reportar pasillo bloqueado";
-    $("#hoja-texto").textContent = "Se avisará por Mesh y todos recalcularán su ruta.";
-    const acc = $("#hoja-acciones");
-    acc.innerHTML = "";
+    if (!window.abrirHoja) return;
     const pasos = [
       { txt: "Escalera Oeste del Edificio P (piso 3 a 2)", o: "P Escalera Oeste P3", d: "P Escalera Oeste P2" },
       { txt: "Escalera central B–C (piso 3 a 2)", o: "C Escalera Central P3", d: "B Escalera Central P2" },
       { txt: "Pasarela del B hacia la Plazoleta", o: "Pasarela Edificio B", d: "Punto Seguro Plazoleta" },
       { txt: "Salida oeste del B hacia el Auditorio", o: "B Salida Oeste", d: "Auditorio Central" },
     ];
-    pasos.forEach(p => {
-      const b = document.createElement("button");
-      b.type = "button";
-      b.className = "btn peligro ancho";
-      b.textContent = p.txt;
-      b.onclick = async () => {
-        hoja.hidden = true;
-        const j = await pedir("/api/campus/bloquear", { origen: p.o, destino: p.d, ambos: true });
-        if (j.ok) {
-          sonarAlerta();
-          avisar(`Bloqueo difundido: ${p.txt}`);
-          if (window.iniciarUnexuam) window.iniciarUnexuam();
-          firmaMsj = "";
-          await cargarMensajes();
-          if (!$("#chat").hidden) renderChat(true);
-        } else {
-          avisar(j.mensaje || "Ese paso ya estaba bloqueado.", false);
-        }
-      };
-      acc.appendChild(b);
+    window.abrirHoja(
+      "Reportar pasillo bloqueado",
+      "Se avisará por Mesh y todos recalcularán su ruta.",
+      pasos.map(p => ({
+        txt: p.txt,
+        cls: "peligro",
+        fn: async () => {
+          const j = await pedir("/api/campus/bloquear", { origen: p.o, destino: p.d, ambos: true });
+          if (j.ok) {
+            sonarAlerta();
+            avisar(`Bloqueo difundido: ${p.txt}`);
+            if (window.iniciarUnexuam) window.iniciarUnexuam();
+            firmaMsj = "";
+            await cargarMensajes();
+            if (!$("#chat").hidden) renderChat(true);
+          } else {
+            avisar(j.mensaje || "Ese paso ya estaba bloqueado.", false);
+          }
+        },
+      }))
+    );
+  }
+
+  function fabEventos() {
+    const main = $("#fab-main"), menu = $("#fab-menu"), scrim = $("#fab-scrim");
+    if (!main || !menu || !scrim) return;
+    const items = () => $$(".fab-mini-btn", menu);
+    const cerrarFab = (devolverFoco = false) => {
+      if (menu.hidden) return;
+      menu.hidden = true;
+      scrim.hidden = true;
+      main.setAttribute("aria-expanded", "false");
+      main.setAttribute("aria-label", "Abrir acciones rápidas de emergencia");
+      if (devolverFoco) main.focus();
+    };
+    const abrirFab = () => {
+      if (navigator.vibrate && window.__UNEXUAM_PREFS__?.vibrar !== false) navigator.vibrate(18);
+      menu.hidden = false;
+      scrim.hidden = false;
+      main.setAttribute("aria-expanded", "true");
+      main.setAttribute("aria-label", "Cerrar acciones rápidas de emergencia");
+      items()[0]?.focus();
+    };
+    main.addEventListener("click", () => (menu.hidden ? abrirFab() : cerrarFab(false)));
+    scrim.addEventListener("click", () => cerrarFab(true));
+    menu.addEventListener("click", ev => {
+      const btn = ev.target.closest("[data-fab]");
+      if (!btn) return;
+      cerrarFab(false);
+      const act = btn.dataset.fab;
+      if (act === "gps") aproximarEdificioPorGPS(true);
+      else if (act === "bloqueo") abrirReportarBloqueo();
+      else if (act === "sos") enviarSOS();
     });
-    hoja.hidden = false;
+    document.addEventListener("keydown", ev => {
+      if (menu.hidden) return;
+      if (ev.key === "Escape") { ev.preventDefault(); cerrarFab(true); return; }
+      const lista = items();
+      const idx = lista.indexOf(document.activeElement);
+      if (ev.key === "ArrowDown") { ev.preventDefault(); lista[(idx + 1) % lista.length]?.focus(); }
+      else if (ev.key === "ArrowUp") { ev.preventDefault(); lista[(idx - 1 + lista.length) % lista.length]?.focus(); }
+      else if (ev.key === "Tab") {
+        const todos = [...lista, main];
+        const i = todos.indexOf(document.activeElement);
+        ev.preventDefault();
+        todos[(i + (ev.shiftKey ? -1 : 1) + todos.length) % todos.length]?.focus();
+      }
+    });
+    window.addEventListener("hashchange", () => cerrarFab(false));
+    window.__cerrarFab = () => cerrarFab(false);
   }
 
   function eventos() {
     navEventos();
+    fabEventos();
     $("#login-form").addEventListener("submit", entrar);
     $("#login-demo").addEventListener("click", entrarDemo);
+    const btnAtras = $("#reg-atras");
+    if (btnAtras) btnAtras.addEventListener("click", () => { if (regPaso > 1) { regPaso--; $("#login-error").textContent = ""; actualizarWizard(true); } });
+    const btnRegGps = $("#reg-gps");
+    if (btnRegGps) btnRegGps.addEventListener("click", async () => {
+      const lugar = await aproximarEdificioPorGPS(true);
+      const sel = $("#reg-lugar");
+      if (lugar && sel) { sel.value = lugar; }
+    });
     $$("[data-modo]").forEach(b => b.addEventListener("click", () => cambiarModo(b.dataset.modo)));
     $("#btn-cuenta").addEventListener("click", () => (window.abrirAjustes ? window.abrirAjustes() : menuCuenta()));
     window.__UNEXUAM_AJUSTES__ = {
@@ -967,7 +1196,8 @@
     document.querySelectorAll("[data-carrusel]").forEach(b => b.addEventListener("click", () => {
       const pista = $("#carrusel-guias");
       const tarjeta = pista.querySelector(".tarjeta-figma");
-      pista.scrollBy({ left: (+b.dataset.carrusel) * ((tarjeta ? tarjeta.offsetWidth : 150) + 12), behavior: "smooth" });
+      const sinAnim = document.body.classList.contains("aj-sin-anim") || window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+      pista.scrollBy({ left: (+b.dataset.carrusel) * ((tarjeta ? tarjeta.offsetWidth : 150) + 12), behavior: sinAnim ? "auto" : "smooth" });
     }));
     const guiasBox = $("#guias-emergencia");
     if (guiasBox) guiasBox.addEventListener("click", ev => {
@@ -976,8 +1206,6 @@
     });
     const btnSos = $("#btn-sos");
     if (btnSos) btnSos.addEventListener("click", enviarSOS);
-    const btnBloq = $("#btn-reportar-bloqueo");
-    if (btnBloq) btnBloq.addEventListener("click", abrirReportarBloqueo);
     window.addEventListener("unexuam-mesh-update", async (ev) => {
       if (!YO) return;
       firmaMsj = "";
@@ -1013,9 +1241,30 @@
       const b = ev.target.closest("[data-contacto]");
       if (b) abrirChat(b.dataset.contacto);
     });
+    const usarRapido = b => {
+      b.classList.add("seleccionado");
+      setTimeout(() => b.classList.remove("seleccionado"), 220);
+      if (b.dataset.escribirOtro) {
+        ta.focus();
+        anunciarChat("Campo de mensaje listo para escribir.");
+        return;
+      }
+      ta.value = b.dataset.rapido;
+      ta.focus();
+      anunciarChat(`Respuesta rápida seleccionada: ${b.dataset.rapido}`);
+    };
     $("#chat-rapidos").addEventListener("click", ev => {
-      const b = ev.target.closest("[data-rapido]");
-      if (b) { ta.value = b.dataset.rapido; ta.focus(); }
+      if (ev.target.closest("#btn-reportar-bloqueo")) { abrirReportarBloqueo(); return; }
+      const b = ev.target.closest("[data-rapido], [data-escribir-otro]");
+      if (b) usarRapido(b);
+    });
+    document.addEventListener("keydown", ev => {
+      if ($("#chat").hidden || !$("#hoja").hidden) return;
+      if (document.activeElement && /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName)) return;
+      if (/^[1-4]$/.test(ev.key) && !ev.ctrlKey && !ev.metaKey && !ev.altKey) {
+        const b = $(`#chat-rapidos [data-hotkey="${ev.key}"]`) || (ev.key === "4" ? $("#chat-rapidos [data-escribir-otro]") : null);
+        if (b) { ev.preventDefault(); usarRapido(b); }
+      }
     });
     window.addEventListener("hashchange", () => { if (!$("#chat").hidden) cerrarChat(); });
     $$("[data-admin]").forEach(b => b.addEventListener("click", () => pestanaAdmin(b.dataset.admin)));

@@ -713,7 +713,7 @@ def api_bloquear():
                 quitadas.append(f"{a} → {b}")
         if not quitadas:
             return responder(False, f"No existe el paso {o} → {dst}.")
-        return responder(True, "Pasillo bloqueado (eliminarArista): " + ", ".join(quitadas) + ".")
+        return responder(True, "Pasillo bloqueado: " + ", ".join(quitadas) + ".")
 
 
 @app.post("/api/campus/desbloquear")
@@ -726,7 +726,7 @@ def api_desbloquear():
             if g.insertarArista(b["origen"], b["destino"], peso):
                 n += 1
         S["bloqueados"] = []
-        return responder(True, f"Se reabrieron {n} pasos (insertarArista con su peso original).")
+        return responder(True, f"Se reabrieron {n} pasos con su tiempo original.")
 
 
 @app.post("/api/campus/congestionar")
@@ -743,9 +743,9 @@ def api_congestionar():
         if not 0.1 <= acumulado <= 100:
             return responder(False, "Esa congestión ya llegó a su límite (entre ×0.1 y ×100).")
         if not B["aplicarAlerta"](S["campus"], lugar, factor):
-            return responder(False, f"aplicarAlerta devolvió False para «{lugar}».")
+            return responder(False, f"No se pudo aplicar congestión en «{lugar}».")
         S["congestion"][lugar] = round(S["congestion"].get(lugar, 1) * factor, 3)
-        return responder(True, f"{lugar}: los pasos que entran se multiplicaron ×{factor:g} (aplicarAlerta).")
+        return responder(True, f"{lugar}: congestión aplicada (tiempos ×{factor:g}).")
 
 
 # --- Administrar (ambos grafos) ------------------------------------------------
@@ -765,7 +765,7 @@ def api_vertice(grafo):
                 return responder(False, f"«{nombre}» ya existe.")
             if grafo == "campus" and d.get("zonaSegura"):
                 S["zonas"].append(nombre)
-            return responder(True, f"Vértice «{nombre}» insertado en {grafo}.")
+            return responder(True, f"Vértice «{nombre}» agregado en {grafo}.")
         if accion == "eliminar":
             v_real = g.buscarVertice(nombre)
             if v_real is None or not g.eliminarVertice(v_real.nombre):
@@ -795,8 +795,8 @@ def api_arista(grafo):
                 return responder(False, "El peso debe ser un número mayor o igual a 0.")
             if accion == "insertar":
                 if not g.insertarArista(o, dst, peso):
-                    return responder(False, f"No se pudo insertar {o} → {dst}: falta algún vértice.")
-                return responder(True, f"Arista {o} → {dst} (peso {peso:g}) insertada en {grafo}.")
+                    return responder(False, f"No se pudo agregar {o} → {dst}: falta algún vértice.")
+                return responder(True, f"Arista {o} → {dst} (peso {peso:g}) agregada en {grafo}.")
             if not g.actualizarPeso(o, dst, peso):
                 return responder(False, f"No existe la arista {o} → {dst}.")
             return responder(True, f"Peso de {o} → {dst} actualizado a {peso:g}.")
