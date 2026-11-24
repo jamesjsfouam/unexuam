@@ -831,9 +831,13 @@ body.sin-sesion main, body.sin-sesion .barra { visibility: hidden; }
 .banner-app-evacuar {
   background: linear-gradient(135deg, #0052b8 0%, #0073e6 55%, #00997a 100%);
 }
+.banner-app-foto-card,
 .banner-app-mesh {
-  min-height: 132px;
+  min-height: 126px;
   background: #0b2a4a;
+}
+.banner-app-scrim-verde {
+  background: linear-gradient(96deg, rgba(6, 46, 78, .94) 0%, rgba(0, 98, 128, .78) 54%, rgba(0, 112, 46, .2) 100%);
 }
 .banner-app-foto {
   position: absolute;

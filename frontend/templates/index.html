@@ -53,22 +53,12 @@
   <main id="contenido" tabindex="-1">
     <!-- ============ 1. INICIO ============ -->
     <section id="v-inicio" class="vista" role="tabpanel" aria-labelledby="t-inicio">
-      <div class="banner-app banner-app-inicio" role="img" aria-label="Unexuam: evacuación y red Mesh sin internet en el campus UAM">
+      <div class="banner-app banner-app-foto-card" role="img" aria-label="Unexuam: evacuación y red Mesh sin internet en el campus UAM">
+        <img class="banner-app-foto" src="{{ url_for('static', filename='img/figma/tarjeta-evacuar.jpg') }}" alt="" loading="lazy" decoding="async">
+        <div class="banner-app-scrim" aria-hidden="true"></div>
         <div class="banner-app-cuerpo">
-          <span class="banner-app-pill">CAMPUS UAM · OFF-GRID</span>
           <b class="banner-app-tit">Tu ruta <strong>segura</strong></b>
           <p class="banner-app-sub">Evacuación y mensajes sin internet ni señal</p>
-        </div>
-        <div class="banner-app-arte" aria-hidden="true">
-          <svg viewBox="0 0 88 88" class="banner-app-svg">
-            <circle cx="44" cy="44" r="34" class="anillo-ext"/>
-            <circle cx="44" cy="44" r="22" class="anillo-int"/>
-            <line x1="20" y1="30" x2="44" y2="44"/><line x1="68" y1="26" x2="44" y2="44"/>
-            <line x1="24" y1="62" x2="44" y2="44"/><line x1="66" y1="60" x2="44" y2="44"/>
-            <circle cx="20" cy="30" r="5" class="nodo-v"/><circle cx="68" cy="26" r="5" class="nodo-a"/>
-            <circle cx="24" cy="62" r="5" class="nodo-a"/><circle cx="66" cy="60" r="5" class="nodo-v"/>
-            <circle cx="44" cy="44" r="10" class="nodo-c"/>
-          </svg>
         </div>
       </div>
 
@@ -175,14 +165,12 @@
 
     <!-- ============ 2. CAMPUS ============ -->
     <section id="v-campus" class="vista" role="tabpanel" aria-labelledby="t-campus" hidden>
-      <div class="banner-app banner-app-evacuar" role="img" aria-label="Unexuam: guía de evacuación paso a paso al punto seguro">
+      <div class="banner-app banner-app-foto-card banner-app-evacuar" role="img" aria-label="Unexuam: guía de evacuación paso a paso al punto seguro">
+        <img class="banner-app-foto" src="{{ url_for('static', filename='img/figma/tarjeta-evacuar.jpg') }}" alt="" loading="lazy" decoding="async">
+        <div class="banner-app-scrim banner-app-scrim-verde" aria-hidden="true"></div>
         <div class="banner-app-cuerpo">
-          <span class="banner-app-pill">GUÍA PASO A PASO</span>
           <b class="banner-app-tit">Evacúa <strong>sin dudar</strong></b>
           <p class="banner-app-sub">Rutas precalculadas con edificio y mapa 3D</p>
-        </div>
-        <div class="banner-app-arte" aria-hidden="true">
-          <img src="{{ url_for('static', filename='img/figma/ico-pin.png') }}" alt="" class="banner-app-pin">
         </div>
       </div>
       <h2 id="t-campus" class="sr">Evacuar</h2>
@@ -423,11 +411,10 @@
 
     <!-- ============ MENSAJES ============ -->
     <section id="v-mensajes" class="vista" role="tabpanel" aria-labelledby="t-mensajes" hidden>
-      <div class="banner-app banner-app-mesh" role="img" aria-label="Mensajes sin internet en el campus UAM por red Mesh">
+      <div class="banner-app banner-app-foto-card banner-app-mesh" role="img" aria-label="Mensajes sin internet en el campus UAM por red Mesh">
         <img class="banner-app-foto" src="{{ url_for('static', filename='img/figma/campus-uam-mesh.jpg') }}" alt="" loading="lazy" decoding="async">
         <div class="banner-app-scrim" aria-hidden="true"></div>
         <div class="banner-app-cuerpo">
-          <span class="banner-app-pill">RED MESH · P2P</span>
           <b class="banner-app-tit">Mensajes <strong>sin señal</strong></b>
           <p class="banner-app-sub">Comunicación directa por Bluetooth y Wi-Fi Direct</p>
         </div>
