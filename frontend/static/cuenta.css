@@ -808,9 +808,111 @@ body.sin-sesion main, body.sin-sesion .barra { visibility: hidden; }
 }
 
 /* =====================================================================
-   Banner con nuestras propias pantallas (estructura del banner del Figma:
-   imagen protagonista a la izquierda y titular apilado a la derecha)
+   Banners modernos de sección (Reglas HIG / Material 3 / UNEXO Brand)
+   - Altura compacta (116–132 px) para priorizar acciones Above the Fold
+   - Tipografía jerárquica 1-1-1 (pill + titular + subtítulo)
+   - Scrim direccional sobre fotografía para contraste WCAG AAA
    ===================================================================== */
+.banner-app {
+  position: relative;
+  margin: 4px 0 0;
+  min-height: 118px;
+  padding: 16px 18px;
+  border-radius: 26px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  color: #ffffff;
+  background: linear-gradient(135deg, #003e94 0%, #0062cc 55%, #0080ff 100%);
+  box-shadow: 0 10px 26px rgba(0, 62, 148, .22);
+}
+.banner-app-evacuar {
+  background: linear-gradient(135deg, #0052b8 0%, #0073e6 55%, #00997a 100%);
+}
+.banner-app-mesh {
+  min-height: 132px;
+  background: #0b2a4a;
+}
+.banner-app-foto {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 42%;
+}
+.banner-app-scrim {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(96deg, rgba(7, 34, 70, .94) 0%, rgba(0, 74, 158, .78) 54%, rgba(0, 98, 204, .18) 100%);
+}
+.banner-app-cuerpo {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  min-width: 0;
+  max-width: 78%;
+}
+.banner-app-pill {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, .18);
+  border: 1px solid rgba(255, 255, 255, .28);
+  font-size: 0.68rem;
+  font-weight: 900;
+  letter-spacing: .06em;
+  color: #ffffff;
+}
+.banner-app-tit {
+  font-size: clamp(1.35rem, 5.4vw, 1.7rem);
+  font-weight: 900;
+  line-height: 1.08;
+  letter-spacing: -.01em;
+  text-shadow: 0 2px 8px rgba(0, 20, 60, .28);
+}
+.banner-app-tit strong {
+  color: var(--amarillo);
+  font-weight: 900;
+}
+.banner-app-sub {
+  margin: 0;
+  font-size: 0.78rem;
+  font-weight: 600;
+  line-height: 1.3;
+  color: rgba(255, 255, 255, .92);
+}
+.banner-app-arte {
+  position: relative;
+  z-index: 2;
+  flex: none;
+  width: 76px;
+  height: 76px;
+  display: grid;
+  place-items: center;
+}
+.banner-app-svg {
+  width: 76px;
+  height: 76px;
+  overflow: visible;
+}
+.banner-app-svg .anillo-ext { fill: none; stroke: rgba(255, 255, 255, .18); stroke-width: 1.5; stroke-dasharray: 4 4; }
+.banner-app-svg .anillo-int { fill: rgba(255, 255, 255, .08); stroke: rgba(255, 255, 255, .3); stroke-width: 1.5; }
+.banner-app-svg line { stroke: rgba(255, 255, 255, .55); stroke-width: 2; stroke-linecap: round; }
+.banner-app-svg .nodo-c { fill: var(--amarillo); stroke: #ffffff; stroke-width: 2.5; }
+.banner-app-svg .nodo-v { fill: #00d656; stroke: #ffffff; stroke-width: 2; }
+.banner-app-svg .nodo-a { fill: #38b6ff; stroke: #ffffff; stroke-width: 2; }
+.banner-app-pin {
+  width: 56px;
+  height: auto;
+  filter: drop-shadow(0 8px 14px rgba(0, 20, 60, .35));
+}
+body.aj-enfoque .banner-app { display: none !important; }
 .banner-ux {
   position: relative;
   margin: 0 -16px;
