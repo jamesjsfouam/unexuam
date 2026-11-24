@@ -64,6 +64,14 @@ app.config["MAX_CONTENT_LENGTH"] = 64 * 1024
 @app.after_request
 def cabeceras_respuesta(resp):
     resp.headers.setdefault("X-Content-Type-Options", "nosniff")
+    resp.headers.setdefault("X-Frame-Options", "DENY")
+    resp.headers.setdefault("Referrer-Policy", "no-referrer")
+    resp.headers.setdefault(
+        "Content-Security-Policy",
+        "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; "
+        "img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; "
+        "frame-ancestors 'none'; base-uri 'self'; form-action 'self'",
+    )
     if request.path.startswith("/api/"):
         resp.headers["Cache-Control"] = "no-store"
     return resp
@@ -82,11 +90,14 @@ def clave_secreta():
     if not os.path.exists(archivo):
         with open(archivo, "w", encoding="utf-8") as f:
             f.write(secrets.token_hex(32))
+        if os.name == "posix":
+            os.chmod(archivo, 0o600)
     with open(archivo, encoding="utf-8") as f:
         return f.read().strip()
 
 
 app.secret_key = clave_secreta()
+app.config["SESSION_COOKIE_HTTPONLY"] = True
 app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
 app.config["PERMANENT_SESSION_LIFETIME"] = 60 * 60 * 24 * 30   # 30 días
 
@@ -239,7 +250,7 @@ def error_backend(e):
 # Inicio de sesión (CIF + contraseña) y mensajería por la red Mesh
 # ----------------------------------------------------------------------------
 
-LIBRES = {"/api/yo", "/api/login", "/api/login/demo", "/api/registro", "/api/lugares"}
+LIBRES = {"/api/yo", "/api/login", "/api/login/demo", "/api/registro", "/api/lugares", "/api/campus/publico", "/api/campus/ruta"}
 # Reportar un pasillo bloqueado (/api/campus/bloquear) es una función de emergencia para todos;
 # reabrir, congestionar, reiniciar y editar los grafos es solo del administrador.
 SOLO_ADMIN = ("/api/reiniciar", "/api/mesh/vertice", "/api/mesh/arista", "/api/mesh/alerta",
@@ -370,6 +381,27 @@ def api_lugares():
         return jsonify({"ok": True, "lugares": [v.nombre for v in S["campus"].vertexs]})
 
 
+@app.get("/api/campus/publico")
+def api_campus_publico():
+    with lock:
+        return jsonify({
+            "ok": True,
+            "estado": {
+                "mesh": {"vertices": [], "aristas": []},
+                "campus": {
+                    **serializar(S["campus"]),
+                    "zonasSeguras": S["zonas"],
+                    "ubicacion": None,
+                    "ruta": None,
+                    "bloqueados": S["bloqueados"],
+                    "congestion": S["congestion"],
+                },
+                "ultimaAlerta": None,
+                "historial": [],
+            },
+        })
+
+
 @app.get("/api/yo")
 def api_yo():
     u = usuario_sesion()
@@ -408,16 +440,48 @@ def api_registro():
 
 HASH_FICTICIO = generate_password_hash("unexuam-sin-cuenta")
 INTENTOS = {}          # cif -> [marcas de tiempo de intentos recientes]
+BUSQUEDAS = {}         # cif -> [marcas de tiempo de búsquedas de contacto]
+MAX_ENTRADAS_RATE = 2000
+
+
+def _purgar_rate(mapa, ahora_s, ventana=60):
+    if len(mapa) > MAX_ENTRADAS_RATE:
+        for k in list(mapa.keys()):
+            activos = [t for t in mapa[k] if ahora_s - t < ventana]
+            if activos:
+                mapa[k] = activos
+            else:
+                mapa.pop(k, None)
+        while len(mapa) > MAX_ENTRADAS_RATE:
+            mapa.pop(next(iter(mapa)), None)
 
 
 def bloqueado_por_intentos(cif):
     ahora_s = time.time()
-    INTENTOS[cif] = [t for t in INTENTOS.get(cif, []) if ahora_s - t < 60]
-    return len(INTENTOS[cif]) >= 8          # 8 fallos en un minuto: espera
+    recientes = [t for t in INTENTOS.get(cif, []) if ahora_s - t < 60]
+    if recientes:
+        INTENTOS[cif] = recientes
+    else:
+        INTENTOS.pop(cif, None)
+    return len(recientes) >= 8          # 8 fallos en un minuto: espera
 
 
 def registrar_fallo(cif):
-    INTENTOS.setdefault(cif, []).append(time.time())
+    ahora_s = time.time()
+    _purgar_rate(INTENTOS, ahora_s)
+    INTENTOS.setdefault(cif, []).append(ahora_s)
+
+
+def limite_busquedas_excedido(cif):
+    ahora_s = time.time()
+    _purgar_rate(BUSQUEDAS, ahora_s)
+    recientes = [t for t in BUSQUEDAS.get(cif, []) if ahora_s - t < 60]
+    if len(recientes) >= 30:
+        BUSQUEDAS[cif] = recientes
+        return True
+    recientes.append(ahora_s)
+    BUSQUEDAS[cif] = recientes
+    return False
 
 
 @app.post("/api/login")
@@ -440,8 +504,10 @@ def api_login():
 
 @app.post("/api/login/demo")
 def api_login_demo():
-    # Acceso rápido de demostración (desactivable con UNEXUAM_DISABLE_DEMO=1).
-    if os.environ.get("UNEXUAM_DISABLE_DEMO") == "1":
+    # Deshabilitado por defecto en producción; solo activo en pruebas o si UNEXUAM_ENABLE_DEMO=1.
+    deshabilitado = os.environ.get("UNEXUAM_DISABLE_DEMO") == "1"
+    habilitado = app.testing or os.environ.get("UNEXUAM_ENABLE_DEMO") == "1"
+    if deshabilitado or not habilitado:
         return jsonify({"ok": False, "mensaje": "El acceso demo está deshabilitado."}), 403
     with lock:
         if DB.usuario(CIF_DEMO) is None:
@@ -481,6 +547,8 @@ def api_mover():
 def api_buscar_contacto():
     cif = leer_cif(cuerpo_json())
     yo = session["cif"]
+    if limite_busquedas_excedido(yo):
+        return jsonify({"ok": False, "mensaje": "Demasiadas búsquedas. Espera un minuto."}), 429
     with lock:
         u = DB.usuario(cif)
         if u is None or u["admin"] or cif in (yo, CIF_TODOS):
@@ -854,6 +922,8 @@ def certificado_local(ip):
         with open(ruta_f + ".tmp", "wb") as f:
             f.write(datos_f)
         os.replace(ruta_f + ".tmp", ruta_f)
+        if ruta_f == clave and os.name == "posix":
+            os.chmod(ruta_f, 0o600)
     with open(marca, "w", encoding="utf-8") as f:
         f.write(ip)
     return cert, clave

@@ -39,6 +39,7 @@
     }
 
     insertarArista(origen, destino, peso) {
+      if (typeof peso !== "number" || !Number.isFinite(peso) || peso < 0) return false;
       const vo = this.buscarVertice(origen);
       const vd = this.buscarVertice(destino);
       if (!vo || !vd) return false;
@@ -70,6 +71,7 @@
     }
 
     actualizarPeso(origen, destino, nuevoPeso) {
+      if (typeof nuevoPeso !== "number" || !Number.isFinite(nuevoPeso) || nuevoPeso < 0) return false;
       const vo = this.buscarVertice(origen);
       const vd = this.buscarVertice(destino);
       if (!vo || !vd) return false;
@@ -162,14 +164,26 @@
   }
 
   function rutaEvacuacion(campus, origen, zonasSeguras) {
-    let mejorRuta = [];
+    const inicio = campus.buscarVertice(origen);
+    if (!inicio) return [[], INF];
+    const { distancias, anteriores } = dijkstra(campus, origen);
+    let mejorZona = null;
     let mejorTiempo = INF;
     for (const zona of zonasSeguras) {
-      const [ruta, tiempo] = rutaMasCorta(campus, origen, zona);
-      if (tiempo < mejorTiempo) {
-        mejorRuta = ruta;
-        mejorTiempo = tiempo;
+      const vz = campus.buscarVertice(zona);
+      if (!vz) continue;
+      const t = distancias.get(vz.nombre);
+      if (t !== undefined && t < mejorTiempo) {
+        mejorTiempo = t;
+        mejorZona = vz.nombre;
       }
+    }
+    if (mejorZona === null || mejorTiempo === INF) return [[], INF];
+    const mejorRuta = [];
+    let lugar = mejorZona;
+    while (lugar !== null) {
+      mejorRuta.unshift(lugar);
+      lugar = anteriores.get(lugar);
     }
     return [mejorRuta, mejorTiempo];
   }
@@ -397,11 +411,55 @@
     const c = cuentas();
     return c.sesion && c.usuarios[c.sesion] ? { cif: c.sesion, u: c.usuarios[c.sesion] } : null;
   }
-  function resumen(texto) {
-    // FNV-1a de 32 bits (las cuentas viven solo en este teléfono).
+  function generarId() {
+    if (window.crypto && typeof window.crypto.randomUUID === "function") {
+      return window.crypto.randomUUID().replace(/-/g, "").slice(0, 16);
+    }
+    if (window.crypto && typeof window.crypto.getRandomValues === "function") {
+      const bytes = new Uint8Array(8);
+      window.crypto.getRandomValues(bytes);
+      return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
+    }
+    return `${Date.now().toString(16)}${Math.random().toString(16).slice(2, 10)}`;
+  }
+
+  function generarSal() {
+    if (window.crypto && typeof window.crypto.getRandomValues === "function") {
+      const bytes = new Uint8Array(16);
+      window.crypto.getRandomValues(bytes);
+      return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
+    }
+    return generarId() + generarId();
+  }
+
+  function resumenV1(texto) {
     let h = 0x811c9dc5;
     for (const ch of String(texto)) { h ^= ch.codePointAt(0); h = Math.imul(h, 0x01000193) >>> 0; }
     return h.toString(16);
+  }
+
+  function resumen(texto) {
+    // Hash iterado de 128 bits con sal CSPRNG (sincrono para compatibilidad offline)
+    const s = String(texto);
+    let h1 = 0x811c9dc5, h2 = 0x9e3779b9, h3 = 0x85ebca6b, h4 = 0xc2b2ae35;
+    for (let r = 0; r < 64; r++) {
+      for (let i = 0; i < s.length; i++) {
+        const c = s.charCodeAt(i) ^ ((r + i) & 0xff);
+        h1 = Math.imul(h1 ^ c, 0x01000193) >>> 0;
+        h2 = Math.imul(h2 ^ (h1 >>> 13) ^ c, 0x27d4eb2d) >>> 0;
+        h3 = Math.imul(h3 ^ (h2 >>> 15) ^ c, 0x165667b1) >>> 0;
+        h4 = Math.imul(h4 ^ (h3 >>> 11) ^ c, 0x85ebca6b) >>> 0;
+      }
+      h1 = (h1 ^ (h4 >>> 16)) >>> 0;
+    }
+    return "v2:" + [h1, h2, h3, h4].map((x) => x.toString(16).padStart(8, "0")).join("");
+  }
+
+  function verificarClave(u, clave) {
+    if (!u || !u.hash) return false;
+    const entrada = (u.sal || "") + clave;
+    if (String(u.hash).startsWith("v2:")) return u.hash === resumen(entrada);
+    return u.hash === resumenV1(entrada);
   }
   function nombreTelefono(C, cif, nombre) {
     const base = "Tel-" + (nombre.split(" ")[0] || "UAM");
@@ -495,7 +553,7 @@
   }
 
   function despacharApi(ruta, d, searchParams) {
-    const LIBRES = ["/api/yo", "/api/login", "/api/login/demo", "/api/registro", "/api/lugares"];
+    const LIBRES = ["/api/yo", "/api/login", "/api/login/demo", "/api/registro", "/api/lugares", "/api/campus/publico", "/api/campus/ruta"];
     const SOLO_ADMIN = ["/api/reiniciar", "/api/mesh/vertice", "/api/mesh/arista", "/api/mesh/alerta", "/api/campus/vertice", "/api/campus/arista", "/api/campus/ubicacion", "/api/campus/desbloquear", "/api/campus/congestionar", "/api/algoritmo"];
     if (!LIBRES.includes(ruta)) {
       const yo = cuentaActual();
@@ -573,7 +631,7 @@
       const yoBloq = cuentaActual();
       if (yoBloq) {
         const ahoraB = horaActual();
-        const idB = Math.random().toString(16).slice(2, 14);
+        const idB = generarId();
         const txtB = `Bloqueo reportado: ${o} y ${dst}. Recalculando rutas.`;
         const envB = enviarPaqueteReal({
           id: idB, tipo: "incidente", accion: "bloquear", origen: o, destino: dst, ambos,
@@ -594,7 +652,8 @@
     if (ruta === "/api/campus/desbloquear") {
       let n = 0;
       for (const b of S.bloqueados) {
-        if (S.campus.insertarArista(b.origen, b.destino, b.peso)) n++;
+        const pesoFinal = b.peso * (S.congestion[b.destino] || 1);
+        if (S.campus.insertarArista(b.origen, b.destino, pesoFinal)) n++;
       }
       S.bloqueados = [];
       return responder(true, `Se reabrieron ${n} pasos con su tiempo original.`);
@@ -605,10 +664,14 @@
       const factor = numero(d, "factor", 0.1, 20);
       if (!existe(S.campus, lugar)) return responder(false, `El lugar «${lugar}» no existe.`);
       if (factor === null) return responder(false, "El factor debe estar entre 0.1 y 20.");
+      const acumulado = (S.congestion[lugar] || 1) * factor;
+      if (acumulado < 0.1 || acumulado > 100) {
+        return responder(false, "Esa congestión ya llegó a su límite (entre ×0.1 y ×100).");
+      }
       if (!aplicarAlerta(S.campus, lugar, factor)) {
         return responder(false, `No se pudo aplicar congestión en «${lugar}».`);
       }
-      S.congestion[lugar] = Math.round((S.congestion[lugar] || 1) * factor * 1000) / 1000;
+      S.congestion[lugar] = Math.round(acumulado * 1000) / 1000;
       return responder(true, `${lugar}: congestión aplicada (tiempos ×${factor}).`);
     }
 
@@ -670,6 +733,24 @@
     if (ruta === "/api/lugares") {
       return { ok: true, lugares: S.campus.vertexs.map((v) => v.nombre) };
     }
+    if (ruta === "/api/campus/publico") {
+      return {
+        ok: true,
+        estado: {
+          mesh: { vertices: [], aristas: [] },
+          campus: {
+            ...serializar(S.campus),
+            zonasSeguras: S.zonas,
+            ubicacion: null,
+            ruta: null,
+            bloqueados: S.bloqueados,
+            congestion: S.congestion,
+          },
+          ultimaAlerta: null,
+          historial: [],
+        },
+      };
+    }
     if (ruta === "/api/yo") {
       const yo = cuentaActual();
       if (!yo) return { ok: false, sesion: false };
@@ -696,12 +777,12 @@
           if (nombre.length < 2) return { ok: false, mensaje: "Escribe tu nombre." };
           if (clave.length < 6) return { ok: false, mensaje: "La contraseña debe tener al menos 6 caracteres." };
           if (C.usuarios[cif]) return { ok: false, mensaje: "Ese CIF ya tiene cuenta. Inicia sesión." };
-          const sal = Math.random().toString(36).slice(2, 10);
+          const sal = generarSal();
           C.usuarios[cif] = { nombre, sal, hash: resumen(sal + clave), telefono: nombreTelefono(C, cif, nombre), lugar: "Edificio E" };
           registrar(`Nueva cuenta: ${nombre} (${C.usuarios[cif].telefono}).`, "ok");
         } else {
           const u = C.usuarios[cif];
-          if (!u || u.admin || u.hash !== resumen(u.sal + clave)) return { ok: false, mensaje: "CIF o contraseña incorrectos." };
+          if (!u || u.admin || !verificarClave(u, clave)) return { ok: false, mensaje: "CIF o contraseña incorrectos." };
         }
       }
       C.sesion = cif;
@@ -791,7 +872,7 @@
         if ((!esTodos && !C.usuarios[para]) || para === yo.cif) return { ok: false, mensaje: "Elige a quién enviarle el mensaje." };
         if (!textoMsj) return { ok: false, mensaje: "El mensaje está vacío." };
         const ahora = horaActual();
-        const id = Math.random().toString(16).slice(2, 14);
+        const id = generarId();
         const dest = esTodos ? { telefono: "Todos" } : C.usuarios[para];
         const enviadosReal = enviarPaqueteReal({
           id, tipo: "mensaje", de: yo.cif, deNombre: yo.u.nombre, deTel: yo.u.telefono,
@@ -822,6 +903,37 @@
               ? `Entregado en ${rSim.length - 1} salto(s), ${num(retardoSim)} s de retardo.`
               : "Guardado en custodia (DTN): saldrá al detectar un teléfono cercano."));
         return { ok: true, enviado: m, mensaje: msgTxt };
+      }
+      if (ruta === "/api/mensajes/alerta") {
+        const C = cuentas();
+        const ttl = numero(d, "ttl", 1, 10);
+        if (ttl === null) return { ok: false, mensaje: "El alcance debe estar entre 1 y 10 saltos." };
+        const textoAlerta = texto(d, "texto", 200) || "¡Emergencia! Necesito ayuda.";
+        const ttlInt = Math.trunc(ttl);
+        const alcanzados = propagarAlerta(S.red, yo.u.telefono, ttlInt);
+        const ahora = horaActual();
+        const idAl = generarId();
+        const envAl = enviarPaqueteReal({
+          id: idAl, tipo: "mensaje", de: yo.cif, deNombre: yo.u.nombre, deTel: yo.u.telefono,
+          para: "TODOS", texto: `SOS · ${textoAlerta} · desde ${yo.u.lugar}`, hora: ahora, ttl: ttlInt, ruta: [yo.u.telefono],
+        });
+        C.mensajes.push({
+          id: idAl, de: yo.cif, deNombre: yo.u.nombre, para: "TODOS",
+          texto: `SOS · ${textoAlerta} · desde ${yo.u.lugar}`, hora: ahora,
+          estado: envAl > 0 ? "entregado" : "en cola", ruta: [yo.u.telefono, "Todos"],
+          retardo: 0.5, entregado: envAl > 0 ? ahora : null, viaCola: false,
+        });
+        guardarCuentas(C);
+        S.ultimaAlerta = { origen: yo.u.telefono, ttl: ttlInt, hora: ahora, alcanzados };
+        const reenviaron = Math.max(0, alcanzados.length - 1);
+        registrar(`Alerta de ${yo.u.nombre} (TTL ${ttlInt}): ${reenviaron} teléfono(s) la recibieron.`, "ok");
+        guardarEstadoLocal();
+        return {
+          ok: true,
+          alcanzados,
+          avisados: [],
+          mensaje: `Alerta propagada a ${Math.max(reenviaron, envAl)} teléfono(s).`,
+        };
       }
       if (ruta === "/api/algoritmo") {
         const origen = texto(d, "origen", 60) || String((searchParams && searchParams.get("origen")) || "C-101").trim().slice(0, 60);
@@ -927,12 +1039,12 @@
       if (m.estado === "en cola" && m.de === yo.cif) {
         const enviados = enviarPaqueteReal({
           id: m.id, tipo: "mensaje", de: yo.cif, deNombre: yo.u.nombre, deTel: yo.u.telefono,
-          para: m.para, texto: m.texto, hora: m.hora, ttl: 5, ruta: [yo.u.telefono],
+          para: m.para, texto: m.texto, hora: m.hora, ttl: 6, ruta: [yo.u.telefono],
         });
-        if (enviados > 0) {
-          const destTel = (C.usuarios[m.para] && C.usuarios[m.para].telefono) || m.para;
+        // Solo los mensajes de difusión (TODOS) se marcan entregados al salir; los 1-a-1 esperan ACK real.
+        if (enviados > 0 && m.para === "TODOS") {
           m.estado = "entregado";
-          m.ruta = [yo.u.telefono, destTel];
+          m.ruta = [yo.u.telefono, "Todos"];
           m.retardo = 0.5;
           m.entregado = horaActual();
           m.viaCola = true;
@@ -942,7 +1054,7 @@
     }
     if (cambio) {
       guardarCuentas(C);
-      registrar("Mensajes en cola (DTN) enviados al detectar vecino por Bluetooth/Wi-Fi Direct.", "ok");
+      registrar("Mensajes de difusión en cola enviados al detectar vecino por Bluetooth/Wi-Fi Direct.", "ok");
       guardarEstadoLocal();
     }
   }
@@ -954,6 +1066,11 @@
       if (!ev || !ev.tipo) return;
       const yo = cuentaActual();
       const C = cuentas();
+
+      if (ev.tipo === "estado") {
+        window.dispatchEvent(new CustomEvent("unexuam-mesh-update", { detail: ev }));
+        return;
+      }
 
       if ((ev.tipo === "conectado" || ev.tipo === "perfil") && ev.peer) {
         const p = ev.peer;
@@ -1044,7 +1161,7 @@
           if (!C.mensajes.some((x) => x.id === pq.id)) {
             const ahora = horaActual();
             C.mensajes.push({
-              id: pq.id || Math.random().toString(16).slice(2, 14),
+              id: pq.id || generarId(),
               de, deNombre: C.usuarios[de].nombre, para, texto: String(pq.texto).slice(0, 500),
               hora: String(pq.hora || ahora).slice(0, 8), estado: "entregado",
               ruta: Array.isArray(pq.ruta) ? pq.ruta : [],
@@ -1058,6 +1175,8 @@
           window.dispatchEvent(new CustomEvent("unexuam-mesh-update", { detail: { ...ev, recalcularRuta } }));
         }
       }
-    } catch (_) {}
+    } catch (err) {
+      console.warn("[UNEXUAM] Error procesando evento Mesh:", err);
+    }
   };
 })();

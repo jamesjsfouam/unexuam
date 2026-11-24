@@ -6,6 +6,7 @@ import unittest
 from pathlib import Path
 
 os.environ.setdefault("UNEXUAM_DATOS", tempfile.mkdtemp(prefix="unexuam-pruebas-"))
+os.environ.setdefault("UNEXUAM_ENABLE_DEMO", "1")
 
 import app as servidor
 from backend.datos import crearCampus
@@ -77,7 +78,7 @@ class TestApiYParidad(unittest.TestCase):
         with self.client.get("/sw.js") as r:
             self.assertEqual(r.status_code, 200)
             self.assertEqual(r.headers.get("Service-Worker-Allowed"), "/")
-            self.assertIn(b"unexuam-v22", r.data)
+            self.assertIn(b"unexuam-v23", r.data)
 
     def test_paridad_campus_plano_json(self):
         campus, _ = crearCampus()

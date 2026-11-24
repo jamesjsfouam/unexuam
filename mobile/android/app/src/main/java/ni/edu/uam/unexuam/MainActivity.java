@@ -7,8 +7,10 @@ import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothManager;
+import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.pm.PackageManager;
 import android.location.Location;
 import android.location.LocationManager;
@@ -16,6 +18,7 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.VibrationEffect;
 import android.os.Vibrator;
+import android.util.Log;
 import android.webkit.JavascriptInterface;
 import androidx.core.app.ActivityCompat;
 import androidx.core.app.NotificationCompat;
@@ -35,8 +38,22 @@ public class MainActivity extends BridgeActivity {
     private static final String CANAL_MENSAJES = "unexuam_mensajes";
     private final AtomicInteger notifSeq = new AtomicInteger(200);
     private boolean btPromptLanzado = false;
+    private boolean btReceiverRegistrado = false;
     private MeshNativa meshNativa;
     private String ultimoPerfilMesh = null;
+
+    private final BroadcastReceiver btReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            if (BluetoothAdapter.ACTION_STATE_CHANGED.equals(intent.getAction())) {
+                int estado = intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, BluetoothAdapter.ERROR);
+                if (estado == BluetoothAdapter.STATE_ON && meshNativa != null && tienePermisosMesh()) {
+                    meshNativa.reintentarSiNecesario();
+                    if (ultimoPerfilMesh != null) meshNativa.iniciar(ultimoPerfilMesh);
+                }
+            }
+        }
+    };
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -47,7 +64,34 @@ public class MainActivity extends BridgeActivity {
             this.bridge.getWebView().addJavascriptInterface(new PuenteNativo(), "UnexuamNativo");
             this.bridge.getWebView().reload();
         }
+        try {
+            registerReceiver(btReceiver, new IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED));
+            btReceiverRegistrado = true;
+        } catch (Exception e) {
+            Log.w("UnexuamMain", "No se pudo registrar btReceiver: " + e.getMessage());
+        }
         solicitarPermisosEntrada();
+    }
+
+    private void iniciarServicioForeground() {
+        try {
+            Intent svc = new Intent(this, MeshForegroundService.class);
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                ContextCompat.startForegroundService(this, svc);
+            } else {
+                startService(svc);
+            }
+        } catch (Exception e) {
+            Log.w("UnexuamMain", "No se pudo iniciar MeshForegroundService: " + e.getMessage());
+        }
+    }
+
+    private void detenerServicioForeground() {
+        try {
+            stopService(new Intent(this, MeshForegroundService.class));
+        } catch (Exception e) {
+            Log.w("UnexuamMain", "Error deteniendo servicio foreground: " + e.getMessage());
+        }
     }
 
     private void crearCanalesNotificacion() {
@@ -101,7 +145,12 @@ public class MainActivity extends BridgeActivity {
 
     @Override
     public void onDestroy() {
+        if (btReceiverRegistrado) {
+            try { unregisterReceiver(btReceiver); } catch (Exception ignored) {}
+            btReceiverRegistrado = false;
+        }
         if (meshNativa != null) meshNativa.detener();
+        detenerServicioForeground();
         super.onDestroy();
     }
 
@@ -147,17 +196,21 @@ public class MainActivity extends BridgeActivity {
     }
 
     private boolean tienePermisosMesh() {
-        boolean loc = ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
-                == PackageManager.PERMISSION_GRANTED
-                || ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION)
+        boolean fine = ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
                 == PackageManager.PERMISSION_GRANTED;
-        if (!loc) return false;
+        boolean coarse = ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION)
+                == PackageManager.PERMISSION_GRANTED;
+        if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.S_V2 ? !fine : (!fine && !coarse)) return false;
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             if (ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_SCAN)
                     != PackageManager.PERMISSION_GRANTED) return false;
             if (ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT)
                     != PackageManager.PERMISSION_GRANTED) return false;
             if (ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_ADVERTISE)
+                    != PackageManager.PERMISSION_GRANTED) return false;
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.NEARBY_WIFI_DEVICES)
                     != PackageManager.PERMISSION_GRANTED) return false;
         }
         return true;
@@ -226,11 +279,17 @@ public class MainActivity extends BridgeActivity {
             ultimoPerfilMesh = perfilJson;
             runOnUiThread(() -> {
                 if (tienePermisosMesh()) {
+                    iniciarServicioForeground();
                     meshNativa.iniciar(perfilJson);
                 } else {
                     solicitarPermisosEntrada();
                 }
             });
+        }
+
+        @JavascriptInterface
+        public void setCustodiaDtn(boolean on) {
+            if (meshNativa != null) meshNativa.setCustodiaHabilitada(on);
         }
 
         @JavascriptInterface
@@ -242,7 +301,10 @@ public class MainActivity extends BridgeActivity {
         @JavascriptInterface
         public void detenerMesh() {
             ultimoPerfilMesh = null;
-            runOnUiThread(() -> meshNativa.detener());
+            runOnUiThread(() -> {
+                meshNativa.detener();
+                detenerServicioForeground();
+            });
         }
 
         @JavascriptInterface
@@ -300,9 +362,11 @@ public class MainActivity extends BridgeActivity {
                 LocationManager lm = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
                 if (lm == null) return "";
                 Location mejor = null;
+                long ahora = System.currentTimeMillis();
                 for (String prov : lm.getProviders(true)) {
                     Location loc = lm.getLastKnownLocation(prov);
                     if (loc == null) continue;
+                    if (ahora - loc.getTime() > 120_000L) continue;
                     if (mejor == null || loc.getAccuracy() < mejor.getAccuracy()) {
                         mejor = loc;
                     }

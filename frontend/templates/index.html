@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
   <meta name="theme-color" content="#0080ff">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -31,21 +31,22 @@
     </div>
     <p class="splash-pie">Campus UAM · Juntos podemos superar las adversidades</p>
   </div>
+  <a href="#v-inicio" class="sr skip-link">Saltar al contenido</a>
   <header class="barra">
-    <h1 class="sr">Unexuam · Evacuación Off-Grid para el campus UAM</h1>
+    <h1 class="sr">Unexuam · Evacuación sin internet para el campus UAM</h1>
     <a href="#inicio" class="marca" aria-label="Unexuam, inicio">
       <img src="{{ url_for('static', filename='img/logo-x.png') }}" alt="" class="marca-x">
       <img src="{{ url_for('static', filename='img/wordmark-unexuam.png') }}" alt="Unexuam" class="marca-unexo">
     </a>
-    <span class="chip-offgrid" title="Funciona sin internet, solo con la red local">
-      <span class="punto"></span> Off-Grid
+    <span class="chip-offgrid" id="chip-offgrid" title="Funciona sin internet, solo con teléfonos cercanos">
+      <span class="punto"></span> <span id="chip-offgrid-txt">Sin internet</span>
     </span>
     <button type="button" id="btn-cuenta" class="avatar" aria-label="Tu cuenta" hidden></button>
   </header>
 
   <main>
     <!-- ============ 1. INICIO ============ -->
-    <section id="v-inicio" class="vista" aria-labelledby="t-inicio">
+    <section id="v-inicio" class="vista" role="tabpanel" aria-labelledby="t-inicio">
       <div class="banner-ux" role="img" aria-label="Unexuam en el teléfono: ruta de evacuación y mensajes sin internet">
         <div class="banner-ux-tel">
           <div class="tel-pantalla">
@@ -74,11 +75,11 @@
 
       <div class="acciones-figma">
         <a href="#campus" class="tarjeta-figma azul">
-          <img src="{{ url_for('static', filename='img/figma/tarjeta-evacuar.jpg') }}" alt="">
+          <img src="{{ url_for('static', filename='img/figma/tarjeta-evacuar.jpg') }}" alt="" loading="lazy" decoding="async">
           <span><b>Ruta más rápida</b>Evacuar</span>
         </a>
         <a href="#mensajes" class="tarjeta-figma verde tarjeta-mesh-uam">
-          <img src="{{ url_for('static', filename='img/figma/tarjeta-evacuar.jpg') }}" alt="">
+          <img src="{{ url_for('static', filename='img/figma/tarjeta-evacuar.jpg') }}" alt="" loading="lazy" decoding="async">
           <div class="mesh-uam-capa" aria-hidden="true">
             <div class="mini-wf wf-a">
               <div class="mini-wf-bar"></div>
@@ -87,7 +88,7 @@
             </div>
             <div class="mini-wf wf-b">
               <div class="mini-wf-bar"></div>
-              <div class="mini-wf-msg suyo">2 saltos · DTN</div>
+              <div class="mini-wf-msg suyo">2 saltos · En cola</div>
               <div class="mini-wf-msg mio">✓ Entregado</div>
             </div>
           </div>
@@ -96,21 +97,21 @@
       </div>
       <button type="button" id="btn-sos" class="fila-figma rojo fila-sos">
         <span class="fila-icono"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5 1.8 20.5h20.4L12 2.5Zm-1 6h2v6h-2v-6Zm0 8h2v2h-2v-2Z"/></svg><b>SOS</b></span>
-        <span class="fila-texto"><b>Pedir ayuda ahora</b><small>Envía tu edificio al Canal General sin internet</small></span>
+        <span class="fila-texto"><b>Desliza para pedir ayuda →</b><small>Envía tu edificio al Canal General sin internet</small></span>
       </button>
 
       <div id="guias-emergencia" class="guias-figma">
         <h3 class="titulo-pildora">Guías de emergencia</h3>
         <div class="carrusel">
-          <button type="button" class="carrusel-flecha" data-carrusel="-1" aria-label="Anterior"><img src="{{ url_for('static', filename='img/figma/flecha-izq.png') }}" alt=""></button>
+          <button type="button" class="carrusel-flecha" data-carrusel="-1" aria-label="Anterior"><img src="{{ url_for('static', filename='img/figma/flecha-izq.png') }}" alt="" loading="lazy" decoding="async"></button>
           <div class="carrusel-pista" id="carrusel-guias">
-            <button type="button" class="tarjeta-figma azul" data-guia="inundacion"><img src="{{ url_for('static', filename='img/figma/tarjeta-inundacion.jpg') }}" alt=""><span><b>Qué hacer</b>Inundaciones</span></button>
-            <button type="button" class="tarjeta-figma rojo" data-guia="incendio"><img src="{{ url_for('static', filename='img/figma/tarjeta-incendio.jpg') }}" alt=""><span><b>Qué hacer</b>Incendios</span></button>
-            <button type="button" class="tarjeta-figma amarillo" data-guia="sismo"><img src="{{ url_for('static', filename='img/figma/tarjeta-sismo.jpg') }}" alt=""><span><b>Qué hacer</b>Sismo</span></button>
-            <button type="button" class="tarjeta-figma verde" data-guia="auxilios"><img src="{{ url_for('static', filename='img/figma/tarjeta-auxilios.svg') }}" alt=""><span><b>Qué hacer</b>Auxilios</span></button>
-            <button type="button" class="tarjeta-figma azul" data-guia="mesh"><img src="{{ url_for('static', filename='img/figma/tarjeta-sin-senal.svg') }}" alt=""><span><b>Qué hacer</b>Sin señal</span></button>
+            <button type="button" class="tarjeta-figma azul" data-guia="inundacion"><img src="{{ url_for('static', filename='img/figma/tarjeta-inundacion.jpg') }}" alt="" loading="lazy" decoding="async"><span><b>Qué hacer</b>Inundaciones</span></button>
+            <button type="button" class="tarjeta-figma rojo" data-guia="incendio"><img src="{{ url_for('static', filename='img/figma/tarjeta-incendio.jpg') }}" alt="" loading="lazy" decoding="async"><span><b>Qué hacer</b>Incendios</span></button>
+            <button type="button" class="tarjeta-figma amarillo" data-guia="sismo"><img src="{{ url_for('static', filename='img/figma/tarjeta-sismo.jpg') }}" alt="" loading="lazy" decoding="async"><span><b>Qué hacer</b>Sismo</span></button>
+            <button type="button" class="tarjeta-figma verde" data-guia="auxilios"><img src="{{ url_for('static', filename='img/figma/tarjeta-auxilios.svg') }}" alt="" loading="lazy" decoding="async"><span><b>Qué hacer</b>Auxilios</span></button>
+            <button type="button" class="tarjeta-figma azul" data-guia="mesh"><img src="{{ url_for('static', filename='img/figma/tarjeta-sin-senal.svg') }}" alt="" loading="lazy" decoding="async"><span><b>Qué hacer</b>Sin señal</span></button>
           </div>
-          <button type="button" class="carrusel-flecha" data-carrusel="1" aria-label="Siguiente"><img src="{{ url_for('static', filename='img/figma/flecha-der.png') }}" alt=""></button>
+          <button type="button" class="carrusel-flecha" data-carrusel="1" aria-label="Siguiente"><img src="{{ url_for('static', filename='img/figma/flecha-der.png') }}" alt="" loading="lazy" decoding="async"></button>
         </div>
 
         <h3 class="franja-figma">Accesos rápidos del campus</h3>
@@ -182,7 +183,7 @@
     </section>
 
     <!-- ============ 2. CAMPUS ============ -->
-    <section id="v-campus" class="vista" aria-labelledby="t-campus" hidden>
+    <section id="v-campus" class="vista" role="tabpanel" aria-labelledby="t-campus" hidden>
       <div class="banner-ux evacuar" role="img" aria-label="Unexuam en el teléfono: guía paso a paso al punto seguro">
         <div class="banner-ux-tel">
           <div class="tel-pantalla">
@@ -236,8 +237,8 @@
       </div>
       <div class="leyenda">
         <span class="chip amarillo"><i class="l-tu"></i>Tú</span>
-        <span class="chip azul"><i class="l-ruta"></i>Arista de la ruta</span>
-        <span class="chip azul"><i class="l-parada"></i>Vértice</span>
+        <span class="chip azul"><i class="l-ruta"></i>Ruta segura</span>
+        <span class="chip azul"><i class="l-parada"></i>Punto de paso</span>
         <span class="chip rojo"><i class="l-bloq"></i>Bloqueado</span>
       </div>
 
@@ -286,7 +287,7 @@
     </section>
 
     <!-- ============ 4. ADMINISTRAR ============ -->
-    <section id="v-admin" class="vista" aria-labelledby="t-admin" hidden>
+    <section id="v-admin" class="vista" role="tabpanel" aria-labelledby="t-admin" hidden>
       <h2 id="t-admin" class="franja">Administrar</h2>
       <div class="segmentado grande" role="tablist" id="admin-pestanas">
         <button role="tab" aria-selected="true" data-admin="grafos">Grafos</button>
@@ -406,16 +407,16 @@
           <h3>Lista de adyacencia</h3>
           <button class="btn mini" data-accion="reiniciar-grafo">Reiniciar</button>
         </div>
-        <p class="nota">Así queda <code>vertexs</code> y el <code>neig</code> de cada vértice: tuplas (destino, peso).</p>
+        <p class="nota">Conexiones de cada punto con su tiempo en segundos.</p>
         <ul id="adyacencia" class="adyacencia"></ul>
       </div>
       </div>
     </section>
 
     <!-- ============ MENSAJES ============ -->
-    <section id="v-mensajes" class="vista" aria-labelledby="t-mensajes" hidden>
+    <section id="v-mensajes" class="vista" role="tabpanel" aria-labelledby="t-mensajes" hidden>
       <div class="banner-mesh-uam" role="img" aria-label="Mensajes sin internet en el campus UAM por red Mesh">
-        <img class="banner-mesh-bg" src="{{ url_for('static', filename='img/figma/tarjeta-evacuar.jpg') }}" alt="">
+        <img class="banner-mesh-bg" src="{{ url_for('static', filename='img/figma/tarjeta-evacuar.jpg') }}" alt="" loading="lazy" decoding="async">
         <div class="banner-mesh-wfs" aria-hidden="true">
           <div class="mini-wf wf-a">
             <div class="mini-wf-bar"></div>
@@ -442,7 +443,7 @@
       </button>
       <label class="buscar-lbl" for="buscar-contacto">Buscar o agregar contacto por CIF</label>
       <form class="buscar-chat" id="form-cif" autocomplete="off">
-        <input type="search" id="buscar-contacto" placeholder="Ej.: 24010001 o nombre" autocapitalize="characters" spellcheck="false" enterkeyhint="search">
+        <input type="search" id="buscar-contacto" maxlength="40" placeholder="Ej.: 24010001 o nombre" autocapitalize="characters" spellcheck="false" enterkeyhint="search">
         <button class="buscar-ir" aria-label="Buscar CIF"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 3.5a6.5 6.5 0 0 1 5.2 10.4l4.9 4.9-1.4 1.4-4.9-4.9A6.5 6.5 0 1 1 10 3.5Zm0 2a4.5 4.5 0 1 0 0 9 4.5 4.5 0 0 0 0-9Z"/></svg></button>
       </form>
       <div id="resultado-cif" class="resultado-cif" hidden></div>
@@ -450,7 +451,7 @@
     </section>
 
     <!-- ============ AJUSTES ============ -->
-    <section id="v-ajustes" class="vista" aria-labelledby="t-ajustes" hidden></section>
+    <section id="v-ajustes" class="vista" role="tabpanel" aria-labelledby="t-ajustes" hidden></section>
   </main>
 
   <nav class="nav navbar" id="navbar" role="tablist" aria-label="Secciones">
@@ -584,7 +585,7 @@
           </label>
           <button type="button" id="reg-gps" class="btn secundario ancho">Detectar con GPS</button>
           <details class="wiz-opt">
-            <summary>Opciones adicionales (opcional)</summary>
+            <summary>Elegir piso (opcional)</summary>
             <label class="campo">
               <span>Piso habitual</span>
               <select id="reg-piso">
@@ -603,6 +604,7 @@
         </div>
       </form>
       <div class="login-sep"><span>o</span></div>
+      <button type="button" class="btn peligro ancho" id="btn-evacuar-invitado">Evacuar sin iniciar sesión</button>
       <button type="button" class="btn secundario ancho" id="login-demo">Demo rápida · Admin</button>
     </div>
   </section>
@@ -636,6 +638,5 @@
   <script src="{{ url_for('static', filename='ubicacion.js') }}"></script>
   <script src="{{ url_for('static', filename='cuenta.js') }}"></script>
   <script src="{{ url_for('static', filename='ajustes.js') }}"></script>
-  <script src="{{ url_for('static', filename='lista-ordenable.js') }}"></script>
 </body>
 </html>

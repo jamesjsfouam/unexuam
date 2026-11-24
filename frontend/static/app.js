@@ -49,14 +49,16 @@ function aviso(msg, ok = true) {
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => { t.hidden = true; }, ok ? 3200 : 4500);
 }
+window.avisar = aviso;
 
 function marcarConexion(ok) {
   const chip = $(".chip-offgrid");
   if (!chip) return;
   if (window.__UNEXUAM_OFFLINE__) ok = true;
   chip.classList.toggle("caido", !ok);
-  const txt = chip.lastChild;
-  if (txt && txt.nodeType === 3) txt.nodeValue = ok ? " Off-Grid" : " Sin conexión";
+  const txt = $("#chip-offgrid-txt");
+  if (txt && !ok) txt.textContent = "Sin conexión";
+  else if (txt && ok && txt.textContent === "Sin conexión") txt.textContent = "Sin internet";
 }
 
 async function api(ruta, cuerpo) {
@@ -363,9 +365,17 @@ function hoja(titulo, texto, acciones = [], opts = {}) {
     b.className = "btn ancho " + (a.cls || "secundario");
     if (a.html) b.innerHTML = a.html;
     else b.textContent = a.txt;
-    b.addEventListener("click", () => {
-      if (!a.mantenerAbierta) cerrarHoja();
-      if (typeof a.fn === "function") a.fn();
+    b.addEventListener("click", async () => {
+      if (b.disabled) return;
+      b.disabled = true;
+      try {
+        if (typeof a.fn === "function") await a.fn();
+      } catch (err) {
+        aviso("No se pudo completar la acción.", false);
+      } finally {
+        b.disabled = false;
+        if (!a.mantenerAbierta) cerrarHoja();
+      }
     });
     return b;
   };
@@ -405,6 +415,7 @@ function hoja(titulo, texto, acciones = [], opts = {}) {
   const carta = $(".hoja-carta");
   if (carta) { carta.style.transform = ""; carta.style.transition = ""; }
   $("#hoja").hidden = false;
+  if (history.pushState) history.pushState({ hoja: true }, "");
   const primero = $(".hoja-carta button, .hoja-carta select, .hoja-carta input");
   if (primero) primero.focus();
 }
@@ -434,15 +445,14 @@ function llenar(sel, opciones, vacio) {
 /* ------------------------------------------------------------- estado */
 
 function aplicarEstado(est) {
-  const anterior = E;
   E = est;
+  window.__UNEXUAM_ESTADO__ = est;
   firma = JSON.stringify(est);
-  // alerta nueva emitida desde otro teléfono → animarla aquí también
   const ua = est.ultimaAlerta;
   const k = ua ? ua.hora + ua.origen + ua.ttl : null;
-  if (k && alertaVista === null) { alertaVista = k; mostrarAlcanceFinal(ua); }
-  else if (k && k !== alertaVista && !animando) { alertaVista = k; aviso(`Nueva alerta desde ${ua.origen}`, false); animarAlerta(ua); }
-  else if (!ua) { alertaVista = "nada"; alcanceMostrado = null; viaMostrada = {}; const st = $("#saltos-tarjeta"); if (st) st.hidden = true; }
+  if (k && alertaVista === null) { alertaVista = k; }
+  else if (k && k !== alertaVista && !animando) { alertaVista = k; aviso(`Nueva alerta desde ${ua.origen}`, false); }
+  else if (!ua) { alertaVista = "nada"; alcanceMostrado = null; viaMostrada = {}; }
   render();
   // si el grafo del campus cambió (bloqueo, congestión, admin), recalcular la ruta de este teléfono
   const fc = JSON.stringify([est.campus.aristas, est.campus.zonasSeguras]);
@@ -452,7 +462,6 @@ function aplicarEstado(est) {
 function render() {
   if (!E) return;
   if (vista === "inicio") renderInicio();
-  else if (vista === "mesh") renderMesh();
   else if (vista === "campus") renderCampus();
   else if (vista === "admin") renderAdmin();
 }
@@ -530,147 +539,11 @@ function renderInicio() {
   if (nCong) partes.push(`${nCong} lugar(es) con congestión`);
   $("#hero-texto").textContent = partes.length ? partes.join(" · ").replace(/^./, s => s.toUpperCase()) + "." : "No hay alertas activas en la red ni en el campus.";
 
-  $("#historial").innerHTML = E.historial.map(h =>
-    `<li class="${h.tipo === "error" ? "error" : ""}"><time>${esc(h.hora)}</time><span>${esc(h.texto)}</span></li>`).join("");
+  $("#historial").innerHTML = E.historial.length
+    ? E.historial.map(h =>
+        `<li class="${h.tipo === "error" ? "error" : ""}"><time>${esc(h.hora)}</time><span>${esc(h.texto)}</span></li>`).join("")
+    : `<li class="nota">Sin actividad registrada todavía.</li>`;
 
-}
-
-/* ---------------------------------------------------------------- mesh */
-
-function telIcono() {
-  return `<rect class="tel" x="-4.5" y="-7" width="9" height="14" rx="2"/><path class="tel" d="M-1.5,4.5h3"/>`;
-}
-
-function renderMesh() {
-  if (!$("#svg-mesh")) return;   // la vista de la red Mesh no está en esta versión de la interfaz
-  const svg = $("#svg-mesh");
-  const sel = $("#mesh-origen");
-  if (!svg || !sel) return;
-  const g = E.mesh;
-  llenar(sel, g.vertices.map(v => ({ v, t: v })));
-  const origen = sel.value;
-  const alc = alcanceMostrado || {};
-  const hayAlerta = alcanceMostrado !== null;
-  const vivas = new Set(Object.entries(viaMostrada).map(([n, p]) => clave(p, n)));
-
-  dibujar($("#svg-mesh"), "mesh", g, {
-    unidad: " s",
-    // sin alerta tras una propagación: icono "sin señal"
-    icono: v => (hayAlerta && alc[v] === undefined
-      ? `<image href="${IMG.sinSenal}" x="-9" y="-9" width="18" height="18"/>`
-      : telIcono()),
-    claseArista: a => (vivas.has(clave(a.origen, a.destino)) ? "viva" : ""),
-    claseNodo: v => [
-      alc[v] === 0 ? "emisor" : alc[v] > 0 ? "con-alerta" : "",
-      hayAlerta && alc[v] === undefined ? "sin-alcance" : "",
-      !hayAlerta && v === origen ? "elegido" : "",
-    ].join(" "),
-    extraNodo: v => (alc[v] !== undefined
-      ? `<g class="salto" transform="translate(${R - 2},${-R + 2})"><rect x="-8" y="-7" width="16" height="14" rx="7"/><text>${alc[v]}</text></g>`
-      : ""),
-  });
-  $("#ttl").textContent = ttl;
-  $("#btn-alerta").disabled = animando || !g.vertices.length;
-}
-
-function ordenar(alcanzados, origen) {
-  const lista = alcanzados.map(([n, s]) => [n, s]);
-  if (!lista.some(([n]) => n === origen)) lista.unshift([origen, 0]);
-  return lista;
-}
-
-function padreDe(nombre, salto, previos) {
-  // un teléfono del salto anterior que tenga enlace hacia este (solo para dibujar la chispa)
-  const p = previos.find(([n, s]) => s === salto - 1 && E.mesh.aristas.some(a => a.origen === n && a.destino === nombre));
-  return p ? p[0] : null;
-}
-
-function mostrarAlcanceFinal(ua) {
-  if (!$("#svg-mesh")) return;   // la vista de la red Mesh no está en esta versión de la interfaz
-  const lista = ordenar(ua.alcanzados, ua.origen);
-  alcanceMostrado = {}; viaMostrada = {};
-  lista.forEach(([n, s], i) => {
-    alcanceMostrado[n] = s;
-    const p = s > 0 ? padreDe(n, s, lista.slice(0, i)) : null;
-    if (p) viaMostrada[n] = p;
-  });
-  listaSaltos(lista, ua, lista.length);
-}
-
-function listaSaltos(lista, ua, hasta) {
-  if (!$("#svg-mesh")) return;   // la vista de la red Mesh no está en esta versión de la interfaz
-  $("#saltos-tarjeta").hidden = false;
-  const fuera = hasta >= lista.length ? E.mesh.vertices.filter(v => !lista.some(([n]) => n === v)) : [];
-  $("#saltos").innerHTML = lista.slice(0, hasta).map(([n, s]) =>
-    `<li><span class="n">${s === 0 ? "origen" : "salto " + s}</span><span class="nombre">${esc(n)}${viaMostrada[n] ? ` <span class="via">← ${esc(viaMostrada[n])}</span>` : ""}</span><img src="${IMG.fuego}" alt=""></li>`).join("") +
-    fuera.map(n => `<li class="fuera"><span class="n">sin alerta</span><span class="nombre">${esc(n)}</span><img src="${IMG.sinSenal}" alt=""></li>`).join("");
-  if (hasta >= lista.length) {
-    $("#saltos-nota").textContent = `Llegó a ${lista.length} de ${E.mesh.vertices.length} teléfonos con TTL ${ua.ttl}.` +
-      (fuera.length ? ` Sin alerta: ${fuera.join(", ")} (TTL agotado o sin enlace hacia ellos).` : " Toda la red recibió la alerta.");
-  } else $("#saltos-nota").textContent = "";
-}
-
-function espera(ms) { return new Promise(r => setTimeout(r, ms)); }
-
-function chispa(svg, desde, hacia, ms) {
-  const path = svg.querySelector(`path.arista[data-k="${CSS.escape(clave(desde, hacia))}"]`);
-  const capa = svg.querySelector(".capa-chispa");
-  if (!path || !capa) return espera(ms);
-  const c = document.createElementNS(NS, "circle");
-  c.setAttribute("r", "5"); c.setAttribute("class", "chispa");
-  capa.append(c);
-  const L = path.getTotalLength(), t0 = performance.now();
-  return new Promise(res => {
-    const paso = t => {
-      const f = Math.min(1, (t - t0) / ms), p = path.getPointAtLength(L * f);
-      c.setAttribute("cx", p.x); c.setAttribute("cy", p.y);
-      if (f < 1) requestAnimationFrame(paso); else { c.remove(); res(); }
-    };
-    requestAnimationFrame(paso);
-  });
-}
-
-function pulso(svg, nombre) {
-  const n = svg.querySelector(`.nodo[data-n="${CSS.escape(nombre)}"]`);
-  if (!n) return;
-  const c = document.createElementNS(NS, "circle");
-  c.setAttribute("r", R); c.setAttribute("class", "pulso");
-  n.prepend(c);
-}
-
-async function animarAlerta(ua) {
-  if (!$("#svg-mesh")) return;   // la vista de la red Mesh no está en esta versión de la interfaz
-  const svg = $("#svg-mesh");
-  if (!svg) return;
-  animando = true;
-  const lista = ordenar(ua.alcanzados, ua.origen);
-  alcanceMostrado = {}; viaMostrada = {};
-  listaSaltos(lista, ua, 0);
-  renderMesh();
-  const reducido = matchMedia("(prefers-reduced-motion: reduce)").matches;
-  const porSalto = new Map();
-  lista.forEach(([n, s], i) => { if (!porSalto.has(s)) porSalto.set(s, []); porSalto.get(s).push([n, s, i]); });
-  let mostrados = 0;
-  for (const s of [...porSalto.keys()].sort((a, b) => a - b)) {
-    const grupo = porSalto.get(s);
-    const viajes = grupo.map(([n, , i]) => {
-      const p = s > 0 ? padreDe(n, s, lista.slice(0, i)) : null;
-      return p && !reducido ? chispa(svg, p, n, 650) : espera(reducido ? 0 : s === 0 ? 150 : 650);
-    });
-    await Promise.all(viajes);
-    for (const [n, , i] of grupo) {
-      alcanceMostrado[n] = s;
-      const p = s > 0 ? padreDe(n, s, lista.slice(0, i)) : null;
-      if (p) viaMostrada[n] = p;
-    }
-    mostrados += grupo.length;
-    renderMesh();
-    grupo.forEach(([n]) => pulso(svg, n));
-    listaSaltos(lista, ua, mostrados);
-    await espera(reducido ? 0 : 250);
-  }
-  animando = false;
-  renderMesh();
 }
 
 /* -------------------------------------------------------------- campus */
@@ -819,13 +692,17 @@ async function pedirRuta() {
   }
   try {
     const r = await fetch("/api/campus/ruta", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ lugar: miLugar }) });
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
     const j = await r.json();
+    if (!j.ok) { aviso(j.mensaje || "No se pudo calcular la ruta.", false); return; }
     const nueva = j.ruta;
     if (miRuta && nueva && miRuta.origen === nueva.origen &&
         (JSON.stringify(miRuta.ruta) !== JSON.stringify(nueva.ruta) || miRuta.tiempo !== nueva.tiempo)) rutaAnterior = miRuta;
     else if (!miRuta || !nueva || miRuta.origen !== nueva.origen) rutaAnterior = null;
     miRuta = nueva;
-  } catch (e) { /* sin conexión: se mantiene la última ruta conocida */ }
+  } catch (e) {
+    aviso("No se pudo actualizar la ruta; se mantiene la última conocida.", false);
+  }
   if (vista === "campus") renderCampus();
   else if (vista === "inicio") renderInicio();
 }
@@ -882,7 +759,7 @@ function renderCampus() {
       <span class="destino-tiempo">Caminando · ${pasos.length} paso${pasos.length === 1 ? "" : "s"}</span>
       ${cambio}
     </div>
-    ${r.ruta.length > 1 ? `<details class="metrica-det"><summary>Ver ruta vértice a vértice (${r.ruta.length} nodos)</summary><p class="nota">${r.ruta.map(esc).join(" → ")}</p></details>` : ""}
+    ${r.ruta.length > 1 ? `<details class="metrica-det"><summary>Ver recorrido completo (${r.ruta.length} puntos)</summary><p class="nota">${r.ruta.map(esc).join(" → ")}</p></details>` : ""}
     ${r.ruta.length === 1 ? `<p class="nota">Ya estás en un punto seguro.</p>` : `
       <div class="paso-herramientas">
         <button type="button" class="btn mini secundario" data-accion="paso-ant">← Ant.</button>
@@ -891,11 +768,11 @@ function renderCampus() {
       </div>
       <p class="nota">Toca un paso para resaltarlo en el mapa 3D.</p>`}
     <ol class="guia">${pasos.map((p, i) => `
-      <li class="paso t-${p.tipo}${i === pasoActivo ? " activa" : ""}" data-paso="${i}" tabindex="0" aria-pressed="${i === pasoActivo}">
+      <li class="paso t-${p.tipo}${i === pasoActivo ? " activa" : ""}" data-paso="${i}" role="button" tabindex="0" aria-pressed="${i === pasoActivo}">
         <div class="paso-cab"><span class="paso-n">${i + 1}</span><p class="paso-texto">${esc(p.texto)}</p></div>
         <div class="paso-3d">${vistaPaso(r, p)}</div>
         <p class="paso-meta"><span>${ICONO_PASO[p.tipo] || "→"} ${minutos(p.segundos)}</span>
-          <button type="button" class="paso-bloq" data-bloq='${esc(JSON.stringify([p.de, p.a]))}'>Simular bloqueo</button></p>
+          ${document.body.classList.contains("es-admin") ? `<button type="button" class="paso-bloq" data-bloq='${esc(JSON.stringify([p.de, p.a]))}'>Simular bloqueo</button>` : ""}</p>
       </li>`).join("")}
     </ol>
     <p class="consejo">Camina, no corras. Ayuda a quien lo necesite y espera indicaciones en el punto seguro.</p>`;
@@ -1516,7 +1393,7 @@ function renderMapa3D(r, pasos = []) {
     if (!usarCamaraGuardada) { camCampusIni = [...parsed]; camCampus = [...parsed]; ultClaveCampus = claveCampus; }
   }
   const nV = r.ruta.length, nA = nV - 1;
-  $("#campus-cab").innerHTML = `<span><b>${nV} ${nV === 1 ? "vértice" : "vértices"} · ${nA} ${nA === 1 ? "arista" : "aristas"}</b> · arrastra o pellizca</span>
+  $("#campus-cab").innerHTML = `<span><b>${nV} ${nV === 1 ? "punto" : "puntos"} · ${nA} ${nA === 1 ? "tramo" : "tramos"}</b> · arrastra o pellizca</span>
     <button class="btn mini" data-accion="mapa-zoom">${mapaCompleto ? "Acercar ruta" : "Todo el campus"}</button>`;
 }
 
@@ -1538,8 +1415,8 @@ function renderAdmin() {
   const zonas = new Set(E.campus.zonasSeguras);
   $("#adyacencia").innerHTML = g.vertices.length ? g.vertices.map(v => {
     const sal = g.aristas.filter(a => a.origen === v);
-    return `<li><b>${esc(v)}${!esMesh && zonas.has(v) ? " · zona segura" : ""}</b><span>neig = [${sal.map(a => `(${esc(a.destino)}, ${fmt(a.peso)})`).join(", ")}]</span></li>`;
-  }).join("") : `<li class="nota">vertexs = []</li>`;
+    return `<li><b>${esc(v)}${!esMesh && zonas.has(v) ? " · zona segura" : ""}</b><span>${sal.length ? sal.map(a => `${esc(a.destino)} (${fmt(a.peso)} s)`).join(" · ") : "Sin salidas"}</span></li>`;
+  }).join("") : `<li class="nota">Sin elementos en este grafo.</li>`;
 }
 
 /* ---------------------------------------------------------------- tabs */
@@ -1648,7 +1525,11 @@ function eventos() {
       if (!q || !E) { sugBox.hidden = true; sugBox.innerHTML = ""; return; }
       const zonas = new Set(E.campus.zonasSeguras);
       const hits = E.campus.vertices.filter(v => !zonas.has(v) && norm(v).includes(q)).slice(0, 6);
-      if (!hits.length) { sugBox.hidden = true; sugBox.innerHTML = ""; return; }
+      if (!hits.length) {
+        sugBox.innerHTML = `<p class="nota">Sin coincidencias para «${esc(buscarInp.value.trim())}».</p>`;
+        sugBox.hidden = false;
+        return;
+      }
       sugBox.innerHTML = hits.map(v => `<button type="button" data-ir-lugar="${esc(v)}">${esc(v)}</button>`).join("");
       sugBox.hidden = false;
     });
@@ -1665,7 +1546,13 @@ function eventos() {
     const sim = ev.target.closest("[data-sim]");
     if (sim) { ejecutarSimulacro(sim.dataset.sim); return; }
     const b = ev.target.closest("[data-bloq]");
-    if (b) { const [o, d] = JSON.parse(b.dataset.bloq); bloquear(o, d, true); return; }
+    if (b) {
+      try {
+        const [o, d] = JSON.parse(b.dataset.bloq);
+        bloquear(o, d, true);
+      } catch (_) { aviso("No se pudo leer el paso a bloquear.", false); }
+      return;
+    }
     const p = ev.target.closest("[data-paso]");
     if (p) {
       const i = Number(p.dataset.paso);
@@ -1689,27 +1576,44 @@ function eventos() {
   $$("form[data-form]").forEach(form => form.addEventListener("submit", async ev => {
     ev.preventDefault();
     const fd = new FormData(form), tipo = form.dataset.form, boton = ev.submitter;
+    if (boton && boton.disabled) return;
     const base = `/api/${grafoAdmin}`;
-    if (tipo === "v-insertar") {
-      const j = await api(`${base}/vertice`, { accion: "insertar", nombre: fd.get("nombre"), zonaSegura: fd.get("zonaSegura") === "on" });
-      if (j.ok) form.reset();
-    } else if (tipo === "a-insertar") {
-      await api(`${base}/arista`, { accion: boton?.value || "insertar", origen: fd.get("origen"), destino: fd.get("destino"), peso: fd.get("peso") });
-    } else if (tipo === "eliminar") {
-      if (boton?.value === "vertice") {
-        const v = fd.get("vertice");
-        if (!v) { aviso("No hay vértices para eliminar.", false); return; }
-        hoja(`Eliminar vértice «${v}»`, "Se eliminará el vértice y todas sus aristas entrantes y salientes.", [
-          { txt: "Eliminar vértice", cls: "peligro", fn: () => api(`${base}/vertice`, { accion: "eliminar", nombre: v }) },
-        ]);
-      } else {
-        const a = fd.get("arista");
-        if (!a) { aviso("No hay aristas para eliminar.", false); return; }
-        const [o, d] = JSON.parse(a);
-        hoja(`Eliminar arista «${o} → ${d}»`, "Esta conexión dejará de existir en el grafo.", [
-          { txt: "Eliminar arista", cls: "peligro", fn: () => api(`${base}/arista`, { accion: "eliminar", origen: o, destino: d }) },
-        ]);
+    if (boton) boton.disabled = true;
+    try {
+      if (tipo === "v-insertar") {
+        const nombre = String(fd.get("nombre") || "").trim();
+        if (!nombre) { aviso("Escribe un nombre válido.", false); return; }
+        const j = await api(`${base}/vertice`, { accion: "insertar", nombre, zonaSegura: fd.get("zonaSegura") === "on" });
+        if (j.ok) form.reset();
+      } else if (tipo === "a-insertar") {
+        const origen = String(fd.get("origen") || "").trim();
+        const destino = String(fd.get("destino") || "").trim();
+        const peso = Number(fd.get("peso"));
+        if (!origen || !destino) { aviso("Selecciona origen y destino.", false); return; }
+        if (origen === destino) { aviso("Origen y destino deben ser distintos.", false); return; }
+        if (!Number.isFinite(peso) || peso < 0) { aviso("El peso debe ser un número mayor o igual a 0.", false); return; }
+        await api(`${base}/arista`, { accion: boton?.value || "insertar", origen, destino, peso });
+      } else if (tipo === "eliminar") {
+        if (boton?.value === "vertice") {
+          const v = fd.get("vertice");
+          if (!v) { aviso("No hay vértices para eliminar.", false); return; }
+          hoja(`Eliminar vértice «${v}»`, "Se eliminará el vértice y todas sus aristas entrantes y salientes.", [
+            { txt: "Eliminar vértice", cls: "peligro", fn: () => api(`${base}/vertice`, { accion: "eliminar", nombre: v }) },
+          ]);
+        } else {
+          const a = fd.get("arista");
+          if (!a) { aviso("No hay aristas para eliminar.", false); return; }
+          let par = null;
+          try { par = JSON.parse(a); } catch (_) {}
+          if (!Array.isArray(par) || par.length < 2) { aviso("Arista inválida.", false); return; }
+          const [o, d] = par;
+          hoja(`Eliminar arista «${o} → ${d}»`, "Esta conexión dejará de existir en el grafo.", [
+            { txt: "Eliminar arista", cls: "peligro", fn: () => api(`${base}/arista`, { accion: "eliminar", origen: o, destino: d }) },
+          ]);
+        }
       }
+    } finally {
+      if (boton) boton.disabled = false;
     }
   }));
 }
@@ -1871,38 +1775,41 @@ async function accion(a) {
 
 /* -------------------------------------------------------------- inicio */
 
+let sondeoTimer = 0;
+let sondeoDelay = 4000;
 async function sondeo() {
   if (window.__UNEXUAM_OFFLINE__) return;
-  if (!document.hidden && !document.body.classList.contains("sin-sesion") && !animando && !$("#svg-mesh")?.classList.contains("arrastrando")) {
+  if (!document.hidden && !document.body.classList.contains("sin-sesion") && !document.body.classList.contains("modo-invitado") && !animando) {
     try {
       const r = await fetch("/api/estado");
-      if (r.status === 401) { if (window.mostrarLogin) window.mostrarLogin(); setTimeout(sondeo, 4000); return; }
+      if (r.status === 401) { if (window.mostrarLogin) window.mostrarLogin(); sondeoDelay = 4000; sondeoTimer = setTimeout(sondeo, sondeoDelay); return; }
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       const j = await r.json();
       marcarConexion(true);
+      sondeoDelay = 4000;
       if (j.estado && JSON.stringify(j.estado) !== firma) aplicarEstado(j.estado);
     } catch (e) {
       marcarConexion(false);
+      sondeoDelay = Math.min(30000, sondeoDelay * 2);
     }
   }
-  setTimeout(sondeo, 4000);
+  sondeoTimer = setTimeout(sondeo, sondeoDelay);
 }
 
 function ocultarSplash() {
   const sp = $("#splash");
   if (!sp || sp.classList.contains("fuera")) return;
   sp.classList.add("fuera");
-  setTimeout(() => sp.remove(), 700);
+  setTimeout(() => sp.remove(), 450);
 }
 const spEl = $("#splash");
 if (spEl) {
   const reducido = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   spEl.addEventListener("click", ocultarSplash);
-  // La animación completa solo la primera vez de cada sesión; después entra rápido.
-  let vista = false;
-  try { vista = sessionStorage.getItem("unexuam-splash") === "1"; sessionStorage.setItem("unexuam-splash", "1"); } catch (e) { /* sin almacenamiento */ }
-  if (vista) spEl.classList.add("rapido");
-  setTimeout(ocultarSplash, reducido ? 150 : vista ? 450 : 2400);
+  let vistaSp = false;
+  try { vistaSp = sessionStorage.getItem("unexuam-splash") === "1"; sessionStorage.setItem("unexuam-splash", "1"); } catch (e) { /* sin almacenamiento */ }
+  if (vistaSp) spEl.classList.add("rapido");
+  setTimeout(ocultarSplash, reducido ? 100 : vistaSp ? 250 : 600);
 }
 
 if (!window.__UNEXUAM_OFFLINE__ && "serviceWorker" in navigator) {
@@ -1919,8 +1826,20 @@ eventos();
 // La app arranca cuando hay sesión iniciada (ver cuenta.js).
 let appIniciada = false;
 window.iniciarUnexuam = function () {
+  document.body.classList.remove("modo-invitado");
   api("/api/estado").then(() => irA(location.hash.slice(1) || "inicio"));
   if (appIniciada) return;
   appIniciada = true;
-  if (!window.__UNEXUAM_OFFLINE__) setTimeout(sondeo, 4000);
+  if (!window.__UNEXUAM_OFFLINE__) {
+    clearTimeout(sondeoTimer);
+    sondeoTimer = setTimeout(sondeo, 4000);
+  }
+};
+window.entrarModoEvacuacionInvitado = async function () {
+  const j = await api("/api/campus/publico");
+  if (j.ok) {
+    location.hash = "#campus";
+    irA("campus");
+    aviso("Modo evacuación rápido: elige tu aula o usa GPS.");
+  }
 };

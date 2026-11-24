@@ -1,12 +1,11 @@
 /* Service Worker de Unexuam: caché de assets estáticos para operar offline. */
-const CACHE = "unexuam-v22";
+const CACHE = "unexuam-v23";
 const ASSETS = [
   "/",
   "/static/app.css",
   "/static/app.js",
   "/static/cuenta.js",
   "/static/ajustes.js",
-  "/static/lista-ordenable.js",
   "/static/cuenta.css",
   "/static/ubicacion.js",
   "/static/ubicacion-campus.json",
@@ -28,20 +27,19 @@ const ASSETS = [
   "/static/img/figma/ico-pin.png",
   "/static/img/figma/tarjeta-incendio.jpg",
   "/static/img/figma/tarjeta-sismo.jpg",
-  "/static/img/figma/tarjeta-mensajes.svg",
   "/static/img/figma/tarjeta-auxilios.svg",
   "/static/img/figma/tarjeta-sin-senal.svg",
-  "/static/img/figma/ico-edificio.png",
   "/static/img/figma/flecha-izq.png",
   "/static/img/figma/flecha-der.png",
-  "/static/img/figma/ico-lluvia.png",
-  "/static/img/figma/ico-derrumbe.png",
-  "/static/img/figma/ico-fuego.png",
   "/static/img/figma/logo-x-blanco.png",
 ];
 
 self.addEventListener("install", (ev) => {
-  ev.waitUntil(caches.open(CACHE).then((c) => c.addAll(ASSETS)).then(() => self.skipWaiting()));
+  ev.waitUntil(
+    caches.open(CACHE)
+      .then((c) => Promise.allSettled(ASSETS.map((u) => c.add(u))))
+      .then(() => self.skipWaiting())
+  );
 });
 
 self.addEventListener("activate", (ev) => {

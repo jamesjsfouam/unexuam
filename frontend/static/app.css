@@ -52,6 +52,90 @@
   color-scheme: light;
 }
 
+html[data-tema="oscuro"] {
+  --azul: #389bff;
+  --azul-osc: #8cc4ff;
+  --azul-btn: #1a73e8;
+  --azul-claro: #16263b;
+  --rojo: #ff4d2e;
+  --rojo-claro: #3b1915;
+  --verde: #00d656;
+  --verde-osc: #3ae37d;
+  --verde-btn: #0d7a37;
+  --amarillo: #fcd222;
+  --amarillo-txt: #ffd94a;
+  --amarillo-claro: #332a12;
+  --blanco: #131c29;
+  --gris: #9fb2c9;
+  --gris-texto: #b5c6da;
+  --gris-claro: #1d2a3d;
+  --texto: #eef4fc;
+  --arista: #334a66;
+  --foco-anillo: 0 0 0 5px #0b121c;
+  color-scheme: dark;
+}
+
+html[data-tema="oscuro"] body {
+  background: #0b121c !important;
+  color: var(--texto);
+}
+
+html[data-tema="oscuro"] .barra {
+  background: #101926;
+  border-bottom: 1px solid #24354d;
+}
+
+html[data-tema="oscuro"] .tarjeta,
+html[data-tema="oscuro"] .hoja-carta,
+html[data-tema="oscuro"] .navbar,
+html[data-tema="oscuro"] .contactos button,
+html[data-tema="oscuro"] .mi-red,
+html[data-tema="oscuro"] .acceso-item,
+html[data-tema="oscuro"] .chat-form,
+html[data-tema="oscuro"] .chat-lista li.suyo {
+  background: #131c29;
+  border-color: #263952;
+  color: var(--texto);
+}
+
+html[data-tema="oscuro"] .chat-lista {
+  background: #0b121c !important;
+}
+
+html[data-tema="oscuro"] .navbar a {
+  color: #a8bbd1;
+}
+
+html[data-tema="oscuro"] .navbar a[aria-selected="true"],
+html[data-tema="oscuro"] .navbar a[aria-current="page"] {
+  color: #66b2ff;
+}
+
+html[data-tema="oscuro"] input,
+html[data-tema="oscuro"] select,
+html[data-tema="oscuro"] textarea {
+  background: #0f1724;
+  color: var(--texto);
+  border-color: #334a66;
+}
+
+.skip-link:focus {
+  position: fixed !important;
+  top: 8px;
+  left: 8px;
+  z-index: 200;
+  width: auto !important;
+  height: auto !important;
+  clip: auto !important;
+  padding: 10px 16px;
+  border-radius: 999px;
+  background: var(--azul-btn);
+  color: #ffffff;
+  font-weight: 900;
+  text-decoration: none;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, .28);
+}
+
 * {
   box-sizing: border-box;
 }
@@ -2549,17 +2633,12 @@ form.tarjeta {
 
 .segmentado button,
 .chips button {
-  min-height: 40px;
+  min-height: 44px;
 }
 
 .paso-bloq {
-  min-height: 34px;
+  min-height: 36px;
   padding: 4px 12px;
-}
-
-.hoja-carta {
-  max-height: 85dvh;
-  overflow-y: auto;
 }
 
 .barra {
@@ -2597,10 +2676,10 @@ form.tarjeta {
 }
 
 .mapa-controles button {
-  width: 38px;
-  height: 38px;
+  width: 44px;
+  height: 44px;
   border-radius: 50%;
-  border: 2px solid var(--azul);
+  border: 2px solid var(--azul-btn);
   background: rgba(255, 255, 255, .94);
   color: var(--azul-osc);
   font: 900 18px/1 var(--fuente);
@@ -2670,18 +2749,23 @@ form.tarjeta {
 }
 .sugerencias, .atajos { display: flex; flex-wrap: wrap; gap: 6px; }
 .sugerencias button, .atajos button {
-  font: 700 12px var(--fuente); color: var(--azul-osc); background: var(--azul-claro);
-  border: 1.5px solid var(--azul); border-radius: var(--radio);
-  padding: 5px 11px; min-height: 32px; cursor: pointer;
+  font: 700 0.8125rem var(--fuente); color: var(--azul-osc); background: var(--azul-claro);
+  border: 1.5px solid var(--azul-btn); border-radius: var(--radio);
+  padding: 6px 12px; min-height: 44px; cursor: pointer;
 }
 .atajos button { background: var(--blanco); color: var(--texto); border-color: #c5d6ea; }
-.atajos button:active, .sugerencias button:active { background: var(--azul); color: var(--blanco); }
-.paso-herramientas {
-  display: flex; flex-wrap: wrap; gap: 6px; align-items: center; justify-content: space-between;
-}
-.paso-herramientas .btn { flex: 1 1 auto; min-height: 36px; font-size: 12.5px; padding: 6px 10px; }
+.atajos button:active, .sugerencias button:active { background: var(--azul-btn); color: var(--blanco); }
 .simulacros { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-.simulacros .btn { font-size: 12.5px; padding: 10px 8px; line-height: 1.2; text-align: center; }
+.simulacros .btn { font-size: 0.8125rem; padding: 10px 8px; line-height: 1.2; text-align: center; }
+
+/* ---------- mejoras de contraste WCAG AA y suavizado de tarjetas ---------- */
+.tarjeta { border: 1.5px solid #cfe0f4; box-shadow: 0 4px 14px rgba(11, 42, 74, .06); }
+.tarjeta h3 { color: var(--azul-btn); }
+.paso.t-zona .paso-n { background: var(--verde-btn); color: #ffffff; }
+.destino { background: var(--azul-btn); }
+.toast { background: var(--azul-btn); }
+.toast.error { background: var(--rojo); }
+.nota, .hero-texto { color: var(--gris-texto); }
 
 /* ---------- fondos de marca y guías visuales estilo SéTú ---------- */
 body {

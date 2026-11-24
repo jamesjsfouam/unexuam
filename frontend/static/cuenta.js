@@ -26,6 +26,7 @@
   }
 
   function avisar(msg, ok = true) {
+    if (window.avisar) { window.avisar(msg, ok); return; }
     const t = $("#toast");
     if (!t || !msg) return;
     t.textContent = msg;
@@ -218,12 +219,15 @@
     regPaso = 1;
     $$("[data-modo]").forEach(b => b.setAttribute("aria-selected", String(b.dataset.modo === m)));
     $("#login-clave").autocomplete = m === "registro" ? "new-password" : "current-password";
+    $("#login-clave").value = "";
+    $("#login-clave2").value = "";
     $("#login-error").textContent = "";
     actualizarWizard(false);
   }
 
   function mostrarLogin() {
     YO = null;
+    pausar();
     detenerSondeoMensajes();
     cerrarChat();
     if (window.__cerrarFab) window.__cerrarFab();
@@ -233,14 +237,28 @@
     if (!v.hidden) return;
     v.hidden = false;
     $("#login-cif").value = leerLS("mi-cif", "");
+    requestAnimationFrame(() => $("#login-cif")?.focus());
   }
   window.mostrarLogin = mostrarLogin;
 
+  async function guardarLugarEnRed(lugar, gps = false) {
+    if (!YO || !lugar) return false;
+    if (window.__UNEXUAM_PREFS__?.compartirLugar === false) {
+      YO = { ...YO, lugar };
+      return true;
+    }
+    const j = await pedir("/api/yo/lugar", gps ? { lugar, gps: true } : { lugar });
+    if (j.ok) {
+      YO = j.usuario;
+      firmaMsj = "";
+      return true;
+    }
+    return false;
+  }
+
   window.actualizarMiLugar = async function (lugar) {
     if (!YO || YO.lugar === lugar) return;
-    if (window.__UNEXUAM_PREFS__?.compartirLugar === false) return;
-    const j = await pedir("/api/yo/lugar", { lugar });
-    if (j.ok) { YO = j.usuario; firmaMsj = ""; }
+    await guardarLugarEnRed(lugar, false);
   };
 
   function obtenerCoordsGPS() {
@@ -266,77 +284,82 @@
     });
   }
 
+  let buscandoGps = false;
   async function aproximarEdificioPorGPS(manual = false) {
-    if (window.UnexuamNativo && manual && typeof window.UnexuamNativo.pedirPermisos === "function") {
-      window.UnexuamNativo.pedirPermisos();
-    }
-    const coords = await obtenerCoordsGPS();
-    if (!coords) {
-      if (manual && !window.isSecureContext && !window.UnexuamNativo) {
-        avisar(`El GPS del navegador necesita conexión segura: abre https://${location.hostname}:5443`, false);
-      } else if (manual) {
-        avisar("No se pudo obtener tu GPS. Activa la ubicación y concede el permiso.", false);
+    if (buscandoGps) return null;
+    buscandoGps = true;
+    const btnGps = $("#btn-gps");
+    if (manual && btnGps) btnGps.disabled = true;
+    if (manual) avisar("Buscando tu ubicación por GPS…");
+    try {
+      if (window.UnexuamNativo && manual && typeof window.UnexuamNativo.pedirPermisos === "function") {
+        window.UnexuamNativo.pedirPermisos();
       }
-      return null;
-    }
-    const U = window.UnexuamUbicacion;
-    if (U) {
-      try {
-        await U.cargar();
-        const r = U.identificar(U.aMetros(coords.lat, coords.lon), leerLS("mi-piso", 1));
-        if (r.area || r.dentroCampus) {
-          const sel = $("#campus-ubicacion");
-          if (sel) { sel.value = r.lugar; sel.dispatchEvent(new Event("change")); }
-          if (YO) {
-            const j = await pedir("/api/yo/lugar", { lugar: r.lugar, gps: true });
-            if (j.ok) { YO = j.usuario; firmaMsj = ""; cargarMensajes().then(renderMensajes); }
-          }
-          const donde = r.segura ? `estás en zona segura (${r.area})` : `estás en ${r.area || r.lugar}${r.edificio ? `, piso ${leerLS("mi-piso", 1)}` : ""}`;
-          avisar(`GPS: ${donde}${coords.acc ? ` · ±${Math.round(coords.acc)} m` : ""}.`);
-          return r.lugar;
+      const coords = await obtenerCoordsGPS();
+      if (!coords) {
+        if (manual && !window.isSecureContext && !window.UnexuamNativo) {
+          avisar(`El GPS del navegador necesita conexión segura: abre https://${location.hostname}:5443`, false);
+        } else if (manual) {
+          avisar("No se pudo obtener tu GPS. Activa la ubicación y concede el permiso.", false);
         }
-      } catch (_) { /* sigue con la aproximación por cercanía */ }
-    }
-    if (!window.__PLANO_CAMPUS__) {
-      try { window.__PLANO_CAMPUS__ = await (await fetch("/static/campus-plano.json")).json(); } catch (_) { window.__PLANO_CAMPUS__ = {}; }
-    }
-    const plano = window.__PLANO_CAMPUS__ || {};
-    const geo = plano.geo;
-    const pos = plano.posiciones;
-    if (!geo || !pos) return null;
-
-    const x = (coords.lon - geo.lon0) * geo.cosLat * 111320;
-    const y = (geo.lat0 - coords.lat) * 110574;
-    let mejor = null;
-    for (const [nombre, xy] of Object.entries(pos)) {
-      if (/^(Punto|Zona) Segura /i.test(nombre)) continue;
-      const d = Math.hypot(x - xy[0], y - xy[1]);
-      if (!mejor || d < mejor.d) mejor = { nombre, d };
-    }
-    if (!mejor) return null;
-
-    if (mejor.d <= 300) {
-      const sel = $("#campus-ubicacion");
-      if (sel) {
-        sel.value = mejor.nombre;
-        sel.dispatchEvent(new Event("change"));
+        return null;
       }
-      if (YO) {
-        const j = await pedir("/api/yo/lugar", { lugar: mejor.nombre });
-        if (j.ok) {
-          YO = j.usuario;
-          firmaMsj = "";
+      const U = window.UnexuamUbicacion;
+      if (U) {
+        try {
+          await U.cargar();
+          const r = U.identificar(U.aMetros(coords.lat, coords.lon), leerLS("mi-piso", 1));
+          if (r.area || r.dentroCampus) {
+            const sel = $("#campus-ubicacion");
+            if (sel) { sel.value = r.lugar; sel.dispatchEvent(new Event("change")); }
+            if (YO && await guardarLugarEnRed(r.lugar, true)) {
+              cargarMensajes().then(renderMensajes);
+            }
+            const donde = r.segura ? `estás en zona segura (${r.area})` : `estás en ${r.area || r.lugar}${r.edificio ? `, piso ${leerLS("mi-piso", 1)}` : ""}`;
+            avisar(`GPS: ${donde}${coords.acc ? ` · ±${Math.round(coords.acc)} m` : ""}.`);
+            return r.lugar;
+          }
+        } catch (_) { /* sigue con la aproximación por cercanía */ }
+      }
+      if (!window.__PLANO_CAMPUS__) {
+        try { window.__PLANO_CAMPUS__ = await (await fetch("/static/campus-plano.json")).json(); } catch (_) { window.__PLANO_CAMPUS__ = {}; }
+      }
+      const plano = window.__PLANO_CAMPUS__ || {};
+      const geo = plano.geo;
+      const pos = plano.posiciones;
+      if (!geo || !pos) return null;
+
+      const x = (coords.lon - geo.lon0) * geo.cosLat * 111320;
+      const y = (geo.lat0 - coords.lat) * 110574;
+      let mejor = null;
+      for (const [nombre, xy] of Object.entries(pos)) {
+        if (/^(Punto|Zona) Segura /i.test(nombre)) continue;
+        const d = Math.hypot(x - xy[0], y - xy[1]);
+        if (!mejor || d < mejor.d) mejor = { nombre, d };
+      }
+      if (!mejor) return null;
+
+      if (mejor.d <= 300) {
+        const sel = $("#campus-ubicacion");
+        if (sel) {
+          sel.value = mejor.nombre;
+          sel.dispatchEvent(new Event("change"));
+        }
+        if (YO && await guardarLugarEnRed(mejor.nombre, true)) {
           cargarMensajes().then(renderMensajes);
         }
+        avisar(`GPS: edificio aproximado ${mejor.nombre} (~${Math.round(mejor.d)} m).`);
+        return mejor.nombre;
       }
-      avisar(`GPS: edificio aproximado ${mejor.nombre} (~${Math.round(mejor.d)} m).`);
-      return mejor.nombre;
+      if (manual) {
+        const km = (mejor.d / 1000).toFixed(1);
+        avisar(`Estás a ${km} km del campus UAM (más cercano: ${mejor.nombre}). Elige tu edificio manualmente.`, false);
+      }
+      return null;
+    } finally {
+      buscandoGps = false;
+      if (btnGps) btnGps.disabled = false;
     }
-    if (manual) {
-      const km = (mejor.d / 1000).toFixed(1);
-      avisar(`Estás a ${km} km del campus UAM (más cercano: ${mejor.nombre}). Elige tu edificio manualmente.`, false);
-    }
-    return null;
   }
 
   function verificarBluetoothYGPS() {
@@ -388,20 +411,45 @@
       return;
     }
     const btn = $("#login-btn");
+    if (btn.disabled) return;
     btn.disabled = true;
-    const lugarSel = $("#reg-lugar")?.value || "Edificio E";
-    const j = modo === "registro"
-      ? await pedir("/api/registro", { cif, nombre: $("#login-nombre").value.trim(), contrasena: clave, lugar: lugarSel })
-      : await pedir("/api/login", { cif, contrasena: clave });
-    btn.disabled = false;
-    if (!j.ok) { err.textContent = j.mensaje || "No se pudo entrar."; return; }
-    trasEntrar(j);
+    const txtOrig = btn.textContent;
+    btn.textContent = modo === "registro" ? "Creando cuenta…" : "Entrando…";
+    try {
+      const lugarSel = $("#reg-lugar")?.value || "Edificio E";
+      const pisoSel = Number($("#reg-piso")?.value || 1);
+      const j = modo === "registro"
+        ? await pedir("/api/registro", { cif, nombre: $("#login-nombre").value.trim(), contrasena: clave, lugar: lugarSel, piso: pisoSel })
+        : await pedir("/api/login", { cif, contrasena: clave });
+      if (!j.ok) { err.textContent = j.mensaje || "No se pudo entrar."; return; }
+      trasEntrar(j);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = txtOrig;
+    }
   }
 
   async function entrarDemo() {
-    const j = await pedir("/api/login/demo", {});
-    if (!j.ok) { $("#login-error").textContent = j.mensaje || "No se pudo entrar."; return; }
-    trasEntrar(j);
+    const btn = $("#login-demo");
+    if (btn && btn.disabled) return;
+    if (btn) { btn.disabled = true; btn.textContent = "Abriendo demo…"; }
+    try {
+      const j = await pedir("/api/login/demo", {});
+      if (!j.ok) { $("#login-error").textContent = j.mensaje || "No se pudo entrar."; return; }
+      trasEntrar(j);
+    } finally {
+      if (btn) { btn.disabled = false; btn.textContent = "Demo rápida · Admin"; }
+    }
+  }
+
+  function confirmarSalir() {
+    if (window.abrirHoja) {
+      window.abrirHoja("Cerrar sesión", "Tu teléfono saldrá de la red Mesh hasta que vuelvas a entrar.", [
+        { txt: "Sí, cerrar sesión", cls: "peligro", fn: salir },
+      ]);
+    } else {
+      salir();
+    }
   }
 
   function menuCuenta() {
@@ -428,12 +476,34 @@
   let sondeoMsj = null;
   let firmaMsj = "";
 
-  function leidos() { return new Set(leerLS("leidos-" + (YO && YO.cif), [])); }
+  let leidosCache = null;
+  let leidosCif = null;
+  function leidos() {
+    const cif = YO && YO.cif;
+    if (leidosCache && leidosCif === cif) return leidosCache;
+    leidosCif = cif;
+    leidosCache = new Set(leerLS("leidos-" + cif, []));
+    return leidosCache;
+  }
   function marcarLeidos(ids) {
     if (!ids.length) return;
     const s = leidos();
-    ids.forEach(i => s.add(i));
-    guardarLS("leidos-" + (YO && YO.cif), Array.from(s).slice(-3000));
+    let cambio = false;
+    ids.forEach(i => { if (!s.has(i)) { s.add(i); cambio = true; } });
+    if (cambio) guardarLS("leidos-" + (YO && YO.cif), Array.from(s).slice(-3000));
+  }
+
+  function actualizarChipRed() {
+    const txt = $("#chip-offgrid-txt");
+    if (!txt) return;
+    let n = YO && Array.isArray(YO.vecinos) ? YO.vecinos.length : 0;
+    try {
+      if (window.UnexuamNativo && typeof window.UnexuamNativo.vecinosMeshReales === "function") {
+        const arr = JSON.parse(window.UnexuamNativo.vecinosMeshReales() || "[]");
+        if (Array.isArray(arr) && arr.length > n) n = arr.length;
+      }
+    } catch (_) {}
+    txt.textContent = n > 0 ? `Sin internet · ${n} cerca` : "Sin internet";
   }
 
   async function cargarMensajes() {
@@ -445,6 +515,7 @@
     CONV = j;
     YO = j.yo;
     aplicarRol();
+    actualizarChipRed();
     actualizarBadge();
     if (!$("#chat").hidden) renderChat();
     else if (vistaActual() === "mensajes") renderMensajes();
@@ -473,35 +544,53 @@
   function iniciarSondeoMensajes() {
     detenerSondeoMensajes();
     cargarMensajes();
+    if (window.__UNEXUAM_OFFLINE__) return;
     sondeoMsj = setInterval(() => { if (!document.hidden) cargarMensajes(); }, 2500);
   }
   function detenerSondeoMensajes() { if (sondeoMsj) clearInterval(sondeoMsj); sondeoMsj = null; }
 
   /* ------------------------------------------------------------ contactos por CIF */
 
+  let buscandoCif = false;
   async function buscarCif(ev) {
     ev.preventDefault();
+    if (buscandoCif) return;
     const cif = $("#buscar-contacto").value.trim();
     const caja = $("#resultado-cif");
     if (!cif) { caja.hidden = true; return; }
     const ya = CONV.contactos.find(c => c.cif.toLowerCase() === cif.toLowerCase());
     if (ya) { $("#buscar-contacto").value = ""; caja.hidden = true; abrirChat(ya.cif); return; }
-    const j = await pedir("/api/contactos/buscar", { cif });
-    caja.hidden = false;
-    if (!j.ok) { caja.innerHTML = `<p class="nota">${esc(j.mensaje || "No hay nadie con ese CIF.")}</p>`; return; }
-    const c = j.contacto;
-    caja.innerHTML = `<span class="avatar-c" style="background:${colorDe(c.cif)}">${esc(iniciales(c.nombre))}${c.enLinea ? '<i class="en-linea"></i>' : ""}</span>
-      <span class="c-cuerpo"><b>${esc(c.nombre)}</b><small>CIF ${esc(c.cif)} · ${c.enLinea ? "en la red" : "sin conexión"}</small></span>
-      <button type="button" class="btn mini" id="agregar-cif">${j.agregado ? "Escribir" : "Agregar"}</button>`;
-    $("#agregar-cif").onclick = async () => {
-      const r = await pedir("/api/contactos/agregar", { cif: c.cif });
-      if (!r.ok) { avisar(r.mensaje, false); return; }
-      caja.hidden = true;
-      $("#buscar-contacto").value = "";
-      firmaMsj = "";
-      await cargarMensajes();
-      abrirChat(c.cif);
-    };
+    buscandoCif = true;
+    const btnBuscar = $("#form-cif .buscar-ir");
+    if (btnBuscar) btnBuscar.disabled = true;
+    try {
+      const j = await pedir("/api/contactos/buscar", { cif });
+      caja.hidden = false;
+      if (!j.ok) { caja.innerHTML = `<p class="nota">${esc(j.mensaje || "No hay nadie con ese CIF.")}</p>`; return; }
+      const c = j.contacto;
+      caja.innerHTML = `<span class="avatar-c" style="background:${colorDe(c.cif)}">${esc(iniciales(c.nombre))}${c.enLinea ? '<i class="en-linea"></i>' : ""}</span>
+        <span class="c-cuerpo"><b>${esc(c.nombre)}</b><small>CIF ${esc(c.cif)} · ${c.enLinea ? "en la red" : "sin conexión"}</small></span>
+        <button type="button" class="btn mini" id="agregar-cif">${j.agregado ? "Escribir" : "Agregar"}</button>`;
+      const btnAg = $("#agregar-cif");
+      btnAg.onclick = async () => {
+        if (btnAg.disabled) return;
+        btnAg.disabled = true;
+        try {
+          const r = await pedir("/api/contactos/agregar", { cif: c.cif });
+          if (!r.ok) { avisar(r.mensaje, false); return; }
+          caja.hidden = true;
+          $("#buscar-contacto").value = "";
+          firmaMsj = "";
+          await cargarMensajes();
+          abrirChat(c.cif);
+        } finally {
+          btnAg.disabled = false;
+        }
+      };
+    } finally {
+      buscandoCif = false;
+      if (btnBuscar) btnBuscar.disabled = false;
+    }
   }
 
   function renderMensajes() {
@@ -549,19 +638,36 @@
     }).join("") : `<li class="vacio">${filtro ? "Pulsa buscar para encontrar ese CIF." : "Escribe el CIF de una persona arriba para agregarla."}</li>`;
   }
 
+  let focoPrevioChat = null;
+  let abriendoChatIntencional = false;
+
   function abrirChat(cif) {
+    focoPrevioChat = document.activeElement;
     conContacto = cif;
     if (window.__cerrarFab) window.__cerrarFab();
     $("#chat").hidden = false;
     document.body.classList.add("con-chat");
+    const hdr = $("header.barra"), mainEl = $("main"), navEl = $("#navbar");
+    if (hdr) hdr.inert = true;
+    if (mainEl) mainEl.inert = true;
+    if (navEl) navEl.inert = true;
+    if (history.pushState) history.pushState({ chat: cif }, "");
     renderChat(true);
+    requestAnimationFrame(() => $("#chat-volver")?.focus());
   }
 
   function cerrarChat() {
+    if ($("#chat").hidden) { conContacto = null; return; }
     conContacto = null;
     $("#chat").hidden = true;
     document.body.classList.remove("con-chat");
+    const hdr = $("header.barra"), mainEl = $("main"), navEl = $("#navbar");
+    if (hdr) hdr.inert = false;
+    if (mainEl) mainEl.inert = false;
+    if (navEl) navEl.inert = false;
     if (YO && vistaActual() === "mensajes") renderMensajes();
+    if (focoPrevioChat && typeof focoPrevioChat.focus === "function") focoPrevioChat.focus();
+    focoPrevioChat = null;
   }
 
   let chatContactoRender = null;
@@ -697,21 +803,31 @@
     actualizarBadge();
   }
 
+  let enviandoMsj = false;
   async function enviar(ev) {
     ev.preventDefault();
+    if (enviandoMsj) return;
     const t = $("#chat-texto");
     const texto = t.value.trim();
     if (!texto || !conContacto) return;
+    enviandoMsj = true;
+    const btnEnv = $(".chat-enviar");
+    if (btnEnv) btnEnv.disabled = true;
     t.value = "";
     t.style.height = "";
     actualizarActividadChat(true, []);
-    const j = await pedir("/api/mensajes/enviar", { para: conContacto, texto });
-    if (!j.ok) { actualizarActividadChat(false, []); t.value = texto; avisar(j.mensaje, false); return; }
-    if (j.enviado && j.enviado.estado !== "entregado") avisar(j.mensaje, false);
-    firmaMsj = "";
-    await cargarMensajes();
-    renderChat(true);
-    anunciarChat("Mensaje enviado.");
+    try {
+      const j = await pedir("/api/mensajes/enviar", { para: conContacto, texto });
+      if (!j.ok) { actualizarActividadChat(false, []); t.value = texto; avisar(j.mensaje, false); return; }
+      if (j.enviado && j.enviado.estado !== "entregado") avisar(j.mensaje, false);
+      firmaMsj = "";
+      await cargarMensajes();
+      renderChat(true);
+      anunciarChat("Mensaje enviado.");
+    } finally {
+      enviandoMsj = false;
+      if (btnEnv) btnEnv.disabled = false;
+    }
   }
 
   async function elegirLugar() {
@@ -731,6 +847,15 @@
           cls: "primario",
           fn: async () => {
             const lugar = $("#hoja-lugar")?.value;
+            if (!lugar) return;
+            const sel = $("#campus-ubicacion");
+            if (sel) { sel.value = lugar; sel.dispatchEvent(new Event("change")); }
+            if (window.__UNEXUAM_PREFS__?.compartirLugar === false) {
+              YO = { ...YO, lugar };
+              avisar(`Edificio guardado localmente: ${lugar} (sin compartir por Mesh).`);
+              renderMensajes();
+              return;
+            }
             const j = await pedir("/api/yo/lugar", { lugar });
             avisar(j.mensaje, j.ok);
             if (j.ok) { firmaMsj = ""; await cargarMensajes(); renderMensajes(); }
@@ -931,31 +1056,48 @@
     clearInterval(ALG.timer);
     ALG.timer = null;
     const b = $("#alg-play");
-    if (b) b.innerHTML = '<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>';
+    if (b) {
+      b.innerHTML = '<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>';
+      b.setAttribute("aria-label", "Reproducir");
+    }
   }
 
   function reproducir() {
     if (ALG.timer) { pausar(); return; }
     if (!ALG.datos || !ALG.datos.pasos || !ALG.datos.pasos.length) return;
     if (ALG.paso >= ALG.datos.pasos.length - 1) irPaso(0);
-    $("#alg-play").innerHTML = '<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5h4v14H7zM13 5h4v14h-4z"/></svg>';
+    const b = $("#alg-play");
+    if (b) {
+      b.innerHTML = '<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5h4v14H7zM13 5h4v14h-4z"/></svg>';
+      b.setAttribute("aria-label", "Pausar");
+    }
     ALG.timer = setInterval(() => irPaso(ALG.paso + 1), 850);
   }
 
+  let calculandoAlg = false;
   async function calcularAlg() {
-    const origen = $("#alg-origen").value || "C-101";
-    pausar();
-    if (!window.__PLANO_CAMPUS__) {
-      try { window.__PLANO_CAMPUS__ = await (await fetch("/static/campus-plano.json")).json(); } catch (e) { window.__PLANO_CAMPUS__ = {}; }
+    if (calculandoAlg) return;
+    calculandoAlg = true;
+    const sel = $("#alg-origen");
+    if (sel) sel.disabled = true;
+    try {
+      const origen = sel.value || "C-101";
+      pausar();
+      if (!window.__PLANO_CAMPUS__) {
+        try { window.__PLANO_CAMPUS__ = await (await fetch("/static/campus-plano.json")).json(); } catch (e) { window.__PLANO_CAMPUS__ = {}; }
+      }
+      const j = await pedir("/api/algoritmo", { origen });
+      if (!j.ok) { avisar(j.mensaje, false); return; }
+      ALG.datos = j;
+      const l = layout(j.grafo);
+      ALG.pos = l.pos;
+      ALG.cajas = l.cajas;
+      $("#alg-barra").max = j.pasos.length - 1;
+      irPaso(0);
+    } finally {
+      calculandoAlg = false;
+      if (sel) sel.disabled = false;
     }
-    const j = await pedir("/api/algoritmo", { origen });
-    if (!j.ok) { avisar(j.mensaje, false); return; }
-    ALG.datos = j;
-    const l = layout(j.grafo);
-    ALG.pos = l.pos;
-    ALG.cajas = l.cajas;
-    $("#alg-barra").max = j.pasos.length - 1;
-    irPaso(0);
   }
 
   async function abrirDijkstra() {
@@ -1102,6 +1244,7 @@
     }
   }
 
+  let audioCtxGlobal = null;
   function sonarAlerta(forzar = false) {
     try {
       const P = window.__UNEXUAM_PREFS__ || {};
@@ -1117,30 +1260,39 @@
       if (!ton) return;
       const Ctx = window.AudioContext || window.webkitAudioContext;
       if (!Ctx) return;
-      const ctx = new Ctx();
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
+      if (!audioCtxGlobal || audioCtxGlobal.state === "closed") audioCtxGlobal = new Ctx();
+      if (audioCtxGlobal.state === "suspended") audioCtxGlobal.resume().catch(() => {});
+      const osc = audioCtxGlobal.createOscillator();
+      const gain = audioCtxGlobal.createGain();
       osc.type = "sine";
       osc.frequency.value = 880;
       gain.gain.value = 0.08;
       osc.connect(gain);
-      gain.connect(ctx.destination);
+      gain.connect(audioCtxGlobal.destination);
       osc.start();
-      setTimeout(() => { osc.stop(); ctx.close(); }, 220);
+      osc.stop(audioCtxGlobal.currentTime + 0.22);
     } catch (_) {}
   }
 
+  let enviandoSos = false;
   async function enviarSOS() {
-    if (!YO) return;
-    sonarAlerta();
-    const texto = `SOS · Necesito ayuda en ${YO.lugar || "el campus"} (${YO.nombre}).`;
-    const j = await pedir("/api/mensajes/enviar", { para: "TODOS", texto });
-    const enCola = j.ok && j.enviado && j.enviado.estado !== "entregado";
-    avisar(!j.ok ? (j.mensaje || "No se pudo enviar el SOS.") : enCola ? (j.mensaje || "SOS guardado: saldrá al conectar un teléfono cercano.") : "SOS enviado al Canal General.", j.ok && !enCola);
-    firmaMsj = "";
-    await cargarMensajes();
-    location.hash = "#mensajes";
-    abrirChat("TODOS");
+    if (!YO || enviandoSos) return;
+    enviandoSos = true;
+    try {
+      sonarAlerta();
+      const texto = `SOS · Necesito ayuda en ${YO.lugar || "el campus"} (${YO.nombre}).`;
+      const j = await pedir("/api/mensajes/enviar", { para: "TODOS", texto });
+      const enCola = j.ok && j.enviado && j.enviado.estado !== "entregado";
+      avisar(!j.ok ? (j.mensaje || "No se pudo enviar el SOS.") : enCola ? (j.mensaje || "SOS guardado: saldrá al conectar un teléfono cercano.") : "SOS enviado al Canal General.", j.ok && !enCola);
+      firmaMsj = "";
+      await cargarMensajes();
+      abriendoChatIntencional = true;
+      location.hash = "#mensajes";
+      abrirChat("TODOS");
+      setTimeout(() => { abriendoChatIntencional = false; }, 120);
+    } finally {
+      setTimeout(() => { enviandoSos = false; }, 3000);
+    }
   }
 
   function abrirReportarBloqueo() {
@@ -1203,7 +1355,15 @@
       const act = btn.dataset.fab;
       if (act === "gps") aproximarEdificioPorGPS(true);
       else if (act === "bloqueo") abrirReportarBloqueo();
-      else if (act === "sos") enviarSOS();
+      else if (act === "sos") {
+        if (window.abrirHoja) {
+          window.abrirHoja("Confirmar alerta SOS", "Se enviará tu edificio al Canal General sin internet.", [
+            { txt: "Enviar SOS ahora", cls: "peligro", fn: enviarSOS },
+          ]);
+        } else {
+          enviarSOS();
+        }
+      }
     });
     document.addEventListener("keydown", ev => {
       if (menu.hidden) return;
@@ -1228,6 +1388,13 @@
     fabEventos();
     $("#login-form").addEventListener("submit", entrar);
     $("#login-demo").addEventListener("click", entrarDemo);
+    const btnInv = $("#btn-evacuar-invitado");
+    if (btnInv) btnInv.addEventListener("click", async () => {
+      $("#v-login").hidden = true;
+      document.body.classList.remove("sin-sesion");
+      document.body.classList.add("modo-invitado");
+      if (window.entrarModoEvacuacionInvitado) await window.entrarModoEvacuacionInvitado();
+    });
     const btnAtras = $("#reg-atras");
     if (btnAtras) btnAtras.addEventListener("click", () => { if (regPaso > 1) { regPaso--; $("#login-error").textContent = ""; actualizarWizard(true); } });
     const btnRegGps = $("#reg-gps");
@@ -1237,11 +1404,11 @@
       if (lugar && sel) { sel.value = lugar; }
     });
     $$("[data-modo]").forEach(b => b.addEventListener("click", () => cambiarModo(b.dataset.modo)));
-    $("#btn-cuenta").addEventListener("click", () => (window.abrirAjustes ? window.abrirAjustes() : menuCuenta()));
+    $("#btn-cuenta").addEventListener("click", menuCuenta);
     window.__UNEXUAM_AJUSTES__ = {
       perfil: menuCuenta,
       edificio: elegirLugar,
-      salir,
+      salir: confirmarSalir,
       probarSos: () => {
         const P = window.__UNEXUAM_PREFS__ || {};
         sonarAlerta(false);
@@ -1350,8 +1517,10 @@
     if (btnAccLugar) btnAccLugar.addEventListener("click", elegirLugar);
     const btnAccCanal = $("#btn-acc-canal");
     if (btnAccCanal) btnAccCanal.addEventListener("click", () => {
+      abriendoChatIntencional = true;
       location.hash = "#mensajes";
       abrirChat("TODOS");
+      setTimeout(() => { abriendoChatIntencional = false; }, 120);
     });
     const btnSos = $("#btn-sos");
     if (btnSos) activarDeslizable(btnSos, enviarSOS, "Desliza hacia la derecha para enviar SOS →", true);
@@ -1359,8 +1528,6 @@
       if (!YO) return;
       firmaMsj = "";
       await cargarMensajes();
-      if (vistaActual() === "mensajes") renderMensajes();
-      if (!$("#chat").hidden) renderChat(true);
       const d = ev.detail || {};
       const P = window.__UNEXUAM_PREFS__ || {};
       if (d.recalcularRuta) {
@@ -1385,7 +1552,12 @@
         }
       }
     });
-    $("#buscar-contacto").addEventListener("input", () => { $("#resultado-cif").hidden = true; renderMensajes(); });
+    let buscarDeb = 0;
+    $("#buscar-contacto").addEventListener("input", () => {
+      $("#resultado-cif").hidden = true;
+      clearTimeout(buscarDeb);
+      buscarDeb = setTimeout(renderMensajes, 150);
+    });
     $("#form-cif").addEventListener("submit", buscarCif);
     $("#chat-form").addEventListener("submit", enviar);
     $("#chat-volver").addEventListener("click", cerrarChat);
@@ -1415,13 +1587,32 @@
     });
     document.addEventListener("keydown", ev => {
       if ($("#chat").hidden || !$("#hoja").hidden) return;
+      if (ev.key === "Escape") { ev.preventDefault(); cerrarChat(); return; }
+      if (ev.key === "Tab") {
+        const enf = [...$$("#chat button:not(:disabled), #chat textarea:not(:disabled), #chat input:not(:disabled), #chat summary")].filter(el => el.offsetParent !== null);
+        if (enf.length) {
+          const pri = enf[0], ult = enf[enf.length - 1];
+          if (!enf.includes(document.activeElement)) { ev.preventDefault(); pri.focus(); return; }
+          if (ev.shiftKey && document.activeElement === pri) { ev.preventDefault(); ult.focus(); return; }
+          if (!ev.shiftKey && document.activeElement === ult) { ev.preventDefault(); pri.focus(); return; }
+        }
+      }
       if (document.activeElement && /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName)) return;
       if (/^[1-4]$/.test(ev.key) && !ev.ctrlKey && !ev.metaKey && !ev.altKey) {
         const b = $(`#chat-rapidos [data-hotkey="${ev.key}"]`) || (ev.key === "4" ? $("#chat-rapidos [data-escribir-otro]") : null);
         if (b) { ev.preventDefault(); usarRapido(b); }
       }
     });
-    window.addEventListener("hashchange", () => { if (!$("#chat").hidden) cerrarChat(); });
+    window.addEventListener("hashchange", () => {
+      pausar();
+      if (!abriendoChatIntencional && !$("#chat").hidden) cerrarChat();
+    });
+    window.addEventListener("popstate", () => {
+      if (!$("#hoja").hidden && window.cerrarHoja) { window.cerrarHoja(); return; }
+      if (!$("#fab-menu")?.hidden && window.__cerrarFab) { window.__cerrarFab(); return; }
+      if (!$("#chat").hidden) { cerrarChat(); return; }
+      if (window.__UNEXUAM_AJUSTES_VOLVER__ && window.__UNEXUAM_AJUSTES_VOLVER__()) return;
+    });
     $$("[data-admin]").forEach(b => b.addEventListener("click", () => pestanaAdmin(b.dataset.admin)));
     $("#alg-origen").addEventListener("change", calcularAlg);
     $("#alg-barra").addEventListener("input", ev => { pausar(); irPaso(+ev.target.value); });

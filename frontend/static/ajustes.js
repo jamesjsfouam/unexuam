@@ -6,7 +6,7 @@
   const DEF = {
     vibrar: true, tono: true, vecinos: true, bloqueos: true,
     compartirLugar: true, custodiaDtn: true,
-    sincronizarSistema: false, escalaTexto: 100, contraste: "estandar", sinAnim: false,
+    sincronizarSistema: false, tema: "claro", escalaTexto: 100, contraste: "estandar", sinAnim: false,
     fuenteDislexia: false, interlineado: 1.4, modoEnfoque: false, filtroColor: "ninguno",
   };
   const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -45,6 +45,9 @@
     ]},
     { id: "accesibilidad", nombre: "Accesibilidad", ico: "M12 2a2.2 2.2 0 1 1-2.2 2.2A2.2 2.2 0 0 1 12 2Zm7 6.5h-5v13h-2v-6h-2v6H8v-13H3v-2h16Z", items: [
       { id: "sincronizarSistema", label: "Sincronizar con el sistema", tipo: "switch" },
+      { id: "tema", label: "Tema de pantalla", tipo: "radio", opciones: [
+        { v: "claro", t: "Claro" }, { v: "oscuro", t: "Oscuro" },
+      ]},
       { id: "escalaTexto", label: "Tamaño de texto", tipo: "range", min: 100, max: 200, step: 10, sufijo: "%", preview: true },
       { id: "contraste", label: "Nivel de contraste", tipo: "radio", opciones: [
         { v: "estandar", t: "Estándar" }, { v: "aumentado", t: "Aumentado" }, { v: "alto", t: "Alto" },
@@ -80,24 +83,33 @@
 
   const mqMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)");
   const mqContrast = window.matchMedia?.("(prefers-contrast: more)");
+  const mqDark = window.matchMedia?.("(prefers-color-scheme: dark)");
 
   function aplicarPrefs() {
     let sinAnim = !!prefs.sinAnim;
     let contraste = prefs.contraste || "estandar";
+    let tema = prefs.tema || "claro";
     if (prefs.sincronizarSistema) {
       if (mqMotion?.matches) sinAnim = true;
       if (mqContrast?.matches && contraste === "estandar") contraste = "alto";
+      if (mqDark?.matches) tema = "oscuro";
     }
     const escala = Math.min(200, Math.max(100, Number(prefs.escalaTexto) || 100));
     const inter = Math.min(2.0, Math.max(1.4, Number(prefs.interlineado) || 1.4));
     document.documentElement.style.setProperty("--escala-texto", String(escala / 100));
     document.documentElement.style.setProperty("--interlineado", inter.toFixed(1));
     document.documentElement.dataset.contraste = contraste;
+    document.documentElement.dataset.tema = tema;
     document.documentElement.dataset.filtroColor = prefs.filtroColor || "ninguno";
     document.body.classList.toggle("aj-sin-anim", sinAnim);
     document.body.classList.toggle("aj-dislexia", !!prefs.fuenteDislexia);
     document.body.classList.toggle("aj-enfoque", !!prefs.modoEnfoque);
-    window.__UNEXUAM_PREFS__ = { ...prefs, sinAnimEfectivo: sinAnim, contrasteEfectivo: contraste };
+    try {
+      if (window.UnexuamNativo && typeof window.UnexuamNativo.setCustodiaDtn === "function") {
+        window.UnexuamNativo.setCustodiaDtn(prefs.custodiaDtn !== false);
+      }
+    } catch (_) {}
+    window.__UNEXUAM_PREFS__ = { ...prefs, sinAnimEfectivo: sinAnim, contrasteEfectivo: contraste, temaEfectivo: tema };
   }
 
   function anunciar(txt) {
@@ -196,7 +208,7 @@
           <h3 class="aj-sub">Categorías</h3>
           ${CATS.map(c => `<div class="aj-fila" role="listitem">
             <button type="button" class="aj-cat" data-aj-cat="${esc(c.id)}">
-              <svg class="aj-ico" viewBox="0 0 24 24" role="img" aria-label="${esc(c.nombre)}"><path d="${c.ico}"/></svg>
+              <svg class="aj-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="${c.ico}"/></svg>
               <span><b>${esc(c.nombre)}</b><small>${c.items.length} opciones</small></span>
               <span class="aj-flecha" aria-hidden="true">›</span>
             </button>
@@ -233,12 +245,20 @@
     else if (id === "instalar" && h.avisar) h.avisar("App ya instalada o en modo APK.");
     else if (id === "salir" && h.salir) h.salir();
     else if (id === "permisos" && h.permisos) h.permisos();
-    else if (id === "guias") location.hash = "#inicio";
+    else if (id === "guias") {
+      location.hash = "#inicio";
+      requestAnimationFrame(() => document.getElementById("guias-emergencia")?.scrollIntoView({ behavior: "smooth" }));
+    }
     else if (id === "probarSos" && h.probarSos) h.probarSos();
     else if (id === "probarPush" && h.probarPush) h.probarPush();
-    else if (id === "estadoOffline" && h.avisar) h.avisar("Campus UAM offline: 154 lugares y 442 pasos listos.");
+    else if (id === "estadoOffline" && h.avisar) {
+      const st = window.__UNEXUAM_ESTADO__?.campus;
+      const lug = st?.vertices?.length || 154;
+      const pas = st?.aristas?.length || 442;
+      h.avisar(`Campus UAM sin internet: ${lug} lugares y ${pas} pasos listos.`);
+    }
     else if (id === "restablecerTodo") {
-      prefs = { ...prefs, sincronizarSistema: false, escalaTexto: 100, contraste: "estandar", sinAnim: false, fuenteDislexia: false, interlineado: 1.4, modoEnfoque: false, filtroColor: "ninguno" };
+      prefs = { ...prefs, sincronizarSistema: false, tema: "claro", escalaTexto: 100, contraste: "estandar", sinAnim: false, fuenteDislexia: false, interlineado: 1.4, modoEnfoque: false, filtroColor: "ninguno" };
       guardar(KEY_PREFS, prefs);
       aplicarPrefs();
       render();
@@ -251,6 +271,7 @@
     aplicarPrefs();
     mqMotion?.addEventListener?.("change", aplicarPrefs);
     mqContrast?.addEventListener?.("change", aplicarPrefs);
+    mqDark?.addEventListener?.("change", aplicarPrefs);
     const host = $("#v-ajustes");
     if (!host) return;
     host.addEventListener("input", ev => {
@@ -265,17 +286,24 @@
         const suf = k === "escalaTexto" ? "%" : "×";
         const fmt = k === "escalaTexto" ? `${prefs[k]}${suf}` : `${prefs[k].toFixed(1)}${suf}`;
         if (out) out.textContent = fmt;
-        anunciar(`${k === "escalaTexto" ? "Tamaño de texto" : "Interlineado"}: ${fmt}`);
       }
     });
     host.addEventListener("change", ev => {
+      const rng = ev.target.closest("[data-aj-rng]");
+      if (rng) {
+        const k = rng.dataset.ajRng;
+        const suf = k === "escalaTexto" ? "%" : "×";
+        const fmt = k === "escalaTexto" ? `${prefs[k]}${suf}` : `${prefs[k].toFixed(1)}${suf}`;
+        anunciar(`${k === "escalaTexto" ? "Tamaño de texto" : "Interlineado"}: ${fmt}`);
+        return;
+      }
       const rad = ev.target.closest("[data-aj-rad]");
       if (rad) {
         const k = rad.dataset.ajRad;
         prefs[k] = rad.value;
         guardar(KEY_PREFS, prefs);
         aplicarPrefs();
-        anunciar(`Contraste cambiado a ${rad.value}`);
+        anunciar(`${k === "tema" ? "Tema" : "Contraste"} cambiado a ${rad.value}`);
         return;
       }
       const sel = ev.target.closest("[data-aj-sel]");
@@ -293,13 +321,27 @@
         guardar(KEY_REC, recientes);
       }
     });
+    let ultimaCat = null;
     host.addEventListener("click", ev => {
       const rec = ev.target.closest("[data-aj-rec]");
       if (rec) { filtro = rec.dataset.ajRec; render(); return; }
       const cat = ev.target.closest("[data-aj-cat]");
-      if (cat) { catActiva = cat.dataset.ajCat; render(); $("#aj-volver", host)?.focus(); return; }
+      if (cat) {
+        ultimaCat = cat.dataset.ajCat;
+        catActiva = cat.dataset.ajCat;
+        if (history.pushState) history.pushState({ ajCat: catActiva }, "");
+        render();
+        $("#aj-volver", host)?.focus();
+        return;
+      }
       const vol = ev.target.closest("#aj-volver");
-      if (vol) { catActiva = vol.dataset.back || null; render(); return; }
+      if (vol) {
+        catActiva = vol.dataset.back || null;
+        render();
+        const foco = catActiva ? $("#aj-volver", host) : (ultimaCat ? host.querySelector(`[data-aj-cat="${CSS.escape(ultimaCat)}"]`) : $("#aj-q", host));
+        foco?.focus();
+        return;
+      }
       const sw = ev.target.closest("[data-aj-sw]");
       if (sw) {
         const k = sw.dataset.ajSw;
@@ -314,6 +356,13 @@
       const act = ev.target.closest("[data-aj-act]");
       if (act) ejecutar(act.dataset.ajAct);
     });
+    window.__UNEXUAM_AJUSTES_VOLVER__ = () => {
+      if (!catActiva) return false;
+      const c = CATS.find(x => x.id === catActiva) || SUBCATS[catActiva];
+      catActiva = c?.parent || null;
+      render();
+      return true;
+    };
     window.abrirAjustes = () => { catActiva = null; filtro = ""; render(); location.hash = "#ajustes"; };
     render();
   }
