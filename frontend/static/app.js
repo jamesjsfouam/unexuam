@@ -966,6 +966,7 @@ function edificio3D(L, o) {
   const k = (x1 - x0) / 340;                       // metros de la vista por píxel
   const pisosRuta = new Set(ruta.map(n => lugarInfo(n)).filter(i => (i.ed === L || (i.t === "escalera" && i.lado === "central" && (L === "B" || L === "C"))) && i.piso).map(i => i.piso));
   let svg = "";
+  let hitsSvg = "";
 
   // pozos de las escaleras (unen los pisos)
   for (const u of (L === "B" || L === "C" ? [0.03, 0.5, 0.97] : [0.03, 0.97])) {
@@ -1001,7 +1002,7 @@ function edificio3D(L, o) {
       if (o.interactivo && (!o.pisoFiltro || o.pisoFiltro === p)) {
         const hit = P(u, vMuro, z + h + 0.6);
         const bw = 18 * k, bh = 11.5 * k;
-        svg += `<g class="e3-aula-hit" data-ub-sel="${esc(codAula)}" role="button" tabindex="0">
+        hitsSvg += `<g class="e3-aula-hit" data-ub-sel="${esc(codAula)}" role="button" tabindex="0">
           <rect x="${(hit.x - bw / 2).toFixed(2)}" y="${(hit.y - bh / 2).toFixed(2)}" width="${bw.toFixed(2)}" height="${bh.toFixed(2)}" rx="${(bh / 2).toFixed(2)}" stroke-width="${1.2 * k}"/>
           <text x="${hit.x.toFixed(2)}" y="${hit.y.toFixed(2)}" font-size="${6.2 * k}">${p}${String(a).padStart(2, "0")}</text>
         </g>`;
@@ -1034,7 +1035,7 @@ function edificio3D(L, o) {
         if (o.interactivo && (!o.pisoFiltro || o.pisoFiltro === p)) {
           const bw = 34 * k, bh = 10.5 * k;
           const pabNom = `${L} Pabellón ${ladoNom} P${p}`;
-          svg += `<g class="e3-pab-hit" data-ub-sel="${esc(pabNom)}" role="button" tabindex="0">
+          hitsSvg += `<g class="e3-pab-hit" data-ub-sel="${esc(pabNom)}" role="button" tabindex="0">
             <rect x="${(t.x - bw / 2).toFixed(2)}" y="${(t.y - bh / 2).toFixed(2)}" width="${bw.toFixed(2)}" height="${bh.toFixed(2)}" rx="${(bh / 2).toFixed(2)}" stroke-width="${1 * k}"/>
             <text x="${t.x.toFixed(2)}" y="${t.y.toFixed(2)}" font-size="${5.5 * k}">${txt}</text>
           </g>`;
@@ -1051,7 +1052,7 @@ function edificio3D(L, o) {
   }
   // techo y detalles del último piso
   const zt = zPiso(top) + 3;
-  if (F.solar) {             // celdas solares sobre el techo de las aulas
+  if (F.solar && !o.interactivo) {             // celdas solares sobre el techo de las aulas (en modo interactivo no tapan el piso 3)
     const v0 = -sg * (W / 2 - 0.6), v1 = -sg * 1;
     svg += poli([P(0.14, v0, zt + 0.2), P(0.86, v0, zt + 0.2), P(0.86, v1, zt + 0.2), P(0.14, v1, zt + 0.2)], "e3-solar");
   }
@@ -1125,7 +1126,7 @@ function edificio3D(L, o) {
   });
   const alto = (y1 - y0) / (x1 - x0) * 340;
   return `<svg class="e3d${o.mini ? " mini" : ""}" viewBox="${x0.toFixed(1)} ${y0.toFixed(1)} ${(x1 - x0).toFixed(1)} ${(y1 - y0).toFixed(1)}" style="aspect-ratio:${(x1 - x0).toFixed(1)}/${(y1 - y0).toFixed(1)}" role="img" aria-label="${esc(F.nombre)} por dentro: ${alto > 0 ? G.pisos.length : 0} pisos">
-    ${svg}<g>${aristas}</g><g>${pesos}</g><g>${nodos}</g></svg>`;
+    ${svg}<g>${aristas}</g><g>${pesos}</g><g>${nodos}</g><g>${hitsSvg}</g></svg>`;
 }
 
 /* Flecha de A a B (para las aristas dirigidas) en unidades de la vista. */
