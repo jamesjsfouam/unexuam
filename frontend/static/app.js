@@ -1457,6 +1457,14 @@ function mostrarModalEmergencia(opts = {}) {
   const tipo = PASOS_EMERGENCIA[opts.tipo] ? opts.tipo : "general";
   carta.className = `modal-em-carta t-${tipo}`;
   const badges = { sismo: "SISMO / TEMBLOR", incendio: "INCENDIO ACTIVO", inundacion: "INUNDACIÓN", general: "EMERGENCIA ACTIVA" };
+  const imgs = {
+    incendio: "/static/img/figma/tarjeta-incendio.jpg",
+    sismo: "/static/img/figma/tarjeta-sismo.jpg",
+    inundacion: "/static/img/figma/tarjeta-inundacion.jpg",
+    general: "/static/img/ico-fuego.png",
+  };
+  const imgEl = $("#modal-em-img");
+  if (imgEl) imgEl.src = imgs[tipo] || imgs.general;
   $("#modal-em-badge").textContent = badges[tipo];
   $("#modal-em-titulo").textContent = opts.titulo || "Emergencia en el campus";
   $("#modal-em-desc").textContent = opts.texto || "Sigue tu ruta de evacuación hacia el punto seguro más cercano.";

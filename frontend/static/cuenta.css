@@ -1307,9 +1307,45 @@ html[data-filtro-color="acromatopsia"] body { filter: grayscale(1); }
   padding: calc(28px + env(safe-area-inset-top)) 20px calc(24px + env(safe-area-inset-bottom));
   animation: modalPop .2s ease-out both;
 }
-.modal-em-carta.t-sismo { background: linear-gradient(160deg, #b83200 0%, #d92b00 100%); }
-.modal-em-carta.t-incendio { background: linear-gradient(160deg, #a81c00 0%, #d92b00 100%); }
-.modal-em-carta.t-inundacion { background: linear-gradient(160deg, #004291 0%, #0062cc 100%); }
+.modal-em-carta.t-sismo {
+  background: linear-gradient(160deg, #fcd222 0%, #f0b400 100%);
+  color: #0b2a4a;
+}
+.modal-em-carta.t-incendio { background: linear-gradient(160deg, #b81e00 0%, #e23000 100%); }
+.modal-em-carta.t-inundacion { background: linear-gradient(160deg, #004291 0%, #0080ff 100%); }
+.modal-em-media {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 6px;
+}
+.modal-em-img {
+  width: 72px;
+  height: 72px;
+  border-radius: 22px;
+  object-fit: cover;
+  border: 3px solid rgba(255, 255, 255, .92);
+  background: rgba(255, 255, 255, .18);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, .28);
+  flex: none;
+}
+.modal-em-carta.t-sismo .modal-em-img { border-color: #0b2a4a; }
+.modal-em-carta.t-sismo .modal-em-badge { background: var(--rojo); color: #ffffff; }
+.modal-em-carta.t-sismo .modal-em-cab,
+.modal-em-carta.t-sismo .modal-em-cab h2,
+.modal-em-carta.t-sismo .modal-em-cab p { color: #0b2a4a; }
+.modal-em-carta.t-sismo .modal-em-pasos li { background: rgba(255, 255, 255, .72); color: #0b2a4a; }
+.modal-em-carta.t-sismo .modal-em-pasos li b { background: #0b2a4a; color: #fcd222; }
+.modal-em-carta.t-sismo .modal-em-acciones #modal-em-ir {
+  background: #0b2a4a !important;
+  color: #ffffff !important;
+  border-color: #0b2a4a !important;
+}
+.modal-em-carta.t-sismo .modal-em-acciones [data-cerrar-em] {
+  background: rgba(11, 42, 74, .12) !important;
+  color: #0b2a4a !important;
+  border-color: #0b2a4a !important;
+}
 @keyframes modalPop { from { opacity: 0; transform: scale(.96); } to { opacity: 1; transform: none; } }
 .modal-em-cab {
   padding: 8px 0 12px;

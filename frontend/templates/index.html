@@ -651,7 +651,10 @@
     <div class="modal-fondo" data-cerrar-em></div>
     <div class="modal-em-carta t-general" id="modal-em-carta" role="alertdialog" aria-modal="true" aria-labelledby="modal-em-titulo" aria-describedby="modal-em-desc">
       <div class="modal-em-cab">
-        <span class="modal-em-badge" id="modal-em-badge">EMERGENCIA ACTIVA</span>
+        <div class="modal-em-media">
+          <img id="modal-em-img" src="{{ url_for('static', filename='img/ico-fuego.png') }}" alt="" class="modal-em-img">
+          <span class="modal-em-badge" id="modal-em-badge">EMERGENCIA ACTIVA</span>
+        </div>
         <h2 id="modal-em-titulo">Emergencia en el campus</h2>
         <p id="modal-em-desc"></p>
       </div>
