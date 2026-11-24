@@ -1369,6 +1369,54 @@
   }
   window.sonarAlerta = sonarAlerta;
 
+  let sirenaTimer = null;
+  let sirenaPaso = 0;
+  function iniciarAlarmaEmergencia() {
+    detenerAlarmaEmergencia();
+    const P = window.__UNEXUAM_PREFS__ || {};
+    const vib = P.vibrar !== false;
+    const ton = P.tono !== false;
+    const pulsoSirena = () => {
+      try {
+        if (vib) {
+          if (window.UnexuamNativo && typeof window.UnexuamNativo.vibrarAlerta === "function") {
+            window.UnexuamNativo.vibrarAlerta();
+          } else if (navigator.vibrate) {
+            navigator.vibrate([380, 180, 380]);
+          }
+        }
+        if (!ton) return;
+        const Ctx = window.AudioContext || window.webkitAudioContext;
+        if (!Ctx) return;
+        if (!audioCtxGlobal || audioCtxGlobal.state === "closed") audioCtxGlobal = new Ctx();
+        if (audioCtxGlobal.state === "suspended") audioCtxGlobal.resume().catch(() => {});
+        const osc = audioCtxGlobal.createOscillator();
+        const gain = audioCtxGlobal.createGain();
+        osc.type = "sawtooth";
+        osc.frequency.value = (sirenaPaso++ % 2 === 0) ? 920 : 680;
+        gain.gain.value = 0.14;
+        osc.connect(gain);
+        gain.connect(audioCtxGlobal.destination);
+        osc.start();
+        osc.stop(audioCtxGlobal.currentTime + 0.36);
+      } catch (_) {}
+    };
+    pulsoSirena();
+    sirenaTimer = setInterval(pulsoSirena, 680);
+  }
+  function detenerAlarmaEmergencia() {
+    if (sirenaTimer) clearInterval(sirenaTimer);
+    sirenaTimer = null;
+    try { if (navigator.vibrate) navigator.vibrate(0); } catch (_) {}
+    try {
+      if (window.UnexuamNativo && typeof window.UnexuamNativo.detenerAlarmaEmergencia === "function") {
+        window.UnexuamNativo.detenerAlarmaEmergencia();
+      }
+    } catch (_) {}
+  }
+  window.iniciarAlarmaEmergencia = iniciarAlarmaEmergencia;
+  window.detenerAlarmaEmergencia = detenerAlarmaEmergencia;
+
   let enviandoSos = false;
   async function enviarSOS() {
     if (!YO || enviandoSos) return;
@@ -1519,6 +1567,18 @@
           "sos"
         );
         avisar(ok ? "Notificación push enviada al sistema." : "Concede permiso de notificaciones para recibir alertas push.", ok);
+      },
+      probarAlarma: () => {
+        if (window.UnexuamNativo && typeof window.UnexuamNativo.lanzarAlarmaEmergencia === "function") {
+          window.UnexuamNativo.lanzarAlarmaEmergencia("incendio", "Prueba de Alarma · Incendio", "Así sonará y saltará a pantalla completa incluso fuera de la app o con la pantalla bloqueada.");
+        } else if (window.mostrarModalEmergencia) {
+          window.mostrarModalEmergencia({
+            forzar: true,
+            tipo: "incendio",
+            titulo: "Prueba de Alarma · Incendio",
+            texto: "Alarma sonora continua a pantalla completa. Pulsa Silenciar alarma para detenerla.",
+          });
+        }
       },
       pedirNotif: pedirPermisoNotificaciones,
       avisar,

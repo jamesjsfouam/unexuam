@@ -39,6 +39,7 @@ public class MainActivity extends BridgeActivity {
     private final AtomicInteger notifSeq = new AtomicInteger(200);
     private boolean btPromptLanzado = false;
     private boolean btReceiverRegistrado = false;
+    private volatile boolean enPrimerPlano = false;
     private MeshNativa meshNativa;
     private String ultimoPerfilMesh = null;
 
@@ -71,6 +72,38 @@ public class MainActivity extends BridgeActivity {
             Log.w("UnexuamMain", "No se pudo registrar btReceiver: " + e.getMessage());
         }
         solicitarPermisosEntrada();
+        procesarIntentRuta(getIntent());
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+        enPrimerPlano = true;
+    }
+
+    @Override
+    public void onPause() {
+        enPrimerPlano = false;
+        super.onPause();
+    }
+
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+        procesarIntentRuta(intent);
+    }
+
+    private void procesarIntentRuta(Intent intent) {
+        if (intent != null && intent.getBooleanExtra("ir_a_campus", false)) {
+            intent.removeExtra("ir_a_campus");
+            runOnUiThread(() -> {
+                if (this.bridge != null && this.bridge.getWebView() != null) {
+                    this.bridge.getWebView().evaluateJavascript(
+                            "location.hash='#campus'; if(window.cerrarModalEmergencia) window.cerrarModalEmergencia();", null);
+                }
+            });
+        }
     }
 
     private void iniciarServicioForeground() {
@@ -143,6 +176,44 @@ public class MainActivity extends BridgeActivity {
         }
     }
 
+    @SuppressLint("MissingPermission")
+    public void mostrarAlarmaPantallaCompleta(String tipo, String titulo, String texto) {
+        try {
+            Intent fullIntent = new Intent(this, EmergencyAlertActivity.class);
+            fullIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+            fullIntent.putExtra(EmergencyAlertActivity.EXTRA_TIPO, tipo != null ? tipo : "general");
+            fullIntent.putExtra(EmergencyAlertActivity.EXTRA_TITULO, titulo != null ? titulo : "Emergencia en el campus");
+            fullIntent.putExtra(EmergencyAlertActivity.EXTRA_TEXTO, texto != null ? texto : "Evacúa hacia tu punto seguro.");
+
+            PendingIntent fullPi = PendingIntent.getActivity(
+                    this, 911, fullIntent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU
+                    || ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
+                    == PackageManager.PERMISSION_GRANTED) {
+                NotificationCompat.Builder b = new NotificationCompat.Builder(this, CANAL_EMERGENCIAS)
+                        .setSmallIcon(R.mipmap.ic_launcher)
+                        .setContentTitle(titulo != null && !titulo.isEmpty() ? titulo : "EMERGENCIA UNEXUAM")
+                        .setContentText(texto != null ? texto : "Toca para ver tu ruta de evacuación")
+                        .setStyle(new NotificationCompat.BigTextStyle().bigText(texto != null ? texto : ""))
+                        .setPriority(NotificationCompat.PRIORITY_MAX)
+                        .setCategory(NotificationCompat.CATEGORY_ALARM)
+                        .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+                        .setOngoing(true)
+                        .setAutoCancel(true)
+                        .setContentIntent(fullPi)
+                        .setFullScreenIntent(fullPi, true);
+                NotificationManagerCompat.from(this).notify(EmergencyAlertActivity.NOTIF_ALARMA_ID, b.build());
+            }
+
+            if (enPrimerPlano) {
+                startActivity(fullIntent);
+            }
+        } catch (Exception e) {
+            Log.w("UnexuamMain", "Error lanzando alarma pantalla completa: " + e.getMessage());
+        }
+    }
+
     @Override
     public void onDestroy() {
         if (btReceiverRegistrado) {
@@ -162,12 +233,33 @@ public class MainActivity extends BridgeActivity {
                 JSONObject pq = ev.optJSONObject("paquete");
                 if (pq != null) {
                     String txt = pq.optString("texto", "");
+                    String accion = pq.optString("accion", "");
                     String de = pq.optString("deNombre", pq.optString("de", "Unexuam"));
                     boolean esSos = txt.startsWith("SOS");
-                    mostrarNotificacionNativa(esSos ? "ALERTA SOS · " + de : "Mensaje de " + de, txt, esSos ? "sos" : "mensaje");
+                    if ("finalizar".equals(accion)) {
+                        EmergencyAlertActivity.detenerSiActiva();
+                        mostrarNotificacionNativa("Emergencia finalizada", "El campus vuelve a estar en calma.", "mensaje");
+                    } else if ("emergencia".equals(accion) || "bloquear".equals(accion) || esSos) {
+                        String emTipo = pq.optString("emergenciaTipo",
+                                txt.toLowerCase(Locale.ROOT).contains("incendio") ? "incendio"
+                                        : txt.toLowerCase(Locale.ROOT).contains("sismo") || txt.toLowerCase(Locale.ROOT).contains("temblor") ? "sismo"
+                                        : txt.toLowerCase(Locale.ROOT).contains("inundaci") ? "inundacion" : "general");
+                        String tit = pq.optString("titulo", esSos ? "ALERTA SOS · " + de : "Pasillo bloqueado en campus");
+                        if (!enPrimerPlano) {
+                            mostrarAlarmaPantallaCompleta(emTipo, tit, txt);
+                        } else {
+                            mostrarNotificacionNativa(tit, txt, "sos");
+                        }
+                    } else {
+                        mostrarNotificacionNativa("Mensaje de " + de, txt, "mensaje");
+                    }
                 }
             } else if ("incidente".equals(tipo) || ev.optBoolean("recalcularRuta", false)) {
-                mostrarNotificacionNativa("Pasillo bloqueado en campus", "Tu ruta de evacuación fue recalculada automáticamente.", "bloqueo");
+                if (!enPrimerPlano) {
+                    mostrarAlarmaPantallaCompleta("general", "Pasillo bloqueado en campus", "Tu ruta de evacuación fue recalculada automáticamente.");
+                } else {
+                    mostrarNotificacionNativa("Pasillo bloqueado en campus", "Tu ruta de evacuación fue recalculada automáticamente.", "bloqueo");
+                }
             }
         } catch (Exception ignored) {
         }
@@ -336,6 +428,16 @@ public class MainActivity extends BridgeActivity {
         @JavascriptInterface
         public void notificar(String titulo, String cuerpo, String tipo) {
             runOnUiThread(() -> mostrarNotificacionNativa(titulo, cuerpo, tipo));
+        }
+
+        @JavascriptInterface
+        public void lanzarAlarmaEmergencia(String tipo, String titulo, String texto) {
+            runOnUiThread(() -> mostrarAlarmaPantallaCompleta(tipo, titulo, texto));
+        }
+
+        @JavascriptInterface
+        public void detenerAlarmaEmergencia() {
+            runOnUiThread(EmergencyAlertActivity::detenerSiActiva);
         }
 
         @JavascriptInterface

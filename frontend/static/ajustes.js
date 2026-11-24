@@ -37,6 +37,7 @@
       { id: "vecinos", label: "Avisos de vecinos Mesh", tipo: "switch" },
       { id: "bloqueos", label: "Alertas de pasillos bloqueados", tipo: "switch" },
       { id: "probarPush", label: "Probar notificación push", tipo: "nav" },
+      { id: "probarAlarma", label: "Probar alarma pantalla completa", tipo: "nav" },
     ]},
     { id: "privacidad", nombre: "Privacidad", ico: "M12 2.5 4 6v5.8c0 5 3.4 9.6 8 10.7 4.6-1.1 8-5.7 8-10.7V6l-8-3.5Zm0 5a2.5 2.5 0 0 1 2.5 2.5V12h1v4h-7v-4h1v-2A2.5 2.5 0 0 1 12 7.5Z", items: [
       { id: "compartirLugar", label: "Compartir mi edificio por Mesh", tipo: "switch" },
@@ -251,6 +252,7 @@
     }
     else if (id === "probarSos" && h.probarSos) h.probarSos();
     else if (id === "probarPush" && h.probarPush) h.probarPush();
+    else if (id === "probarAlarma" && h.probarAlarma) h.probarAlarma();
     else if (id === "estadoOffline" && h.avisar) {
       const st = window.__UNEXUAM_ESTADO__?.campus;
       const lug = st?.vertices?.length || 154;

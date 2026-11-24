@@ -1468,12 +1468,14 @@ function mostrarModalEmergencia(opts = {}) {
   focoPrevioModal = document.activeElement;
   capa.hidden = false;
   if (history.pushState) history.pushState({ modalEm: true }, "");
-  if (window.sonarAlerta) window.sonarAlerta();
+  if (window.iniciarAlarmaEmergencia) window.iniciarAlarmaEmergencia();
+  else if (window.sonarAlerta) window.sonarAlerta();
   requestAnimationFrame(() => $("#modal-em-ir")?.focus());
 }
 window.mostrarModalEmergencia = mostrarModalEmergencia;
 
 function cerrarModalEmergencia() {
+  if (window.detenerAlarmaEmergencia) window.detenerAlarmaEmergencia();
   const capa = $("#modal-emergencia");
   if (!capa || capa.hidden) return;
   capa.hidden = true;
