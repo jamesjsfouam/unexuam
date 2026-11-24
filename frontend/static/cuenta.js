@@ -563,6 +563,8 @@
   let CONV = { yo: null, contactos: [], mensajes: [] };
   let conContacto = null;
   let sondeoMsj = null;
+  let generacionSondeoMsj = 0;
+  let solicitudMsj = 0;
   let firmaMsj = "";
 
   let leidosCache = null;
@@ -601,8 +603,9 @@
   }
 
   async function cargarMensajes() {
+    const solicitud = ++solicitudMsj;
     const j = await pedir("/api/mensajes");
-    if (!j.ok) return;
+    if (solicitud !== solicitudMsj || !j.ok) return;
     const firma = JSON.stringify(j);
     if (firma === firmaMsj) return;
     firmaMsj = firma;
@@ -637,11 +640,22 @@
 
   function iniciarSondeoMensajes() {
     detenerSondeoMensajes();
-    cargarMensajes();
-    if (window.__UNEXUAM_OFFLINE__) return;
-    sondeoMsj = setInterval(() => { if (!document.hidden) cargarMensajes(); }, 2500);
+    const generacion = generacionSondeoMsj;
+    async function sondear(inicial = false) {
+      if (inicial || !document.hidden) await cargarMensajes();
+      if (generacion === generacionSondeoMsj && !window.__UNEXUAM_OFFLINE__) {
+        sondeoMsj = setTimeout(sondear, 2500);
+      }
+    }
+    sondear(true);
   }
-  function detenerSondeoMensajes() { if (sondeoMsj) clearInterval(sondeoMsj); sondeoMsj = null; }
+
+  function detenerSondeoMensajes() {
+    generacionSondeoMsj++;
+    solicitudMsj++;
+    clearTimeout(sondeoMsj);
+    sondeoMsj = null;
+  }
 
   /* ------------------------------------------------------------ contactos por CIF */
 
@@ -745,7 +759,8 @@
     if (hdr) hdr.inert = true;
     if (mainEl) mainEl.inert = true;
     if (navEl) navEl.inert = true;
-    if (history.pushState) history.pushState({ chat: cif }, "");
+    if (history.state?.chat) history.replaceState({ chat: cif }, "");
+    else history.pushState({ chat: cif }, "");
     renderChat(true);
     requestAnimationFrame(() => $("#chat-volver")?.focus());
   }
@@ -776,12 +791,12 @@
     const box = $("#chat-actividad");
     const txt = $("#chat-actividad-txt");
     if (!box || !txt) return;
-    const enCola = (lista || []).some(m => m.de === YO?.cif && m.estado !== "entregado");
+    const enCola = (lista || []).some(m => m.de === YO?.cif && m.estado === "en cola");
     if (enviando) {
       txt.textContent = "Enviando mensaje por red Mesh…";
       box.hidden = false;
     } else if (enCola) {
-      txt.textContent = "En custodia DTN: buscando teléfono cercano para relevar…";
+      txt.textContent = "En cola hasta encontrar un teléfono cercano…";
       box.hidden = false;
     } else {
       box.hidden = true;
@@ -834,12 +849,13 @@
   function renderItemChat(m, c) {
     const mio = m.de === YO.cif;
     const entregado = m.estado === "entregado";
+    const estado = { transmitiendo: "Recepción sin confirmar", vencido: "Envío vencido", "en cola": "En cola" }[m.estado] || "Pendiente";
     const tic = entregado
       ? '<span class="tic"><svg class="ico-tic" viewBox="0 0 24 16" aria-hidden="true"><path d="M1 8.5 5 12.5 13 4.5l-1.4-1.4L5 9.7 2.4 7.1zM9.5 11.1l1.4 1.4L19.9 3.5l-1.4-1.4z"/></svg><span class="sr">Entregado</span></span>'
-      : '<span class="tic espera"><svg class="ico-tic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18Zm0 2a7 7 0 1 1 0 14 7 7 0 0 1 0-14Zm-1 2v6l5 3 1-1.7-4-2.3V7z"/></svg><span class="sr">En custodia</span></span>';
+      : `<span class="tic espera"><svg class="ico-tic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18Zm0 2a7 7 0 1 1 0 14 7 7 0 0 1 0-14Zm-1 2v6l5 3 1-1.7-4-2.3V7z"/></svg><span class="sr">${esc(estado)}</span></span>`;
     const detalle = entregado
       ? `${Math.max(1, m.ruta.length - 1)} salto${m.ruta.length === 2 ? "" : "s"} · ${seg(m.retardo)}${m.viaCola ? " · salió de la cola" : ""}`
-      : "En cola: sin camino en la red";
+      : estado;
     const nombrePar = m.deNombre || c.nombre || m.de;
     const cab = mio
       ? `<div class="chat-msg-cab"><span class="chat-autor">Tú</span></div>`
@@ -867,16 +883,21 @@
       chatContactoRender = conContacto;
       firmaRapidos = "";
     }
+    const elementos = new Map(Array.from(ol.querySelectorAll("li[data-msg-id]"), (li) => [li.dataset.msgId, li]));
+    const ids = new Set(lista.map((m) => String(m.id)));
+    for (const [id, li] of elementos) {
+      if (!ids.has(id)) li.remove();
+    }
     if (!lista.length) {
       if (!ol.querySelector(".vacio")) {
-        ol.innerHTML = '<li class="vacio">Escribe el primer mensaje. Viajará de teléfono en teléfono por la red Mesh sin internet.</li>';
+        ol.innerHTML = '<li class="vacio">Escribe el primer mensaje.</li>';
       }
     } else {
       ol.querySelector(".vacio")?.remove();
       for (const m of lista) {
         const key = String(m.id);
         const firma = `${m.estado}|${(m.ruta || []).length}|${m.retardo}|${m.viaCola ? 1 : 0}`;
-        let li = ol.querySelector(`li[data-msg-id="${CSS.escape(key)}"]`);
+        let li = elementos.get(key);
         if (!li) {
           li = document.createElement("li");
           li.className = m.de === YO.cif ? "mio" : "suyo";
@@ -898,6 +919,7 @@
   }
 
   let enviandoMsj = false;
+  let intentoMsj = null;
   async function enviar(ev) {
     ev.preventDefault();
     if (enviandoMsj) return;
@@ -911,7 +933,14 @@
     t.style.height = "";
     actualizarActividadChat(true, []);
     try {
-      const j = await pedir("/api/mensajes/enviar", { para: conContacto, texto });
+      const para = conContacto;
+      if (!intentoMsj || intentoMsj.para !== para || intentoMsj.texto !== texto) {
+        const idempotencia = Array.from(crypto.getRandomValues(new Uint8Array(16)),
+          (byte) => byte.toString(16).padStart(2, "0")).join("");
+        intentoMsj = { para, texto, idempotencia };
+      }
+      const j = await pedir("/api/mensajes/enviar", intentoMsj);
+      if (j.ok) intentoMsj = null;
       if (!j.ok) { actualizarActividadChat(false, []); t.value = texto; avisar(j.mensaje, false); return; }
       if (j.enviado && j.enviado.estado !== "entregado") avisar(j.mensaje, false);
       firmaMsj = "";
@@ -1448,15 +1477,17 @@
     ];
     window.abrirHoja(
       "Reportar pasillo bloqueado",
-      "Se avisará por Mesh y todos recalcularán su ruta.",
+      window.UnexuamNativo
+        ? "El bloqueo se guarda en este teléfono y se intenta compartir por Mesh."
+        : "El administrador revisará el reporte antes de actualizar las rutas.",
       pasos.map(p => ({
         txt: p.txt,
         cls: "peligro",
         fn: async () => {
           const j = await pedir("/api/campus/bloquear", { origen: p.o, destino: p.d, ambos: true });
           if (j.ok) {
-            sonarAlerta();
-            avisar(`Bloqueo difundido: ${p.txt}`);
+            if (!j.pendiente) sonarAlerta();
+            avisar(j.pendiente ? j.mensaje : `Bloqueo registrado: ${p.txt}`);
             if (window.iniciarUnexuam) window.iniciarUnexuam();
             firmaMsj = "";
             await cargarMensajes();
@@ -1530,13 +1561,21 @@
     navEventos();
     fabEventos();
     $("#login-form").addEventListener("submit", entrar);
-    $("#login-demo").addEventListener("click", entrarDemo);
+    const demo = $("#login-demo");
+    demo.addEventListener("click", entrarDemo);
+    if (!window.__UNEXUAM_OFFLINE__) {
+      pedir("/api/capacidades").then((resultado) => { demo.hidden = !resultado.demo; });
+    }
     const btnInv = $("#btn-evacuar-invitado");
     if (btnInv) btnInv.addEventListener("click", async () => {
       $("#v-login").hidden = true;
       document.body.classList.remove("sin-sesion");
       document.body.classList.add("modo-invitado");
-      if (window.entrarModoEvacuacionInvitado) await window.entrarModoEvacuacionInvitado();
+      if (!await window.entrarModoEvacuacionInvitado?.()) {
+        document.body.classList.remove("modo-invitado");
+        mostrarLogin();
+        $('#login-error').textContent = "Conéctate para descargar el mapa del campus.";
+      }
     });
     const btnAtras = $("#reg-atras");
     if (btnAtras) btnAtras.addEventListener("click", () => { if (regPaso > 1) { regPaso--; $("#login-error").textContent = ""; actualizarWizard(true); } });
@@ -1563,7 +1602,7 @@
       probarPush: async () => {
         const ok = await notificarPush(
           "Unexuam · Notificación Push activa",
-          "Las alertas SOS, bloqueos y mensajes Mesh llegarán aunque la pantalla esté apagada.",
+          "Si Mesh sigue activo, puedes recibir alertas con la pantalla apagada.",
           "sos"
         );
         avisar(ok ? "Notificación push enviada al sistema." : "Concede permiso de notificaciones para recibir alertas push.", ok);
@@ -1724,7 +1763,10 @@
     });
     $("#form-cif").addEventListener("submit", buscarCif);
     $("#chat-form").addEventListener("submit", enviar);
-    $("#chat-volver").addEventListener("click", cerrarChat);
+    $("#chat-volver").addEventListener("click", () => {
+      if (history.state?.chat === conContacto) history.back();
+      else cerrarChat();
+    });
     const ta = $("#chat-texto");
     ta.addEventListener("keydown", ev => { if (ev.key === "Enter" && !ev.shiftKey) { ev.preventDefault(); enviar(ev); } });
     ta.addEventListener("input", () => { ta.style.height = ""; ta.style.height = Math.min(ta.scrollHeight, 120) + "px"; });

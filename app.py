@@ -2,30 +2,29 @@
 Servidor web de Unexuam, sistema de evacuación Off-Grid (frontend del proyecto).
 
 Uso:
-    pip install flask cryptography
+    pip install -r requirements.txt
     python app.py
 
-Abre en el teléfono la dirección http://<IP-del-PC>:5000 que se imprime al arrancar
-(el teléfono y el PC deben estar en la misma red Wi-Fi local). No usa internet.
-
-Toda la lógica de grafos está en `backend/`; este archivo solo guarda el estado en
-memoria y lo expone como una API JSON para la interfaz web.
+Por defecto escucha en loopback. Para acceso desde la LAN, configura TLS explícitamente.
+La lógica de grafos se encuentra en `backend/`.
 """
 
 import json
 import math
 import os
 import re
+import hashlib
 import secrets
-import socket
 import sys
 import threading
 import time
 
+import click
 from flask import Flask, jsonify, render_template, request, session
 from werkzeug.exceptions import HTTPException
 from werkzeug.security import check_password_hash, generate_password_hash
 
+from backend.grafo import Graph
 from backend.datos import crearCampus, crearRedMesh, ubicacionesTelefonos
 from backend.evacuacion import aplicarAlerta, dijkstraPasos, rutaEvacuacion
 from backend.mensajeria import ALCANCE, conectarTelefono, desconectarTelefono, procesarCola, rutaMensaje
@@ -98,6 +97,10 @@ def clave_secreta():
 
 app.secret_key = clave_secreta()
 app.config["SESSION_COOKIE_HTTPONLY"] = True
+app.config["SESSION_COOKIE_SECURE"] = (
+    os.environ.get("UNEXUAM_SECURE_COOKIES") == "1"
+    or bool(os.environ.get("UNEXUAM_TLS_CERT") and os.environ.get("UNEXUAM_TLS_KEY"))
+)
 app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
 app.config["PERMANENT_SESSION_LIFETIME"] = 60 * 60 * 24 * 30   # 30 días
 
@@ -111,7 +114,6 @@ def reiniciar_mesh():
     S["red"] = crear_red_mesh()
     S["ubicaciones"] = ubicacionesTelefonos()   # teléfono -> lugar del campus
     S["ultimaAlerta"] = None
-    S["emergencia"] = None
     for cif in list(EN_LINEA):                  # los usuarios conectados vuelven a la red
         conectar_usuario(cif, DB.usuario(cif)["lugar"])
 
@@ -160,14 +162,58 @@ def reiniciar_campus():
     precalcular_rutas()
 
 
+class RevisionCampusObsoleta(Exception):
+    pass
+
+
+def cargar_campus_compartido():
+    revision, datos = DB.campus_actual()
+    if revision == S.get("revisionCampus"):
+        return
+    S["revisionCampus"] = revision
+    if datos is None:
+        reiniciar_campus()
+        return
+    anterior = S.get("ubicacion")
+    campus = Graph()
+    for nombre in datos["vertices"]:
+        campus.insertarVertice(nombre)
+    for origen, destino, peso in datos["aristas"]:
+        campus.insertarArista(origen, destino, peso)
+    S.update(campus=campus, zonas=datos["zonas"], bloqueados=datos["bloqueados"],
+             congestion=datos["congestion"], ubicacion=anterior if anterior and campus.buscarVertice(anterior) else None)
+    invalidar_rutas()
+
+
+def guardar_campus_compartido():
+    vertices = S["campus"].vertexs
+    datos = {
+        "vertices": [v.nombre for v in vertices],
+        "aristas": [[v.nombre, destino.nombre, peso] for v in vertices for destino, peso in v.neig],
+        "zonas": S["zonas"],
+        "bloqueados": S["bloqueados"],
+        "congestion": S["congestion"],
+    }
+    revision = S["revisionCampus"]
+    if not DB.guardar_campus(revision, datos):
+        cargar_campus_compartido()
+        raise RevisionCampusObsoleta()
+    S["revisionCampus"] = revision + 1
+
+
+@app.errorhandler(RevisionCampusObsoleta)
+def conflicto_campus(_):
+    return jsonify({"ok": False, "mensaje": "El mapa cambió. Actualiza e inténtalo de nuevo."}), 409
+
+
 def registrar(texto, tipo="info", privado=False):
     S["historial"].insert(0, {"hora": time.strftime("%H:%M:%S"), "texto": texto, "tipo": tipo, "privado": privado})
     del S["historial"][60:]
 
 
 S["historial"] = []
+cargar_campus_compartido()
 reiniciar_mesh()
-reiniciar_campus()
 registrar("Servidor iniciado. Campus UAM y red Mesh cargados.")
 
 
@@ -188,6 +234,7 @@ def calcular_ruta():
 
 
 def estado():
+    usuario = usuario_sesion() if request else None
     try:
         ruta = calcular_ruta()
     except Exception as e:  # el backend puede estar a medias
@@ -204,8 +251,9 @@ def estado():
             "congestion": S["congestion"],
         },
         "ultimaAlerta": S["ultimaAlerta"],
-        "emergencia": S.get("emergencia"),
+        "emergencia": DB.emergencia_actual(),
         "historial": historial_visible(),
+        "reportesBloqueo": DB.reportes_bloqueo_pendientes(int(time.time()) - 3600) if usuario and usuario["admin"] else [],
     }
 
 
@@ -280,12 +328,12 @@ def error_backend(e):
 # Inicio de sesión (CIF + contraseña) y mensajería por la red Mesh
 # ----------------------------------------------------------------------------
 
-LIBRES = {"/api/yo", "/api/login", "/api/login/demo", "/api/registro", "/api/lugares", "/api/campus/publico", "/api/campus/ruta"}
+LIBRES = {"/api/capacidades", "/api/yo", "/api/login", "/api/login/demo", "/api/registro", "/api/lugares", "/api/campus/publico", "/api/campus/ruta"}
 # Reportar un pasillo bloqueado (/api/campus/bloquear) es una función de emergencia para todos;
 # reabrir, congestionar, reiniciar y editar los grafos es solo del administrador.
 SOLO_ADMIN = ("/api/reiniciar", "/api/mesh/vertice", "/api/mesh/arista", "/api/mesh/alerta",
               "/api/campus/vertice", "/api/campus/arista", "/api/campus/ubicacion",
-              "/api/campus/desbloquear", "/api/campus/congestionar", "/api/algoritmo",
+              "/api/campus/desbloquear", "/api/campus/congestionar", "/api/campus/reportes/resolver", "/api/algoritmo",
               "/api/emergencia/declarar", "/api/emergencia/finalizar")
 LUGAR_INICIAL = "Edificio E"      # lugar por defecto al entrar (luego el GPS o la persona lo cambia)
 CIF_DEMO = "ADMIN"
@@ -299,6 +347,9 @@ def usuario_sesion():
 
 @app.before_request
 def exigir_sesion():
+    if request.path.startswith("/api/") or request.path == "/campus-offline.json":
+        with lock:
+            cargar_campus_compartido()
     if request.path.startswith("/api/") and request.path not in LIBRES:
         u = usuario_sesion()
         if u is None:
@@ -412,25 +463,35 @@ def api_lugares():
         return jsonify({"ok": True, "lugares": [v.nombre for v in S["campus"].vertexs]})
 
 
+def campus_publico():
+    return {
+        "mesh": {"vertices": [], "aristas": []},
+        "campus": {
+            **serializar(S["campus"]),
+            "zonasSeguras": S["zonas"],
+            "ubicacion": None,
+            "ruta": None,
+            "bloqueados": S["bloqueados"],
+            "congestion": S["congestion"],
+        },
+        "ultimaAlerta": None,
+        "historial": [],
+    }
+
+
 @app.get("/api/campus/publico")
 def api_campus_publico():
     with lock:
-        return jsonify({
-            "ok": True,
-            "estado": {
-                "mesh": {"vertices": [], "aristas": []},
-                "campus": {
-                    **serializar(S["campus"]),
-                    "zonasSeguras": S["zonas"],
-                    "ubicacion": None,
-                    "ruta": None,
-                    "bloqueados": S["bloqueados"],
-                    "congestion": S["congestion"],
-                },
-                "ultimaAlerta": None,
-                "historial": [],
-            },
-        })
+        return jsonify({"ok": True, "estado": campus_publico()})
+
+
+@app.get("/campus-offline.json")
+def campus_offline():
+    with lock:
+        rutas = {v.nombre: obtener_ruta_campus(v.nombre)[0] for v in S["campus"].vertexs}
+        respuesta = jsonify({"estado": campus_publico(), "rutas": rutas, "capturado": int(time.time())})
+        respuesta.headers["Cache-Control"] = "no-store"
+        return respuesta
 
 
 @app.get("/api/yo")
@@ -523,9 +584,10 @@ def api_login():
     if bloqueado_por_intentos(cif):
         return jsonify({"ok": False, "mensaje": "Demasiados intentos. Espera un minuto."})
     u = DB.usuario(cif)
-    hash_ = u["hash"] if u and not u["admin"] else HASH_FICTICIO
-    valida = check_password_hash(hash_, clave)            # mismo tiempo exista o no el CIF
-    if u is None or u["admin"] or not valida:
+    acceso_real = u is not None and cif != CIF_DEMO
+    hash_ = u["hash"] if acceso_real else HASH_FICTICIO
+    valida = check_password_hash(hash_, clave)
+    if not acceso_real or not valida:
         registrar_fallo(cif)
         return jsonify({"ok": False, "mensaje": "CIF o contraseña incorrectos."})
     INTENTOS.pop(cif, None)
@@ -533,12 +595,41 @@ def api_login():
         return abrir_sesion(cif, d.get("lugar"))
 
 
+@app.cli.command("crear-admin")
+@click.argument("cif")
+@click.argument("nombre")
+def crear_admin(cif, nombre):
+    cif = cif.strip().upper()
+    nombre = " ".join(nombre.split())
+    if not re.fullmatch(r"[0-9A-Z-]{4,15}", cif) or cif in {CIF_DEMO, CIF_TODOS}:
+        raise click.ClickException("Usa un CIF institucional de 4 a 15 letras, números o guiones.")
+    if not 2 <= len(nombre) <= 40:
+        raise click.ClickException("Usa un nombre de 2 a 40 caracteres.")
+    contrasena = click.prompt("Contraseña", hide_input=True, confirmation_prompt=True)
+    if not 12 <= len(contrasena) <= 64:
+        raise click.ClickException("Usa una contraseña de 12 a 64 caracteres.")
+    hash_clave = generate_password_hash(contrasena)
+    with lock:
+        if DB.usuario(cif):
+            raise click.ClickException("Ese CIF ya tiene una cuenta.")
+        DB.crear_usuario(cif, nombre, hash_clave, nombre_telefono(cif, nombre), LUGAR_INICIAL, admin=True)
+    click.echo(f"Cuenta de administrador creada para {cif}.")
+
+
+def demo_habilitada():
+    return os.environ.get("UNEXUAM_DISABLE_DEMO") != "1" and (
+        app.testing or os.environ.get("UNEXUAM_ENABLE_DEMO") == "1"
+    )
+
+
+@app.get("/api/capacidades")
+def api_capacidades():
+    return jsonify({"ok": True, "demo": demo_habilitada()})
+
+
 @app.post("/api/login/demo")
 def api_login_demo():
-    # Deshabilitado por defecto en producción; solo activo en pruebas o si UNEXUAM_ENABLE_DEMO=1.
-    deshabilitado = os.environ.get("UNEXUAM_DISABLE_DEMO") == "1"
-    habilitado = app.testing or os.environ.get("UNEXUAM_ENABLE_DEMO") == "1"
-    if deshabilitado or not habilitado:
+    if not demo_habilitada():
         return jsonify({"ok": False, "mensaje": "El acceso demo está deshabilitado."}), 403
     with lock:
         if DB.usuario(CIF_DEMO) is None:
@@ -618,10 +709,10 @@ def api_mensajes():
         return jsonify({"ok": True, "yo": datos_usuario(cif), "contactos": contactos, "mensajes": mios})
 
 
-def entregar(de, para, texto_msj, tipo="texto", ruta=None, retardo=None):
+def entregar(de, para, texto_msj, tipo="texto", ruta=None, retardo=None, ident=None):
     """Guarda un mensaje: entregado si hay `ruta`; si no, queda en cola (DTN)."""
     ruta = list(ruta or [])
-    m = {"id": secrets.token_hex(8), "de": de, "para": para, "tipo": tipo, "texto": texto_msj,
+    m = {"id": ident or secrets.token_hex(8), "de": de, "para": para, "tipo": tipo, "texto": texto_msj,
          "fecha": time.strftime("%Y-%m-%dT%H:%M:%S"), "estado": "entregado" if ruta else "en cola",
          "ruta": ruta, "retardo": num(retardo) if ruta else None, "viaCola": False}
     DB.guardar_mensaje(m)
@@ -635,14 +726,27 @@ def api_enviar():
     d = cuerpo_json()
     cif = session["cif"]
     para = leer_cif({"cif": d.get("para", "")})
-    texto_msj = str(d.get("texto", "")).strip()[:500]
+    valor_mensaje = d.get("texto")
+    texto_msj = valor_mensaje.strip() if isinstance(valor_mensaje, str) else ""
     with lock:
-        if not texto_msj:
-            return jsonify({"ok": False, "mensaje": "El mensaje está vacío."})
+        if not 1 <= len(texto_msj) <= 500:
+            return jsonify({"ok": False, "mensaje": "Escribe entre 1 y 500 caracteres."})
         yo = DB.usuario(cif)
+        clave = d.get("idempotencia")
+        ident = None
+        if clave is not None:
+            if not isinstance(clave, str) or re.fullmatch(r"[A-Za-z0-9_-]{16,64}", clave) is None:
+                return jsonify({"ok": False, "mensaje": "Identificador de envío inválido."}), 400
+            ident = hashlib.sha256(f"{cif}:{clave}".encode()).hexdigest()
+            existente = DB.mensaje(ident)
+            if existente:
+                if existente["de"] != cif or existente["para"] != para or existente["texto"] != texto_msj:
+                    return jsonify({"ok": False, "mensaje": "El identificador corresponde a otro envío."}), 409
+                existente["deNombre"] = yo["nombre"]
+                return jsonify({"ok": True, "mensaje": "Mensaje registrado.", "enviado": existente})
         if para == CIF_TODOS:
             # Canal General: difusión a toda la red del campus.
-            m = entregar(cif, CIF_TODOS, texto_msj, ruta=[yo["telefono"], "Todos"], retardo=0.5)
+            m = entregar(cif, CIF_TODOS, texto_msj, ruta=[yo["telefono"], "Todos"], retardo=0.5, ident=ident)
             m["deNombre"] = yo["nombre"]
             registrar(f"{yo['nombre']} escribió en el Canal General.", "ok", privado=True)
             return jsonify({"ok": True, "mensaje": "Difundido en el Canal General del campus.", "enviado": m})
@@ -652,7 +756,7 @@ def api_enviar():
         if destino is None or para == cif or destino["admin"]:
             return jsonify({"ok": False, "mensaje": "Elige a quién enviarle el mensaje."})
         ruta, retardo = rutaMensaje(S["red"], yo["telefono"], destino["telefono"])
-        m = entregar(cif, para, texto_msj, ruta=ruta, retardo=retardo)
+        m = entregar(cif, para, texto_msj, ruta=ruta, retardo=retardo, ident=ident)
         m["deNombre"] = yo["nombre"]
         if ruta:
             msj = f"Entregado en {len(ruta) - 1} salto(s), {num(retardo)} s de retardo."
@@ -738,7 +842,10 @@ def api_reiniciar():
     with lock:
         if cual in ("campus", "ambos"):
             reiniciar_campus()
+            guardar_campus_compartido()
         reiniciar_mesh()          # también tras cambiar el campus: los enlaces dependen de las distancias
+        if cual == "ambos":
+            DB.finalizar_emergencia()
         nombres = {"mesh": "la red Mesh", "campus": "el campus", "ambos": "los dos grafos"}
         return responder(True, f"Se reinició {nombres[cual]}.")
 
@@ -760,24 +867,23 @@ def api_declarar_emergencia():
     titulo_def, texto_def = EMERGENCIAS_DEF[tipo]
     texto_em = texto(d, "texto", 200) or texto_def
     with lock:
-        S["emergencia"] = {
+        DB.guardar_emergencia({
             "id": secrets.token_hex(6),
             "tipo": tipo,
             "titulo": titulo_def,
             "texto": texto_em,
             "hora": time.strftime("%H:%M:%S"),
-        }
+        })
         return responder(True, f"Emergencia declarada: {titulo_def}.")
 
 
 @app.post("/api/emergencia/finalizar")
 def api_finalizar_emergencia():
     with lock:
-        ubic = S.get("ubicacion")
-        reiniciar_campus()
-        S["ubicacion"] = ubic
+        incidente = cuerpo_json().get("incidente")
+        if not DB.finalizar_emergencia(incidente):
+            return responder(False, "La emergencia activa cambió. Actualiza e inténtalo de nuevo.")
         S["ultimaAlerta"] = None
-        S["emergencia"] = None
         return responder(True, "Emergencia finalizada. El campus vuelve a estar en calma.")
 
 
@@ -833,23 +939,58 @@ def api_ubicacion():
         return responder(True, f"Ruta desde {lugar}: {' → '.join(r['ruta'])} ({r['tiempo']} s).")
 
 
+def tramos_bloqueables(origen, destino, ambos):
+    g = S["campus"]
+    pares = {(origen, destino)}
+    if ambos:
+        pares.add((destino, origen))
+    return [(v.nombre, w.nombre, peso) for v in g.vertexs for w, peso in v.neig
+            if (v.nombre, w.nombre) in pares]
+
+
+def bloquear_tramos(tramos):
+    for origen, destino, peso in tramos:
+        S["campus"].eliminarArista(origen, destino)
+        S["bloqueados"].append({"origen": origen, "destino": destino, "peso": peso})
+    invalidar_rutas()
+    guardar_campus_compartido()
+    return "Pasillo bloqueado: " + ", ".join(f"{o} → {d}" for o, d, _ in tramos) + "."
+
+
 @app.post("/api/campus/bloquear")
 def api_bloquear():
     d = cuerpo_json()
     o, dst, ambos = texto(d, "origen"), texto(d, "destino"), d.get("ambos", True) is not False
     with lock:
-        g = S["campus"]
-        pares = [(o, dst)] + ([(dst, o)] if ambos else [])
-        quitadas = []
-        for a, b in pares:
-            peso = next((p for v in g.vertexs if v.nombre == a for w, p in v.neig if w.nombre == b), None)
-            if peso is not None and g.eliminarArista(a, b):
-                S["bloqueados"].append({"origen": a, "destino": b, "peso": num(peso)})
-                quitadas.append(f"{a} → {b}")
-        if not quitadas:
+        tramos = tramos_bloqueables(o, dst, ambos)
+        if not tramos:
             return responder(False, f"No existe el paso {o} → {dst}.")
-        invalidar_rutas()
-        return responder(True, "Pasillo bloqueado: " + ", ".join(quitadas) + ".")
+        usuario = usuario_sesion()
+        if usuario["admin"]:
+            return responder(True, bloquear_tramos(tramos))
+        ident = secrets.token_hex(12)
+        DB.crear_reporte_bloqueo({"id": ident, "autor": usuario["cif"], "origen": o, "destino": dst,
+                                "ambos": ambos, "creado": int(time.time())})
+        return responder(True, "Reporte enviado. Pendiente de revisión.", pendiente=True, reporte=ident)
+
+
+@app.post("/api/campus/reportes/resolver")
+def api_resolver_reporte_bloqueo():
+    d = cuerpo_json()
+    ident, decision = texto(d, "id"), d.get("decision")
+    if decision not in ("aprobar", "descartar"):
+        return jsonify({"ok": False, "mensaje": "Elige aprobar o descartar."}), 400
+    ahora = int(time.time())
+    with lock:
+        reporte = DB.reporte_bloqueo(ident, ahora - 3600)
+        if not reporte:
+            return responder(False, "El reporte ya no está pendiente.")
+        mensaje = "Reporte descartado."
+        if decision == "aprobar":
+            tramos = tramos_bloqueables(reporte["origen"], reporte["destino"], reporte["ambos"])
+            mensaje = bloquear_tramos(tramos) if tramos else "El tramo del reporte ya no está disponible."
+        DB.resolver_reporte_bloqueo(ident, ahora)
+        return responder(True, mensaje)
 
 
 @app.post("/api/campus/desbloquear")
@@ -866,6 +1007,7 @@ def api_desbloquear():
             precalcular_rutas()
         else:
             invalidar_rutas()
+        guardar_campus_compartido()
         return responder(True, f"Se reabrieron {n} pasos con su tiempo original.")
 
 
@@ -886,6 +1028,7 @@ def api_congestionar():
             return responder(False, f"No se pudo aplicar congestión en «{lugar}».")
         S["congestion"][lugar] = round(S["congestion"].get(lugar, 1) * factor, 3)
         invalidar_rutas()
+        guardar_campus_compartido()
         return responder(True, f"{lugar}: congestión aplicada (tiempos ×{factor:g}).")
 
 
@@ -908,6 +1051,7 @@ def api_vertice(grafo):
                 S["zonas"].append(nombre)
             if grafo == "campus":
                 invalidar_rutas()
+                guardar_campus_compartido()
             return responder(True, f"Vértice «{nombre}» agregado en {grafo}.")
         if accion == "eliminar":
             v_real = g.buscarVertice(nombre)
@@ -921,6 +1065,7 @@ def api_vertice(grafo):
                 if S["ubicacion"] == canon:
                     S["ubicacion"] = None
                 invalidar_rutas()
+                guardar_campus_compartido()
             return responder(True, f"Vértice «{canon}» eliminado de {grafo} (y sus aristas entrantes).")
         return responder(False, "Acción no válida.")
 
@@ -942,74 +1087,25 @@ def api_arista(grafo):
                     return responder(False, f"No se pudo agregar {o} → {dst}: falta algún vértice.")
                 if grafo == "campus":
                     invalidar_rutas()
+                    guardar_campus_compartido()
                 return responder(True, f"Arista {o} → {dst} (peso {peso:g}) agregada en {grafo}.")
             if not g.actualizarPeso(o, dst, peso):
                 return responder(False, f"No existe la arista {o} → {dst}.")
             if grafo == "campus":
                 invalidar_rutas()
+                guardar_campus_compartido()
             return responder(True, f"Peso de {o} → {dst} actualizado a {peso:g}.")
         if accion == "eliminar":
             if not g.eliminarArista(o, dst):
                 return responder(False, f"No existe la arista {o} → {dst}.")
             if grafo == "campus":
                 invalidar_rutas()
+                guardar_campus_compartido()
             return responder(True, f"Arista {o} → {dst} eliminada de {grafo}.")
         return responder(False, "Acción no válida.")
 
 
 # ----------------------------------------------------------------------------
-
-def ip_local():
-    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    try:
-        s.connect(("10.255.255.255", 1))  # no envía nada; solo elige la interfaz de la red local
-        return s.getsockname()[0]
-    except OSError:
-        return "127.0.0.1"
-    finally:
-        s.close()
-
-
-def certificado_local(ip):
-    """Crea (una sola vez) un certificado autofirmado para servir HTTPS en la red local.
-    El GPS del navegador solo funciona en páginas seguras (https)."""
-    cert, clave = ruta_datos("unexuam-cert.pem"), ruta_datos("unexuam-clave.pem")
-    marca = ruta_datos("unexuam-cert.ip")
-    if os.path.exists(cert) and os.path.exists(clave) and os.path.exists(marca):
-        with open(marca, encoding="utf-8") as f:
-            if f.read().strip() == ip:
-                return cert, clave
-    try:
-        import datetime
-        import ipaddress
-        from cryptography import x509
-        from cryptography.hazmat.primitives import hashes, serialization
-        from cryptography.hazmat.primitives.asymmetric import rsa
-        from cryptography.x509.oid import NameOID
-    except ImportError:
-        return None
-    k = rsa.generate_private_key(public_exponent=65537, key_size=2048)
-    nombre = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, "Unexuam")])
-    alt = [x509.DNSName("localhost"), x509.IPAddress(ipaddress.ip_address("127.0.0.1"))]
-    if ip != "127.0.0.1":
-        alt.append(x509.IPAddress(ipaddress.ip_address(ip)))
-    ahora_utc = datetime.datetime.now(datetime.timezone.utc)
-    c = (x509.CertificateBuilder().subject_name(nombre).issuer_name(nombre).public_key(k.public_key())
-         .serial_number(x509.random_serial_number()).not_valid_before(ahora_utc - datetime.timedelta(days=1))
-         .not_valid_after(ahora_utc + datetime.timedelta(days=825))
-         .add_extension(x509.SubjectAlternativeName(alt), critical=False).sign(k, hashes.SHA256()))
-    for ruta_f, datos_f in ((clave, k.private_bytes(serialization.Encoding.PEM, serialization.PrivateFormat.TraditionalOpenSSL,
-                                                    serialization.NoEncryption())),
-                            (cert, c.public_bytes(serialization.Encoding.PEM))):
-        with open(ruta_f + ".tmp", "wb") as f:
-            f.write(datos_f)
-        os.replace(ruta_f + ".tmp", ruta_f)
-        if ruta_f == clave and os.name == "posix":
-            os.chmod(ruta_f, 0o600)
-    with open(marca, "w", encoding="utf-8") as f:
-        f.write(ip)
-    return cert, clave
-
 
 if __name__ == "__main__":
     try:
@@ -1017,22 +1113,12 @@ if __name__ == "__main__":
     except AttributeError:
         pass
     puerto = int(os.environ.get("PORT", "5000"))
-    puerto_https = int(os.environ.get("PORT_HTTPS", "5443"))
-    ip = ip_local()
-    print("=" * 64)
-    print(" Unexuam · Evacuación Off-Grid")
-    print(f" En este PC:        http://127.0.0.1:{puerto}")
-    print(f" Desde el teléfono: http://{ip}:{puerto}  (misma Wi-Fi)")
-    par = certificado_local(ip)
-    if par:
-        from werkzeug.serving import make_server
-        try:
-            segura = make_server("0.0.0.0", puerto_https, app, threaded=True, ssl_context=par)
-            threading.Thread(target=segura.serve_forever, daemon=True).start()
-            print(f" Con GPS (https):   https://{ip}:{puerto_https}  (acepta el aviso del certificado)")
-        except OSError as e:
-            print(f" No se pudo abrir https en el puerto {puerto_https}: {e}")
+    cert = os.environ.get("UNEXUAM_TLS_CERT")
+    clave = os.environ.get("UNEXUAM_TLS_KEY")
+    if bool(cert) != bool(clave):
+        raise SystemExit("Configura UNEXUAM_TLS_CERT y UNEXUAM_TLS_KEY juntos.")
+    if cert and clave:
+        app.run(host="0.0.0.0", port=int(os.environ.get("PORT_HTTPS", "5443")),
+                ssl_context=(cert, clave), debug=False, threaded=True)
     else:
-        print(" Para usar el GPS instala 'cryptography' (pip install cryptography): activa https.")
-    print("=" * 64)
-    app.run(host="0.0.0.0", port=puerto, debug=False, threaded=True)
+        app.run(host="127.0.0.1", port=puerto, debug=False, threaded=True)

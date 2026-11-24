@@ -20,6 +20,18 @@ import threading
 import time
 
 ESQUEMA = """
+CREATE TABLE IF NOT EXISTS campus_compartido (
+    unico INTEGER PRIMARY KEY CHECK (unico = 1),
+    revision INTEGER NOT NULL,
+    datos TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS emergencia_activa (
+    unica INTEGER PRIMARY KEY CHECK (unica = 1),
+    id TEXT NOT NULL,
+    datos TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS usuarios (
     cif        TEXT PRIMARY KEY,
     nombre     TEXT NOT NULL,
@@ -37,6 +49,18 @@ CREATE TABLE IF NOT EXISTS contactos (
     PRIMARY KEY (dueno_cif, contacto_cif),
     CHECK (dueno_cif <> contacto_cif)
 );
+
+CREATE TABLE IF NOT EXISTS reportes_bloqueo (
+    id TEXT PRIMARY KEY,
+    autor TEXT NOT NULL REFERENCES usuarios(cif) ON DELETE CASCADE,
+    origen TEXT NOT NULL,
+    destino TEXT NOT NULL,
+    ambos INTEGER NOT NULL CHECK (ambos IN (0, 1)),
+    creado INTEGER NOT NULL,
+    resuelto INTEGER
+);
+
+CREATE INDEX IF NOT EXISTS ix_reportes_bloqueo_pendientes ON reportes_bloqueo(resuelto, creado);
 
 CREATE TABLE IF NOT EXISTS mensajes (
     id         TEXT PRIMARY KEY,
@@ -82,6 +106,39 @@ class BaseDatos:
         with self.lock, self.con:
             self.con.execute(sql, args)
 
+    def campus_actual(self):
+        filas = self._q("SELECT revision, datos FROM campus_compartido WHERE unico = 1")
+        return (filas[0]["revision"], json.loads(filas[0]["datos"])) if filas else (0, None)
+
+    def guardar_campus(self, revision, datos):
+        serializado = json.dumps(datos, ensure_ascii=False)
+        with self.lock, self.con:
+            if revision == 0:
+                resultado = self.con.execute(
+                    "INSERT OR IGNORE INTO campus_compartido (unico, revision, datos) VALUES (1, 1, ?)",
+                    (serializado,))
+            else:
+                resultado = self.con.execute(
+                    "UPDATE campus_compartido SET revision = revision + 1, datos = ? WHERE unico = 1 AND revision = ?",
+                    (serializado, revision))
+            return resultado.rowcount == 1
+
+    def emergencia_actual(self):
+        filas = self._q("SELECT datos FROM emergencia_activa WHERE unica = 1")
+        return json.loads(filas[0]["datos"]) if filas else None
+
+    def guardar_emergencia(self, datos):
+        self._x("INSERT OR REPLACE INTO emergencia_activa (unica, id, datos) VALUES (1, ?, ?)",
+                (datos["id"], json.dumps(datos, ensure_ascii=False)))
+
+    def finalizar_emergencia(self, incidente=None):
+        with self.lock, self.con:
+            if incidente is None:
+                self.con.execute("DELETE FROM emergencia_activa WHERE unica = 1")
+                return True
+            resultado = self.con.execute("DELETE FROM emergencia_activa WHERE unica = 1 AND id = ?", (incidente,))
+            return resultado.rowcount == 1
+
     # ---------------------------------------------------------------- usuarios
     def usuario(self, cif):
         filas = self._q("SELECT * FROM usuarios WHERE cif = ?", (cif,))
@@ -113,11 +170,33 @@ class BaseDatos:
         return [f["contacto_cif"] for f in self._q(
             "SELECT contacto_cif FROM contactos WHERE dueno_cif = ? ORDER BY agregado", (cif,))]
 
+    def crear_reporte_bloqueo(self, reporte):
+        self._x("INSERT INTO reportes_bloqueo (id, autor, origen, destino, ambos, creado) VALUES (?, ?, ?, ?, ?, ?)",
+                (reporte["id"], reporte["autor"], reporte["origen"], reporte["destino"],
+                 reporte["ambos"], reporte["creado"]))
+
+    def reportes_bloqueo_pendientes(self, desde):
+        return [dict(f) for f in self._q(
+            "SELECT * FROM reportes_bloqueo WHERE resuelto IS NULL AND creado >= ? ORDER BY creado DESC, id LIMIT 100",
+            (desde,))]
+
+    def reporte_bloqueo(self, ident, desde):
+        filas = self._q("SELECT * FROM reportes_bloqueo WHERE id = ? AND resuelto IS NULL AND creado >= ?", (ident, desde))
+        return dict(filas[0]) if filas else None
+
+    def resolver_reporte_bloqueo(self, ident, resuelto):
+        self._x("UPDATE reportes_bloqueo SET resuelto = ? WHERE id = ? AND resuelto IS NULL", (resuelto, ident))
+
     # ---------------------------------------------------------------- mensajes
     @staticmethod
     def _msj(f):
+        estado = f["estado"]
+        if estado == "en cola":
+            limite = time.strftime("%Y-%m-%dT%H:%M:%S", time.localtime(time.time() - 24 * 3600))
+            if f["enviado"] < limite:
+                estado = "vencido"
         return {"id": f["id"], "de": f["de_cif"], "para": f["para_cif"], "tipo": f["tipo"], "texto": f["texto"],
-                "fecha": f["enviado"], "hora": f["enviado"][11:19], "estado": f["estado"],
+                "fecha": f["enviado"], "hora": f["enviado"][11:19], "estado": estado,
                 "ruta": json.loads(f["ruta"]), "retardo": f["retardo"],
                 "entregado": f["entregado"][11:19] if f["entregado"] else None, "viaCola": bool(f["via_cola"])}
 
@@ -127,6 +206,10 @@ class BaseDatos:
                 (m["id"], m["de"], m["para"], m.get("tipo", "texto"), m["texto"], m["fecha"], m["estado"],
                  json.dumps(m["ruta"], ensure_ascii=False), m["retardo"],
                  m["fecha"] if m["estado"] == "entregado" else None, int(m.get("viaCola", False))))
+
+    def mensaje(self, ident):
+        filas = self._q("SELECT * FROM mensajes WHERE id = ?", (ident,))
+        return self._msj(filas[0]) if filas else None
 
     def mensajes_de(self, cif, limite=400):
         filas = self._q("SELECT * FROM mensajes WHERE de_cif = ? OR para_cif = ? OR para_cif = 'TODOS' "

@@ -1,7 +1,9 @@
 /* Service Worker de Unexuam: caché de assets estáticos para operar offline. */
-const CACHE = "unexuam-v23";
+const CACHE = "unexuam-v25";
+const CAMPUS_OFFLINE = "/campus-offline.json";
 const ASSETS = [
   "/",
+  CAMPUS_OFFLINE,
   "/static/app.css",
   "/static/app.js",
   "/static/cuenta.js",
@@ -11,9 +13,9 @@ const ASSETS = [
   "/static/ubicacion-campus.json",
   "/static/campus-plano.json",
   "/static/manifest.json",
-  "/static/fonts/Montserrat-Regular.ttf",
-  "/static/fonts/Montserrat-Bold.ttf",
-  "/static/fonts/Montserrat-Black.ttf",
+  "/static/fonts/Montserrat-Regular.woff2",
+  "/static/fonts/Montserrat-Bold.woff2",
+  "/static/fonts/Montserrat-Black.woff2",
   "/static/img/logo-x.png",
   "/static/img/wordmark-unexuam.png",
   "/static/img/icono-192.png",
@@ -37,20 +39,56 @@ const ASSETS = [
 self.addEventListener("install", (ev) => {
   ev.waitUntil(
     caches.open(CACHE)
-      .then((c) => Promise.allSettled(ASSETS.map((u) => c.add(u))))
+      .then((c) => c.addAll(ASSETS))
       .then(() => self.skipWaiting())
   );
 });
 
 self.addEventListener("activate", (ev) => {
   ev.waitUntil(
-    caches.keys().then((keys) => Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k))))
+    caches.keys().then((keys) => Promise.all(keys.filter((k) => k.startsWith("unexuam-") && k !== CACHE).map((k) => caches.delete(k))))
       .then(() => self.clients.claim())
   );
 });
 
+async function responderCampus(peticion, ruta) {
+  try {
+    const respuesta = await fetch(peticion.clone());
+    if (respuesta.status < 500) {
+      if (ruta === "/api/campus/publico" && respuesta.ok) {
+        try {
+          const copia = await fetch(CAMPUS_OFFLINE, { cache: "no-store" });
+          if (copia.ok) await (await caches.open(CACHE)).put(CAMPUS_OFFLINE, copia);
+        } catch (_) {
+          // Conservar la última copia completa.
+        }
+      }
+      return respuesta;
+    }
+  } catch (_) {
+    // Las consultas públicas admiten la copia local.
+  }
+  const copia = await (await caches.open(CACHE)).match(CAMPUS_OFFLINE);
+  if (!copia) return Response.json({ ok: false, mensaje: "El mapa offline aún no está disponible." }, { status: 503 });
+  const datos = await copia.json();
+  const offline = { offline: true, capturado: datos.capturado };
+  if (ruta === "/api/campus/publico") return Response.json({ ok: true, estado: datos.estado, ...offline });
+  const cuerpo = await peticion.json().catch(() => null);
+  const lugar = cuerpo?.lugar;
+  if (typeof lugar !== "string" || !Object.prototype.hasOwnProperty.call(datos.rutas, lugar)) {
+    return Response.json({ ok: false, mensaje: "El lugar no existe en el mapa descargado.", ...offline });
+  }
+  return Response.json({ ok: true, ruta: datos.rutas[lugar], ...offline });
+}
+
 self.addEventListener("fetch", (ev) => {
   const url = new URL(ev.request.url);
+  if (url.origin !== self.location.origin) return;
+  if ((ev.request.method === "GET" && url.pathname === "/api/campus/publico") ||
+      (ev.request.method === "POST" && url.pathname === "/api/campus/ruta")) {
+    ev.respondWith(responderCampus(ev.request, url.pathname));
+    return;
+  }
   if (ev.request.method !== "GET" || url.pathname.startsWith("/api/")) return;
   ev.respondWith(
     fetch(ev.request)

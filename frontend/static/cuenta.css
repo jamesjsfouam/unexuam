@@ -414,7 +414,7 @@ body.sin-sesion main, body.sin-sesion .barra { visibility: hidden; }
 @media (prefers-reduced-motion: reduce) { .puntos-envio i { animation: none; opacity: 1; } }
 
 .chat-form { padding: 6px 10px calc(10px + env(safe-area-inset-bottom)); background: #eef4fb; }
-.chat-rapidos { display: flex; flex-wrap: nowrap; gap: 8px; overflow-x: auto; padding: 2px 14px 8px 2px; scrollbar-width: none; scroll-snap-type: x proximity; -webkit-overflow-scrolling: touch; mask-image: linear-gradient(90deg, #000 0%, #000 90%, transparent 100%); -webkit-mask-image: linear-gradient(90deg, #000 0%, #000 90%, transparent 100%); }
+.chat-rapidos { display: flex; flex-wrap: wrap; gap: 8px; overflow-x: auto; padding: 2px 14px 8px 2px; scrollbar-width: none; scroll-snap-type: x proximity; -webkit-overflow-scrolling: touch; }
 .chat-rapidos::-webkit-scrollbar { display: none; }
 .chat-rapidos button { flex: none; white-space: nowrap; scroll-snap-align: start; min-height: 44px; border-width: 2px; font-size: 0.8125rem; padding: 6px 14px; border-color: var(--azul-btn); color: var(--azul-btn); }
 .chat-rapidos button.seleccionado { background: var(--azul-btn); color: var(--blanco); transform: scale(.95); }
@@ -613,8 +613,8 @@ body.sin-sesion main, body.sin-sesion .barra { visibility: hidden; }
 .carrusel-flecha {
   position: relative;
   flex: none;
-  width: 34px;
-  height: 34px;
+  width: 44px;
+  height: 44px;
   padding: 2px;
   border: 0;
   border-radius: 50%;
@@ -623,7 +623,6 @@ body.sin-sesion main, body.sin-sesion .barra { visibility: hidden; }
   filter: drop-shadow(0 3px 6px rgba(0, 96, 200, .3));
   transition: transform .15s ease;
 }
-.carrusel-flecha::after { content: ""; position: absolute; inset: -5px; }
 .carrusel-flecha:hover:not(:disabled) { transform: scale(1.08); }
 .carrusel-flecha:active:not(:disabled) { transform: scale(.94); }
 .carrusel-flecha:focus-visible { outline: 3px solid var(--texto); outline-offset: 2px; box-shadow: var(--foco-anillo); }
@@ -1203,7 +1202,10 @@ html[data-filtro-color="acromatopsia"] body { filter: grayscale(1); }
   box-shadow: 0 4px 12px rgba(217, 43, 0, .32);
 }
 .banner-emergencia[hidden] { display: none; }
-.banner-em-txt { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+@media (max-width: 400px) {
+  #banner-emergencia { flex-wrap: wrap; }
+}
+.banner-em-txt { flex: 1 1 12rem; min-width: 0; overflow-wrap: anywhere; }
 .banner-em-btn {
   flex: none;
   padding: 6px 12px;
@@ -1217,8 +1219,8 @@ html[data-filtro-color="acromatopsia"] body { filter: grayscale(1); }
 }
 .banner-em-cerrar {
   flex: none;
-  width: 32px;
-  height: 32px;
+  width: 44px;
+  height: 44px;
   border: 0;
   border-radius: 50%;
   background: rgba(255, 255, 255, .2);

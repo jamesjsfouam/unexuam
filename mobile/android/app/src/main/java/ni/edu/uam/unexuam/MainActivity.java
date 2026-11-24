@@ -237,8 +237,7 @@ public class MainActivity extends BridgeActivity {
                     String de = pq.optString("deNombre", pq.optString("de", "Unexuam"));
                     boolean esSos = txt.startsWith("SOS");
                     if ("finalizar".equals(accion)) {
-                        EmergencyAlertActivity.detenerSiActiva();
-                        mostrarNotificacionNativa("Emergencia finalizada", "El campus vuelve a estar en calma.", "mensaje");
+                        // El motor web verifica que el cierre corresponde a la emergencia activa.
                     } else if ("emergencia".equals(accion) || "bloquear".equals(accion) || esSos) {
                         String emTipo = pq.optString("emergenciaTipo",
                                 txt.toLowerCase(Locale.ROOT).contains("incendio") ? "incendio"
@@ -402,6 +401,13 @@ public class MainActivity extends BridgeActivity {
         @JavascriptInterface
         public int enviarPaqueteMesh(String paqueteJson) {
             return meshNativa != null ? meshNativa.enviarPaquete(paqueteJson) : 0;
+        }
+
+        @JavascriptInterface
+        public void confirmarEntradaMesh(String id) {
+            runOnUiThread(() -> {
+                if (meshNativa != null) meshNativa.confirmarEntrada(id);
+            });
         }
 
         @JavascriptInterface

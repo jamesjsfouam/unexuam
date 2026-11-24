@@ -31,7 +31,7 @@
     </div>
     <p class="splash-pie">Campus UAM · Juntos podemos superar las adversidades</p>
   </div>
-  <a href="#v-inicio" class="sr skip-link">Saltar al contenido</a>
+  <a href="#contenido" class="sr skip-link">Saltar al contenido</a>
   <header class="barra">
     <h1 class="sr">Unexuam · Evacuación sin internet para el campus UAM</h1>
     <a href="#inicio" class="marca" aria-label="Unexuam, inicio">
@@ -50,7 +50,7 @@
     <button type="button" class="banner-em-cerrar" id="banner-em-cerrar" aria-label="Ocultar aviso">×</button>
   </div>
 
-  <main>
+  <main id="contenido" tabindex="-1">
     <!-- ============ 1. INICIO ============ -->
     <section id="v-inicio" class="vista" role="tabpanel" aria-labelledby="t-inicio">
       <div class="banner-ux" role="img" aria-label="Unexuam en el teléfono: ruta de evacuación y mensajes sin internet">
@@ -112,11 +112,11 @@
         <div class="carrusel">
           <button type="button" class="carrusel-flecha" data-carrusel="-1" aria-label="Anterior"><img src="{{ url_for('static', filename='img/figma/flecha-izq.png') }}" alt="" loading="lazy" decoding="async"></button>
           <div class="carrusel-pista" id="carrusel-guias">
-            <button type="button" class="tarjeta-figma azul" data-guia="inundacion"><img src="{{ url_for('static', filename='img/figma/tarjeta-inundacion.jpg') }}" alt="" loading="lazy" decoding="async"><span><b>Qué hacer</b>Inundaciones</span></button>
-            <button type="button" class="tarjeta-figma rojo" data-guia="incendio"><img src="{{ url_for('static', filename='img/figma/tarjeta-incendio.jpg') }}" alt="" loading="lazy" decoding="async"><span><b>Qué hacer</b>Incendios</span></button>
-            <button type="button" class="tarjeta-figma amarillo" data-guia="sismo"><img src="{{ url_for('static', filename='img/figma/tarjeta-sismo.jpg') }}" alt="" loading="lazy" decoding="async"><span><b>Qué hacer</b>Sismo</span></button>
-            <button type="button" class="tarjeta-figma verde" data-guia="auxilios"><img src="{{ url_for('static', filename='img/figma/tarjeta-auxilios.svg') }}" alt="" loading="lazy" decoding="async"><span><b>Qué hacer</b>Auxilios</span></button>
-            <button type="button" class="tarjeta-figma azul" data-guia="mesh"><img src="{{ url_for('static', filename='img/figma/tarjeta-sin-senal.svg') }}" alt="" loading="lazy" decoding="async"><span><b>Qué hacer</b>Sin señal</span></button>
+            <button type="button" class="tarjeta-figma azul" data-guia="inundacion"><img src="{{ url_for('static', filename='img/figma/tarjeta-inundacion.jpg') }}" alt="" loading="lazy" decoding="async"><span>Inundaciones</span></button>
+            <button type="button" class="tarjeta-figma rojo" data-guia="incendio"><img src="{{ url_for('static', filename='img/figma/tarjeta-incendio.jpg') }}" alt="" loading="lazy" decoding="async"><span>Incendios</span></button>
+            <button type="button" class="tarjeta-figma amarillo" data-guia="sismo"><img src="{{ url_for('static', filename='img/figma/tarjeta-sismo.jpg') }}" alt="" loading="lazy" decoding="async"><span>Sismos</span></button>
+            <button type="button" class="tarjeta-figma verde" data-guia="auxilios"><img src="{{ url_for('static', filename='img/figma/tarjeta-auxilios.svg') }}" alt="" loading="lazy" decoding="async"><span>Primeros auxilios</span></button>
+            <button type="button" class="tarjeta-figma azul" data-guia="mesh"><img src="{{ url_for('static', filename='img/figma/tarjeta-sin-senal.svg') }}" alt="" loading="lazy" decoding="async"><span>Sin señal</span></button>
           </div>
           <button type="button" class="carrusel-flecha" data-carrusel="1" aria-label="Siguiente"><img src="{{ url_for('static', filename='img/figma/flecha-der.png') }}" alt="" loading="lazy" decoding="async"></button>
         </div>
@@ -232,6 +232,7 @@
             <select id="campus-ubicacion"></select>
           </label>
         </details>
+        <p id="ruta-offline" class="nota" role="status" hidden></p>
         <div id="ruta-info" class="ruta-info"></div>
       </div>
 
@@ -359,6 +360,11 @@
       </div>
 
       <div class="tarjeta">
+        <div class="tarjeta-cab"><h3>Reportes de bloqueo</h3></div>
+        <ul id="reportes-bloqueo" class="adyacencia"></ul>
+      </div>
+
+      <div class="tarjeta">
         <div class="tarjeta-cab"><h3>Simulacros rápidos</h3></div>
         <div class="simulacros">
           <button type="button" class="btn secundario" data-sim="sismo-p">Sismo · Esc. Oeste P</button>
@@ -466,7 +472,7 @@
       </button>
       <label class="buscar-lbl" for="buscar-contacto">Buscar o agregar contacto por CIF</label>
       <form class="buscar-chat" id="form-cif" autocomplete="off">
-        <input type="search" id="buscar-contacto" maxlength="40" placeholder="Ej.: 24010001 o nombre" autocapitalize="characters" spellcheck="false" enterkeyhint="search">
+        <input type="search" id="buscar-contacto" aria-label="Buscar contacto" maxlength="40" placeholder="Ej.: 24010001 o nombre" autocapitalize="characters" spellcheck="false" enterkeyhint="search">
         <button class="buscar-ir" aria-label="Buscar CIF"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 3.5a6.5 6.5 0 0 1 5.2 10.4l4.9 4.9-1.4 1.4-4.9-4.9A6.5 6.5 0 1 1 10 3.5Zm0 2a4.5 4.5 0 1 0 0 9 4.5 4.5 0 0 0 0-9Z"/></svg></button>
       </form>
       <div id="resultado-cif" class="resultado-cif" hidden></div>
@@ -552,7 +558,7 @@
       </div>
       <label class="chat-lbl" for="chat-texto">Mensaje</label>
       <div class="chat-entrada">
-        <textarea id="chat-texto" rows="1" maxlength="500" placeholder="Escribe un mensaje…"></textarea>
+        <textarea id="chat-texto" aria-label="Mensaje" rows="1" maxlength="500" placeholder="Escribe un mensaje…"></textarea>
         <button class="chat-enviar" aria-label="Enviar mensaje">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 20.5 21.5 12 3 3.5l.1 6.6L15 12 3.1 13.9z"/></svg>
         </button>
@@ -628,7 +634,7 @@
       </form>
       <div class="login-sep"><span>o</span></div>
       <button type="button" class="btn peligro ancho" id="btn-evacuar-invitado" style="margin-bottom:8px">Evacuar sin iniciar sesión</button>
-      <button type="button" class="btn secundario ancho" id="login-demo">Demo rápida · Admin</button>
+      <button type="button" class="btn secundario ancho" id="login-demo" hidden>Demo rápida · Admin</button>
     </div>
   </section>
 

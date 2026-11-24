@@ -80,7 +80,54 @@ class TestApiYParidad(unittest.TestCase):
         with self.client.get("/sw.js") as r:
             self.assertEqual(r.status_code, 200)
             self.assertEqual(r.headers.get("Service-Worker-Allowed"), "/")
-            self.assertIn(b"unexuam-v23", r.data)
+            self.assertIn(b"unexuam-v25", r.data)
+
+    def test_operador_real_puede_iniciar_sesion(self):
+        resultado = servidor.app.test_cli_runner().invoke(
+            args=["crear-admin", "OP000001", "Operador prueba"],
+            input="clave-de-prueba-2026\nclave-de-prueba-2026\n",
+        )
+        self.assertEqual(resultado.exit_code, 0, resultado.output)
+        cliente = servidor.app.test_client()
+        sesion = cliente.post("/api/login", json={"cif": "OP000001", "contrasena": "clave-de-prueba-2026"}).json
+        self.assertTrue(sesion["usuario"]["admin"])
+        self.assertFalse(cliente.post("/api/login", json={"cif": "ADMIN", "contrasena": "!"}).json["ok"])
+
+    def test_mapa_offline_incluye_rutas_y_bloqueos_vigentes(self):
+        ruta = "/api/campus/ruta"
+        datos = {"lugar": "C-305"}
+        inicial = self.client.get("/campus-offline.json")
+        self.assertEqual(inicial.headers["Cache-Control"], "no-store")
+        self.assertEqual(inicial.json["rutas"]["C-305"], self.client.post(ruta, json=datos).json["ruta"])
+        self.client.post("/api/campus/bloquear", json={
+            "origen": "C Escalera Central P3", "destino": "B Escalera Central P2",
+        })
+        copia = self.client.get("/campus-offline.json").json
+        self.assertTrue(copia["estado"]["campus"]["bloqueados"])
+        self.assertEqual(copia["rutas"]["C-305"], self.client.post(ruta, json=datos).json["ruta"])
+        self.assertNotEqual(copia["rutas"]["C-305"], inicial.json["rutas"]["C-305"])
+
+    def test_campus_rechaza_escritura_con_revision_obsoleta(self):
+        from basedatos import BaseDatos
+
+        otra = BaseDatos(servidor.ruta_datos("unexuam.db"))
+        try:
+            revision, anterior = otra.campus_actual()
+            respuesta = self.client.post("/api/campus/vertice", json={
+                "accion": "insertar", "nombre": "Punto de prueba", "zonaSegura": True,
+            })
+            self.assertTrue(respuesta.json["ok"])
+            self.assertFalse(otra.guardar_campus(revision, anterior))
+            actual, datos = otra.campus_actual()
+            self.assertGreater(actual, revision)
+            self.assertIn("Punto de prueba", datos["zonas"])
+            with servidor.lock:
+                servidor.S.pop("revisionCampus")
+                servidor.reiniciar_campus()
+                servidor.cargar_campus_compartido()
+                self.assertIn("Punto de prueba", servidor.S["zonas"])
+        finally:
+            otra.con.close()
 
     def test_paridad_campus_plano_json(self):
         campus, _ = crearCampus()
@@ -110,6 +157,23 @@ class TestSesionYMensajes(unittest.TestCase):
         self.assertEqual(c.get("/api/estado").status_code, 401)
         self.assertFalse(c.get("/api/yo").get_json()["sesion"])
         self.assertTrue(c.get("/api/lugares").get_json()["ok"])
+
+    def test_reintentar_envio_con_la_misma_clave(self):
+        cliente, _ = self.nuevo("PRUEBAID1", "Prueba envío", "C-101")
+        datos = {"para": "TODOS", "texto": "Prueba", "idempotencia": "reintento-1234567890"}
+        primero = cliente.post("/api/mensajes/enviar", json=datos).get_json()
+        segundo = cliente.post("/api/mensajes/enviar", json=datos).get_json()
+        self.assertTrue(primero["ok"])
+        self.assertEqual(primero["enviado"]["id"], segundo["enviado"]["id"])
+        conflicto = cliente.post("/api/mensajes/enviar", json={**datos, "texto": "Otro mensaje"})
+        self.assertEqual(conflicto.status_code, 409)
+
+    def test_mensaje_debe_ser_texto(self):
+        cliente, _ = self.nuevo("PRUEBAID2", "Prueba texto", "C-101")
+        for texto in (None, {}, ["mensaje"], " ", "x" * 501):
+            with self.subTest(texto=texto):
+                respuesta = cliente.post("/api/mensajes/enviar", json={"para": "TODOS", "texto": texto})
+                self.assertFalse(respuesta.get_json()["ok"])
 
     def test_registro_y_contrasena(self):
         c = servidor.app.test_client()
@@ -186,6 +250,32 @@ class TestSesionYMensajes(unittest.TestCase):
         a.get("/api/mensajes")                                     # cualquier petición lo reconecta
         self.assertIsNotNone(servidor.S["red"].buscarVertice(ua["telefono"]))
 
+    def test_reporte_de_bloqueo_requiere_aprobacion_y_protege_autoria(self):
+        estudiante, usuario = self.nuevo("REP0001", "Reporte", "C-305")
+        admin = servidor.app.test_client()
+        admin.post("/api/login/demo", json={})
+        admin.post("/api/reiniciar", json={"grafo": "ambos"})
+        ruta = {"lugar": "C-305"}
+        antes = estudiante.post("/api/campus/ruta", json=ruta).json["ruta"]
+        try:
+            reporte = estudiante.post("/api/campus/bloquear", json={
+                "origen": "C Escalera Central P3", "destino": "B Escalera Central P2",
+            }).json
+            self.assertTrue(reporte["pendiente"])
+            self.assertEqual(reporte["estado"]["reportesBloqueo"], [])
+            self.assertEqual(estudiante.post("/api/campus/ruta", json=ruta).json["ruta"], antes)
+            pendientes = admin.get("/api/estado").json["estado"]["reportesBloqueo"]
+            self.assertEqual(pendientes[0]["autor"], usuario["cif"])
+            decision = {"id": reporte["reporte"], "decision": "aprobar"}
+            resolver = "/api/campus/reportes/resolver"
+            self.assertEqual(estudiante.post(resolver, json=decision).status_code, 403)
+            resuelto = admin.post(resolver, json=decision).json
+            self.assertTrue(resuelto["ok"])
+            self.assertEqual(resuelto["estado"]["reportesBloqueo"], [])
+            self.assertNotEqual(estudiante.post("/api/campus/ruta", json=ruta).json["ruta"], antes)
+        finally:
+            admin.post("/api/reiniciar", json={"grafo": "ambos"})
+
     def test_telefonos_distintos_aunque_cambien_mayusculas(self):
         _, u1 = self.nuevo("XXX0123", "Ana", "Edificio E")
         _, u2 = self.nuevo("YYY0123", "ana", "Edificio E")
@@ -220,13 +310,27 @@ class TestSesionYMensajes(unittest.TestCase):
 
         adm = servidor.app.test_client()
         adm.post("/api/login/demo", json={})
+        adm.post("/api/reiniciar", json={"grafo": "ambos"})
+        bloqueo = adm.post("/api/campus/bloquear", json={
+            "origen": "C Escalera Central P3", "destino": "B Escalera Central P2",
+        }).get_json()
+        self.assertTrue(bloqueo["ok"])
         r1 = adm.post("/api/emergencia/declarar", json={"tipo": "incendio"}).get_json()
         self.assertTrue(r1["ok"])
         self.assertEqual(r1["estado"]["emergencia"]["tipo"], "incendio")
-        r2 = adm.post("/api/emergencia/finalizar", json={}).get_json()
+        from basedatos import BaseDatos
+        otra = BaseDatos(servidor.ruta_datos("unexuam.db"))
+        try:
+            self.assertEqual(otra.emergencia_actual(), r1["estado"]["emergencia"])
+        finally:
+            otra.con.close()
+        incidente = r1["estado"]["emergencia"]["id"]
+        atrasado = adm.post("/api/emergencia/finalizar", json={"incidente": "anterior"}).get_json()
+        self.assertFalse(atrasado["ok"])
+        r2 = adm.post("/api/emergencia/finalizar", json={"incidente": incidente}).get_json()
         self.assertTrue(r2["ok"])
         self.assertIsNone(r2["estado"]["emergencia"])
-        self.assertEqual(r2["estado"]["campus"]["bloqueados"], [])
+        self.assertEqual(r2["estado"]["campus"]["bloqueados"], bloqueo["estado"]["campus"]["bloqueados"])
 
 
 if __name__ == "__main__":

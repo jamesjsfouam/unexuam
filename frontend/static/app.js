@@ -69,16 +69,19 @@ async function api(ruta, cuerpo) {
       body: JSON.stringify(cuerpo),
     });
     if (r.status === 401) { if (window.mostrarLogin) window.mostrarLogin(); return { ok: false }; }
-    if (r.status === 403) {
-      const j = await r.json().catch(() => ({ ok: false, mensaje: "Solo el administrador puede hacer eso." }));
+    if (r.status === 403 || r.status === 409) {
+      const j = await r.json().catch(() => ({ ok: false, mensaje: "No se pudo aplicar el cambio." }));
       marcarConexion(true);
       if (cuerpo !== undefined) aviso(j.mensaje, false);
       return j;
     }
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
     const j = await r.json();
-    marcarConexion(true);
-    if (j.estado) aplicarEstado(j.estado);
+    marcarConexion(!j.offline);
+    if (j.estado) {
+      mapaDescargado = j.offline ? j.capturado : null;
+      aplicarEstado(j.estado);
+    }
     if (cuerpo !== undefined) aviso(j.mensaje, j.ok);
     return j;
   } catch (e) {
@@ -458,7 +461,7 @@ function aplicarEstado(est) {
   evaluarEmergenciaAutomatica();
   // si el grafo del campus cambió (bloqueo, congestión, admin), invalidar caché local y recalcular
   const fc = JSON.stringify([est.campus.aristas, est.campus.zonasSeguras]);
-  if (fc !== firmaCampus) { firmaCampus = fc; cacheRutasLocal.clear(); pedirRuta(); }
+  if (fc !== firmaCampus) { firmaCampus = fc; pedirRuta(); }
 }
 
 function render() {
@@ -688,19 +691,13 @@ const minutos = s => (s < 60 ? `${Math.round(s)} s` : `${Math.floor(s / 60)} min
 let miLugar = leer("mi-lugar", "");   // cada teléfono guarda dónde está su estudiante
 let miRuta = null;                    // {origen, ruta, tiempo} calculada para este teléfono
 let firmaCampus = "";                 // para recalcular cuando el grafo del campus cambia
-const cacheRutasLocal = new Map();    // caché O(1) en cliente: se limpia solo ante bloqueo/congestión
+let solicitudRuta = 0;
+let mapaDescargado = null;
 
 async function pedirRuta() {
+  const solicitud = ++solicitudRuta;
   if (!E || !miLugar || !E.campus.vertices.includes(miLugar)) {
     miRuta = null;
-    if (vista === "campus") renderCampus();
-    else if (vista === "inicio") renderInicio();
-    return;
-  }
-  if (cacheRutasLocal.has(miLugar)) {
-    const nueva = cacheRutasLocal.get(miLugar);
-    if (!miRuta || !nueva || miRuta.origen !== nueva.origen) rutaAnterior = null;
-    miRuta = nueva;
     if (vista === "campus") renderCampus();
     else if (vista === "inicio") renderInicio();
     return;
@@ -709,14 +706,16 @@ async function pedirRuta() {
     const r = await fetch("/api/campus/ruta", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ lugar: miLugar }) });
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
     const j = await r.json();
+    if (solicitud !== solicitudRuta) return;
     if (!j.ok) { aviso(j.mensaje || "No se pudo calcular la ruta.", false); return; }
     const nueva = j.ruta;
-    if (nueva) cacheRutasLocal.set(miLugar, nueva);
+    mapaDescargado = j.offline ? j.capturado : null;
     if (miRuta && nueva && miRuta.origen === nueva.origen &&
         (JSON.stringify(miRuta.ruta) !== JSON.stringify(nueva.ruta) || miRuta.tiempo !== nueva.tiempo)) rutaAnterior = miRuta;
     else if (!miRuta || !nueva || miRuta.origen !== nueva.origen) rutaAnterior = null;
     miRuta = nueva;
   } catch (e) {
+    if (solicitud !== solicitudRuta) return;
     aviso("No se pudo actualizar la ruta; se mantiene la última conocida.", false);
   }
   if (vista === "campus") renderCampus();
@@ -738,6 +737,11 @@ function renderCampus() {
     ? `Activos: ${c.bloqueados.length} paso(s) bloqueado(s) y ${Object.keys(c.congestion).length} lugar(es) con congestión.`
     : "";
 
+  const offline = $("#ruta-offline");
+  offline.hidden = !mapaDescargado;
+  offline.textContent = mapaDescargado
+    ? `Mapa descargado el ${new Date(mapaDescargado * 1000).toLocaleString("es-NI")}. Los bloqueos recientes pueden faltar.`
+    : "";
   const info = $("#ruta-info");
   const r = miRuta;
   if (!miLugar || !r) {
@@ -1444,6 +1448,17 @@ function renderAdmin() {
   $("[data-form='v-insertar'] input[name='nombre']").placeholder = esMesh ? "Ej.: Tel-Camila" : "Ej.: Aula 301";
   $("#lbl-peso").textContent = esMesh ? "Peso (retardo en segundos)" : "Peso (tiempo de paso en segundos)";
 
+  const reportes = E.reportesBloqueo || [];
+  const listaReportes = $("#reportes-bloqueo");
+  listaReportes.innerHTML = reportes.map(r => `<li>
+    <b>${esc(r.origen)} → ${esc(r.destino)}</b>
+    <span>CIF ${esc(r.autor)}</span>
+    <div>
+      <button type="button" class="btn mini" data-resolver-bloqueo="${esc(r.id)}" data-decision="aprobar">Aprobar</button>
+      <button type="button" class="btn mini" data-resolver-bloqueo="${esc(r.id)}" data-decision="descartar">Descartar</button>
+    </div>
+  </li>`).join("") || '<li class="nota">Sin reportes pendientes.</li>';
+
   const zonas = new Set(E.campus.zonasSeguras);
   $("#adyacencia").innerHTML = g.vertices.length ? g.vertices.map(v => {
     const sal = g.aristas.filter(a => a.origen === v);
@@ -1808,6 +1823,22 @@ function irA(nombre) {
 /* ------------------------------------------------------------- eventos */
 
 function eventos() {
+  $("#reportes-bloqueo")?.addEventListener("click", async (ev) => {
+    const btn = ev.target.closest("button[data-resolver-bloqueo]");
+    if (!btn || btn.disabled) return;
+    const fila = btn.closest("li");
+    const acciones = fila.querySelectorAll("button");
+    acciones.forEach((accion) => { accion.disabled = true; });
+    try {
+      await api("/api/campus/reportes/resolver", { id: btn.dataset.resolverBloqueo, decision: btn.dataset.decision });
+    } finally {
+      acciones.forEach((accion) => { accion.disabled = false; });
+    }
+  });
+  $(".skip-link")?.addEventListener("click", (ev) => {
+    ev.preventDefault();
+    document.querySelector("main")?.focus();
+  });
   window.addEventListener("hashchange", () => irA(location.hash.slice(1)));
   const btnEmCerrar = $("#banner-em-cerrar");
   if (btnEmCerrar) btnEmCerrar.addEventListener("click", () => {
@@ -2158,7 +2189,6 @@ async function accion(a) {
     if (animando) return;
     const origen = $("#mesh-origen").value;
     if (!origen) return;
-    if (vista !== "mesh") location.hash = "#mesh";
     animando = true;  // evita que aplicarEstado lance otra animación
     const j = await api("/api/mesh/alerta", { origen, ttl });
     animando = false;
@@ -2188,7 +2218,8 @@ async function accion(a) {
   } else if (a === "mapa-centrar") {
     if (camCampusIni) aplicarCamaraCampus(camCampusIni);
   } else if (a === "finalizar-emergencia") {
-    hoja("Finalizar emergencia", "Se reabrirán los pasillos bloqueados, se limpiarán las alertas y el campus volverá a estar en calma.", [
+    const incidente = E.emergencia?.id;
+    hoja("Finalizar emergencia", "Se cerrará la alerta activa. Los reportes de bloqueo siguen vigentes.", [
       {
         txt: "Sí, finalizar emergencia",
         cls: "primario",
@@ -2197,7 +2228,7 @@ async function accion(a) {
           textoEmergenciaExtra = "";
           claveModalEmergencia = "";
           rutaAnterior = null;
-          await api("/api/emergencia/finalizar", {});
+          await api("/api/emergencia/finalizar", { incidente });
           cerrarModalEmergencia();
         },
       },
@@ -2284,6 +2315,9 @@ window.entrarModoEvacuacionInvitado = async function () {
   if (j.ok) {
     location.hash = "#campus";
     irA("campus");
-    aviso("Modo evacuación rápido: elige tu aula o usa GPS.");
+    aviso(j.offline
+      ? "Mapa descargado. Los bloqueos recientes pueden faltar."
+      : "Modo evacuación rápido: elige tu aula o usa GPS.", !j.offline);
   }
+  return j.ok;
 };
