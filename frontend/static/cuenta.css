@@ -388,3 +388,323 @@ body.sin-sesion main, body.sin-sesion .barra { visibility: hidden; }
 .resultado-cif[hidden] { display: none; }
 .resultado-cif .c-cuerpo small { color: #5f6f82; font-size: 12px; font-weight: 600; }
 .resultado-cif .nota { margin: 0; }
+
+/* =====================================================================
+   Componentes del Figma de UNEXO (Proyecto X) adaptados a Unexuam
+   ===================================================================== */
+
+/* Botones: píldoras como en el Figma (blanca con borde azul / azul rellena) */
+.btn {
+  border-radius: 999px;
+  border: 3px solid var(--azul);
+  font-weight: 800;
+  letter-spacing: .01em;
+  transition: transform .15s ease, box-shadow .15s ease, background .15s ease;
+}
+.btn:not(.primario):not(.alerta):not(.peligro):not(.aviso-btn):not(.blanco) { background: var(--blanco); color: var(--azul); }
+.btn.primario { background: var(--azul); color: var(--blanco); border-color: var(--azul); box-shadow: 0 6px 16px rgba(0, 128, 255, .28); }
+.btn.peligro, .btn.alerta { border-color: var(--rojo); }
+.btn:active { transform: scale(.97); }
+
+/* Banners de cabecera y de cierre (imágenes 3D del Figma) */
+.banner-figma {
+  display: block;
+  width: calc(100% + 32px);
+  margin: 0 -16px;
+  height: auto;
+  aspect-ratio: 1280 / 370;
+  object-fit: cover;
+}
+.banner-figma.cierre { aspect-ratio: 1280 / 254; margin-top: 8px; }
+#v-campus .banner-figma { aspect-ratio: 804 / 236; }
+
+/* Título en píldora (como "Reporta tu catástrofe") */
+.titulo-pildora {
+  align-self: center;
+  margin: 6px auto 4px;
+  padding: 8px 26px;
+  border: 3px solid var(--azul);
+  border-radius: 999px;
+  background: var(--blanco);
+  color: var(--azul);
+  font-size: 18px;
+  font-weight: 900;
+  text-align: center;
+  width: max-content;
+  max-width: 100%;
+}
+
+/* Franja de sección a todo lo ancho (como "Seguimiento en vivo") */
+.franja-figma {
+  margin: 10px -16px 2px;
+  padding: 10px 16px;
+  background: var(--azul);
+  color: var(--blanco);
+  font-size: 19px;
+  font-weight: 900;
+  text-align: center;
+}
+
+.guias-figma { display: flex; flex-direction: column; gap: 10px; }
+
+/* Carrusel de tarjetas con flechas circulares */
+.carrusel { display: flex; align-items: center; gap: 6px; }
+.carrusel-flecha {
+  flex: none;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  filter: drop-shadow(0 3px 6px rgba(0, 96, 200, .3));
+}
+.carrusel-flecha img { width: 100%; height: 100%; display: block; }
+.carrusel-pista {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+  padding: 4px 2px 8px;
+}
+.carrusel-pista::-webkit-scrollbar { display: none; }
+.tarjeta-figma {
+  position: relative;
+  flex: 0 0 46%;
+  aspect-ratio: 1;
+  scroll-snap-align: start;
+  padding: 0;
+  border: 0;
+  border-radius: 26px;
+  overflow: hidden;
+  cursor: pointer;
+  background: var(--azul-osc);
+  box-shadow: 0 8px 18px rgba(0, 60, 130, .22);
+}
+.tarjeta-figma img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; transition: transform .4s ease; }
+.tarjeta-figma:active img { transform: scale(1.05); }
+.tarjeta-figma span {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 22px 6px 10px;
+  color: var(--blanco);
+  font-size: clamp(13px, 4.2vw, 17px);
+  font-weight: 900;
+  line-height: 1;
+  text-align: center;
+  text-shadow: 0 2px 6px rgba(0, 0, 0, .35);
+}
+.tarjeta-figma span b { display: block; font-size: 13px; font-weight: 800; margin-bottom: 2px; }
+.tarjeta-figma.azul span { background: linear-gradient(180deg, rgba(0, 128, 255, 0), #0066dd 62%); }
+.tarjeta-figma.rojo span { background: linear-gradient(180deg, rgba(226, 48, 0, 0), #e23000 62%); }
+.tarjeta-figma.amarillo span { background: linear-gradient(180deg, rgba(252, 210, 34, 0), #f2bb00 62%); }
+.tarjeta-figma.verde span { background: linear-gradient(180deg, rgba(0, 214, 86, 0), #00a845 62%); }
+
+/* Filas de color con ícono (como "Reportes en vivo") */
+.filas-figma { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.fila-figma {
+  --c: var(--azul);
+  width: 100%;
+  display: flex;
+  align-items: stretch;
+  padding: 0;
+  border: 3px solid var(--c);
+  border-radius: 999px;
+  background: var(--blanco);
+  overflow: hidden;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+.fila-figma.amarillo { --c: #f2bb00; }
+.fila-figma.rojo { --c: var(--rojo); }
+.fila-icono { flex: 0 0 40%; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 8px 6px; color: var(--c); }
+.fila-icono img { height: 28px; width: auto; }
+.fila-icono b { font-size: 15px; font-weight: 900; }
+.fila-texto { flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center; padding: 8px 16px 8px 14px; background: var(--c); color: var(--blanco); border-radius: 999px 0 0 999px; }
+.fila-figma.amarillo .fila-texto { color: var(--texto); }
+.fila-texto b { font-size: 13px; font-weight: 900; }
+.fila-texto small { font-size: 11.5px; font-weight: 600; opacity: .95; }
+.fila-texto em { font-style: normal; font-weight: 900; }
+
+/* =====================================================================
+   Pantalla de carga: difuminado tipo aurora, vidrio y animaciones
+   ===================================================================== */
+.splash {
+  background: #0050c8 !important;
+  overflow: hidden;
+  transition: opacity .6s ease, transform .6s cubic-bezier(.22, 1, .36, 1), filter .6s ease;
+}
+.splash.fuera { opacity: 0; transform: scale(1.08); filter: blur(12px); }
+.splash-aurora { position: absolute; inset: -20%; filter: blur(60px) saturate(1.3); }
+.splash-aurora i { position: absolute; display: block; border-radius: 50%; mix-blend-mode: screen; opacity: .9; }
+.splash-aurora .a1 { width: 70vmax; height: 70vmax; left: -10%; top: -15%; background: radial-gradient(circle, #38b6ff 0%, rgba(56, 182, 255, 0) 65%); animation: aurora1 7s ease-in-out infinite alternate; }
+.splash-aurora .a2 { width: 60vmax; height: 60vmax; right: -15%; top: 10%; background: radial-gradient(circle, #00d656 0%, rgba(0, 214, 86, 0) 62%); opacity: .55; animation: aurora2 8s ease-in-out infinite alternate; }
+.splash-aurora .a3 { width: 55vmax; height: 55vmax; left: 5%; bottom: -20%; background: radial-gradient(circle, #fcd222 0%, rgba(252, 210, 34, 0) 60%); opacity: .5; animation: aurora3 9s ease-in-out infinite alternate; }
+.splash-aurora .a4 { width: 45vmax; height: 45vmax; right: 0; bottom: -10%; background: radial-gradient(circle, #e23000 0%, rgba(226, 48, 0, 0) 60%); opacity: .35; animation: aurora1 10s ease-in-out infinite alternate-reverse; }
+@keyframes aurora1 { to { transform: translate(12%, 10%) scale(1.15); } }
+@keyframes aurora2 { to { transform: translate(-14%, 8%) scale(.9); } }
+@keyframes aurora3 { to { transform: translate(10%, -12%) scale(1.2); } }
+.splash-grano {
+  position: absolute;
+  inset: 0;
+  opacity: .12;
+  background-image: radial-gradient(rgba(255, 255, 255, .8) 1px, transparent 1px);
+  background-size: 3px 3px;
+  mix-blend-mode: overlay;
+}
+.splash-centro { position: relative; z-index: 2; gap: 18px; }
+.splash-emblema { width: 150px; height: 150px; display: grid; place-items: center; position: relative; }
+.splash-vidrio {
+  position: relative;
+  z-index: 2;
+  width: 104px;
+  height: 104px;
+  display: grid;
+  place-items: center;
+  border-radius: 32px;
+  background: linear-gradient(145deg, rgba(255, 255, 255, .34), rgba(255, 255, 255, .08));
+  border: 1.5px solid rgba(255, 255, 255, .55);
+  box-shadow: 0 20px 50px rgba(0, 30, 90, .35), inset 0 1px 0 rgba(255, 255, 255, .6);
+  -webkit-backdrop-filter: blur(18px);
+  backdrop-filter: blur(18px);
+  animation: vidrioEntra .9s cubic-bezier(.22, 1.3, .36, 1) both;
+}
+.splash-x { width: 58px; height: auto; filter: drop-shadow(0 6px 12px rgba(0, 30, 90, .35)); animation: xGira 1.1s .25s cubic-bezier(.22, 1, .36, 1) both; }
+.splash-anillo { position: absolute; inset: 0; border-radius: 50%; border: 2px solid rgba(255, 255, 255, .55); animation: anillo 2.4s cubic-bezier(.22, 1, .36, 1) infinite; opacity: 0; }
+.splash-anillo.r2 { animation-delay: .5s; border-color: rgba(252, 210, 34, .7); }
+.splash-anillo.r3 { animation-delay: 1s; border-color: rgba(0, 214, 86, .65); }
+@keyframes anillo { 0% { transform: scale(.55); opacity: .9; } 100% { transform: scale(1.45); opacity: 0; } }
+@keyframes vidrioEntra { from { opacity: 0; transform: translateY(18px) scale(.7) rotate(-8deg); } to { opacity: 1; transform: none; } }
+@keyframes xGira { from { opacity: 0; transform: scale(.4) rotate(-90deg); } to { opacity: 1; transform: none; } }
+.splash-wordmark { height: 30px; animation: textoSube .7s .35s cubic-bezier(.22, 1, .36, 1) both; }
+.splash-sub { display: flex; gap: 6px; font-size: 13.5px; font-weight: 800; letter-spacing: .02em; margin: 0; }
+.splash-sub span { animation: textoSube .6s cubic-bezier(.22, 1, .36, 1) both; }
+.splash-sub span:nth-child(1) { animation-delay: .55s; }
+.splash-sub span:nth-child(2) { animation-delay: .62s; opacity: .6; }
+.splash-sub span:nth-child(3) { animation-delay: .69s; }
+.splash-sub span:nth-child(4) { animation-delay: .76s; opacity: .6; }
+.splash-sub span:nth-child(5) { animation-delay: .83s; }
+@keyframes textoSube { from { opacity: 0; transform: translateY(12px); filter: blur(6px); } to { opacity: 1; transform: none; filter: none; } }
+.splash-carga { width: 150px; height: 5px; border-radius: 5px; overflow: hidden; background: rgba(255, 255, 255, .22); margin-top: 6px; }
+.splash-carga span { display: block; height: 100%; width: 40%; border-radius: 5px; background: linear-gradient(90deg, #fcd222, #00d656, #38b6ff); animation: carga 1.2s cubic-bezier(.65, 0, .35, 1) infinite; }
+@keyframes carga { from { transform: translateX(-110%); } to { transform: translateX(260%); } }
+.splash-pie { position: absolute; left: 0; right: 0; bottom: calc(22px + env(safe-area-inset-bottom)); margin: 0; z-index: 2; text-align: center; color: rgba(255, 255, 255, .8); font-size: 11.5px; font-weight: 700; letter-spacing: .04em; animation: textoSube .7s 1s both; }
+.splash.rapido * { animation-duration: .01s !important; animation-delay: 0s !important; }
+@media (prefers-reduced-motion: reduce) {
+  .splash-aurora i, .splash-anillo, .splash-carga span { animation: none; }
+}
+
+/* =====================================================================
+   Banner con nuestras propias pantallas (estructura del banner del Figma:
+   imagen protagonista a la izquierda y titular apilado a la derecha)
+   ===================================================================== */
+.banner-ux {
+  position: relative;
+  margin: 0 -16px;
+  height: 172px;
+  overflow: hidden;
+  background:
+    radial-gradient(120% 120% at 15% 10%, #38b6ff 0%, rgba(56, 182, 255, 0) 55%),
+    linear-gradient(135deg, #0066dd 0%, #0080ff 55%, #29a3ff 100%);
+  color: var(--blanco);
+}
+.banner-ux::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(rgba(255, 255, 255, .22) 1.2px, transparent 1.2px);
+  background-size: 14px 14px;
+  mask-image: linear-gradient(90deg, transparent 0%, #000 45%, #000 100%);
+  -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 45%, #000 100%);
+}
+.banner-ux-tel {
+  position: absolute;
+  left: 22px;
+  top: 18px;
+  width: 104px;
+  height: 196px;
+  padding: 6px;
+  border-radius: 22px;
+  background: #0b2a4a;
+  box-shadow: 0 18px 36px rgba(0, 30, 80, .45), inset 0 0 0 2px rgba(255, 255, 255, .15);
+  transform: rotate(-8deg);
+}
+.tel-pantalla { position: relative; width: 100%; height: 100%; border-radius: 17px; overflow: hidden; background: #eef4fb; }
+.tel-barra { display: flex; align-items: center; gap: 4px; height: 20px; padding: 0 7px; background: var(--azul); color: var(--blanco); font-size: 8px; font-weight: 900; }
+.tel-barra img { width: 10px; height: 10px; }
+.tel-mapa { position: absolute; left: -55%; top: 20px; width: 210%; height: auto; }
+.tel-ruta {
+  position: absolute;
+  left: 6px;
+  right: 6px;
+  bottom: 8px;
+  padding: 5px 7px;
+  border-radius: 10px;
+  background: var(--blanco);
+  color: var(--texto);
+  box-shadow: 0 4px 10px rgba(0, 40, 90, .2);
+  line-height: 1.1;
+}
+.tel-ruta b { display: block; font-size: 8.5px; color: var(--verde-osc); }
+.tel-ruta small { font-size: 7.5px; font-weight: 700; color: #5f6f82; }
+.tel-pasos { position: absolute; left: 0; right: 0; bottom: 10px; display: flex; justify-content: center; gap: 6px; }
+.tel-pasos i { display: grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; background: var(--azul); color: var(--blanco); font: 900 9px var(--fuente); font-style: normal; box-shadow: 0 3px 8px rgba(0, 60, 130, .3); }
+.tel-pasos i:last-child { background: var(--verde-osc); }
+.banner-ux-burbuja {
+  position: absolute;
+  left: 96px;
+  top: 108px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  max-width: 116px;
+  padding: 6px 9px;
+  border-radius: 12px 12px 12px 3px;
+  background: var(--blanco);
+  color: var(--texto);
+  font-size: 9px;
+  font-weight: 800;
+  line-height: 1.15;
+  box-shadow: 0 8px 18px rgba(0, 30, 80, .3);
+  animation: burbuja 3.2s ease-in-out infinite;
+}
+.banner-ux-burbuja i { flex: none; width: 7px; height: 7px; border-radius: 50%; background: var(--verde); }
+@keyframes burbuja { 50% { transform: translateY(-4px); } }
+.banner-ux-senal { position: absolute; left: 112px; top: 26px; width: 30px; height: auto; filter: drop-shadow(0 6px 10px rgba(0, 30, 80, .35)); animation: burbuja 3s ease-in-out infinite; }
+.banner-ux-texto {
+  position: absolute;
+  right: 18px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  text-align: right;
+  line-height: .95;
+  text-shadow: 0 3px 10px rgba(0, 30, 80, .35);
+}
+.banner-ux-texto small { font-size: 13px; font-weight: 800; opacity: .95; margin-bottom: 4px; }
+.banner-ux-texto b { font-size: 34px; font-weight: 900; }
+.banner-ux-texto strong { font-size: 40px; font-weight: 900; color: var(--amarillo); }
+@media (prefers-reduced-motion: reduce) { .banner-ux-burbuja, .banner-ux-senal { animation: none; } }
+
+/* Acciones de Inicio con la estructura de tarjetas y filas del Figma */
+.acciones-figma { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.acciones-figma .tarjeta-figma { flex: none; aspect-ratio: 1; text-decoration: none; }
+.fila-sos { margin-top: 2px; }
+.fila-sos .fila-icono svg { width: 28px; height: 28px; fill: var(--rojo); }
+.fila-sos .fila-icono b { font-size: 20px; }
+.fila-sos .fila-texto b { font-size: 15px; }
+
+/* Íconos SVG que reemplazan emojis */
+.ico { width: 1.15em; height: 1.15em; fill: currentColor; vertical-align: -.2em; }
+.btn .ico { margin-right: 4px; }
+.alg-controles .ico { margin: 0; width: 18px; height: 18px; }
+.ico-tic { width: 15px; height: 11px; fill: currentColor; vertical-align: -1px; }
+.tic.espera .ico-tic { width: 12px; height: 12px; }

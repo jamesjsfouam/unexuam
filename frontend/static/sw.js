@@ -1,5 +1,5 @@
 /* Service Worker de Unexuam: caché de assets estáticos para operar offline. */
-const CACHE = "unexuam-v13";
+const CACHE = "unexuam-v15";
 const ASSETS = [
   "/",
   "/static/app.css",
@@ -29,6 +29,19 @@ const ASSETS = [
   "/static/img/guia-auxilios.svg",
   "/static/img/guia-mesh.svg",
   "/static/img/fondo-marca.svg",
+  "/static/img/figma/tarjeta-inundacion.jpg",
+  "/static/img/figma/tarjeta-evacuar.jpg",
+  "/static/img/figma/ico-pin.png",
+  "/static/img/figma/tarjeta-incendio.jpg",
+  "/static/img/figma/tarjeta-sismo.jpg",
+  "/static/img/figma/mochila-alerta.jpg",
+  "/static/img/figma/mochila-senal.jpg",
+  "/static/img/figma/flecha-izq.png",
+  "/static/img/figma/flecha-der.png",
+  "/static/img/figma/ico-lluvia.png",
+  "/static/img/figma/ico-derrumbe.png",
+  "/static/img/figma/ico-fuego.png",
+  "/static/img/figma/logo-x-blanco.png",
 ];
 
 self.addEventListener("install", (ev) => {

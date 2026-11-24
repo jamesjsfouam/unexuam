@@ -215,7 +215,7 @@
             if (j.ok) { YO = j.usuario; firmaMsj = ""; cargarMensajes().then(renderMensajes); }
           }
           const donde = r.segura ? `estás en zona segura (${r.area})` : `estás en ${r.area || r.lugar}${r.edificio ? `, piso ${leerLS("mi-piso", 1)}` : ""}`;
-          avisar(`📍 GPS: ${donde}${coords.acc ? ` · ±${Math.round(coords.acc)} m` : ""}.`);
+          avisar(`GPS: ${donde}${coords.acc ? ` · ±${Math.round(coords.acc)} m` : ""}.`);
           return r.lugar;
         }
       } catch (_) { /* sigue con la aproximación por cercanía */ }
@@ -252,12 +252,12 @@
           cargarMensajes().then(renderMensajes);
         }
       }
-      avisar(`📍 Edificio aproximado por GPS: ${mejor.nombre} (~${Math.round(mejor.d)} m).`);
+      avisar(`GPS: edificio aproximado ${mejor.nombre} (~${Math.round(mejor.d)} m).`);
       return mejor.nombre;
     }
     if (manual) {
       const km = (mejor.d / 1000).toFixed(1);
-      avisar(`📍 Estás a ${km} km del campus UAM (más cercano: ${mejor.nombre}). Elige tu edificio manualmente.`, false);
+      avisar(`Estás a ${km} km del campus UAM (más cercano: ${mejor.nombre}). Elige tu edificio manualmente.`, false);
     }
     return null;
   }
@@ -446,14 +446,14 @@
       const u = ultimo[c.cif];
       const n = noLeidos(c.cif);
       let vista = c.enLinea ? `En ${c.lugar}` : "Sin conexión";
-      if (u) vista = (u.de === YO.cif ? (u.estado === "entregado" ? "✓✓ " : "🕓 ") : "") + u.texto;
+      if (u) vista = (u.de === YO.cif ? (u.estado === "entregado" ? "Entregado · " : "En cola · ") : "") + u.texto;
       return `<li><button type="button" data-contacto="${esc(c.cif)}">
         <span class="avatar-c" style="background:${colorDe(c.cif)}">${esc(iniciales(c.nombre))}${c.enLinea ? '<i class="en-linea"></i>' : ""}</span>
         <span class="c-cuerpo">
           <span class="c-fila"><b>${esc(c.nombre)}</b><time class="${n ? "nuevo" : ""}">${u ? esc(u.hora.slice(0, 5)) : ""}</time></span>
           <span class="c-fila"><small>${esc(vista)}</small>${n ? `<em class="badge">${n}</em>` : ""}</span>
         </span></button></li>`;
-    }).join("") : `<li class="vacio">${filtro ? "Pulsa 🔍 para buscar ese CIF." : "Escribe el CIF de una persona arriba para agregarla."}</li>`;
+    }).join("") : `<li class="vacio">${filtro ? "Pulsa buscar para encontrar ese CIF." : "Escribe el CIF de una persona arriba para agregarla."}</li>`;
   }
 
   function abrirChat(cif) {
@@ -486,7 +486,7 @@
     const abajo = alFinal || ol.scrollHeight - ol.scrollTop - ol.clientHeight < 60;
     ol.innerHTML = lista.length ? lista.map(m => {
       const mio = m.de === YO.cif;
-      const tic = m.estado === "entregado" ? '<span class="tic">✓✓</span>' : '<span class="tic espera">🕓</span>';
+      const tic = m.estado === "entregado" ? '<span class="tic"><svg class="ico-tic" viewBox="0 0 24 16" aria-hidden="true"><path d="M1 8.5 5 12.5 13 4.5l-1.4-1.4L5 9.7 2.4 7.1zM9.5 11.1l1.4 1.4L19.9 3.5l-1.4-1.4z"/></svg></span>' : '<span class="tic espera"><svg class="ico-tic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18Zm0 2a7 7 0 1 1 0 14 7 7 0 0 1 0-14Zm-1 2v6l5 3 1-1.7-4-2.3V7z"/></svg></span>';
       const detalle = m.estado === "entregado"
         ? `${Math.max(1, m.ruta.length - 1)} salto${m.ruta.length === 2 ? "" : "s"} · ${seg(m.retardo)}${m.viaCola ? " · salió de la cola" : ""}`
         : "En cola: sin camino en la red";
@@ -529,7 +529,7 @@
     const bGps = document.createElement("button");
     bGps.type = "button";
     bGps.className = "btn secundario ancho";
-    bGps.textContent = "📍 Detectar mi edificio (GPS)";
+    bGps.innerHTML = '<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5a6.6 6.6 0 0 0-6.6 6.6c0 4.9 6.6 12.4 6.6 12.4s6.6-7.5 6.6-12.4A6.6 6.6 0 0 0 12 2.5Zm0 9.2a2.6 2.6 0 1 1 0-5.2 2.6 2.6 0 0 1 0 5.2Z"/></svg> Detectar mi edificio (GPS)';
     bGps.onclick = async () => {
       hoja.hidden = true;
       await aproximarEdificioPorGPS(true);
@@ -703,7 +703,7 @@
       ? `<p>Inicio en <b>${esc(p.actual)}</b> (0 s). Los demás vértices empiezan en ∞.</p>`
       : `<p>Sale <b>${esc(p.actual)}</b>: el no visitado más cercano.</p>`;
     if (zonas.has(p.actual)) {
-      html += `<p class="alg-final">✔ Zona segura más cercana: ${seg(d.tiempo)}</p>
+      html += `<p class="alg-final">Zona segura más cercana: ${seg(d.tiempo)}</p>
         <p class="nota">${d.ruta.map(esc).join(" → ")}</p>`;
     } else if (p.vecinos.length) {
       html += `<ul class="alg-vecinos">` + p.vecinos.map(v => {
@@ -736,14 +736,14 @@
     clearInterval(ALG.timer);
     ALG.timer = null;
     const b = $("#alg-play");
-    if (b) b.textContent = "▶";
+    if (b) b.innerHTML = '<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>';
   }
 
   function reproducir() {
     if (ALG.timer) { pausar(); return; }
     if (!ALG.datos || !ALG.datos.pasos || !ALG.datos.pasos.length) return;
     if (ALG.paso >= ALG.datos.pasos.length - 1) irPaso(0);
-    $("#alg-play").textContent = "⏸";
+    $("#alg-play").innerHTML = '<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5h4v14H7zM13 5h4v14h-4z"/></svg>';
     ALG.timer = setInterval(() => irPaso(ALG.paso + 1), 850);
   }
 
@@ -894,9 +894,9 @@
   async function enviarSOS() {
     if (!YO) return;
     sonarAlerta();
-    const texto = `🆘 SOS · Necesito ayuda en ${YO.lugar || "el campus"} (${YO.nombre}).`;
+    const texto = `SOS · Necesito ayuda en ${YO.lugar || "el campus"} (${YO.nombre}).`;
     const j = await pedir("/api/mensajes/enviar", { para: "TODOS", texto });
-    avisar(j.ok ? "🆘 Alerta SOS enviada al Canal General." : (j.mensaje || "No se pudo enviar SOS."), j.ok);
+    avisar(j.ok ? "Alerta SOS enviada al Canal General." : (j.mensaje || "No se pudo enviar SOS."), j.ok);
     firmaMsj = "";
     await cargarMensajes();
     location.hash = "#mensajes";
@@ -919,13 +919,13 @@
       const b = document.createElement("button");
       b.type = "button";
       b.className = "btn peligro ancho";
-      b.textContent = `🚧 ${p.txt}`;
+      b.textContent = p.txt;
       b.onclick = async () => {
         hoja.hidden = true;
         const j = await pedir("/api/campus/bloquear", { origen: p.o, destino: p.d, ambos: true });
         if (j.ok) {
           sonarAlerta();
-          avisar(`🚧 Bloqueo difundido: ${p.txt}`);
+          avisar(`Bloqueo difundido: ${p.txt}`);
           if (window.iniciarUnexuam) window.iniciarUnexuam();
           firmaMsj = "";
           await cargarMensajes();
@@ -948,6 +948,12 @@
     $("#mi-red").addEventListener("click", elegirLugar);
     const btnGps = $("#btn-gps");
     if (btnGps) btnGps.addEventListener("click", () => aproximarEdificioPorGPS(true));
+    // Carrusel de guías (estructura del Figma de UNEXO): flechas circulares a los lados.
+    document.querySelectorAll("[data-carrusel]").forEach(b => b.addEventListener("click", () => {
+      const pista = $("#carrusel-guias");
+      const tarjeta = pista.querySelector(".tarjeta-figma");
+      pista.scrollBy({ left: (+b.dataset.carrusel) * ((tarjeta ? tarjeta.offsetWidth : 150) + 12), behavior: "smooth" });
+    }));
     const guiasBox = $("#guias-emergencia");
     if (guiasBox) guiasBox.addEventListener("click", ev => {
       const card = ev.target.closest("[data-guia]");
@@ -967,17 +973,17 @@
       if (d.recalcularRuta) {
         sonarAlerta();
         if (window.iniciarUnexuam) window.iniciarUnexuam();
-        avisar("🚧 Bloqueo recibido por Mesh: tu ruta de evacuación fue recalculada.", false);
+        avisar("Bloqueo recibido por Mesh: tu ruta de evacuación fue recalculada.", false);
       } else if (d.tipo === "conectado" && d.peer) {
-        avisar(`📡 Vecino cercano conectado: ${d.peer.nombre}`);
+        avisar(`Teléfono cercano conectado: ${d.peer.nombre}`);
       } else if (d.tipo === "ack") {
-        avisar("✓✓ Entrega confirmada · copias intermedias eliminadas");
+        avisar("Entrega confirmada: copias intermedias eliminadas.");
       } else if (d.tipo === "paquete" && d.paquete) {
-        if (String(d.paquete.texto || "").includes("🆘")) {
+        if (/^SOS\b/.test(String(d.paquete.texto || ""))) {
           sonarAlerta();
-          avisar(`🆘 ${d.paquete.texto}`, false);
+          avisar(String(d.paquete.texto), false);
         } else if ($("#chat").hidden) {
-          avisar(`💬 Mensaje recibido de ${d.paquete.deNombre || d.paquete.de}`);
+          avisar(`Mensaje recibido de ${d.paquete.deNombre || d.paquete.de}`);
         }
       }
     });

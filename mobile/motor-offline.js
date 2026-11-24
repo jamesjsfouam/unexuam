@@ -573,7 +573,7 @@
       if (yoBloq) {
         const ahoraB = horaActual();
         const idB = Math.random().toString(16).slice(2, 14);
-        const txtB = `🚧 Bloqueo reportado: ${o} ↔ ${dst}. Recalculando rutas.`;
+        const txtB = `Bloqueo reportado: ${o} ↔ ${dst}. Recalculando rutas.`;
         const envB = enviarPaqueteReal({
           id: idB, tipo: "incidente", accion: "bloquear", origen: o, destino: dst, ambos,
           de: yoBloq.cif, deNombre: yoBloq.u.nombre, deTel: yoBloq.u.telefono,
@@ -1025,7 +1025,7 @@
             guardarEstadoLocal();
           }
         }
-        if (recalcularRuta || String(pq.texto).includes("🆘")) {
+        if (recalcularRuta || /^SOS\b/.test(String(pq.texto))) {
           try { window.UnexuamNativo && window.UnexuamNativo.vibrarAlerta && window.UnexuamNativo.vibrarAlerta(); } catch (_) {}
         }
         if (!C.usuarios[de]) {

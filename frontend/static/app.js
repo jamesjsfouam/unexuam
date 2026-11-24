@@ -271,7 +271,7 @@ function dibujar(svg, cual, g, o) {
     const html = `<g class="ar" data-a="${esc(k)}">
       <path class="arista ${cls}" d="${gm.d}" data-k="${esc(k)}"/>
       ${a.fantasma || o.sinFlechas || a.doble ? "" : `<path class="flecha ${cls}" d="${gm.flecha}"/>`}
-      ${!o.pesos || o.pesos(a) || a.fantasma ? `<text class="peso ${cls}" x="${gm.m.x}" y="${gm.m.y}">${a.fantasma ? "✕" : esc(peso)}</text>` : ""}
+      ${!o.pesos || o.pesos(a) || a.fantasma ? `<text class="peso ${cls}" x="${gm.m.x}" y="${gm.m.y}">${a.fantasma ? "×" : esc(peso)}</text>` : ""}
       <path class="toque" d="${gm.d}"><title>${esc(a.origen)} ${FLECHA} ${esc(a.destino)} · ${esc(peso)}</title></path>
     </g>`;
     if (cls && cls !== "bloqueada") frente += html; else fondo += html;
@@ -711,7 +711,7 @@ function pasosDeRuta(ruta) {
   });
 }
 
-const ICONO_PASO = { pasillo: "→", escalera: "⇅", salida: "⇱", cruce: "⇄", zona: "✓", lugar: "→" };
+const ICONO_PASO = { pasillo: "→", escalera: "⇅", salida: "⇱", cruce: "⇄", zona: "●", lugar: "→" };
 const minutos = s => (s < 60 ? `${Math.round(s)} s` : `${Math.floor(s / 60)} min ${Math.round(s % 60)} s`);
 
 let miLugar = leer("mi-lugar", "");   // cada teléfono guarda dónde está su estudiante
@@ -788,7 +788,7 @@ function renderCampus() {
     ${r.ruta.length === 1 ? `<p class="nota">Ya estás en un punto seguro.</p>` : `
       <div class="paso-herramientas">
         <button type="button" class="btn mini secundario" data-accion="paso-ant">← Anterior</button>
-        <button type="button" class="btn mini" data-accion="leer-voz" id="btn-voz">🔊 Leer ruta</button>
+        <button type="button" class="btn mini" data-accion="leer-voz" id="btn-voz"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4zm12.5 3a4.5 4.5 0 0 0-2.5-4v8a4.5 4.5 0 0 0 2.5-4ZM14 3.2v2.1a7 7 0 0 1 0 13.4v2.1a9 9 0 0 0 0-17.6Z"/></svg> Leer ruta</button>
         <button type="button" class="btn mini secundario" data-accion="paso-sig">Siguiente →</button>
       </div>
       <p class="nota">Toca un paso para resaltarlo en el mapa 3D.</p>`}
@@ -1211,7 +1211,7 @@ function campusSvg(ruta, o) {
       }
     }
     nodos += `<g class="r3-nodo ${fin ? "meta" : "parada"}"><title>${esc(n)}</title><circle cx="${p.x}" cy="${p.y}" r="${rad}" stroke-width="${2 * s}"/>
-      ${fin ? `<text x="${p.x}" y="${p.y}" font-size="${10.5 * s}">✓</text><text class="r3-etq" x="${p.x}" y="${etqY}" font-size="${10.5 * s}" stroke-width="${3.2 * s}">${esc(corto(n))}</text>` : etqParada}</g>`;
+      ${fin ? `<text x="${p.x}" y="${p.y}" font-size="${10.5 * s}">●</text><text class="r3-etq" x="${p.x}" y="${etqY}" font-size="${10.5 * s}" stroke-width="${3.2 * s}">${esc(corto(n))}</text>` : etqParada}</g>`;
   });
   if (pinTu) {
     const tuY = tuAbajo ? pinTu.y + 19 * s : pinTu.y - 15 * s;
@@ -1609,7 +1609,7 @@ function detenerVoz() {
   leyendoVoz = false;
   if ("speechSynthesis" in window) window.speechSynthesis.cancel();
   const btn = $("#btn-voz");
-  if (btn) btn.textContent = "🔊 Leer ruta";
+  if (btn) btn.innerHTML = '<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4zm12.5 3a4.5 4.5 0 0 0-2.5-4v8a4.5 4.5 0 0 0 2.5-4ZM14 3.2v2.1a7 7 0 0 1 0 13.4v2.1a9 9 0 0 0 0-17.6Z"/></svg> Leer ruta';
 }
 
 function leerRutaVoz() {
@@ -1628,7 +1628,7 @@ function leerRutaVoz() {
   u.onend = u.onerror = () => detenerVoz();
   leyendoVoz = true;
   const btn = $("#btn-voz");
-  if (btn) btn.textContent = "⏹ Detener voz";
+  if (btn) btn.innerHTML = '<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6h12v12H6z"/></svg> Detener voz';
   window.speechSynthesis.speak(u);
 }
 
@@ -1756,13 +1756,17 @@ function ocultarSplash() {
   const sp = $("#splash");
   if (!sp || sp.classList.contains("fuera")) return;
   sp.classList.add("fuera");
-  setTimeout(() => sp.remove(), 460);
+  setTimeout(() => sp.remove(), 700);
 }
 const spEl = $("#splash");
 if (spEl) {
   const reducido = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   spEl.addEventListener("click", ocultarSplash);
-  setTimeout(ocultarSplash, reducido ? 150 : 1250);
+  // La animación completa solo la primera vez de cada sesión; después entra rápido.
+  let vista = false;
+  try { vista = sessionStorage.getItem("unexuam-splash") === "1"; sessionStorage.setItem("unexuam-splash", "1"); } catch (e) { /* sin almacenamiento */ }
+  if (vista) spEl.classList.add("rapido");
+  setTimeout(ocultarSplash, reducido ? 150 : vista ? 450 : 2400);
 }
 
 if (!window.__UNEXUAM_OFFLINE__ && "serviceWorker" in navigator) {
