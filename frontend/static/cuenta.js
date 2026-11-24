@@ -593,7 +593,7 @@
         if (Array.isArray(arr) && arr.length > n) n = arr.length;
       }
     } catch (_) {}
-    txt.textContent = n > 0 ? `Mesh · ${n} cerca` : "Off-Grid · 0 cerca";
+    txt.textContent = n > 0 ? `Mesh · ${n}` : "Off-Grid · 0";
     if (chip) {
       chip.classList.toggle("con-vecinos", n > 0);
       chip.classList.toggle("sin-vecinos", n === 0);

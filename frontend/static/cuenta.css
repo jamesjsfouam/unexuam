@@ -4,19 +4,22 @@
 :root { --alto-nav: 72px; }
 
 /* ---------- encabezado compacto ---------- */
-.barra { grid-template-columns: 1fr auto auto; }
+.barra { grid-template-columns: minmax(0, 1fr) auto auto; gap: 6px; }
 .avatar, .avatar-c {
   display: inline-grid;
   place-items: center;
   flex: none;
-  width: 44px;
-  height: 44px;
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
-  color: var(--blanco);
-  font: 900 0.8125rem/1 var(--fuente);
+  color: #ffffff;
+  font: 900 13px/1 var(--fuente);
   letter-spacing: .02em;
   position: relative;
 }
+.avatar::after { content: ""; position: absolute; inset: -4px; }
+.marca-unexo { height: 14px; max-width: 96px; }
+.chip-offgrid { font-size: 10.5px; padding: 3px 7px; gap: 4px; }
 .avatar { border: 2px solid rgba(255, 255, 255, .9); cursor: pointer; padding: 0; }
 .avatar[hidden] { display: none; }
 .pie { display: none; }
@@ -123,8 +126,8 @@ body.con-chat .navbar, body.sin-sesion .navbar { display: none; }
 .fab-scrim[hidden] { display: none; }
 .fab-dial {
   position: fixed;
-  right: calc(16px + env(safe-area-inset-right));
-  bottom: calc(var(--alto-nav) + 14px + env(safe-area-inset-bottom));
+  right: calc(12px + env(safe-area-inset-right));
+  bottom: calc(var(--alto-nav) + 10px + env(safe-area-inset-bottom));
   z-index: 15;
   display: flex;
   flex-direction: column;
@@ -134,16 +137,16 @@ body.con-chat .navbar, body.sin-sesion .navbar { display: none; }
 body.con-chat .fab-dial, body.sin-sesion .fab-dial, body.vista-inicio .fab-dial,
 body.con-chat .fab-scrim, body.sin-sesion .fab-scrim, body.vista-inicio .fab-scrim { display: none; }
 .fab-main {
-  width: 56px;
-  height: 56px;
+  width: 48px;
+  height: 48px;
   border-radius: 50%;
-  border: 2.5px solid var(--blanco);
+  border: 2px solid var(--blanco);
   background: var(--rojo);
-  color: var(--blanco);
+  color: #ffffff;
   display: grid;
   place-items: center;
   cursor: pointer;
-  box-shadow: 0 8px 22px rgba(217, 43, 0, .42);
+  box-shadow: 0 6px 18px rgba(217, 43, 0, .38);
   transition: transform .2s cubic-bezier(.22, 1, .36, 1), background .15s ease;
 }
 .fab-main:hover { background: #b52400; transform: scale(1.04); }
@@ -1238,7 +1241,18 @@ html[data-filtro-color="acromatopsia"] body { filter: grayscale(1); }
 
 /* ---------- Acciones compactas de ubicación en Evacuar ---------- */
 .ubic-acciones { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-.ubic-acciones .btn { min-height: 46px; font-size: 0.84rem; padding: 8px 10px; }
+.ubic-acciones .btn {
+  min-height: 46px;
+  border-radius: 18px;
+  font-size: 13px;
+  line-height: 1.15;
+  padding: 8px 10px;
+  gap: 6px;
+  white-space: nowrap;
+}
+.ubic-acciones .ico { width: 18px; height: 18px; flex: none; margin: 0; }
+.paso-texto { font-size: 0.92rem; line-height: 1.32; }
+.paso-meta { flex-wrap: wrap; gap: 8px; }
 .lista-manual-det {
   border: 1.5px solid var(--gris-claro);
   border-radius: 18px;
