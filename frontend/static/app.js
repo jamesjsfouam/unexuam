@@ -454,6 +454,7 @@ function aplicarEstado(est) {
   else if (k && k !== alertaVista && !animando) { alertaVista = k; aviso(`Nueva alerta desde ${ua.origen}`, false); }
   else if (!ua) { alertaVista = "nada"; alcanceMostrado = null; viaMostrada = {}; }
   render();
+  actualizarBannerEmergencia();
   // si el grafo del campus cambió (bloqueo, congestión, admin), recalcular la ruta de este teléfono
   const fc = JSON.stringify([est.campus.aristas, est.campus.zonasSeguras]);
   if (fc !== firmaCampus) { firmaCampus = fc; pedirRuta(); }
@@ -1421,10 +1422,41 @@ function renderAdmin() {
 
 /* ---------------------------------------------------------------- tabs */
 
+let bannerEmergenciaOculto = false;
+let textoEmergenciaExtra = "";
+
+function actualizarBannerEmergencia(textoForzado) {
+  const bar = $("#banner-emergencia");
+  const txt = $("#banner-em-txt");
+  if (!bar || !txt) return;
+  if (typeof textoForzado === "string" && textoForzado) {
+    textoEmergenciaExtra = textoForzado;
+    bannerEmergenciaOculto = false;
+  }
+  const c = E && E.campus;
+  const hayInc = !!(c && (c.bloqueados.length || Object.keys(c.congestion).length)) || !!(E && E.ultimaAlerta) || !!textoEmergenciaExtra;
+  if (!hayInc || vista === "campus" || bannerEmergenciaOculto || document.body.classList.contains("sin-sesion")) {
+    bar.hidden = true;
+    return;
+  }
+  if (textoEmergenciaExtra) {
+    txt.textContent = textoEmergenciaExtra.slice(0, 72);
+  } else if (c && c.bloqueados.length) {
+    txt.textContent = `${c.bloqueados.length} pasillo(s) bloqueado(s) · Ruta recalculada`;
+  } else if (c && Object.keys(c.congestion).length) {
+    txt.textContent = `Congestión activa en el campus`;
+  } else {
+    txt.textContent = `Alerta activa en la red Mesh`;
+  }
+  bar.hidden = false;
+}
+window.actualizarBannerEmergencia = actualizarBannerEmergencia;
+
 function irA(nombre) {
-  if (!["inicio", "campus", "mensajes", "admin", "ajustes"].includes(nombre) && !(nombre === "mesh" && $("#v-mesh"))) nombre = "inicio";
+  if (!["inicio", "campus", "mensajes", "admin", "ajustes"].includes(nombre)) nombre = "inicio";
   if (nombre === "admin" && !document.body.classList.contains("es-admin")) nombre = "inicio";
   vista = nombre;
+  document.body.classList.toggle("vista-inicio", nombre === "inicio");
   $$(".vista").forEach(s => { s.hidden = s.id !== "v-" + nombre; });
   $$(".nav a").forEach(a => {
     const activa = a.dataset.tab === nombre;
@@ -1435,6 +1467,7 @@ function irA(nombre) {
   });
   window.scrollTo(0, 0);
   render();
+  actualizarBannerEmergencia();
   if (window.alEntrarVista) window.alEntrarVista(nombre);
 }
 
@@ -1442,6 +1475,13 @@ function irA(nombre) {
 
 function eventos() {
   window.addEventListener("hashchange", () => irA(location.hash.slice(1)));
+  const btnEmCerrar = $("#banner-em-cerrar");
+  if (btnEmCerrar) btnEmCerrar.addEventListener("click", () => {
+    bannerEmergenciaOculto = true;
+    textoEmergenciaExtra = "";
+    const bar = $("#banner-emergencia");
+    if (bar) bar.hidden = true;
+  });
 
   document.addEventListener("click", ev => {
     const b = ev.target.closest("[data-accion]");

@@ -38,11 +38,17 @@
       <img src="{{ url_for('static', filename='img/logo-x.png') }}" alt="" class="marca-x">
       <img src="{{ url_for('static', filename='img/wordmark-unexuam.png') }}" alt="Unexuam" class="marca-unexo">
     </a>
-    <span class="chip-offgrid" id="chip-offgrid" title="Funciona sin internet, solo con teléfonos cercanos">
-      <span class="punto"></span> <span id="chip-offgrid-txt">Sin internet</span>
+    <span class="chip-offgrid sin-vecinos" id="chip-offgrid" title="Funciona sin internet, solo con teléfonos cercanos">
+      <span class="punto"></span> <span id="chip-offgrid-txt">Off-Grid · 0 cerca</span>
     </span>
     <button type="button" id="btn-cuenta" class="avatar" aria-label="Tu cuenta" hidden></button>
   </header>
+
+  <div id="banner-emergencia" class="banner-emergencia" role="alert" hidden>
+    <span class="banner-em-txt" id="banner-em-txt">Emergencia activa en el campus</span>
+    <a href="#campus" class="banner-em-btn" id="banner-em-ir">Ver mi ruta →</a>
+    <button type="button" class="banner-em-cerrar" id="banner-em-cerrar" aria-label="Ocultar aviso">×</button>
+  </div>
 
   <main>
     <!-- ============ 1. INICIO ============ -->
@@ -97,7 +103,7 @@
       </div>
       <button type="button" id="btn-sos" class="fila-figma rojo fila-sos">
         <span class="fila-icono"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5 1.8 20.5h20.4L12 2.5Zm-1 6h2v6h-2v-6Zm0 8h2v2h-2v-2Z"/></svg><b>SOS</b></span>
-        <span class="fila-texto"><b>Desliza para pedir ayuda →</b><small>Envía tu edificio al Canal General sin internet</small></span>
+        <span class="fila-texto"><b>Desliza para pedir ayuda <span class="sos-flechas" aria-hidden="true">»</span></b><small>Envía tu edificio al Canal General sin internet</small></span>
       </button>
 
       <div id="guias-emergencia" class="guias-figma">

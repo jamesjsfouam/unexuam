@@ -81,6 +81,7 @@
     cap.style.width = `${ancho}px`;
     cap.style.transform = `translateX(${x}px) scale(${arrastre !== undefined ? 1.08 : 1})`;
     cap.classList.toggle("arrastrando", arrastre !== undefined);
+    cap.classList.toggle("lista", ancho > 0);
     cap.hidden = indice < 0 && arrastre === undefined;
   }
 
@@ -494,6 +495,7 @@
   }
 
   function actualizarChipRed() {
+    const chip = $("#chip-offgrid");
     const txt = $("#chip-offgrid-txt");
     if (!txt) return;
     let n = YO && Array.isArray(YO.vecinos) ? YO.vecinos.length : 0;
@@ -503,7 +505,11 @@
         if (Array.isArray(arr) && arr.length > n) n = arr.length;
       }
     } catch (_) {}
-    txt.textContent = n > 0 ? `Sin internet · ${n} cerca` : "Sin internet";
+    txt.textContent = n > 0 ? `Mesh · ${n} cerca` : "Off-Grid · 0 cerca";
+    if (chip) {
+      chip.classList.toggle("con-vecinos", n > 0);
+      chip.classList.toggle("sin-vecinos", n === 0);
+    }
   }
 
   async function cargarMensajes() {
@@ -1545,6 +1551,7 @@
         if (/^SOS\b/.test(String(d.paquete.texto || ""))) {
           sonarAlerta();
           avisar(String(d.paquete.texto), false);
+          if (window.actualizarBannerEmergencia) window.actualizarBannerEmergencia(String(d.paquete.texto));
           if (!window.UnexuamNativo) notificarPush(`ALERTA SOS · ${d.paquete.deNombre || d.paquete.de}`, String(d.paquete.texto), "sos");
         } else if ($("#chat").hidden) {
           avisar(`Mensaje recibido de ${d.paquete.deNombre || d.paquete.de}`);
