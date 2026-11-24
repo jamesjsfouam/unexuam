@@ -2765,7 +2765,10 @@ form.tarjeta {
 .destino { background: var(--azul-btn); }
 .toast { background: var(--azul-btn); }
 .toast.error { background: var(--rojo); }
-.nota, .hero-texto { color: var(--gris-texto); }
+.nota { color: var(--gris-texto); }
+.hero.calma .hero-texto { color: var(--gris-texto); }
+.hero.emergencia .hero-titulo,
+.hero.emergencia .hero-texto { color: #ffffff; opacity: .96; }
 
 /* ---------- fondos de marca y guías visuales estilo SéTú ---------- */
 body {
