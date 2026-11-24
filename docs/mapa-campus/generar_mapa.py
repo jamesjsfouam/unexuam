@@ -514,7 +514,7 @@ INSIGNIA = {"Salón de Contenedores": "SC", "Salón Multiusos": "SM", "Salón de
             "Edificio E": "E", "Edificio F": "F", "Auditorio Central": "AC", "Edificio M": "M",
             "Food Court": "FC", "Banco Banpro": "BP", "Edificio B": "B", "Edificio C": "C",
             "Edificio A": "A", "Laboratorios": "LB", "Edificio D": "D", "Edificio J": "J",
-            "Kioskos de comida": "KC", "El Ranchero": "RA", "Clínicas Odontológicas": "CO",
+            "Kioskos de comida": "KC", "El Ranchero": "RA", "Clínicas Odontológicas": "CO", "Edificio N (ala de Clínicas)": "N",
             "El Chilamate": "CH", "Edificio O": "O", "Edificio P": "P", "Comedor del Jaguarcito": "CJ",
             "Baño del Comedor": "BA", "Kiosko del Jaguarcito": "KJ"}
 PISO = 3.6   # metros por piso
@@ -839,13 +839,16 @@ def union_bc():
 # rectángulo del cuerpo principal (x0, y0, x1, y1), cumbrera de oeste a este.
 TECHO_LAMINA = {"Edificio B": (184.9, 121.8, 261.5, 131.6, .8), "Edificio C": (187.6, 138.3, 261.2, 147.6, .8),
                 # Auditorio y Laboratorios (fotos de James): lámina gris con alero ancho
-                "Auditorio Central": (167.2, 96.5, 181.3, 116.5, 1.3), "Laboratorios": (142.2, 152.2, 175.6, 161.9, 1.1)}
+                "Auditorio Central": (167.2, 96.5, 181.3, 116.5, 1.3), "Laboratorios": (142.2, 152.2, 175.6, 161.9, 1.1),
+                # foto aérea de James: teja terracota en Laboratorios y Edificio F
+                "Edificio F": (167.1, 71.4, 180.4, 93.9, .9)}
+TECHO_TEJA = {"Laboratorios", "Edificio F", "Edificio I"}
 ALERO = 0.8
 FLECHA = 1.7
 MURO_B = ("#fbfcfd", "#f4f1ea", "#bdb6a8", "#8f8b80")   # B: muros crema (foto)
 
 
-def techo_dos_aguas(rect, alto):
+def techo_dos_aguas(rect, alto, teja=False):
     """Techo de lámina galvanizada a dos aguas con aleros, canales de la lámina y remate en la cumbrera."""
     x0, y0, x1, y1, ALERO = rect
     x0, y0, x1, y1 = x0 - ALERO, y0 - ALERO, x1 + ALERO, y1 + ALERO
@@ -857,7 +860,8 @@ def techo_dos_aguas(rect, alto):
     # hastial este (muro bajo la cumbrera) y la vertiente norte (al sol), luego la sur
     xe = x1 - ALERO
     g.append(f'<polygon points="{poly([(xe, y0 + ALERO, alto), (xe, y1 - ALERO, alto), (xe, ym, zr - .3)])}" fill="#e9e6df" stroke="#8f8b80" stroke-width=".5"/>')
-    for (ya, za), (yb, zb), grad in (((y0, alto), (ym, zr), "url(#laminaN)"), ((ym, zr), (y1, alto), "url(#laminaS)")):
+    mat = ("url(#tejaN)", "url(#tejaS)", "#8e3f24") if teja else ("url(#laminaN)", "url(#laminaS)", "#7d8894")
+    for (ya, za), (yb, zb), grad in (((y0, alto), (ym, zr), mat[0]), ((ym, zr), (y1, alto), mat[1])):
         g.append(f'<polygon points="{poly([(x0, ya, za), (x1, ya, za), (x1, yb, zb), (x0, yb, zb)])}" fill="{grad}" stroke="#7f8a96" stroke-width=".6" stroke-linejoin="round"/>')
         d = []
         n = int((x1 - x0) / 1.0)
@@ -865,7 +869,7 @@ def techo_dos_aguas(rect, alto):
             x = x0 + (x1 - x0) * i / n
             u, v = P(x, ya, za), P(x, yb, zb)
             d.append(f"M{u[0]:.1f} {u[1]:.1f}L{v[0]:.1f} {v[1]:.1f}")
-        g.append(f'<path d="{"".join(d)}" stroke="#7d8894" stroke-width=".35" opacity=".55" fill="none"/>')
+        g.append(f'<path d="{"".join(d)}" stroke="{mat[2]}" stroke-width=".35" opacity=".55" fill="none"/>')
     # cumbrera y canal del alero sur
     a, b = P(x0, ym, zr), P(x1, ym, zr)
     g.append(f'<line x1="{a[0]:.1f}" y1="{a[1]:.1f}" x2="{b[0]:.1f}" y2="{b[1]:.1f}" stroke="#f4f7fa" stroke-width="1.3"/>')
@@ -904,6 +908,32 @@ def losa_volada(pol, alto, d, canto="#ffffff", borde="#8a97a6", techo="#fbfcfd",
     return (paredes(ext, alto, alto + grueso, canto, mezclar(canto, "#33404e", .35), borde) +
             f'<polygon points="{pts(ext, alto + grueso)}" fill="{losa_techo(techo)}" stroke="{borde}" stroke-width=".7"/>' +
             brillo(ext, alto + grueso, techo))
+
+
+def food_court(pol, alto):
+    """Food Court (foto de James): blanco y moderno, con marcos de muros inclinados en diagonal que se
+    abren como abanico en la fachada sur, un volumen alto con retícula de vidrio azul y losa con alero."""
+    g = [losa_volada(pol, alto, .8)]
+    # volumen alto con retícula de vidrio azul (esquina suroeste)
+    vol = caja_r(246.4, 103.6, 252.4, 110.6)
+    h = alto + 3.2
+    g.append(paredes(vol, 0, h, "#f7f9fb", "#c3ccd5", "#8a97a6"))
+    for x0, y0, x1, y1 in ((246.9, 110.6, 251.9, 110.6), (252.4, 110.1, 252.4, 104.1)):
+        g.append(cara_plana(x0, y0, x1, y1, 1.2, h - .8, "url(#reticula)", 'stroke="#2d5f99" stroke-width=".5"'))
+    g.append(f'<polygon points="{pts(vol, h)}" fill="{losa_techo("#fbfcfd")}" stroke="#8a97a6" stroke-width=".7"/>')
+    sombra(vol, h)
+    # marcos inclinados en abanico frente a la fachada este (la que se ve desde el sur del mapa),
+    # cada vez más abiertos hacia el sur
+    x = 263.0 + 1.3
+    for k, y in enumerate((90.0, 94.2, 98.4, 102.6)):
+        inc = .8 + k * .5
+        a, b = P(x, y, 0), P(x, y + inc, alto + 1.0)
+        c, d = P(x, y + inc + .9, alto + 1.0), P(x, y + .9, 0)
+        g.append(f'<polygon points="{a[0]:.1f},{a[1]:.1f} {b[0]:.1f},{b[1]:.1f} {c[0]:.1f},{c[1]:.1f} {d[0]:.1f},{d[1]:.1f}" '
+                 f'fill="#ffffff" stroke="#9aa6b3" stroke-width=".6"/>')
+    a, b = P(x, 90.0 + .8, alto + 1.0), P(x, 102.6 + 2.3 + .9, alto + 1.0)
+    g.append(f'<line x1="{a[0]:.1f}" y1="{a[1]:.1f}" x2="{b[0]:.1f}" y2="{b[1]:.1f}" stroke="#ffffff" stroke-width="2"/>')
+    return "".join(g)
 
 
 def alero_y_torre_m(pol, alto):
@@ -1087,7 +1117,11 @@ def construir(eds):
             svg = edificio(pol, alto, "url(#solar)" if solar else techo, claro, oscuro, borde,
                            pisos=pisos if area >= MIN_AREA else 0, acentos=ACENTOS.get(nombre, ()))
             if nombre in TECHO_LAMINA:
-                svg += techo_dos_aguas(TECHO_LAMINA[nombre], alto)
+                svg += techo_dos_aguas(TECHO_LAMINA[nombre], alto, teja=nombre in TECHO_TEJA)
+            elif nombre in TECHO_TEJA:          # Edificio I (biblioteca): techo de teja sobre su planta en U
+                svg += losa_volada(pol, alto, .7, canto="#c8683f", borde="#8e3f24", techo="url(#teja)", grueso=.6)
+            elif nombre == "Food Court":
+                svg += food_court(pol, alto)
             elif nombre == "Edificio M":
                 svg += alero_y_torre_m(pol, alto)
             elif nombre == "Clínicas Odontológicas":       # losa con alero gris oscuro (foto)
@@ -1100,7 +1134,7 @@ def construir(eds):
                 svg += terraza(pol, alto) + observatorio(pol, alto)
         cx, cy = e["c"]
         OB.append((prof(*max(pol, key=lambda q: prof(*q))), svg))
-        e["alto"] = alto + (FLECHA if nombre in TECHO_LAMINA else 0)
+        e["alto"] = alto + (FLECHA if nombre in TECHO_LAMINA else 2.6 if nombre == "Food Court" else 0)
     # Edificios que no están en OSM
     for nombre, pol, pisos in EXTRA_EDIFICIOS:
         alto = pisos * PISO
@@ -1142,6 +1176,10 @@ def construir(eds):
         cx, cy = e["c"]
         # B queda casi oculto tras C: su insignia va al borde norte del techo y la de C al sur
         cy += {"Edificio B": -3.5, "Edificio C": 3.5}.get(e["nombre"], 0)
+        if e["nombre"] == "Clínicas Odontológicas":
+            # foto aérea de James: el ala larga este-oeste es el «Edificio N»; la clínica es el bloque norte
+            cx, cy = 204.0, 184.0
+            INS.append((prof(236, 205), insignia(236.0, 205.2, e["alto"], "N", color=AZUL)))
         if e["nombre"] in INSIGNIA:
             INS.append((prof(cx, cy), insignia(cx, cy, e["alto"], INSIGNIA[e["nombre"]],
                                                color=AZUL_OSC if e["nombre"] == "Edificio P" else AZUL)))
@@ -1256,6 +1294,10 @@ def documento():
   <pattern id="adoquin" width="1.2" height="1.2" {plano}><path d="M0 0H1.2M0 0V1.2" stroke="#d9c595" stroke-width=".08"/></pattern>
   <pattern id="solar" width="1.1" height="1.8" {plano}><rect width="1.1" height="1.8" fill="#1d3c6b"/><rect x=".08" y=".08" width=".94" height="1.64" fill="#2a5590"/><path d="M.08 .9H1.02M.55 .08V1.72" stroke="#5f8cc8" stroke-width=".04"/></pattern>
   <pattern id="vidrioD" width="8" height="40" patternUnits="userSpaceOnUse"><rect width="8" height="40" fill="#2f3b48"/><rect width="2.2" height="40" fill="#f2f4f6"/><rect x="2.2" width="1" height="40" fill="#5c6b7b"/></pattern>
+  <linearGradient id="tejaN" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e48a5c"/><stop offset="1" stop-color="#d8774a"/></linearGradient>
+  <linearGradient id="tejaS" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#c9643a"/><stop offset="1" stop-color="#a94e2c"/></linearGradient>
+  <pattern id="teja" width="1.2" height=".9" {plano}><rect width="1.2" height=".9" fill="#d4703f"/><path d="M0 .85H1.2M.6 0V.45M0 .45V.9" stroke="#a9502d" stroke-width=".08"/></pattern>
+  <pattern id="reticula" width="5" height="5" patternUnits="userSpaceOnUse"><rect width="5" height="5" fill="#3f86d6"/><path d="M0 .4H5M.4 0V5" stroke="#f2f6fa" stroke-width=".9"/><rect x="1" y="1" width="1.6" height="1.4" fill="#9cc8f0" opacity=".5"/></pattern>
   <pattern id="vidrioV" width="6" height="40" patternUnits="userSpaceOnUse"><rect width="6" height="40" fill="#7fb7a2"/><rect width="1" height="40" fill="#e9efe9"/></pattern>
   {vidrios}
   {"".join(GRADS.values())}
