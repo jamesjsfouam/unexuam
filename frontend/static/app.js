@@ -767,11 +767,7 @@ function renderCampus() {
     </div>
     ${r.ruta.length > 1 ? `<details class="metrica-det"><summary>Ver recorrido completo (${r.ruta.length} puntos)</summary><p class="nota">${r.ruta.map(esc).join(" → ")}</p></details>` : ""}
     ${r.ruta.length === 1 ? `<p class="nota">Ya estás en un punto seguro.</p>` : `
-      <div class="paso-herramientas">
-        <button type="button" class="btn mini secundario" data-accion="paso-ant">← Ant.</button>
-        <button type="button" class="btn primario" data-accion="leer-voz" id="btn-voz"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4zm12.5 3a4.5 4.5 0 0 0-2.5-4v8a4.5 4.5 0 0 0 2.5-4ZM14 3.2v2.1a7 7 0 0 1 0 13.4v2.1a9 9 0 0 0 0-17.6Z"/></svg> Leer ruta</button>
-        <button type="button" class="btn mini secundario" data-accion="paso-sig">Sig. →</button>
-      </div>
+      <button type="button" class="btn primario ancho" data-accion="leer-voz" id="btn-voz"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4zm12.5 3a4.5 4.5 0 0 0-2.5-4v8a4.5 4.5 0 0 0 2.5-4ZM14 3.2v2.1a7 7 0 0 1 0 13.4v2.1a9 9 0 0 0 0-17.6Z"/></svg> Leer ruta por voz</button>
       <p class="nota">Toca un paso para resaltarlo en el mapa 3D.</p>`}
     <ol class="guia">${pasos.map((p, i) => `
       <li class="paso t-${p.tipo}${i === pasoActivo ? " activa" : ""}" data-paso="${i}" role="button" tabindex="0" aria-pressed="${i === pasoActivo}">
@@ -2022,16 +2018,7 @@ async function accion(a) {
   if (!E) return;
   if (a === "reordenar-mesh") {
     reordenar("mesh");
-    renderMesh();
     aviso("Posiciones de la red Mesh restablecidas.");
-    return;
-  } else if (a === "paso-ant") {
-    if (!pasosActuales.length) return;
-    enfocarPaso(pasoActivo <= 0 ? pasosActuales.length - 1 : pasoActivo - 1);
-    return;
-  } else if (a === "paso-sig") {
-    if (!pasosActuales.length) return;
-    enfocarPaso((pasoActivo + 1) % pasosActuales.length);
     return;
   } else if (a === "leer-voz") {
     leerRutaVoz();
