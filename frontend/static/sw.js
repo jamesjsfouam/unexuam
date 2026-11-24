@@ -1,5 +1,5 @@
 /* Service Worker de Unexuam: caché de assets estáticos para operar offline. */
-const CACHE = "unexuam-v21";
+const CACHE = "unexuam-v22";
 const ASSETS = [
   "/",
   "/static/app.css",
@@ -64,5 +64,34 @@ self.addEventListener("fetch", (ev) => {
         return res;
       })
       .catch(() => caches.match(ev.request))
+  );
+});
+
+self.addEventListener("push", (ev) => {
+  const data = (() => {
+    try { return ev.data ? ev.data.json() : {}; } catch (_) { return { body: ev.data ? ev.data.text() : "" }; }
+  })();
+  const titulo = data.title || "Unexuam · Alerta";
+  const opciones = {
+    body: data.body || "Tienes una nueva alerta o mensaje en el campus UAM.",
+    icon: "/static/img/icono-192.png",
+    badge: "/static/img/icono-192.png",
+    vibrate: [240, 100, 240],
+    tag: data.tag || "unexuam-push",
+    data: { url: data.url || "/" },
+  };
+  ev.waitUntil(self.registration.showNotification(titulo, opciones));
+});
+
+self.addEventListener("notificationclick", (ev) => {
+  ev.notification.close();
+  const destino = (ev.notification.data && ev.notification.data.url) || "/";
+  ev.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((lista) => {
+      for (const c of lista) {
+        if ("focus" in c) return c.focus();
+      }
+      if (self.clients.openWindow) return self.clients.openWindow(destino);
+    })
   );
 });

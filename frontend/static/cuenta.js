@@ -1058,6 +1058,50 @@
     );
   }
 
+  async function pedirPermisoNotificaciones() {
+    if (window.UnexuamNativo && typeof window.UnexuamNativo.pedirPermisos === "function") {
+      window.UnexuamNativo.pedirPermisos();
+      return "granted";
+    }
+    if ("Notification" in window) {
+      if (Notification.permission === "default") {
+        try { return await Notification.requestPermission(); } catch (_) { return "denied"; }
+      }
+      return Notification.permission;
+    }
+    return "unsupported";
+  }
+
+  async function notificarPush(titulo, cuerpo, tipo = "mensaje") {
+    try {
+      if (window.UnexuamNativo && typeof window.UnexuamNativo.notificar === "function") {
+        window.UnexuamNativo.notificar(String(titulo || "Unexuam"), String(cuerpo || ""), String(tipo || "mensaje"));
+        return true;
+      }
+      if (!("Notification" in window)) return false;
+      const perm = Notification.permission === "default" ? await Notification.requestPermission() : Notification.permission;
+      if (perm !== "granted") return false;
+      const opts = {
+        body: String(cuerpo || ""),
+        icon: "/static/img/icono-192.png",
+        badge: "/static/img/icono-192.png",
+        tag: "unexuam-" + tipo,
+        vibrate: window.__UNEXUAM_PREFS__?.vibrar !== false ? [240, 100, 240] : undefined,
+      };
+      if (navigator.serviceWorker && navigator.serviceWorker.ready) {
+        const reg = await navigator.serviceWorker.ready;
+        if (reg && typeof reg.showNotification === "function") {
+          await reg.showNotification(String(titulo || "Unexuam"), opts);
+          return true;
+        }
+      }
+      new Notification(String(titulo || "Unexuam"), opts);
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
   function sonarAlerta(forzar = false) {
     try {
       const P = window.__UNEXUAM_PREFS__ || {};
@@ -1206,8 +1250,21 @@
         if (P.tono !== false) est.push("tono");
         avisar(est.length ? `Prueba ejecutada (${est.join(" + ")}).` : "Vibración y tono están desactivados en Notificaciones.");
       },
+      probarPush: async () => {
+        const ok = await notificarPush(
+          "Unexuam · Notificación Push activa",
+          "Las alertas SOS, bloqueos y mensajes Mesh llegarán aunque la pantalla esté apagada.",
+          "sos"
+        );
+        avisar(ok ? "Notificación push enviada al sistema." : "Concede permiso de notificaciones para recibir alertas push.", ok);
+      },
+      pedirNotif: pedirPermisoNotificaciones,
       avisar,
-      permisos: () => { verificarBluetoothYGPS(); avisar("Verificando permisos de Bluetooth y GPS."); },
+      permisos: async () => {
+        verificarBluetoothYGPS();
+        await pedirPermisoNotificaciones();
+        avisar("Verificando permisos de Bluetooth, GPS y notificaciones.");
+      },
     };
     $("#mi-red").addEventListener("click", elegirLugar);
     const btnGps = $("#btn-gps");
@@ -1311,6 +1368,7 @@
         if (P.bloqueos !== false) {
           sonarAlerta();
           avisar("Bloqueo recibido por Mesh: tu ruta de evacuación fue recalculada.", false);
+          if (!window.UnexuamNativo) notificarPush("Pasillo bloqueado en campus", "Tu ruta de evacuación fue recalculada.", "bloqueo");
         }
       } else if (d.tipo === "conectado" && d.peer) {
         if (P.vecinos !== false) avisar(`Teléfono cercano conectado: ${d.peer.nombre}`);
@@ -1320,8 +1378,10 @@
         if (/^SOS\b/.test(String(d.paquete.texto || ""))) {
           sonarAlerta();
           avisar(String(d.paquete.texto), false);
+          if (!window.UnexuamNativo) notificarPush(`ALERTA SOS · ${d.paquete.deNombre || d.paquete.de}`, String(d.paquete.texto), "sos");
         } else if ($("#chat").hidden) {
           avisar(`Mensaje recibido de ${d.paquete.deNombre || d.paquete.de}`);
+          if (!window.UnexuamNativo) notificarPush(`Mensaje de ${d.paquete.deNombre || d.paquete.de}`, String(d.paquete.texto || ""), "mensaje");
         }
       }
     });

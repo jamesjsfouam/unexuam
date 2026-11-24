@@ -36,6 +36,7 @@
       { id: "tono", label: "Tono sonoro de emergencia", tipo: "switch", rapido: true },
       { id: "vecinos", label: "Avisos de vecinos Mesh", tipo: "switch" },
       { id: "bloqueos", label: "Alertas de pasillos bloqueados", tipo: "switch" },
+      { id: "probarPush", label: "Probar notificación push", tipo: "nav" },
     ]},
     { id: "privacidad", nombre: "Privacidad", ico: "M12 2.5 4 6v5.8c0 5 3.4 9.6 8 10.7 4.6-1.1 8-5.7 8-10.7V6l-8-3.5Zm0 5a2.5 2.5 0 0 1 2.5 2.5V12h1v4h-7v-4h1v-2A2.5 2.5 0 0 1 12 7.5Z", items: [
       { id: "compartirLugar", label: "Compartir mi edificio por Mesh", tipo: "switch" },
@@ -234,6 +235,7 @@
     else if (id === "permisos" && h.permisos) h.permisos();
     else if (id === "guias") location.hash = "#inicio";
     else if (id === "probarSos" && h.probarSos) h.probarSos();
+    else if (id === "probarPush" && h.probarPush) h.probarPush();
     else if (id === "estadoOffline" && h.avisar) h.avisar("Campus UAM offline: 154 lugares y 442 pasos listos.");
     else if (id === "restablecerTodo") {
       prefs = { ...prefs, sincronizarSistema: false, escalaTexto: 100, contraste: "estandar", sinAnim: false, fuenteDislexia: false, interlineado: 1.4, modoEnfoque: false, filtroColor: "ninguno" };

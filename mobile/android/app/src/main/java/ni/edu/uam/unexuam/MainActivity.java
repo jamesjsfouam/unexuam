@@ -2,6 +2,9 @@ package ni.edu.uam.unexuam;
 
 import android.Manifest;
 import android.annotation.SuppressLint;
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
+import android.app.PendingIntent;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothManager;
 import android.content.Context;
@@ -15,16 +18,22 @@ import android.os.VibrationEffect;
 import android.os.Vibrator;
 import android.webkit.JavascriptInterface;
 import androidx.core.app.ActivityCompat;
+import androidx.core.app.NotificationCompat;
+import androidx.core.app.NotificationManagerCompat;
 import androidx.core.content.ContextCompat;
 import com.getcapacitor.BridgeActivity;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.json.JSONObject;
 
 public class MainActivity extends BridgeActivity {
     private static final int REQ_PERMISOS = 1042;
     private static final int REQ_BT_ENABLE = 1043;
+    private static final String CANAL_EMERGENCIAS = "unexuam_emergencias";
+    private static final String CANAL_MENSAJES = "unexuam_mensajes";
+    private final AtomicInteger notifSeq = new AtomicInteger(200);
     private boolean btPromptLanzado = false;
     private MeshNativa meshNativa;
     private String ultimoPerfilMesh = null;
@@ -32,12 +41,62 @@ public class MainActivity extends BridgeActivity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        crearCanalesNotificacion();
         meshNativa = new MeshNativa(this, this::enviarEventoAWeb);
         if (this.bridge != null && this.bridge.getWebView() != null) {
             this.bridge.getWebView().addJavascriptInterface(new PuenteNativo(), "UnexuamNativo");
             this.bridge.getWebView().reload();
         }
         solicitarPermisosEntrada();
+    }
+
+    private void crearCanalesNotificacion() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return;
+        NotificationManager nm = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+        if (nm == null) return;
+        NotificationChannel chEmerg = new NotificationChannel(
+                CANAL_EMERGENCIAS,
+                "Alertas SOS y bloqueos",
+                NotificationManager.IMPORTANCE_HIGH);
+        chEmerg.setDescription("Notificaciones urgentes de SOS y pasillos bloqueados por red Mesh");
+        chEmerg.enableVibration(true);
+        chEmerg.setVibrationPattern(new long[]{0, 260, 120, 260, 120, 380});
+        nm.createNotificationChannel(chEmerg);
+
+        NotificationChannel chMsg = new NotificationChannel(
+                CANAL_MENSAJES,
+                "Mensajes Mesh Off-Grid",
+                NotificationManager.IMPORTANCE_DEFAULT);
+        chMsg.setDescription("Mensajes recibidos de teléfonos cercanos sin internet");
+        nm.createNotificationChannel(chMsg);
+    }
+
+    @SuppressLint("MissingPermission")
+    public void mostrarNotificacionNativa(String titulo, String cuerpo, String tipo) {
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
+                    && ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
+                    != PackageManager.PERMISSION_GRANTED) {
+                return;
+            }
+            boolean urgente = "sos".equalsIgnoreCase(tipo) || "bloqueo".equalsIgnoreCase(tipo);
+            String canal = urgente ? CANAL_EMERGENCIAS : CANAL_MENSAJES;
+            Intent intent = new Intent(this, MainActivity.class);
+            intent.setFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+            PendingIntent pi = PendingIntent.getActivity(
+                    this, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+            NotificationCompat.Builder b = new NotificationCompat.Builder(this, canal)
+                    .setSmallIcon(R.mipmap.ic_launcher)
+                    .setContentTitle(titulo != null && !titulo.isEmpty() ? titulo : "Unexuam")
+                    .setContentText(cuerpo != null ? cuerpo : "")
+                    .setStyle(new NotificationCompat.BigTextStyle().bigText(cuerpo != null ? cuerpo : ""))
+                    .setPriority(urgente ? NotificationCompat.PRIORITY_HIGH : NotificationCompat.PRIORITY_DEFAULT)
+                    .setCategory(urgente ? NotificationCompat.CATEGORY_ALARM : NotificationCompat.CATEGORY_MESSAGE)
+                    .setAutoCancel(true)
+                    .setContentIntent(pi);
+            NotificationManagerCompat.from(this).notify(notifSeq.incrementAndGet(), b.build());
+        } catch (Exception ignored) {
+        }
     }
 
     @Override
@@ -47,6 +106,22 @@ public class MainActivity extends BridgeActivity {
     }
 
     private void enviarEventoAWeb(String eventoJson) {
+        try {
+            JSONObject ev = new JSONObject(eventoJson);
+            String tipo = ev.optString("tipo", "");
+            if ("paquete".equals(tipo)) {
+                JSONObject pq = ev.optJSONObject("paquete");
+                if (pq != null) {
+                    String txt = pq.optString("texto", "");
+                    String de = pq.optString("deNombre", pq.optString("de", "Unexuam"));
+                    boolean esSos = txt.startsWith("SOS");
+                    mostrarNotificacionNativa(esSos ? "ALERTA SOS · " + de : "Mensaje de " + de, txt, esSos ? "sos" : "mensaje");
+                }
+            } else if ("incidente".equals(tipo) || ev.optBoolean("recalcularRuta", false)) {
+                mostrarNotificacionNativa("Pasillo bloqueado en campus", "Tu ruta de evacuación fue recalculada automáticamente.", "bloqueo");
+            }
+        } catch (Exception ignored) {
+        }
         runOnUiThread(() -> {
             if (this.bridge != null && this.bridge.getWebView() != null) {
                 String js = "window.__unexuamMeshEvento && window.__unexuamMeshEvento(" + JSONObject.quote(eventoJson) + ");";
@@ -66,6 +141,7 @@ public class MainActivity extends BridgeActivity {
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             lista.add(Manifest.permission.NEARBY_WIFI_DEVICES);
+            lista.add(Manifest.permission.POST_NOTIFICATIONS);
         }
         return lista.toArray(new String[0]);
     }
@@ -193,6 +269,11 @@ public class MainActivity extends BridgeActivity {
                 }
             } catch (Exception ignored) {
             }
+        }
+
+        @JavascriptInterface
+        public void notificar(String titulo, String cuerpo, String tipo) {
+            runOnUiThread(() -> mostrarNotificacionNativa(titulo, cuerpo, tipo));
         }
 
         @JavascriptInterface
