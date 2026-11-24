@@ -58,6 +58,7 @@
       asa.innerHTML = GRIP;
       li.prepend(asa);
 
+      asa.addEventListener("click", ev => { ev.preventDefault(); ev.stopPropagation(); });
       asa.addEventListener("keydown", ev => {
         if (ev.key !== "ArrowUp" && ev.key !== "ArrowDown") return;
         ev.preventDefault();

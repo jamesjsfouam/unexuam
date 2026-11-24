@@ -1199,13 +1199,81 @@
       const sinAnim = document.body.classList.contains("aj-sin-anim") || window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
       pista.scrollBy({ left: (+b.dataset.carrusel) * ((tarjeta ? tarjeta.offsetWidth : 150) + 12), behavior: sinAnim ? "auto" : "smooth" });
     }));
+    const activarDeslizable = (el, onActivar, hint, confirmarTeclado = false) => {
+      if (!el) return;
+      el.classList.add("fila-deslizable");
+      const thumb = el.querySelector(".fila-icono");
+      let sx = 0, sy = 0, dx = 0, maxDx = 0, activo = false, bloqueoHoriz = false;
+      const reset = () => {
+        activo = false; bloqueoHoriz = false; dx = 0;
+        el.classList.remove("deslizando", "listo");
+        if (thumb) thumb.style.transform = "";
+      };
+      el.addEventListener("pointerdown", ev => {
+        if (ev.button && ev.button !== 0) return;
+        if (ev.target.closest(".drag-asa")) return;
+        sx = ev.clientX; sy = ev.clientY; dx = 0;
+        maxDx = Math.max(80, el.clientWidth - (thumb ? thumb.offsetWidth : 100) - 6);
+        activo = true; bloqueoHoriz = false;
+        el.classList.add("deslizando");
+        try { el.setPointerCapture(ev.pointerId); } catch (_) {}
+      });
+      el.addEventListener("pointermove", ev => {
+        if (!activo) return;
+        const mx = ev.clientX - sx, my = ev.clientY - sy;
+        if (!bloqueoHoriz) {
+          if (Math.abs(my) > 12 && Math.abs(my) > Math.abs(mx)) { reset(); return; }
+          if (mx > 8) bloqueoHoriz = true;
+        }
+        if (bloqueoHoriz) {
+          dx = Math.max(0, Math.min(maxDx, mx));
+          if (thumb) thumb.style.transform = `translateX(${dx}px)`;
+          el.classList.toggle("listo", dx >= maxDx * 0.6);
+        }
+      });
+      const fin = () => {
+        if (!activo) return;
+        const disparo = bloqueoHoriz && dx >= maxDx * 0.6;
+        const fueToque = !bloqueoHoriz && dx < 12;
+        reset();
+        if (disparo) {
+          if (navigator.vibrate && window.__UNEXUAM_PREFS__?.vibrar !== false) navigator.vibrate(25);
+          onActivar();
+        } else if (fueToque) {
+          el.classList.remove("nudge");
+          void el.offsetWidth;
+          el.classList.add("nudge");
+          setTimeout(() => el.classList.remove("nudge"), 380);
+          avisar(hint);
+        }
+      };
+      el.addEventListener("pointerup", fin);
+      el.addEventListener("pointercancel", reset);
+      el.addEventListener("click", ev => {
+        // Solo permitir activación por teclado (detail === 0); los toques táctiles/ratón deben deslizar
+        if (ev.detail !== 0) { ev.preventDefault(); ev.stopPropagation(); return; }
+        ev.preventDefault();
+        if (confirmarTeclado && window.abrirHoja) {
+          window.abrirHoja("Confirmar alerta SOS", "Se enviará tu edificio al Canal General sin internet.", [
+            { txt: "Enviar SOS ahora", cls: "peligro", fn: onActivar },
+          ]);
+        } else {
+          onActivar();
+        }
+      });
+    };
+
     const guiasBox = $("#guias-emergencia");
     if (guiasBox) guiasBox.addEventListener("click", ev => {
+      if (ev.target.closest(".fila-deslizable, .drag-asa")) return;
       const card = ev.target.closest("[data-guia]");
       if (card) abrirGuia(card.dataset.guia);
     });
+    $$("#lista-prioridad .fila-figma").forEach(fila => {
+      activarDeslizable(fila, () => abrirGuia(fila.dataset.guia), "Desliza hacia la derecha para abrir esta guía →");
+    });
     const btnSos = $("#btn-sos");
-    if (btnSos) btnSos.addEventListener("click", enviarSOS);
+    if (btnSos) activarDeslizable(btnSos, enviarSOS, "Desliza hacia la derecha para enviar SOS →", true);
     window.addEventListener("unexuam-mesh-update", async (ev) => {
       if (!YO) return;
       firmaMsj = "";

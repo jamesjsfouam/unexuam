@@ -864,7 +864,7 @@ function renderCampus() {
   const pasos = r.ruta.length > 1 ? pasosDeRuta(r.ruta) : [];
   pasosActuales = pasos;
   if (pasoActivo >= pasos.length) pasoActivo = -1;
-  const sparkRuta = pasos.length ? sparklineSvg(pasos.map(p => p.segundos), `Perfil de tiempos por paso: ${pasos.length} pasos en ${minutos(r.tiempo)}`, "#0062cc") : "";
+  const sparkRuta = pasos.length ? sparklineSvg(pasos.map(p => p.segundos), `Perfil de tiempos por paso: ${pasos.length} pasos en ${minutos(r.tiempo)}`, "#ffffff") : "";
   info.innerHTML = `
     <div class="destino">
       <span class="destino-etq">Evacúa hacia</span>
@@ -878,10 +878,10 @@ function renderCampus() {
     </div>
     ${r.ruta.length > 1 ? `<details class="metrica-det"><summary>Ver ruta vértice a vértice (${r.ruta.length} nodos)</summary><p class="nota">${r.ruta.map(esc).join(" → ")}</p></details>` : ""}
     ${r.ruta.length === 1 ? `<p class="nota">Ya estás en un punto seguro.</p>` : `
-      <div class="paso-herramientas cta-pulgar">
-        <button type="button" class="btn mini secundario" data-accion="paso-ant">← Anterior</button>
+      <div class="paso-herramientas">
+        <button type="button" class="btn mini secundario" data-accion="paso-ant">← Ant.</button>
         <button type="button" class="btn primario" data-accion="leer-voz" id="btn-voz"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4zm12.5 3a4.5 4.5 0 0 0-2.5-4v8a4.5 4.5 0 0 0 2.5-4ZM14 3.2v2.1a7 7 0 0 1 0 13.4v2.1a9 9 0 0 0 0-17.6Z"/></svg> Leer ruta</button>
-        <button type="button" class="btn mini secundario" data-accion="paso-sig">Siguiente →</button>
+        <button type="button" class="btn mini secundario" data-accion="paso-sig">Sig. →</button>
       </div>
       <p class="nota">Toca un paso para resaltarlo en el mapa 3D.</p>`}
     <ol class="guia">${pasos.map((p, i) => `

@@ -49,7 +49,7 @@ main { padding-bottom: calc(var(--alto-nav) + 88px + env(safe-area-inset-bottom)
   position: relative;
   z-index: 1;
   flex: 1 1 0;
-  min-height: 56px;
+  min-height: 54px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -61,7 +61,7 @@ main { padding-bottom: calc(var(--alto-nav) + 88px + env(safe-area-inset-bottom)
   border-radius: 0;
   background: none;
   color: #526275;
-  font-size: 0.72rem;
+  font-size: 0.68rem;
   font-weight: 700;
   text-decoration: none;
   -webkit-tap-highlight-color: transparent;
@@ -81,7 +81,7 @@ main { padding-bottom: calc(var(--alto-nav) + 88px + env(safe-area-inset-bottom)
 .navbar a[aria-current="page"] .ico-out { display: none; }
 .navbar a[aria-current="page"] svg { transform: translateY(-1px) scale(1.06); }
 .navbar a:focus-visible { outline: 3px solid var(--texto); outline-offset: -4px; border-radius: 10px; }
-.navbar .badge { position: absolute; top: 6px; left: calc(50% + 7px); margin: 0; pointer-events: none; }
+.navbar .badge { position: absolute; top: 4px; left: calc(50% + 4px); margin: 0; pointer-events: none; }
 /* Cápsula de vidrio que marca la pestaña activa y sigue al dedo */
 .nav-capsula {
   position: absolute;
@@ -271,8 +271,8 @@ body.sin-sesion main, body.sin-sesion .barra { visibility: hidden; }
 .wiz-opt summary { cursor: pointer; font-size: 0.82rem; font-weight: 800; color: var(--azul-osc); }
 .wiz-opt .campo { margin-top: 8px; }
 .wiz-acciones { display: flex; gap: 10px; align-items: center; }
-.wiz-acciones #reg-atras { flex: 0 0 auto; min-height: 54px; padding: 0 18px; }
-.wiz-acciones #login-btn { flex: 1; }
+.wiz-acciones #reg-atras { flex: 0 0 auto; min-height: 48px; min-width: 96px; padding: 0 18px; font-size: 0.9rem; }
+.wiz-acciones #login-btn { flex: 1; min-height: 48px; }
 
 /* ---------- mensajes: lista tipo WhatsApp ---------- */
 .mi-red {
@@ -410,7 +410,7 @@ body.sin-sesion main, body.sin-sesion .barra { visibility: hidden; }
 .chat-form { padding: 6px 10px calc(10px + env(safe-area-inset-bottom)); background: #eef4fb; }
 .chat-rapidos { display: flex; flex-wrap: nowrap; gap: 8px; overflow-x: auto; padding: 2px 2px 8px; scrollbar-width: none; scroll-snap-type: x proximity; -webkit-overflow-scrolling: touch; }
 .chat-rapidos::-webkit-scrollbar { display: none; }
-.chat-rapidos button { flex: none; white-space: nowrap; scroll-snap-align: start; min-height: 38px; font-size: 0.82rem; padding: 6px 12px; border-color: var(--azul-btn); color: var(--azul-btn); }
+.chat-rapidos button { flex: none; white-space: nowrap; scroll-snap-align: start; min-height: 36px; border-width: 2px; font-size: 0.8rem; padding: 4px 12px; border-color: var(--azul-btn); color: var(--azul-btn); }
 .chat-rapidos button.seleccionado { background: var(--azul-btn); color: var(--blanco); transform: scale(.95); }
 .chat-rapidos button kbd { display: none; font: 800 10px var(--fuente); padding: 1px 5px; margin-right: 4px; border-radius: 6px; background: var(--azul-claro); color: var(--azul-osc); }
 @media (hover: hover) and (pointer: fine) { .chat-rapidos button kbd { display: inline-block; } }
@@ -548,14 +548,15 @@ body.sin-sesion main, body.sin-sesion .barra { visibility: hidden; }
 /* Botones: píldoras como en el Figma (blanca con borde azul / azul rellena) */
 .btn {
   border-radius: 999px;
-  border: 2.5px solid var(--azul-btn);
+  border: 2px solid var(--azul-btn);
   font-weight: 800;
   letter-spacing: .01em;
   transition: transform .15s ease, box-shadow .15s ease, background .15s ease;
 }
-.btn:not(.primario):not(.alerta):not(.peligro):not(.aviso-btn):not(.blanco):not(.seguro) { background: var(--blanco); color: var(--azul-btn); }
+.btn:not(.primario):not(.alerta):not(.peligro):not(.aviso-btn):not(.blanco):not(.seguro):not(.mini) { background: var(--blanco); color: var(--azul-btn); }
 .btn.primario { background: var(--azul-btn); color: var(--blanco); border-color: var(--azul-btn); box-shadow: 0 6px 16px rgba(0, 98, 204, .28); }
 .btn.peligro, .btn.alerta { border-color: var(--rojo); }
+.btn.mini { min-height: 36px; padding: 5px 14px; font-size: 0.8125rem; }
 .btn:active:not(:disabled) { transform: scale(.97); }
 .btn:disabled { opacity: .48; cursor: not-allowed; box-shadow: none; transform: none; }
 
@@ -851,19 +852,24 @@ body.sin-sesion main, body.sin-sesion .barra { visibility: hidden; }
 .banner-ux-senal { position: absolute; left: 112px; top: 26px; width: 30px; height: auto; filter: drop-shadow(0 6px 10px rgba(0, 30, 80, .35)); animation: burbuja 3s ease-in-out infinite; }
 .banner-ux-texto {
   position: absolute;
-  right: 18px;
+  right: 14px;
   top: 50%;
   transform: translateY(-50%);
   display: flex;
   flex-direction: column;
   align-items: flex-end;
   text-align: right;
-  line-height: .95;
+  line-height: .96;
+  max-width: 58%;
   text-shadow: 0 3px 10px rgba(0, 30, 80, .35);
 }
-.banner-ux-texto small { font-size: 13px; font-weight: 800; opacity: .95; margin-bottom: 4px; }
-.banner-ux-texto b { font-size: 34px; font-weight: 900; }
-.banner-ux-texto strong { font-size: 40px; font-weight: 900; color: var(--amarillo); }
+.banner-ux-texto small { font-size: clamp(11px, 3.2vw, 13px); font-weight: 800; opacity: .95; margin-bottom: 4px; }
+.banner-ux-texto b { font-size: clamp(22px, 7.2vw, 32px); font-weight: 900; }
+.banner-ux-texto strong { font-size: clamp(26px, 8.4vw, 38px); font-weight: 900; color: var(--amarillo); }
+@media (max-width: 370px) {
+  .banner-ux-tel { left: 10px; width: 88px; height: 170px; }
+  .banner-ux-burbuja { left: 76px; font-size: 8px; }
+}
 @media (prefers-reduced-motion: reduce) { .banner-ux-burbuja, .banner-ux-senal { animation: none; } }
 
 /* Acciones de Inicio con la estructura de tarjetas y filas del Figma */
@@ -950,20 +956,20 @@ body:not(.es-admin) .paso-bloq { display: none; }
 .aj-volver { align-self: flex-start; }
 .aj-switch {
   position: relative;
-  width: 52px;
-  height: 30px;
+  width: 50px;
+  height: 28px;
   flex: none;
-  border: 2px solid var(--gris-texto);
-  border-radius: 16px;
-  background: #cbd5e1;
+  border: 0;
+  border-radius: 14px;
+  background: #94a3b8;
   cursor: pointer;
-  transition: background .2s ease, border-color .2s ease;
+  transition: background .2s ease;
 }
 .aj-switch:focus-visible { outline: 3px solid var(--texto); outline-offset: 2px; box-shadow: var(--foco-anillo); }
 .aj-switch i {
   position: absolute;
-  top: 2px;
-  left: 2px;
+  top: 3px;
+  left: 3px;
   width: 22px;
   height: 22px;
   border-radius: 50%;
@@ -971,7 +977,7 @@ body:not(.es-admin) .paso-bloq { display: none; }
   box-shadow: 0 2px 4px rgba(0, 0, 0, .25);
   transition: transform .2s ease;
 }
-.aj-switch[aria-checked="true"] { background: var(--verde-btn); border-color: var(--verde-btn); }
+.aj-switch[aria-checked="true"] { background: var(--verde-btn); }
 .aj-switch[aria-checked="true"] i { transform: translateX(22px); }
 
 body.aj-sin-anim *, body.aj-sin-anim *::before, body.aj-sin-anim *::after { transition: none !important; animation: none !important; scroll-behavior: auto !important; }
@@ -1023,13 +1029,44 @@ html[data-filtro-color="acromatopsia"] body { filter: grayscale(1); }
 .drag-asa {
   display: grid;
   place-items: center;
-  width: 28px;
+  width: 34px;
   flex: none;
   border-radius: 16px;
-  background: rgba(255, 255, 255, .92);
-  border: 1.5px solid rgba(0, 128, 255, .24);
+  background: rgba(255, 255, 255, .95);
+  border: 1.5px solid rgba(0, 98, 204, .28);
   cursor: grab;
   touch-action: none;
+}
+
+/* ---------- Botones deslizables reales (SOS y Qué hacer ahora) ---------- */
+.fila-deslizable {
+  position: relative;
+  touch-action: pan-y;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.fila-deslizable .fila-icono {
+  position: relative;
+  z-index: 2;
+  background: var(--blanco);
+  border-radius: 999px;
+  box-shadow: 2px 0 10px rgba(11, 42, 74, .14);
+  transition: transform .24s cubic-bezier(.22, 1, .36, 1);
+  will-change: transform;
+}
+.fila-deslizable.deslizando .fila-icono {
+  transition: none;
+}
+.fila-deslizable.listo .fila-texto {
+  filter: brightness(1.08);
+}
+.fila-deslizable.nudge .fila-icono {
+  animation: nudgeDer .36s ease;
+}
+@keyframes nudgeDer {
+  0%, 100% { transform: translateX(0); }
+  40% { transform: translateX(16px); }
+  70% { transform: translateX(6px); }
 }
 .drag-asa svg { width: 14px; height: 22px; fill: var(--azul); opacity: .75; }
 .drag-asa:focus-visible { outline: 3px solid var(--amarillo); outline-offset: 2px; }
