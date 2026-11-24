@@ -1,5 +1,5 @@
 /* Service Worker de Unexuam: caché de assets estáticos para operar offline. */
-const CACHE = "unexuam-v23";
+const CACHE = "unexuam-v24";
 const ASSETS = [
   "/",
   "/static/app.css",
@@ -37,14 +37,14 @@ const ASSETS = [
 self.addEventListener("install", (ev) => {
   ev.waitUntil(
     caches.open(CACHE)
-      .then((c) => Promise.allSettled(ASSETS.map((u) => c.add(u))))
+      .then((c) => c.addAll(ASSETS))
       .then(() => self.skipWaiting())
   );
 });
 
 self.addEventListener("activate", (ev) => {
   ev.waitUntil(
-    caches.keys().then((keys) => Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k))))
+    caches.keys().then((keys) => Promise.all(keys.filter((k) => k.startsWith("unexuam-") && k !== CACHE).map((k) => caches.delete(k))))
       .then(() => self.clients.claim())
   );
 });

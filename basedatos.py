@@ -116,8 +116,13 @@ class BaseDatos:
     # ---------------------------------------------------------------- mensajes
     @staticmethod
     def _msj(f):
+        estado = f["estado"]
+        if estado == "en cola":
+            limite = time.strftime("%Y-%m-%dT%H:%M:%S", time.localtime(time.time() - 24 * 3600))
+            if f["enviado"] < limite:
+                estado = "vencido"
         return {"id": f["id"], "de": f["de_cif"], "para": f["para_cif"], "tipo": f["tipo"], "texto": f["texto"],
-                "fecha": f["enviado"], "hora": f["enviado"][11:19], "estado": f["estado"],
+                "fecha": f["enviado"], "hora": f["enviado"][11:19], "estado": estado,
                 "ruta": json.loads(f["ruta"]), "retardo": f["retardo"],
                 "entregado": f["entregado"][11:19] if f["entregado"] else None, "viaCola": bool(f["via_cola"])}
 
@@ -127,6 +132,10 @@ class BaseDatos:
                 (m["id"], m["de"], m["para"], m.get("tipo", "texto"), m["texto"], m["fecha"], m["estado"],
                  json.dumps(m["ruta"], ensure_ascii=False), m["retardo"],
                  m["fecha"] if m["estado"] == "entregado" else None, int(m.get("viaCola", False))))
+
+    def mensaje(self, ident):
+        filas = self._q("SELECT * FROM mensajes WHERE id = ?", (ident,))
+        return self._msj(filas[0]) if filas else None
 
     def mensajes_de(self, cif, limite=400):
         filas = self._q("SELECT * FROM mensajes WHERE de_cif = ? OR para_cif = ? OR para_cif = 'TODOS' "

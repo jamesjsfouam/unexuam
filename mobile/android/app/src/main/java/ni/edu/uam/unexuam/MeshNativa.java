@@ -77,6 +77,7 @@ public class MeshNativa {
 
     private final ConnectionsClient client;
     private final SharedPreferences prefs;
+    private final SharedPreferences bandeja;
     private final Listener listener;
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
     private final Map<String, JSONObject> conectados = new ConcurrentHashMap<>();
@@ -95,6 +96,7 @@ public class MeshNativa {
     public MeshNativa(Context context, Listener listener) {
         this.client = Nearby.getConnectionsClient(context);
         this.prefs = context.getSharedPreferences(PREFS_DTN, Context.MODE_PRIVATE);
+        this.bandeja = context.getSharedPreferences("unexuam_entrada_mesh", Context.MODE_PRIVATE);
         this.listener = listener;
         cargarEstadoDtn();
     }
@@ -194,6 +196,7 @@ public class MeshNativa {
             perfilLocal = new JSONObject();
         }
         deseandoActivo = true;
+        recuperarEntradas();
         if (anunciando && buscando) {
             enviarHelloATodos();
             return;
@@ -233,7 +236,7 @@ public class MeshNativa {
         pendientesTs.clear();
     }
 
-    public int enviarPaquete(String paqueteJson) {
+    public synchronized int enviarPaquete(String paqueteJson) {
         String firmado = paqueteJson;
         try {
             JSONObject obj = new JSONObject(paqueteJson);
@@ -241,6 +244,7 @@ public class MeshNativa {
                 obj.put("sig", firmar(obj));
             }
             firmado = obj.toString();
+            if (firmado.getBytes(StandardCharsets.UTF_8).length > MAX_BYTES_PAYLOAD) return -1;
             String id = obj.optString("id", "");
             String para = obj.optString("para", "");
             String tipo = obj.optString("tipo", "mensaje");
@@ -254,14 +258,11 @@ public class MeshNativa {
                 }
             }
         } catch (Exception e) {
-            Log.w(TAG, "Error preparando paquete saliente: " + e.getMessage());
+            Log.w(TAG, "Error preparando paquete saliente", e);
+            return -1;
         }
         if (conectados.isEmpty()) return 0;
         byte[] bytes = firmado.getBytes(StandardCharsets.UTF_8);
-        if (bytes.length > MAX_BYTES_PAYLOAD) {
-            Log.w(TAG, "Paquete excede MTU segura (" + bytes.length + " bytes), descartado.");
-            return 0;
-        }
         int enviados = 0;
         for (String endpointId : new ArrayList<>(conectados.keySet())) {
             enviarSeguro(endpointId, bytes);
@@ -285,6 +286,13 @@ public class MeshNativa {
     private void guardarEnCustodia(String id, String paqueteJson, boolean prioritario, long ttlMs) {
         if (!custodiaHabilitada || id == null || id.isEmpty() || confirmados.contains(id)) return;
         synchronized (custodia) {
+            EntradaCustodia existente = custodia.get(id);
+            if (existente != null && existente.expiraMs > System.currentTimeMillis()) return;
+            Iterator<EntradaCustodia> caducadas = custodia.values().iterator();
+            long ahora = System.currentTimeMillis();
+            while (caducadas.hasNext()) {
+                if (caducadas.next().expiraMs <= ahora) caducadas.remove();
+            }
             if (custodia.size() >= MAX_CUSTODIA) {
                 // Desalojar el paquete NO prioritario más antiguo primero (FIFO determinístico)
                 String victima = null;
@@ -488,24 +496,30 @@ public class MeshNativa {
     private final PayloadCallback payloadCallback = new PayloadCallback() {
         @Override
         public void onPayloadReceived(String endpointId, Payload payload) {
-            if (payload.getType() != Payload.Type.BYTES || payload.asBytes() == null) return;
-            String raw = new String(payload.asBytes(), StandardCharsets.UTF_8);
+            if (payload.getType() != Payload.Type.BYTES) return;
+            byte[] bytes = payload.asBytes();
+            if (bytes == null || bytes.length > MAX_BYTES_PAYLOAD) return;
+            String raw = new String(bytes, StandardCharsets.UTF_8);
             try {
                 JSONObject obj = new JSONObject(raw);
-                String tipo = obj.optString("tipo", "mensaje");
+                String tipo = obj.optString("tipo");
                 if ("hello".equals(tipo)) {
+                    JSONArray sv = obj.optJSONArray("tengo");
+                    if (!conectados.containsKey(endpointId) || sv == null || sv.length() > 400) return;
                     obj.put("endpointId", endpointId);
                     conectados.put(endpointId, obj);
                     emitirEvento("perfil", "peer", obj);
                     // Summary Vector: solo enviar paquetes que el vecino NO tiene
                     Set<String> remotoTiene = new HashSet<>();
-                    JSONArray sv = obj.optJSONArray("tengo");
-                    if (sv != null) {
-                        for (int i = 0; i < sv.length(); i++) remotoTiene.add(sv.optString(i));
-                    }
+                    for (int i = 0; i < sv.length(); i++) remotoTiene.add(sv.optString(i));
                     sincronizarCustodiaFaltante(endpointId, remotoTiene);
                     return;
                 }
+
+                if (!"mensaje".equals(tipo) && !"incidente".equals(tipo) && !"ack".equals(tipo)) return;
+                String id = obj.optString("id");
+                int saltos = obj.optInt("ttl", 0);
+                if (id.isEmpty() || id.length() > 80 || saltos < 1 || saltos > 10) return;
 
                 // Verificar integridad HMAC-SHA256 para rechazar paquetes forjados/manipulados
                 if (!firmaValida(obj)) {
@@ -519,61 +533,53 @@ public class MeshNativa {
                 if ("ack".equals(tipo)) {
                     String ackId = obj.optString("id", "");
                     String ackDe = obj.optString("ackDe", "");
-                    if (!ackId.isEmpty() && yaVisto(ackId)) return;
-                    if (!ackId.isEmpty()) registrarVisto(ackId);
+                    if (ackDe.isEmpty() || !ackId.equals("ack-" + ackDe) || yaVisto(ackId)) return;
+                    EntradaCustodia original = custodia.get(ackDe);
+                    if (original != null) {
+                        JSONObject mensaje = new JSONObject(original.json);
+                        if (!mensaje.optString("para").equals(obj.optString("de"))
+                                || !mensaje.optString("de").equals(obj.optString("para"))) return;
+                    }
+                    boolean esAcuseLocal = obj.optString("para").equals(miCif);
+                    if (esAcuseLocal && !guardarEntrada(ackId, obj)) return;
+                    registrarVisto(ackId);
                     if (!ackDe.isEmpty()) {
-                        confirmados.add(ackDe);
+                        registrarConfirmado(ackDe);
                         custodia.remove(ackDe);
                         guardarEstadoDtn();
                     }
                     agregarARuta(obj, "ruta", miTel);
-                    if (obj.optString("para", "").equals(miCif)) {
+                    if (esAcuseLocal) {
                         emitirEvento("ack", "ack", obj);
                     } else {
                         int ttl = obj.optInt("ttl", 6);
                         if (ttl > 1) {
                             obj.put("ttl", ttl - 1);
+                            guardarEnCustodia(ackId, obj.toString(), true, TTL_DIRECTO_MS);
                             reenviarAOtros(endpointId, obj.toString());
                         }
                     }
                     return;
                 }
 
-                String id = obj.optString("id", "");
-                if (!id.isEmpty() && (yaVisto(id) || confirmados.contains(id))) return;
-                if (!id.isEmpty()) registrarVisto(id);
-
-                agregarARuta(obj, "ruta", miTel);
-                String para = obj.optString("para", "");
+                String para = obj.optString("para");
                 boolean esParaMi = !miCif.isEmpty() && para.equals(miCif);
-                boolean esBroadcast = "TODOS".equals(para);
-                boolean esPrioritario = "incidente".equals(tipo) || obj.optString("texto", "").startsWith("SOS");
-
-                if (esParaMi || esBroadcast) {
-                    emitirEvento("paquete", "paquete", obj);
-                }
-
-                if (esParaMi && !id.isEmpty()) {
-                    confirmados.add(id);
-                    custodia.remove(id);
-                    guardarEstadoDtn();
-                    JSONObject ack = new JSONObject();
-                    ack.put("tipo", "ack");
-                    ack.put("id", "ack-" + id);
-                    ack.put("ackDe", id);
-                    ack.put("de", miCif);
-                    ack.put("para", obj.optString("de", ""));
-                    ack.put("ttl", 6);
-                    JSONArray rutaVuelta = new JSONArray();
-                    if (!miTel.isEmpty()) rutaVuelta.put(miTel);
-                    ack.put("ruta", rutaVuelta);
-                    ack.put("rutaEntrega", obj.optJSONArray("ruta"));
-                    ack.put("sig", firmar(ack));
-                    registrarVisto("ack-" + id);
-                    byte[] ackBytes = ack.toString().getBytes(StandardCharsets.UTF_8);
-                    for (String ep : new ArrayList<>(conectados.keySet())) enviarSeguro(ep, ackBytes);
+                if (esParaMi) {
+                    EntradaCustodia recibo = custodia.get("ack-" + id);
+                    if (recibo != null && recibo.expiraMs > System.currentTimeMillis()) {
+                        enviarSeguro(endpointId, recibo.json.getBytes(StandardCharsets.UTF_8));
+                        return;
+                    }
+                    agregarARuta(obj, "ruta", miTel);
+                    aceptarEntrada(id, obj);
                     return;
                 }
+                if (yaVisto(id) || confirmados.contains(id)) return;
+                registrarVisto(id);
+                agregarARuta(obj, "ruta", miTel);
+                boolean esBroadcast = "TODOS".equals(para);
+                boolean esPrioritario = "incidente".equals(tipo) || obj.optString("texto", "").startsWith("SOS");
+                if (esBroadcast) emitirEvento("paquete", "paquete", obj);
 
                 int ttl = obj.optInt("ttl", 6);
                 if (ttl > 1) {
@@ -596,6 +602,74 @@ public class MeshNativa {
             }
         }
     };
+
+    private synchronized void aceptarEntrada(String id, JSONObject paquete) {
+        if (guardarEntrada(id, paquete)) {
+            emitirEvento("paquete", "paquete", paquete);
+        }
+    }
+
+    private synchronized boolean guardarEntrada(String id, JSONObject paquete) {
+        if (bandeja.getAll().size() >= MAX_CUSTODIA && !bandeja.contains(id)) return false;
+        return bandeja.edit().putString(id, paquete.toString()).commit();
+    }
+
+    private void registrarConfirmado(String id) {
+        synchronized (confirmados) {
+            confirmados.add(id);
+            while (confirmados.size() > 500) {
+                Iterator<String> antiguos = confirmados.iterator();
+                antiguos.next();
+                antiguos.remove();
+            }
+        }
+    }
+
+    private synchronized void recuperarEntradas() {
+        for (Object valor : bandeja.getAll().values()) {
+            if (!(valor instanceof String)) continue;
+            try {
+                JSONObject paquete = new JSONObject((String) valor);
+                if (perfilLocal.optString("cif").equals(paquete.optString("para"))) {
+                    String evento = "ack".equals(paquete.optString("tipo")) ? "ack" : "paquete";
+                    emitirEvento(evento, evento, paquete);
+                }
+            } catch (Exception e) {
+                Log.w(TAG, "Entrada Mesh inválida", e);
+            }
+        }
+    }
+
+    public synchronized void confirmarEntrada(String id) {
+        String datos = bandeja.getString(id, null);
+        if (datos == null) return;
+        try {
+            JSONObject paquete = new JSONObject(datos);
+            String miCif = perfilLocal.optString("cif");
+            if (miCif.isEmpty() || !miCif.equals(paquete.optString("para"))) return;
+            if ("ack".equals(paquete.optString("tipo"))) {
+                bandeja.edit().remove(id).apply();
+                return;
+            }
+            JSONObject ack = new JSONObject();
+            String ackId = "ack-" + id;
+            ack.put("tipo", "ack");
+            ack.put("id", ackId);
+            ack.put("ackDe", id);
+            ack.put("de", miCif);
+            ack.put("para", paquete.optString("de"));
+            ack.put("ttl", 6);
+            ack.put("ruta", new JSONArray().put(perfilLocal.optString("telefono")));
+            ack.put("rutaEntrega", paquete.optJSONArray("ruta"));
+            ack.put("sig", firmar(ack));
+            guardarEnCustodia(ackId, ack.toString(), true, TTL_DIRECTO_MS);
+            registrarVisto(ackId);
+            reenviarAOtros(null, ack.toString());
+            bandeja.edit().remove(id).apply();
+        } catch (Exception e) {
+            Log.w(TAG, "Error confirmando la entrada Mesh", e);
+        }
+    }
 
     private void agregarARuta(JSONObject obj, String clave, String tel) {
         if (tel == null || tel.isEmpty()) return;

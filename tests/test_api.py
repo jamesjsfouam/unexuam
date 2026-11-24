@@ -80,7 +80,7 @@ class TestApiYParidad(unittest.TestCase):
         with self.client.get("/sw.js") as r:
             self.assertEqual(r.status_code, 200)
             self.assertEqual(r.headers.get("Service-Worker-Allowed"), "/")
-            self.assertIn(b"unexuam-v23", r.data)
+            self.assertIn(b"unexuam-v24", r.data)
 
     def test_paridad_campus_plano_json(self):
         campus, _ = crearCampus()
@@ -110,6 +110,23 @@ class TestSesionYMensajes(unittest.TestCase):
         self.assertEqual(c.get("/api/estado").status_code, 401)
         self.assertFalse(c.get("/api/yo").get_json()["sesion"])
         self.assertTrue(c.get("/api/lugares").get_json()["ok"])
+
+    def test_reintentar_envio_con_la_misma_clave(self):
+        cliente, _ = self.nuevo("PRUEBAID1", "Prueba envío", "C-101")
+        datos = {"para": "TODOS", "texto": "Prueba", "idempotencia": "reintento-1234567890"}
+        primero = cliente.post("/api/mensajes/enviar", json=datos).get_json()
+        segundo = cliente.post("/api/mensajes/enviar", json=datos).get_json()
+        self.assertTrue(primero["ok"])
+        self.assertEqual(primero["enviado"]["id"], segundo["enviado"]["id"])
+        conflicto = cliente.post("/api/mensajes/enviar", json={**datos, "texto": "Otro mensaje"})
+        self.assertEqual(conflicto.status_code, 409)
+
+    def test_mensaje_debe_ser_texto(self):
+        cliente, _ = self.nuevo("PRUEBAID2", "Prueba texto", "C-101")
+        for texto in (None, {}, ["mensaje"], " ", "x" * 501):
+            with self.subTest(texto=texto):
+                respuesta = cliente.post("/api/mensajes/enviar", json={"para": "TODOS", "texto": texto})
+                self.assertFalse(respuesta.get_json()["ok"])
 
     def test_registro_y_contrasena(self):
         c = servidor.app.test_client()
@@ -220,13 +237,21 @@ class TestSesionYMensajes(unittest.TestCase):
 
         adm = servidor.app.test_client()
         adm.post("/api/login/demo", json={})
+        adm.post("/api/reiniciar", json={"grafo": "ambos"})
+        bloqueo = adm.post("/api/campus/bloquear", json={
+            "origen": "C Escalera Central P3", "destino": "B Escalera Central P2",
+        }).get_json()
+        self.assertTrue(bloqueo["ok"])
         r1 = adm.post("/api/emergencia/declarar", json={"tipo": "incendio"}).get_json()
         self.assertTrue(r1["ok"])
         self.assertEqual(r1["estado"]["emergencia"]["tipo"], "incendio")
-        r2 = adm.post("/api/emergencia/finalizar", json={}).get_json()
+        incidente = r1["estado"]["emergencia"]["id"]
+        atrasado = adm.post("/api/emergencia/finalizar", json={"incidente": "anterior"}).get_json()
+        self.assertFalse(atrasado["ok"])
+        r2 = adm.post("/api/emergencia/finalizar", json={"incidente": incidente}).get_json()
         self.assertTrue(r2["ok"])
         self.assertIsNone(r2["estado"]["emergencia"])
-        self.assertEqual(r2["estado"]["campus"]["bloqueados"], [])
+        self.assertEqual(r2["estado"]["campus"]["bloqueados"], bloqueo["estado"]["campus"]["bloqueados"])
 
 
 if __name__ == "__main__":

@@ -1808,6 +1808,10 @@ function irA(nombre) {
 /* ------------------------------------------------------------- eventos */
 
 function eventos() {
+  $(".skip-link")?.addEventListener("click", (ev) => {
+    ev.preventDefault();
+    document.querySelector("main")?.focus();
+  });
   window.addEventListener("hashchange", () => irA(location.hash.slice(1)));
   const btnEmCerrar = $("#banner-em-cerrar");
   if (btnEmCerrar) btnEmCerrar.addEventListener("click", () => {
@@ -2158,7 +2162,6 @@ async function accion(a) {
     if (animando) return;
     const origen = $("#mesh-origen").value;
     if (!origen) return;
-    if (vista !== "mesh") location.hash = "#mesh";
     animando = true;  // evita que aplicarEstado lance otra animación
     const j = await api("/api/mesh/alerta", { origen, ttl });
     animando = false;
@@ -2188,7 +2191,8 @@ async function accion(a) {
   } else if (a === "mapa-centrar") {
     if (camCampusIni) aplicarCamaraCampus(camCampusIni);
   } else if (a === "finalizar-emergencia") {
-    hoja("Finalizar emergencia", "Se reabrirán los pasillos bloqueados, se limpiarán las alertas y el campus volverá a estar en calma.", [
+    const incidente = E.emergencia?.id;
+    hoja("Finalizar emergencia", "Se cerrará la alerta activa. Los reportes de bloqueo siguen vigentes.", [
       {
         txt: "Sí, finalizar emergencia",
         cls: "primario",
@@ -2197,7 +2201,7 @@ async function accion(a) {
           textoEmergenciaExtra = "";
           claveModalEmergencia = "";
           rutaAnterior = null;
-          await api("/api/emergencia/finalizar", {});
+          await api("/api/emergencia/finalizar", { incidente });
           cerrarModalEmergencia();
         },
       },

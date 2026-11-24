@@ -16,6 +16,7 @@ import json
 import math
 import os
 import re
+import hashlib
 import secrets
 import socket
 import sys
@@ -280,7 +281,7 @@ def error_backend(e):
 # Inicio de sesión (CIF + contraseña) y mensajería por la red Mesh
 # ----------------------------------------------------------------------------
 
-LIBRES = {"/api/yo", "/api/login", "/api/login/demo", "/api/registro", "/api/lugares", "/api/campus/publico", "/api/campus/ruta"}
+LIBRES = {"/api/capacidades", "/api/yo", "/api/login", "/api/login/demo", "/api/registro", "/api/lugares", "/api/campus/publico", "/api/campus/ruta"}
 # Reportar un pasillo bloqueado (/api/campus/bloquear) es una función de emergencia para todos;
 # reabrir, congestionar, reiniciar y editar los grafos es solo del administrador.
 SOLO_ADMIN = ("/api/reiniciar", "/api/mesh/vertice", "/api/mesh/arista", "/api/mesh/alerta",
@@ -533,12 +534,20 @@ def api_login():
         return abrir_sesion(cif, d.get("lugar"))
 
 
+def demo_habilitada():
+    return os.environ.get("UNEXUAM_DISABLE_DEMO") != "1" and (
+        app.testing or os.environ.get("UNEXUAM_ENABLE_DEMO") == "1"
+    )
+
+
+@app.get("/api/capacidades")
+def api_capacidades():
+    return jsonify({"ok": True, "demo": demo_habilitada()})
+
+
 @app.post("/api/login/demo")
 def api_login_demo():
-    # Deshabilitado por defecto en producción; solo activo en pruebas o si UNEXUAM_ENABLE_DEMO=1.
-    deshabilitado = os.environ.get("UNEXUAM_DISABLE_DEMO") == "1"
-    habilitado = app.testing or os.environ.get("UNEXUAM_ENABLE_DEMO") == "1"
-    if deshabilitado or not habilitado:
+    if not demo_habilitada():
         return jsonify({"ok": False, "mensaje": "El acceso demo está deshabilitado."}), 403
     with lock:
         if DB.usuario(CIF_DEMO) is None:
@@ -618,10 +627,10 @@ def api_mensajes():
         return jsonify({"ok": True, "yo": datos_usuario(cif), "contactos": contactos, "mensajes": mios})
 
 
-def entregar(de, para, texto_msj, tipo="texto", ruta=None, retardo=None):
+def entregar(de, para, texto_msj, tipo="texto", ruta=None, retardo=None, ident=None):
     """Guarda un mensaje: entregado si hay `ruta`; si no, queda en cola (DTN)."""
     ruta = list(ruta or [])
-    m = {"id": secrets.token_hex(8), "de": de, "para": para, "tipo": tipo, "texto": texto_msj,
+    m = {"id": ident or secrets.token_hex(8), "de": de, "para": para, "tipo": tipo, "texto": texto_msj,
          "fecha": time.strftime("%Y-%m-%dT%H:%M:%S"), "estado": "entregado" if ruta else "en cola",
          "ruta": ruta, "retardo": num(retardo) if ruta else None, "viaCola": False}
     DB.guardar_mensaje(m)
@@ -635,14 +644,27 @@ def api_enviar():
     d = cuerpo_json()
     cif = session["cif"]
     para = leer_cif({"cif": d.get("para", "")})
-    texto_msj = str(d.get("texto", "")).strip()[:500]
+    valor_mensaje = d.get("texto")
+    texto_msj = valor_mensaje.strip() if isinstance(valor_mensaje, str) else ""
     with lock:
-        if not texto_msj:
-            return jsonify({"ok": False, "mensaje": "El mensaje está vacío."})
+        if not 1 <= len(texto_msj) <= 500:
+            return jsonify({"ok": False, "mensaje": "Escribe entre 1 y 500 caracteres."})
         yo = DB.usuario(cif)
+        clave = d.get("idempotencia")
+        ident = None
+        if clave is not None:
+            if not isinstance(clave, str) or re.fullmatch(r"[A-Za-z0-9_-]{16,64}", clave) is None:
+                return jsonify({"ok": False, "mensaje": "Identificador de envío inválido."}), 400
+            ident = hashlib.sha256(f"{cif}:{clave}".encode()).hexdigest()
+            existente = DB.mensaje(ident)
+            if existente:
+                if existente["de"] != cif or existente["para"] != para or existente["texto"] != texto_msj:
+                    return jsonify({"ok": False, "mensaje": "El identificador corresponde a otro envío."}), 409
+                existente["deNombre"] = yo["nombre"]
+                return jsonify({"ok": True, "mensaje": "Mensaje registrado.", "enviado": existente})
         if para == CIF_TODOS:
             # Canal General: difusión a toda la red del campus.
-            m = entregar(cif, CIF_TODOS, texto_msj, ruta=[yo["telefono"], "Todos"], retardo=0.5)
+            m = entregar(cif, CIF_TODOS, texto_msj, ruta=[yo["telefono"], "Todos"], retardo=0.5, ident=ident)
             m["deNombre"] = yo["nombre"]
             registrar(f"{yo['nombre']} escribió en el Canal General.", "ok", privado=True)
             return jsonify({"ok": True, "mensaje": "Difundido en el Canal General del campus.", "enviado": m})
@@ -652,7 +674,7 @@ def api_enviar():
         if destino is None or para == cif or destino["admin"]:
             return jsonify({"ok": False, "mensaje": "Elige a quién enviarle el mensaje."})
         ruta, retardo = rutaMensaje(S["red"], yo["telefono"], destino["telefono"])
-        m = entregar(cif, para, texto_msj, ruta=ruta, retardo=retardo)
+        m = entregar(cif, para, texto_msj, ruta=ruta, retardo=retardo, ident=ident)
         m["deNombre"] = yo["nombre"]
         if ruta:
             msj = f"Entregado en {len(ruta) - 1} salto(s), {num(retardo)} s de retardo."
@@ -773,9 +795,9 @@ def api_declarar_emergencia():
 @app.post("/api/emergencia/finalizar")
 def api_finalizar_emergencia():
     with lock:
-        ubic = S.get("ubicacion")
-        reiniciar_campus()
-        S["ubicacion"] = ubic
+        incidente = cuerpo_json().get("incidente")
+        if incidente and incidente != (S.get("emergencia") or {}).get("id"):
+            return responder(False, "La emergencia activa cambió. Actualiza e inténtalo de nuevo.")
         S["ultimaAlerta"] = None
         S["emergencia"] = None
         return responder(True, "Emergencia finalizada. El campus vuelve a estar en calma.")
