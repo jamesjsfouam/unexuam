@@ -113,6 +113,9 @@
       if (window.UnexuamNativo && typeof window.UnexuamNativo.setCustodiaDtn === "function") {
         window.UnexuamNativo.setCustodiaDtn(prefs.custodiaDtn !== false);
       }
+      if (window.UnexuamNativo && typeof window.UnexuamNativo.guardarPrefsAlarma === "function") {
+        window.UnexuamNativo.guardarPrefsAlarma(prefs.tono !== false, prefs.vibrar !== false);
+      }
     } catch (_) {}
     window.__UNEXUAM_PREFS__ = { ...prefs, sinAnimEfectivo: sinAnim, contrasteEfectivo: contraste, temaEfectivo: tema };
   }
@@ -184,62 +187,94 @@
     ];
   }
 
-  function render() {
+  function asegurarEsqueleto() {
     const host = $("#v-ajustes");
-    if (!host) return;
-    const prev = document.activeElement;
-    const prevId = prev && host.contains(prev) ? prev.id : "";
-    const prevSel = prev?.id === "aj-q" ? [prev.selectionStart, prev.selectionEnd] : null;
-    const q = filtro.trim().toLowerCase();
-    let cuerpo = "";
-
-    if (q) {
-      const hits = allItems().filter(it => it.label.toLowerCase().includes(q) || it.cat.toLowerCase().includes(q)).slice(0, 7);
-      cuerpo = `<div class="tarjeta aj-bloque" role="list" aria-label="Resultados de búsqueda">
-        ${hits.length ? hits.map(filaItem).join("") : '<p class="nota">Sin ajustes que coincidan.</p>'}
-      </div>`;
-    } else if (catActiva) {
-      const c = CATS.find(x => x.id === catActiva) || SUBCATS[catActiva];
-      const backLabel = c.parent ? `← Accesibilidad · ${c.nombre}` : `← Ajustes · ${c.nombre}`;
-      cuerpo = `<button type="button" class="btn secundario aj-volver" id="aj-volver" data-back="${esc(c.parent || "")}">${esc(backLabel)}</button>
-        <div class="tarjeta aj-bloque" role="list" aria-label="${esc(c.nombre)}">${c.items.map(filaItem).join("")}</div>`;
-    } else {
-      const rapidos = CATS.flatMap(c => c.items).filter(it => it.rapido).slice(0, 2);
-      cuerpo = `<div class="aj-grid">
-        <div class="tarjeta aj-bloque" role="list" aria-label="Ajustes rápidos">
-          <h3 class="aj-sub">Ajustes rápidos</h3>${rapidos.map(filaItem).join("")}
-        </div>
-        <div class="tarjeta aj-bloque" role="list" aria-label="Categorías de ajustes">
-          <h3 class="aj-sub">Categorías</h3>
-          ${CATS.map(c => `<div class="aj-fila" role="listitem">
-            <button type="button" class="aj-cat" data-aj-cat="${esc(c.id)}">
-              <svg class="aj-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="${c.ico}"/></svg>
-              <span><b>${esc(c.nombre)}</b><small>${c.items.length} opciones</small></span>
-              <span class="aj-flecha" aria-hidden="true">›</span>
-            </button>
-          </div>`).join("")}
-        </div>
-      </div>`;
-    }
-
-    const chips = !catActiva && !q && recientes.length
-      ? `<div class="aj-recientes" aria-label="Búsquedas recientes">${recientes.map(r => `<button type="button" data-aj-rec="${esc(r)}">${esc(r)}</button>`).join("")}</div>` : "";
-
+    if (!host || $("#aj-cuerpo", host)) return;
     host.innerHTML = `<h2 id="t-ajustes" class="franja">Ajustes</h2>
       <div class="aj-buscar">
         <label class="aj-buscar-lbl" for="aj-q">Buscar ajuste</label>
         <input id="aj-q" type="search" value="${esc(filtro)}" placeholder="Ej.: texto, contraste, vibración…" autocomplete="off">
       </div>
-      ${chips}${cuerpo}
+      <div id="aj-chips"></div>
+      <div id="aj-pool" class="tarjeta aj-bloque" role="list" aria-label="Resultados de búsqueda" hidden>
+        ${allItems().map(it => `<div class="aj-hit-item" data-aj-search="${esc((it.label + " " + it.cat).toLowerCase())}">${filaItem(it)}</div>`).join("")}
+        <p id="aj-vacio" class="nota" hidden>Sin ajustes que coincidan.</p>
+      </div>
+      <div id="aj-cuerpo"></div>
       <p id="aj-live" class="sr" aria-live="polite"></p>`;
+  }
 
-    if (prevId) {
-      const restored = $("#" + CSS.escape(prevId), host);
-      if (restored) {
-        restored.focus();
-        if (prevSel && restored.setSelectionRange) restored.setSelectionRange(prevSel[0], prevSel[1]);
+  function actualizarFiltroVisual() {
+    const host = $("#v-ajustes");
+    if (!host) return;
+    asegurarEsqueleto();
+    const q = filtro.trim().toLowerCase();
+    const pool = $("#aj-pool", host);
+    const cuerpoEl = $("#aj-cuerpo", host);
+    const chipsEl = $("#aj-chips", host);
+    const vacioEl = $("#aj-vacio", host);
+    if (!pool || !cuerpoEl) return;
+
+    if (q) {
+      if (chipsEl) chipsEl.hidden = true;
+      cuerpoEl.hidden = true;
+      pool.hidden = false;
+      let visibles = 0;
+      pool.querySelectorAll(".aj-hit-item").forEach(nodo => {
+        const match = (nodo.dataset.ajSearch || "").includes(q) && visibles < 7;
+        nodo.hidden = !match;
+        if (match) visibles++;
+      });
+      if (vacioEl) vacioEl.hidden = visibles > 0;
+      return;
+    }
+    pool.hidden = true;
+    if (chipsEl) chipsEl.hidden = false;
+    cuerpoEl.hidden = false;
+  }
+
+  function render() {
+    const host = $("#v-ajustes");
+    if (!host) return;
+    asegurarEsqueleto();
+    const inp = $("#aj-q", host);
+    if (inp && inp.value !== filtro) inp.value = filtro;
+    const q = filtro.trim().toLowerCase();
+    const cuerpoEl = $("#aj-cuerpo", host);
+    const chipsEl = $("#aj-chips", host);
+
+    if (chipsEl) {
+      chipsEl.innerHTML = !catActiva && !q && recientes.length
+        ? `<div class="aj-recientes" aria-label="Búsquedas recientes">${recientes.map(r => `<button type="button" data-aj-rec="${esc(r)}">${esc(r)}</button>`).join("")}</div>`
+        : "";
+    }
+
+    if (cuerpoEl && !q) {
+      if (catActiva) {
+        const c = CATS.find(x => x.id === catActiva) || SUBCATS[catActiva];
+        const backLabel = c.parent ? `← Accesibilidad · ${c.nombre}` : `← Ajustes · ${c.nombre}`;
+        cuerpoEl.innerHTML = `<button type="button" class="btn secundario aj-volver" id="aj-volver" data-back="${esc(c.parent || "")}">${esc(backLabel)}</button>
+          <div class="tarjeta aj-bloque" role="list" aria-label="${esc(c.nombre)}">${c.items.map(filaItem).join("")}</div>`;
+      } else {
+        const rapidos = CATS.flatMap(c => c.items).filter(it => it.rapido).slice(0, 2);
+        cuerpoEl.innerHTML = `<div class="aj-grid">
+          <div class="tarjeta aj-bloque" role="list" aria-label="Ajustes rápidos">
+            <h3 class="aj-sub">Ajustes rápidos</h3>${rapidos.map(filaItem).join("")}
+          </div>
+          <div class="tarjeta aj-bloque" role="list" aria-label="Categorías de ajustes">
+            <h3 class="aj-sub">Categorías</h3>
+            ${CATS.map(c => `<div class="aj-fila" role="listitem">
+              <button type="button" class="aj-cat" data-aj-cat="${esc(c.id)}">
+                <svg class="aj-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="${c.ico}"/></svg>
+                <span><b>${esc(c.nombre)}</b><small>${c.items.length} opciones</small></span>
+                <span class="aj-flecha" aria-hidden="true">›</span>
+              </button>
+            </div>`).join("")}
+          </div>
+        </div>`;
       }
     }
+    actualizarFiltroVisual();
     if (window.UNEXO_I18N) window.UNEXO_I18N.aplicar(host);
   }
 
@@ -281,8 +316,17 @@
     mqDark?.addEventListener?.("change", aplicarPrefs);
     const host = $("#v-ajustes");
     if (!host) return;
+    let ajDebounce = 0;
     host.addEventListener("input", ev => {
-      if (ev.target.id === "aj-q") { filtro = ev.target.value; render(); return; }
+      if (ev.target.id === "aj-q") {
+        filtro = ev.target.value;
+        clearTimeout(ajDebounce);
+        ajDebounce = setTimeout(() => {
+          actualizarFiltroVisual();
+          if (!filtro.trim()) render();
+        }, 120);
+        return;
+      }
       const rng = ev.target.closest("[data-aj-rng]");
       if (rng) {
         const k = rng.dataset.ajRng;

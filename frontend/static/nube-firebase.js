@@ -94,7 +94,66 @@
 
   function tieneAuthAdmin() {
     const auth = leerAuth();
-    return Boolean(auth && auth.idToken);
+    return Boolean(auth && auth.idToken && auth.rol !== "estudiante");
+  }
+
+  function obtenerApiKey(apiKey) {
+    const auth = leerAuth();
+    let lsKey = "";
+    try { lsKey = localStorage.getItem("unexuam_fb_apikey") || ""; } catch (_) {}
+    const k = String(apiKey || (typeof window !== "undefined" && window.__UNEXUAM_FB_API_KEY__) || lsKey || (auth && auth.apiKey) || "").trim();
+    if (k) {
+      try { localStorage.setItem("unexuam_fb_apikey", k); } catch (_) {}
+    }
+    return k;
+  }
+
+  async function autenticarEstudiante(cif, password, esRegistro = false, apiKey = "") {
+    const key = obtenerApiKey(apiKey);
+    const cifNorm = String(cif || "").replace(/\s+/g, "").toUpperCase().slice(0, 15);
+    if (!key || !cifNorm || !password) return { ok: false, offline: true };
+    if (typeof navigator !== "undefined" && navigator.onLine === false) return { ok: false, offline: true };
+    const email = `${cifNorm.toLowerCase()}@unexuam.uam.edu.ni`;
+    const llamarIdp = async (endpoint) => {
+      const url = `https://identitytoolkit.googleapis.com/v1/accounts:${endpoint}?key=${encodeURIComponent(key)}`;
+      const r = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password, returnSecureToken: true }),
+      });
+      const d = await r.json().catch(() => null);
+      return { ok: r.ok, status: r.status, d };
+    };
+    try {
+      let res = await llamarIdp(esRegistro ? "signUp" : "signInWithPassword");
+      if (!esRegistro && !res.ok && res.d?.error?.message === "EMAIL_NOT_FOUND") {
+        res = await llamarIdp("signUp");
+      } else if (esRegistro && !res.ok && res.d?.error?.message === "EMAIL_EXISTS") {
+        res = await llamarIdp("signInWithPassword");
+      }
+      if (!res.ok || !res.d || !res.d.idToken) {
+        return { ok: false, offline: false, mensaje: res.d?.error?.message || "No se pudo autenticar en Firebase." };
+      }
+      const auth = {
+        idToken: res.d.idToken,
+        refreshToken: res.d.refreshToken,
+        apiKey: key,
+        email,
+        localId: res.d.localId || "",
+        cif: cifNorm,
+        rol: "estudiante",
+        expiresAt: Date.now() + Math.max(60, Number(res.d.expiresIn || 3600) - 60) * 1000,
+      };
+      guardarAuth(auth);
+      return { ok: true, offline: false, cif: cifNorm, uid: auth.localId };
+    } catch (_) {
+      return { ok: false, offline: true };
+    }
+  }
+
+  function cerrarSesionEstudianteFirebase() {
+    const auth = leerAuth();
+    if (auth && auth.rol === "estudiante") guardarAuth(null);
   }
 
   function aValorFS(v) {
@@ -224,7 +283,10 @@
   }
 
   async function listarMensajes(limite = 60) {
-    const res = await reqFS(`/mensajes?pageSize=${limite}`);
+    let res = await reqFS(`/mensajes?pageSize=${limite}&orderBy=ts%20desc`);
+    if (!res.offline && !res.ok && res.status === 400) {
+      res = await reqFS(`/mensajes?pageSize=${limite}`);
+    }
     if (res.offline || !res.ok || !res.data) return null;
     const docs = Array.isArray(res.data.documents) ? res.data.documents : [];
     return docs.map(docAObjeto).filter(Boolean).sort((a, b) => (a.ts || 0) - (b.ts || 0));
@@ -264,6 +326,8 @@
     iniciarSesionAdminFirebase,
     cerrarSesionAdminFirebase,
     tieneAuthAdmin,
+    autenticarEstudiante,
+    cerrarSesionEstudianteFirebase,
     obtenerUsuario,
     crearUsuario,
     actualizarLugar,

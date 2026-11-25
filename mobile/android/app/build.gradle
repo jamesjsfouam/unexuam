@@ -9,6 +9,9 @@ if (keystorePropsFile.exists()) {
 android {
     namespace "ni.edu.uam.unexuam"
     compileSdk rootProject.ext.compileSdkVersion
+    buildFeatures {
+        buildConfig true
+    }
     defaultConfig {
         applicationId "ni.edu.uam.unexuam"
         minSdkVersion rootProject.ext.minSdkVersion
@@ -16,6 +19,8 @@ android {
         versionCode 1
         versionName "1.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        def meshHmacSeed = keystoreProps['meshHmacKey'] ?: System.getenv('UNEXUAM_MESH_HMAC_KEY') ?: 'UNEXUAM-UAM-MESH-2026-V2'
+        buildConfigField "String", "MESH_HMAC_KEY", "\"${meshHmacSeed}\""
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
              // Default: https://android.googlesource.com/platform/frameworks/base/+/282e181b58cf72b6ca770dc7ca5f91f135444502/tools/aapt/AaptAssets.cpp#61

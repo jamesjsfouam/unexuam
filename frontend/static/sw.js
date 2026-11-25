@@ -1,5 +1,5 @@
 /* Service Worker de Unexuam: caché de assets estáticos para operar offline. */
-const CACHE = "unexuam-v27";
+const CACHE = "unexuam-v28";
 const CAMPUS_OFFLINE = "/campus-offline.json";
 const ASSETS = [
   "/",
@@ -10,6 +10,8 @@ const ASSETS = [
   "/static/ajustes.js",
   "/static/cuenta.css",
   "/static/ubicacion.js",
+  "/static/nube-firebase.js",
+  "/static/i18n.js",
   "/static/ubicacion-campus.json",
   "/static/campus-plano.json",
   "/static/manifest.json",
@@ -25,12 +27,10 @@ const ASSETS = [
   "/static/img/mapa-campus-3d.svg",
   "/static/img/fondo-marca.svg",
   "/static/img/figma/tarjeta-inundacion.jpg",
-  "/static/img/figma/tarjeta-evacuar.jpg",
-  "/static/img/figma/ico-pin.png",
   "/static/img/figma/tarjeta-incendio.jpg",
   "/static/img/figma/tarjeta-sismo.jpg",
-  "/static/img/figma/tarjeta-auxilios.jpg",
-  "/static/img/figma/tarjeta-sin-senal.jpg",
+  "/static/img/figma/tarjeta-auxilios.svg",
+  "/static/img/figma/tarjeta-sin-senal.svg",
   "/static/img/figma/campus-uam-inicio.jpg",
   "/static/img/figma/campus-uam-evacuar.jpg",
   "/static/img/figma/campus-uam-mesh.jpg",
@@ -102,7 +102,8 @@ self.addEventListener("fetch", (ev) => {
         }
         return res;
       })
-      .catch(() => caches.match(ev.request))
+      .catch(async () => (await caches.match(ev.request))
+        || new Response("Recurso no disponible sin conexión.", { status: 503, headers: { "Content-Type": "text/plain; charset=utf-8" } }))
   );
 });
 

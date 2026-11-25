@@ -151,6 +151,18 @@ def main():
         raise SystemExit("ERROR: quedaron expresiones Jinja sin resolver en mobile/www/index.html")
     (www_dir / "index.html").write_text(html, encoding="utf-8")
 
+    # Sincronizar directamente hacia assets/public de Android (equivale a `cap copy android`)
+    android_public = mobile_dir / "android" / "app" / "src" / "main" / "assets" / "public"
+    if android_public.exists():
+        android_static = android_public / "static"
+        if android_static.exists():
+            shutil.rmtree(android_static)
+        shutil.copytree(static_dst, android_static)
+        shutil.copy2(www_dir / "index.html", android_public / "index.html")
+        for archivo_raiz in www_dir.iterdir():
+            if archivo_raiz.is_file() and archivo_raiz.name != "index.html":
+                shutil.copy2(archivo_raiz, android_public / archivo_raiz.name)
+
     print(
         f"Web móvil lista en {www_dir}: "
         f"{len(datos['campus']['vertices'])} vértices campus, "

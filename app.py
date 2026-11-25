@@ -9,6 +9,7 @@ Por defecto escucha en loopback. Para acceso desde la LAN, configura TLS explíc
 La lógica de grafos se encuentra en `backend/`.
 """
 
+import atexit
 import json
 import math
 import os
@@ -137,6 +138,7 @@ app.config["PERMANENT_SESSION_LIFETIME"] = 60 * 60 * 24 * 30   # 30 días
 lock = threading.Lock()
 S = {}
 DB = BaseDatos(ruta_datos("unexuam.db"))     # usuarios, contactos y mensajes (SQLite)
+atexit.register(DB.cerrar)
 EN_LINEA = set()                              # CIF con el teléfono conectado a la red Mesh
 
 
@@ -362,7 +364,7 @@ def error_backend(e):
 # Inicio de sesión (CIF + contraseña) y mensajería por la red Mesh
 # ----------------------------------------------------------------------------
 
-LIBRES = {"/api/capacidades", "/api/yo", "/api/login", "/api/registro", "/api/registro/disponible", "/api/lugares", "/api/campus/publico", "/api/campus/ruta", "/api/mensajes/general", "/descargar", "/descargar/apk"}
+LIBRES = {"/api/capacidades", "/api/yo", "/api/login", "/api/registro", "/api/registro/disponible", "/api/lugares", "/api/campus/publico", "/api/campus/ruta", "/descargar", "/descargar/apk"}
 # Reportar un pasillo bloqueado (/api/campus/bloquear) es una función de emergencia para todos;
 # reabrir, congestionar, reiniciar y editar los grafos es solo del administrador.
 SOLO_ADMIN = ("/api/reiniciar", "/api/mesh/vertice", "/api/mesh/arista", "/api/mesh/alerta",
@@ -384,7 +386,7 @@ def exigir_sesion():
     if request.path.startswith("/api/") or request.path == "/campus-offline.json":
         with lock:
             cargar_campus_compartido()
-    if request.path.startswith("/api/") and request.path not in LIBRES:
+    if request.path.startswith("/api/") and request.path not in LIBRES and request.path != "/api/mensajes/general":
         u = usuario_sesion()
         if u is None:
             return jsonify({"ok": False, "mensaje": "Inicia sesión con tu CIF y tu contraseña.", "sesion": False}), 401
@@ -554,6 +556,9 @@ def api_registro_disponible():
 
 @app.post("/api/registro")
 def api_registro():
+    ip = ip_cliente()
+    if registrar_evento_ip(REGISTROS_IP, ip, limite=60):
+        return jsonify({"ok": False, "mensaje": "Demasiados registros desde esta red. Espera un minuto."})
     d = cuerpo_json()
     cif = leer_cif(d)
     nombre = " ".join(str(d.get("nombre", "")).split())[:40]
@@ -577,9 +582,18 @@ def api_registro():
 
 
 HASH_FICTICIO = generate_password_hash("unexuam-sin-cuenta")
+RATE_LOCK = threading.Lock()
 INTENTOS = {}          # cif -> [marcas de tiempo de intentos recientes]
+INTENTOS_IP = {}       # ip -> [marcas de tiempo de fallos recientes]
+REGISTROS_IP = {}      # ip -> [marcas de tiempo de registros recientes]
+SOS_INV_IP = {}        # ip -> [marcas de tiempo de SOS de invitados]
 BUSQUEDAS = {}         # cif -> [marcas de tiempo de búsquedas de contacto]
 MAX_ENTRADAS_RATE = 2000
+
+
+def ip_cliente():
+    xff = request.headers.get("X-Forwarded-For", "").split(",")[0].strip()
+    return (xff or request.remote_addr or "local")[:64]
 
 
 def _purgar_rate(mapa, ahora_s, ventana=60):
@@ -594,49 +608,82 @@ def _purgar_rate(mapa, ahora_s, ventana=60):
             mapa.pop(next(iter(mapa)), None)
 
 
+def registrar_evento_ip(mapa, ip, limite=20):
+    ahora_s = time.time()
+    with RATE_LOCK:
+        _purgar_rate(mapa, ahora_s)
+        recientes = [t for t in mapa.get(ip, []) if ahora_s - t < 60]
+        if len(recientes) >= limite:
+            mapa[ip] = recientes
+            return True
+        recientes.append(ahora_s)
+        mapa[ip] = recientes
+        return False
+
+
+def ip_bloqueada(ip, limite=20):
+    ahora_s = time.time()
+    with RATE_LOCK:
+        recientes = [t for t in INTENTOS_IP.get(ip, []) if ahora_s - t < 60]
+        if recientes:
+            INTENTOS_IP[ip] = recientes
+        else:
+            INTENTOS_IP.pop(ip, None)
+        return len(recientes) >= limite
+
+
 def bloqueado_por_intentos(cif):
     ahora_s = time.time()
-    recientes = [t for t in INTENTOS.get(cif, []) if ahora_s - t < 60]
-    if recientes:
-        INTENTOS[cif] = recientes
-    else:
-        INTENTOS.pop(cif, None)
-    return len(recientes) >= 8          # 8 fallos en un minuto: espera
+    with RATE_LOCK:
+        recientes = [t for t in INTENTOS.get(cif, []) if ahora_s - t < 60]
+        if recientes:
+            INTENTOS[cif] = recientes
+        else:
+            INTENTOS.pop(cif, None)
+        return len(recientes) >= 8          # 8 fallos en un minuto: espera
 
 
-def registrar_fallo(cif):
+def registrar_fallo(cif, ip=None):
     ahora_s = time.time()
-    _purgar_rate(INTENTOS, ahora_s)
-    INTENTOS.setdefault(cif, []).append(ahora_s)
+    with RATE_LOCK:
+        _purgar_rate(INTENTOS, ahora_s)
+        INTENTOS.setdefault(cif, []).append(ahora_s)
+        if ip:
+            _purgar_rate(INTENTOS_IP, ahora_s)
+            INTENTOS_IP.setdefault(ip, []).append(ahora_s)
 
 
 def limite_busquedas_excedido(cif):
     ahora_s = time.time()
-    _purgar_rate(BUSQUEDAS, ahora_s)
-    recientes = [t for t in BUSQUEDAS.get(cif, []) if ahora_s - t < 60]
-    if len(recientes) >= 30:
+    with RATE_LOCK:
+        _purgar_rate(BUSQUEDAS, ahora_s)
+        recientes = [t for t in BUSQUEDAS.get(cif, []) if ahora_s - t < 60]
+        if len(recientes) >= 30:
+            BUSQUEDAS[cif] = recientes
+            return True
+        recientes.append(ahora_s)
         BUSQUEDAS[cif] = recientes
-        return True
-    recientes.append(ahora_s)
-    BUSQUEDAS[cif] = recientes
-    return False
+        return False
 
 
 @app.post("/api/login")
 def api_login():
     d = cuerpo_json()
     cif = leer_cif(d)
+    ip = ip_cliente()
     clave = str(d.get("contrasena", ""))[:64]
-    if bloqueado_por_intentos(cif):
+    if bloqueado_por_intentos(cif) or ip_bloqueada(ip):
         return jsonify({"ok": False, "mensaje": "Demasiados intentos. Espera un minuto."})
     u = DB.usuario(cif)
     acceso_real = u is not None and cif != CIF_RESERVADO
     hash_ = u["hash"] if acceso_real else HASH_FICTICIO
     valida = check_password_hash(hash_, clave)
     if not acceso_real or not valida:
-        registrar_fallo(cif)
+        registrar_fallo(cif, ip)
         return jsonify({"ok": False, "mensaje": "CIF o contraseña incorrectos."})
-    INTENTOS.pop(cif, None)
+    with RATE_LOCK:
+        INTENTOS.pop(cif, None)
+        INTENTOS_IP.pop(ip, None)
     with lock:
         return abrir_sesion(cif, d.get("lugar"))
 
@@ -722,10 +769,11 @@ def api_agregar_contacto():
 
 @app.route("/api/mensajes/general", methods=["GET", "POST"])
 def api_mensajes_general():
+    u_actual = usuario_sesion()
     if request.method == "GET":
         with lock:
             todos = DB.usuarios()
-            lista = DB.mensajes_generales()
+            lista = DB.mensajes_generales(limite=200 if u_actual else 50)
             for m in lista:
                 m["deNombre"] = todos[m["de"]]["nombre"] if m["de"] in todos else m["de"]
             return jsonify({"ok": True, "mensajes": lista})
@@ -734,8 +782,13 @@ def api_mensajes_general():
     texto_msj = valor.strip() if isinstance(valor, str) else ""
     if not 1 <= len(texto_msj) <= 500:
         return jsonify({"ok": False, "mensaje": "Escribe entre 1 y 500 caracteres."})
+    if u_actual is None:
+        if not re.match(r"^SOS\b", texto_msj, re.I):
+            return jsonify({"ok": False, "sesion": False, "mensaje": "Inicia sesión para chatear; como invitado puedes enviar alertas SOS."}), 401
+        if registrar_evento_ip(SOS_INV_IP, ip_cliente(), limite=6):
+            return jsonify({"ok": False, "mensaje": "Demasiadas alertas seguidas. Espera un minuto."}), 429
     with lock:
-        u = usuario_sesion()
+        u = u_actual
         de = u["cif"] if u else "INVITADO"
         tel = u["telefono"] if u else "Tel-Visitante"
         nom = u["nombre"] if u else "Visitante UAM"
@@ -752,10 +805,10 @@ def api_mensajes():
         cifs = list(DB.contactos_de(cif))
         for m in mios:                         # quien te escribió aparece aunque no lo hayas agregado
             otro = m["para"] if m["de"] == cif else m["de"]
-            if otro not in cifs:
+            if otro not in cifs and otro not in (CIF_TODOS, "INVITADO"):
                 cifs.append(otro)
         todos = DB.usuarios()
-        contactos = [ficha(c, todos[c], cif) for c in cifs if c in todos and c != CIF_TODOS]
+        contactos = [ficha(c, todos[c], cif) for c in cifs if c in todos and c not in (CIF_TODOS, "INVITADO")]
         contactos.insert(0, {"cif": CIF_TODOS, "nombre": "Canal General · Campus", "telefono": "Mesh-Todos",
                              "enLinea": True, "lugar": f"{len(EN_LINEA)} en la red", "grupo": True})
         for m in mios:

@@ -39,6 +39,7 @@
   --amarillo-txt: #7a5c00;
   --amarillo-claro: #fff7d6;
   --blanco: #ffffff;
+  --texto-sobre-acento: #ffffff;
   --gris: #526275;
   --gris-texto: #526275;
   --gris-claro: #eef2f7;
@@ -66,6 +67,7 @@ html[data-tema="oscuro"] {
   --amarillo-txt: #ffd94a;
   --amarillo-claro: #332a12;
   --blanco: #131c29;
+  --texto-sobre-acento: #ffffff;
   --gris: #9fb2c9;
   --gris-texto: #b5c6da;
   --gris-claro: #1d2a3d;
@@ -909,7 +911,7 @@ input:focus-visible {
   min-width: 48px;
   background: var(--azul-btn);
   border-color: var(--azul-btn);
-  color: var(--blanco);
+  color: var(--texto-sobre-acento);
   box-shadow: 0 6px 16px rgba(0, 98, 204, .3);
 }
 
@@ -924,7 +926,7 @@ input:focus-visible {
   min-width: 48px;
   background: var(--rojo);
   border-color: var(--rojo);
-  color: var(--blanco);
+  color: var(--texto-sobre-acento);
   box-shadow: 0 5px 14px rgba(217, 43, 0, .28);
 }
 
@@ -956,7 +958,7 @@ input:focus-visible {
   min-height: 48px;
   background: var(--verde-btn);
   border-color: var(--verde-btn);
-  color: var(--blanco);
+  color: var(--texto-sobre-acento);
 }
 
 .btn.mini {
@@ -1699,7 +1701,7 @@ form.tarjeta {
 .hoja {
   position: fixed;
   inset: 0;
-  z-index: 25;
+  z-index: 120;
   display: flex;
   align-items: flex-end;
   justify-content: center;
@@ -1920,11 +1922,11 @@ form.tarjeta {
   left: 16px;
   right: 16px;
   bottom: calc(16px + env(safe-area-inset-bottom));
-  z-index: 9;
+  z-index: 200;
   max-width: 528px;
   margin: 0 auto;
   background: var(--azul);
-  color: var(--blanco);
+  color: var(--texto-sobre-acento);
   border-radius: 22px;
   padding: 11px 16px;
   font-size: 13.5px;
@@ -2792,7 +2794,7 @@ form.tarjeta {
   padding: 6px 12px; min-height: 44px; cursor: pointer;
 }
 .atajos button { background: var(--blanco); color: var(--texto); border-color: #c5d6ea; }
-.atajos button:active, .sugerencias button:active { background: var(--azul-btn); color: var(--blanco); }
+.atajos button:active, .sugerencias button:active { background: var(--azul-btn); color: var(--texto-sobre-acento); }
 .simulacros { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .simulacros .btn { font-size: 0.8125rem; padding: 10px 8px; line-height: 1.2; text-align: center; }
 
@@ -2800,9 +2802,9 @@ form.tarjeta {
 .tarjeta { border: 1.5px solid #cfe0f4; box-shadow: 0 4px 14px rgba(11, 42, 74, .06); }
 .tarjeta h3 { color: var(--azul-btn); }
 .paso.t-zona .paso-n { background: var(--verde-btn); color: #ffffff; }
-.destino { background: var(--azul-btn); }
-.toast { background: var(--azul-btn); }
-.toast.error { background: var(--rojo); }
+.destino { background: var(--azul-btn); color: var(--texto-sobre-acento); }
+.toast { background: var(--azul-btn); color: var(--texto-sobre-acento); }
+.toast.error { background: var(--rojo); color: var(--texto-sobre-acento); }
 .nota { color: var(--gris-texto); }
 .hero.calma .hero-texto { color: var(--gris-texto); }
 .hero.emergencia .hero-titulo,
@@ -2817,6 +2819,11 @@ body {
 .chat-lista {
   background: #eef4fb url("/static/img/fondo-marca.svg") repeat;
   background-size: 220px 220px;
+}
+
+html[data-tema="oscuro"] .chat-lista {
+  background: #0b121c !important;
+  background-image: none !important;
 }
 
 .login {
@@ -2993,6 +3000,10 @@ body {
 }
 
 .capa-chip {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   border: 1.5px solid rgba(11, 42, 74, 0.18);
   background: #ffffff;
   color: var(--texto);
@@ -3054,6 +3065,10 @@ body {
 }
 
 .sel-cat {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   border: 1.5px solid #c5d6ea;
   background: var(--blanco);
   color: var(--texto);
@@ -3072,6 +3087,10 @@ body {
 }
 
 .sel-piso-btn {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   border: 1.5px solid #d5e2f2;
   background: var(--azul-claro);
   color: var(--texto);
@@ -3090,6 +3109,10 @@ body {
 }
 
 .sel-lista button {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   border: 1.5px solid #cfe0f4;
   background: var(--blanco);
   color: var(--texto);
@@ -3148,4 +3171,51 @@ body {
 html[data-tema="oscuro"] .guia-evitar {
   background: #3b1915;
   color: #ffb8a8;
+}
+
+html[data-tema="oscuro"] .mapa3d svg.c3d image,
+html[data-tema="oscuro"] .ub-mapa-wrap svg.ub-mapa-svg image {
+  filter: brightness(0.82) contrast(1.08) saturate(0.92);
+}
+
+.ub-hit-area {
+  fill: rgba(0, 128, 255, 0.14);
+  stroke: rgba(0, 128, 255, 0.72);
+  stroke-width: 2.2;
+  cursor: pointer;
+  transition: fill 0.15s ease, stroke-width 0.15s ease;
+}
+.ub-hit-area:hover,
+.ub-hit-area:focus-visible,
+.ub-hit-area:active {
+  fill: rgba(0, 128, 255, 0.34);
+  stroke: #0058b8;
+  stroke-width: 3.4;
+}
+
+.mapa-estado-carga {
+  padding: 20px 16px;
+  text-align: center;
+}
+.mapa-skeleton {
+  height: 220px;
+  border-radius: 18px;
+  background: linear-gradient(90deg, var(--gris-claro) 25%, var(--azul-claro) 50%, var(--gris-claro) 75%);
+  background-size: 200% 100%;
+  animation: pulsoSkeleton 1.4s ease infinite;
+}
+@keyframes pulsoSkeleton {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+.mapa-estado-error {
+  padding: 12px;
+  text-align: center;
+}
+.mapa-error-pie {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 8px;
 }

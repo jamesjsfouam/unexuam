@@ -82,6 +82,9 @@ CREATE INDEX IF NOT EXISTS ix_mensajes_cola ON mensajes(estado);
 """
 
 
+SCHEMA_VERSION = 1
+
+
 def ahora():
     return time.strftime("%Y-%m-%dT%H:%M:%S")
 
@@ -94,11 +97,36 @@ class BaseDatos:
         self.con.execute("PRAGMA journal_mode = WAL")
         self.con.executescript(ESQUEMA)
         self.lock = threading.Lock()
+        self._migrar()
         # Canal General y Visitante: destinatario especial "TODOS" y remitente invitado (no inician sesión).
         self._x("INSERT OR IGNORE INTO usuarios (cif, nombre, hash, telefono, lugar, admin, creado) "
                 "VALUES ('TODOS', 'Canal General · Campus', '!', 'Mesh-Todos', 'Edificio E', 0, ?)", (ahora(),))
         self._x("INSERT OR IGNORE INTO usuarios (cif, nombre, hash, telefono, lugar, admin, creado) "
                 "VALUES ('INVITADO', 'Visitante UAM', '!', 'Tel-Visitante', 'Edificio E', 0, ?)", (ahora(),))
+
+    def _migrar(self):
+        ver = self.con.execute("PRAGMA user_version").fetchone()[0]
+        if ver < 1:
+            self.con.executescript("""
+                CREATE INDEX IF NOT EXISTS ix_mensajes_enviado ON mensajes(enviado DESC);
+                CREATE INDEX IF NOT EXISTS ix_mensajes_para_enviado ON mensajes(para_cif, enviado DESC);
+                PRAGMA user_version = 1;
+            """)
+
+    def cerrar(self):
+        with self.lock:
+            if getattr(self, "con", None) is not None:
+                try:
+                    self.con.close()
+                except Exception:
+                    pass
+                self.con = None
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *_):
+        self.cerrar()
 
     def _q(self, sql, args=()):
         with self.lock:
@@ -214,8 +242,16 @@ class BaseDatos:
         return self._msj(filas[0]) if filas else None
 
     def mensajes_de(self, cif, limite=400):
-        filas = self._q("SELECT * FROM mensajes WHERE de_cif = ? OR para_cif = ? OR para_cif = 'TODOS' "
-                        "ORDER BY enviado DESC, rowid DESC LIMIT ?", (cif, cif, limite))
+        filas = self._q(
+            "SELECT *, rowid AS _rid FROM ("
+            "  SELECT *, rowid FROM mensajes WHERE de_cif = ? "
+            "  UNION "
+            "  SELECT *, rowid FROM mensajes WHERE para_cif = ? "
+            "  UNION "
+            "  SELECT *, rowid FROM mensajes WHERE para_cif = 'TODOS'"
+            ") ORDER BY enviado DESC, _rid DESC LIMIT ?",
+            (cif, cif, limite),
+        )
         return [self._msj(f) for f in reversed(filas)]
 
     def mensajes_generales(self, limite=200):

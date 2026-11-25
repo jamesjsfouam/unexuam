@@ -11,15 +11,16 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.location.Location;
 import android.location.LocationManager;
+import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
-import android.os.Handler;
-import android.os.Looper;
 import android.os.VibrationEffect;
 import android.os.Vibrator;
+import android.provider.Settings;
 import android.speech.tts.TextToSpeech;
 import android.speech.tts.UtteranceProgressListener;
 import android.util.Log;
@@ -48,6 +49,7 @@ public class MainActivity extends BridgeActivity {
     private boolean btReceiverRegistrado = false;
     private volatile boolean enPrimerPlano = false;
     private MeshNativa meshNativa;
+    private final MeshNativa.Listener meshUiListener = this::enviarEventoAWeb;
     private String ultimoPerfilMesh = null;
     private TextToSpeech tts;
     private volatile boolean ttsListo = false;
@@ -60,6 +62,9 @@ public class MainActivity extends BridgeActivity {
                 if (estado == BluetoothAdapter.STATE_ON && meshNativa != null && tienePermisosMesh()) {
                     meshNativa.reintentarSiNecesario();
                     if (ultimoPerfilMesh != null) meshNativa.iniciar(ultimoPerfilMesh);
+                    enviarEventoAWeb("{\"tipo\":\"estado\",\"estado\":\"bluetooth-encendido\"}");
+                } else if (estado == BluetoothAdapter.STATE_OFF || estado == BluetoothAdapter.STATE_TURNING_OFF) {
+                    enviarEventoAWeb("{\"tipo\":\"estado\",\"estado\":\"bluetooth-apagado\"}");
                 }
             }
         }
@@ -78,15 +83,12 @@ public class MainActivity extends BridgeActivity {
         }
         crearCanalesNotificacion();
         iniciarTts();
-        meshNativa = new MeshNativa(this, this::enviarEventoAWeb);
+        meshNativa = MeshForegroundService.obtenerMesh(this);
+        MeshForegroundService.adjuntarListener(meshUiListener);
+        ultimoPerfilMesh = MeshForegroundService.obtenerPerfilGuardado(this);
         if (this.bridge != null && this.bridge.getWebView() != null) {
             this.bridge.getWebView().setBackgroundColor(0xFF0080FF);
             this.bridge.getWebView().addJavascriptInterface(new PuenteNativo(), "UnexuamNativo");
-            new Handler(Looper.getMainLooper()).postDelayed(() -> {
-                if (this.bridge != null && this.bridge.getWebView() != null) {
-                    this.bridge.getWebView().reload();
-                }
-            }, 1200L);
         }
         try {
             registerReceiver(btReceiver, new IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED));
@@ -107,6 +109,10 @@ public class MainActivity extends BridgeActivity {
     public void onResume() {
         super.onResume();
         enPrimerPlano = true;
+        MeshForegroundService.adjuntarListener(meshUiListener);
+        if (meshNativa != null) {
+            meshNativa.recuperarEntradas();
+        }
     }
 
     @Override
@@ -248,7 +254,7 @@ public class MainActivity extends BridgeActivity {
             try { unregisterReceiver(btReceiver); } catch (Exception ignored) {}
             btReceiverRegistrado = false;
         }
-        if (meshNativa != null) meshNativa.detener();
+        MeshForegroundService.desadjuntarListener(meshUiListener);
         if (tts != null) {
             try {
                 tts.stop();
@@ -257,7 +263,6 @@ public class MainActivity extends BridgeActivity {
             tts = null;
             ttsListo = false;
         }
-        detenerServicioForeground();
         super.onDestroy();
     }
 
@@ -466,6 +471,7 @@ public class MainActivity extends BridgeActivity {
         @JavascriptInterface
         public void iniciarMesh(String perfilJson) {
             ultimoPerfilMesh = perfilJson;
+            MeshForegroundService.guardarPerfilActivo(MainActivity.this, perfilJson);
             runOnUiThread(() -> {
                 if (tienePermisosMesh()) {
                     iniciarServicioForeground();
@@ -477,19 +483,57 @@ public class MainActivity extends BridgeActivity {
         }
 
         @JavascriptInterface
+        public void reintentarMeshSiDesconectado() {
+            runOnUiThread(() -> {
+                if (meshNativa != null && tienePermisosMesh()) {
+                    meshNativa.reintentarSiNecesario();
+                }
+            });
+        }
+
+        @JavascriptInterface
         public void setCustodiaDtn(boolean on) {
             if (meshNativa != null) meshNativa.setCustodiaHabilitada(on);
         }
 
         @JavascriptInterface
+        public void guardarPrefsAlarma(boolean tono, boolean vibrar) {
+            getSharedPreferences("unexuam_prefs_alarma", MODE_PRIVATE)
+                    .edit()
+                    .putBoolean("tono", tono)
+                    .putBoolean("vibrar", vibrar)
+                    .apply();
+        }
+
+        @JavascriptInterface
+        public boolean puedePantallaCompleta() {
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE) return true;
+            NotificationManager nm = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+            return nm == null || nm.canUseFullScreenIntent();
+        }
+
+        @JavascriptInterface
+        public void abrirAjustesPantallaCompleta() {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                try {
+                    Intent i = new Intent(Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT);
+                    i.setData(Uri.parse("package:" + getPackageName()));
+                    startActivity(i);
+                } catch (Exception ignored) {}
+            }
+        }
+
+        @JavascriptInterface
         public void actualizarPerfilMesh(String perfilJson) {
             ultimoPerfilMesh = perfilJson;
+            MeshForegroundService.guardarPerfilActivo(MainActivity.this, perfilJson);
             runOnUiThread(() -> meshNativa.actualizarPerfil(perfilJson));
         }
 
         @JavascriptInterface
         public void detenerMesh() {
             ultimoPerfilMesh = null;
+            MeshForegroundService.limpiarPerfilActivo(MainActivity.this);
             runOnUiThread(() -> {
                 meshNativa.detener();
                 detenerServicioForeground();

@@ -4,6 +4,7 @@ import android.annotation.SuppressLint;
 import android.app.KeyguardManager;
 import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Color;
@@ -312,18 +313,24 @@ public class EmergencyAlertActivity extends AppCompatActivity {
     private void iniciarAlarma() {
         detenerAlarma();
         alarmaActiva = true;
-        try {
-            vibrator = (Vibrator) getSystemService(Context.VIBRATOR_SERVICE);
-            if (vibrator != null && vibrator.hasVibrator()) {
-                long[] patron = {0, 480, 240, 480, 240};
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    vibrator.vibrate(VibrationEffect.createWaveform(patron, 0));
-                } else {
-                    vibrator.vibrate(patron, 0);
+        SharedPreferences prefs = getSharedPreferences("unexuam_prefs_alarma", MODE_PRIVATE);
+        boolean usarVibrar = prefs.getBoolean("vibrar", true);
+        boolean usarTono = prefs.getBoolean("tono", true);
+        if (usarVibrar) {
+            try {
+                vibrator = (Vibrator) getSystemService(Context.VIBRATOR_SERVICE);
+                if (vibrator != null && vibrator.hasVibrator()) {
+                    long[] patron = {0, 480, 240, 480, 240};
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                        vibrator.vibrate(VibrationEffect.createWaveform(patron, 0));
+                    } else {
+                        vibrator.vibrate(patron, 0);
+                    }
                 }
+            } catch (Exception ignored) {
             }
-        } catch (Exception ignored) {
         }
+        if (!usarTono) return;
 
         boolean sonoMedia = false;
         try {

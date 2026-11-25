@@ -461,6 +461,7 @@ function aplicarEstado(est) {
   else if (!ua) { alertaVista = "nada"; alcanceMostrado = null; viaMostrada = {}; }
   actualizarBannerEmergencia();
   evaluarEmergenciaAutomatica();
+  actualizarSeguimientoGpsEmergencia();
   // si el grafo del campus cambió (bloqueo, congestión, admin), invalidar caché local y recalcular
   const fc = JSON.stringify([est.campus.aristas, est.campus.zonasSeguras]);
   if (fc !== firmaCampus) {
@@ -795,6 +796,8 @@ function bloquear(o, d, ambos) {
  * giro de 16°, achatamiento 0.58, en metros de campus-plano.json (x al este, y al sur). */
 
 let PLANO = null;            // frontend/static/campus-plano.json (OpenStreetMap, en metros)
+let AREAS_UBIC = null;       // frontend/static/ubicacion-campus.json (polígonos exactos)
+let planoEstado = "cargando";
 let PROY = null;             // { esc, ox, oy } de la proyección del mapa 3D
 let mapaCompleto = false;    // false: acercado a la ruta · true: todo el campus
 let pasoActivo = -1;         // paso de la guía resaltado
@@ -834,10 +837,23 @@ function proyectar(x, y, z = 0) {
   return { x: a * PROY.esc + PROY.ox, y: b * PROY.esc + PROY.oy };
 }
 
-fetch("/static/campus-plano.json").then(r => r.json()).then(j => {
-  PLANO = j; prepararProyeccion();
-  if (E && vista === "campus") renderCampus();
-}).catch(() => {});
+function cargarPlanoCampus() {
+  planoEstado = "cargando";
+  return Promise.all([
+    fetch("/static/campus-plano.json").then(r => { if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); }),
+    fetch("/static/ubicacion-campus.json").then(r => (r.ok ? r.json() : null)).catch(() => null),
+  ]).then(([j, u]) => {
+    PLANO = j;
+    if (u) AREAS_UBIC = u;
+    prepararProyeccion();
+    planoEstado = "listo";
+    if (E && vista === "campus") renderCampus();
+  }).catch(() => {
+    planoEstado = "error";
+    if (E && vista === "campus") renderCampus();
+  });
+}
+cargarPlanoCampus();
 
 function corto(n) {
   return n.replace(/^Punto Seguro /, "PS ").replace(/^Zona Segura /, "ZS ").replace(/ Pabell[oó]n /, " Pab. ")
@@ -974,7 +990,7 @@ function edificio3D(L, o) {
         const t = P(u, vMuro, z + h + 0.35);
         svg += `<text class="e3-num" x="${t.x}" y="${t.y}" font-size="${5.6 * k}">${p}${String(a).padStart(2, "0")}</text>`;
       }
-      if (a < n) {
+      if (a < n && !o.mini) {
         const m = 0.1 + 0.8 * a / n, s0 = P(m, -sg * W / 2, z + h), s1 = P(m, vMuro === 0 ? 0 : W / 2, z + h), s2 = P(m, vMuro, z);
         svg += `<polyline class="e3-tabique" points="${s0.x},${s0.y} ${s1.x},${s1.y} ${s2.x},${s2.y}" stroke-width="${(F.columnas ? 1.1 : 0.6) * k}"${F.columnas ? ` stroke="${F.columnas}"` : ""}/>`;
       }
@@ -984,9 +1000,11 @@ function edificio3D(L, o) {
     for (const [u0, u1] of escX) {
       const va = u0 === 0.47 ? 0 : -W / 2, vb = u0 === 0.47 ? sg * W / 2 : W / 2;
       svg += poli([P(u0, va, z), P(u1, va, z), P(u1, vb, z), P(u0, vb, z)], "e3-escalera" + cls);
-      for (let s = 1; s < 5; s++) {
-        const v = va + ((vb - va) * s) / 5, l0 = P(u0, v, z + 0.05), l1 = P(u1, v, z + 0.05);
-        svg += `<line class="e3-peldano" x1="${l0.x}" y1="${l0.y}" x2="${l1.x}" y2="${l1.y}" stroke-width="${0.5 * k}"/>`;
+      if (!o.mini) {
+        for (let s = 1; s < 5; s++) {
+          const v = va + ((vb - va) * s) / 5, l0 = P(u0, v, z + 0.05), l1 = P(u1, v, z + 0.05);
+          svg += `<line class="e3-peldano" x1="${l0.x}" y1="${l0.y}" x2="${l1.x}" y2="${l1.y}" stroke-width="${0.5 * k}"/>`;
+        }
       }
     }
     // rótulos del piso y de los pabellones (crecen hacia AFUERA del edificio)
@@ -1025,9 +1043,9 @@ function edificio3D(L, o) {
     svg += poli([P(u0, vf, 0), P(u1, vf, 0), P(u1, vf, zt2), P(u0, vf, zt2)], "e3-torre");
     svg += poli([P(u0, vf, zt2 - 2), P(u1, vf, zt2 - 2), P(u1, vf, zt2), P(u0, vf, zt2)], "e3-torre-verde");
     const sello = P((u0 + u1) / 2, vf, zt2 - 4);
-    svg += `<circle class="e3-sello" cx="${sello.x}" cy="${sello.y}" r="1.3"/>`;
+    svg += `<circle class="e3-sello" cx="${sello.x}" cy="${sello.y}" r="${(1.3 * k).toFixed(2)}"/>`;
     const c = P((u0 + u1) / 2, vf - 2, zt2 + 1.2);
-    svg += `<ellipse class="e3-cupula" cx="${c.x}" cy="${c.y}" rx="3.6" ry="2.8"/>`;
+    svg += `<ellipse class="e3-cupula" cx="${c.x}" cy="${c.y}" rx="${(3.6 * k).toFixed(2)}" ry="${(2.8 * k).toFixed(2)}"/>`;
   }
   // salidas de la planta baja
   for (const [u, txt] of [[-0.11, "Salida Este"], [1.11, "Salida Oeste"]]) {
@@ -1246,11 +1264,26 @@ function campusSvg(ruta, o) {
       if (p) halos += `<g><circle cx="${p.x}" cy="${p.y}" r="${15 * s}" fill="rgba(255,255,255,0.9)" stroke="#CC0000" stroke-width="${2 * s}"/><text x="${p.x}" y="${p.y + 3 * s}" text-anchor="middle" font-size="${9 * s}" font-weight="900" fill="#CC0000">✕</text></g>`;
     }
   }
+  const pinGps = gpsVivoPt ? `<g id="pin-gps-vivo" transform="translate(${gpsVivoPt.x.toFixed(1)},${gpsVivoPt.y.toFixed(1)})"><circle class="r3-pulso" r="${11 * s}" stroke-width="${2 * s}" fill="rgba(0,128,255,0.22)" stroke="#0080ff"/><circle r="${5.5 * s}" fill="#0080ff" stroke="#ffffff" stroke-width="${2 * s}"/></g>` : `<g id="pin-gps-vivo"></g>`;
+  const dinamico = `${halos}${bloq}<g>${aristas}</g><g>${pesos}</g><g>${nodos}</g>${pinGps}`;
+  if (o.soloContenido) return dinamico;
   const estilo = o.mini ? `style="aspect-ratio:${vb[2].toFixed(1)}/${vb[3].toFixed(1)}"` : "";
   return `<svg class="c3d${o.mini ? " mini" : " interactivo"}" viewBox="${vb.map(n => n.toFixed(1)).join(" ")}" ${estilo} role="img" aria-label="Ruta sobre el mapa 3D del campus">
     <image href="/static/img/mapa-campus-3d.svg" width="${MAPA_W}" height="${MAPA_H}"/>
     <rect x="0" y="0" width="${MAPA_W}" height="${MAPA_H}" class="r3-velo"/>
-    ${halos}${bloq}<g>${aristas}</g><g>${pesos}</g><g>${nodos}</g></svg>`;
+    <g id="capa-dinamica-campus">${dinamico}</g></svg>`;
+}
+
+function fallback2DSvg(ruta = []) {
+  const w = 360, h = 220;
+  const pts = (ruta && ruta.length ? ruta : [miLugar || "Campus"]).map((n, i, arr) => {
+    const x = arr.length === 1 ? w / 2 : 34 + (i / (arr.length - 1)) * (w - 68);
+    const y = h / 2 + Math.sin(i * 1.1) * 32;
+    return { n, x, y };
+  });
+  const poly = pts.length > 1 ? `<polyline points="${pts.map(p => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(" ")}" fill="none" stroke="#0080ff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>` : "";
+  const circs = pts.map((p, i) => `<g><circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="${i === 0 || i === pts.length - 1 ? 8 : 5}" fill="${i === 0 ? "#0080ff" : i === pts.length - 1 ? "#00a843" : "#ffffff"}" stroke="#0b2a4a" stroke-width="2"/><text x="${p.x.toFixed(1)}" y="${(p.y + (i % 2 ? 18 : -13)).toFixed(1)}" text-anchor="middle" font-size="9" font-weight="700" fill="currentColor">${esc(corto(p.n))}</text></g>`).join("");
+  return `<svg class="c3d fallback-2d" viewBox="0 0 ${w} ${h}" role="img" aria-label="Esquema 2D de ruta de evacuación">${poly}${circs}</svg>`;
 }
 
 /* Vista pequeña de un paso: por dentro del edificio, o el tramo por el campus. */
@@ -1304,6 +1337,40 @@ function zoomCampus(factorZoom, cxSvg, cySvg) {
   aplicarCamaraCampus([nx, ny, nw, nh]);
 }
 
+let gpsVivoPt = null;
+let gpsVivoActivo = false;
+
+function actualizarPinGpsEnSvg() {
+  const pin = $("#capa-dinamica-campus #pin-gps-vivo");
+  if (!pin) return;
+  if (!gpsVivoPt || !camCampus) { pin.innerHTML = ""; pin.removeAttribute("transform"); return; }
+  const s = camCampus[2] / 380;
+  pin.setAttribute("transform", `translate(${gpsVivoPt.x.toFixed(1)},${gpsVivoPt.y.toFixed(1)})`);
+  pin.innerHTML = `<circle class="r3-pulso" r="${11 * s}" stroke-width="${2 * s}" fill="rgba(0,128,255,0.22)" stroke="#0080ff"/><circle r="${5.5 * s}" fill="#0080ff" stroke="#ffffff" stroke-width="${2 * s}"/>`;
+}
+
+function actualizarSeguimientoGpsEmergencia() {
+  const activo = Boolean(E && E.emergencia);
+  const U = window.UnexuamUbicacion;
+  if (!activo || !U || typeof U.seguir !== "function") {
+    if (gpsVivoActivo) {
+      gpsVivoActivo = false;
+      gpsVivoPt = null;
+      U?.detener?.();
+      actualizarPinGpsEnSvg();
+    }
+    return;
+  }
+  if (gpsVivoActivo) return;
+  gpsVivoActivo = true;
+  U.seguir(r => {
+    if (r && Array.isArray(r.xy) && PROY) {
+      gpsVivoPt = proyectar(r.xy[0], r.xy[1], 4);
+      actualizarPinGpsEnSvg();
+    }
+  }, () => { gpsVivoActivo = false; }, () => 1);
+}
+
 function conectarPanZoomCampus() {
   const cont = $("#mapa-campus");
   if (!cont || cont.dataset.pz) return;
@@ -1311,10 +1378,16 @@ function conectarPanZoomCampus() {
   const ptrs = new Map();
   let estado = null;
   let rafId = 0;
+  let inerciaId = 0;
   let vbPendiente = null;
+  let vel = { x: 0, y: 0, t: 0, lx: 0, ly: 0 };
 
   const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
   const mid = (a, b) => ({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 });
+
+  const pararInercia = () => {
+    if (inerciaId) { cancelAnimationFrame(inerciaId); inerciaId = 0; }
+  };
 
   const commit = () => {
     if (rafId) { cancelAnimationFrame(rafId); rafId = 0; }
@@ -1327,14 +1400,19 @@ function conectarPanZoomCampus() {
   };
 
   const iniciar = () => {
+    pararInercia();
     commit();
     if (!camCampus) return;
     const svg = cont.querySelector("svg.c3d");
     const rect = svg ? svg.getBoundingClientRect() : null;
     if (!rect || !rect.width || !rect.height) return;
     const arr = [...ptrs.values()];
-    if (arr.length === 1) estado = { modo: "pan", p0: { ...arr[0] }, vb0: [...camCampus], rect };
-    else if (arr.length >= 2) estado = { modo: "pinch", d0: dist(arr[0], arr[1]) || 1, m0: mid(arr[0], arr[1]), vb0: [...camCampus], rect };
+    if (arr.length === 1) {
+      estado = { modo: "pan", p0: { ...arr[0] }, vb0: [...camCampus], rect };
+      vel = { x: 0, y: 0, t: performance.now(), lx: arr[0].x, ly: arr[0].y };
+    } else if (arr.length >= 2) {
+      estado = { modo: "pinch", d0: dist(arr[0], arr[1]) || 1, m0: mid(arr[0], arr[1]), vb0: [...camCampus], rect };
+    }
   };
 
   const aplicarTransformGPU = () => {
@@ -1363,6 +1441,9 @@ function conectarPanZoomCampus() {
     const { rect, vb0 } = estado;
     if (estado.modo === "pan" && ptrs.size === 1) {
       const p = ptrs.get(ev.pointerId);
+      const now = performance.now();
+      const dt = Math.max(8, now - vel.t);
+      vel = { x: ((p.x - vel.lx) / dt) * 16, y: ((p.y - vel.ly) / dt) * 16, t: now, lx: p.x, ly: p.y };
       const dx = (p.x - estado.p0.x) * (vb0[2] / rect.width);
       const dy = (p.y - estado.p0.y) * (vb0[3] / rect.height);
       vbPendiente = acotarCamara([vb0[0] - dx, vb0[1] - dy, vb0[2], vb0[3]]);
@@ -1385,10 +1466,25 @@ function conectarPanZoomCampus() {
     if (!rafId) rafId = requestAnimationFrame(aplicarTransformGPU);
   });
   const soltar = ev => {
+    const eraPan = estado && estado.modo === "pan" && ptrs.size === 1;
+    const rectUlt = estado?.rect;
     ptrs.delete(ev.pointerId);
     commit();
-    if (ptrs.size === 0) estado = null;
-    else iniciar();
+    if (ptrs.size === 0) {
+      estado = null;
+      if (eraPan && rectUlt && camCampus && Math.hypot(vel.x, vel.y) > 1.8 && (performance.now() - vel.t) < 90) {
+        let vx = vel.x, vy = vel.y;
+        const pasoInercia = () => {
+          vx *= 0.88; vy *= 0.88;
+          if (Math.hypot(vx, vy) < 0.35 || !camCampus) { inerciaId = 0; return; }
+          const dx = vx * (camCampus[2] / rectUlt.width);
+          const dy = vy * (camCampus[3] / rectUlt.height);
+          aplicarCamaraCampus([camCampus[0] - dx, camCampus[1] - dy, camCampus[2], camCampus[3]]);
+          inerciaId = requestAnimationFrame(pasoInercia);
+        };
+        inerciaId = requestAnimationFrame(pasoInercia);
+      }
+    } else iniciar();
   };
   cont.addEventListener("pointerup", soltar);
   cont.addEventListener("pointercancel", soltar);
@@ -1422,12 +1518,23 @@ function renderMapa3D(r, pasos = []) {
     <button type="button" data-accion="mapa-mas" aria-label="Acercar">+</button>
     <button type="button" data-accion="mapa-menos" aria-label="Alejar">−</button>
     <button type="button" data-accion="mapa-centrar" aria-label="Centrar en mi ruta">◎</button>
+    <button type="button" data-accion="mapa-gps" aria-label="Mi ubicación GPS">⌖</button>
   </div>`;
+  if (planoEstado === "cargando" && !PLANO) {
+    contMapa.innerHTML = `<div class="mapa-estado-carga" role="status"><div class="mapa-skeleton"></div><p class="nota">Cargando plano del campus…</p></div>`;
+    return;
+  }
+  if (planoEstado === "error" && !PLANO) {
+    cajaEd.hidden = true; $("#t-edificio").hidden = true;
+    $("#campus-cab").innerHTML = `<span>Plano 3D no disponible · Vista esquemática 2D</span>`;
+    contMapa.innerHTML = `<div class="mapa-estado-error">${fallback2DSvg(r?.ruta || [])}<div class="mapa-error-pie"><p class="nota">No se pudo cargar el plano 3D.</p><button type="button" class="btn mini" data-accion="reintentar-plano">Reintentar</button></div></div>`;
+    return;
+  }
   if (!r || !r.ruta.length || !PLANO) {
     cajaEd.hidden = true; $("#t-edificio").hidden = true; ultEdificioVista = ""; ultClaveCampus = "";
     const sinSalida = r && r.origen && r.tiempo === null;
     $("#campus-cab").innerHTML = `<span>${sinSalida ? `Sin salida libre desde <b>${esc(r.origen)}</b>.` : "Elige dónde estás para ver tu ruta en el mapa."}</span>`;
-    const svgHtml = PLANO ? (campusSvg(sinSalida ? [r.origen] : [], { completo: !sinSalida, minW: 180, alto: 0.9 }) || `<svg class="c3d interactivo" viewBox="0 92 ${MAPA_W} 900"><image href="/static/img/mapa-campus-3d.svg" width="${MAPA_W}" height="${MAPA_H}"/></svg>`) : "";
+    const svgHtml = PLANO ? (campusSvg(sinSalida ? [r.origen] : [], { completo: !sinSalida, minW: 180, alto: 0.9 }) || `<svg class="c3d interactivo" viewBox="0 92 ${MAPA_W} 900"><image href="/static/img/mapa-campus-3d.svg" width="${MAPA_W}" height="${MAPA_H}"/><g id="capa-dinamica-campus"></g></svg>`) : "";
     contMapa.innerHTML = svgHtml + (svgHtml ? controlesHtml : "");
     const vbAttr = contMapa.querySelector("svg.c3d")?.getAttribute("viewBox");
     if (vbAttr) { camCampusIni = vbAttr.split(" ").map(Number); camCampus = [...camCampusIni]; }
@@ -1464,11 +1571,25 @@ function renderMapa3D(r, pasos = []) {
   }
   const claveCampus = `${r.origen}:${pasoActivo}:${mapaCompleto}`;
   const usarCamaraGuardada = claveCampus === ultClaveCampus && camCampus;
-  contMapa.innerHTML = campusSvg(r.ruta, { completo: mapaCompleto, resaltar, minW: 165, alto: 0.9, vb: usarCamaraGuardada ? camCampus : null }) + controlesHtml;
-  const vbAttr = contMapa.querySelector("svg.c3d")?.getAttribute("viewBox");
-  if (vbAttr) {
-    const parsed = vbAttr.split(" ").map(Number);
-    if (!usarCamaraGuardada) { camCampusIni = [...parsed]; camCampus = [...parsed]; ultClaveCampus = claveCampus; }
+  const capaExistente = contMapa.querySelector("svg.c3d.interactivo #capa-dinamica-campus");
+  if (capaExistente) {
+    capaExistente.innerHTML = campusSvg(r.ruta, { completo: mapaCompleto, resaltar, minW: 165, alto: 0.9, vb: usarCamaraGuardada ? camCampus : null, soloContenido: true });
+    if (!usarCamaraGuardada) {
+      const vbTmp = campusSvg(r.ruta, { completo: mapaCompleto, resaltar, minW: 165, alto: 0.9 }).match(/viewBox="([^"]+)"/)?.[1];
+      if (vbTmp) {
+        const parsed = vbTmp.split(" ").map(Number);
+        camCampusIni = [...parsed];
+        aplicarCamaraCampus(parsed);
+        ultClaveCampus = claveCampus;
+      }
+    }
+  } else {
+    contMapa.innerHTML = campusSvg(r.ruta, { completo: mapaCompleto, resaltar, minW: 165, alto: 0.9, vb: usarCamaraGuardada ? camCampus : null }) + controlesHtml;
+    const vbAttr = contMapa.querySelector("svg.c3d")?.getAttribute("viewBox");
+    if (vbAttr) {
+      const parsed = vbAttr.split(" ").map(Number);
+      if (!usarCamaraGuardada) { camCampusIni = [...parsed]; camCampus = [...parsed]; ultClaveCampus = claveCampus; }
+    }
   }
   const nV = r.ruta.length, nA = nV - 1;
   $("#campus-cab").innerHTML = `<span><b>${nV} ${nV === 1 ? "punto" : "puntos"} · ${nA} ${nA === 1 ? "tramo" : "tramos"}</b> · arrastra o pellizca</span>
@@ -1610,10 +1731,10 @@ const LUGARES_DESTACADOS = [
   { id: "P", label: "Edificio P", sub: "3 pisos", multi: true, ref: "P Salida Oeste", rx: 92, ry: 44 },
   { id: "Edificio E", label: "Edificio E", sub: "Campus", multi: false, ref: "Edificio E", rx: 56, ry: 34 },
   { id: "Auditorio Central", label: "Auditorio Central", sub: "Campus", multi: false, ref: "Auditorio Central", rx: 64, ry: 38 },
-  { id: "Biblioteca", label: "Biblioteca", sub: "Campus", multi: false, ref: "Biblioteca", rx: 60, ry: 36 },
+  { id: "Edificio I", label: "Edificio I", sub: "Biblioteca", multi: false, ref: "Edificio I", rx: 60, ry: 36 },
   { id: "Edificio A", label: "Edificio A", sub: "Campus", multi: false, ref: "Edificio A", rx: 52, ry: 32 },
   { id: "Edificio D", label: "Edificio D", sub: "Campus", multi: false, ref: "Edificio D", rx: 52, ry: 32 },
-  { id: "Cafetería", label: "Cafetería", sub: "Campus", multi: false, ref: "Cafetería", rx: 52, ry: 32 },
+  { id: "Food Court", label: "Food Court", sub: "Campus", multi: false, ref: "Food Court", rx: 52, ry: 32 },
 ];
 
 function abrirSelectorUbicacion() {
@@ -1662,9 +1783,11 @@ function conectarPanZoomUb() {
   const wrap = $("#ub-mapa-wrap");
   if (!wrap || wrap.dataset.pzUb) return;
   wrap.dataset.pzUb = "1";
-  let ptrs = new Map(), st = null, rafId = 0, vbPendiente = null;
+  let ptrs = new Map(), st = null, rafId = 0, inerciaId = 0, vbPendiente = null;
+  let vel = { x: 0, y: 0, t: 0, lx: 0, ly: 0 };
   const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
   const mid = (a, b) => ({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 });
+  const pararInercia = () => { if (inerciaId) { cancelAnimationFrame(inerciaId); inerciaId = 0; } };
   const commit = () => {
     if (rafId) { cancelAnimationFrame(rafId); rafId = 0; }
     const svg = wrap.querySelector("svg.ub-mapa-svg");
@@ -1672,13 +1795,18 @@ function conectarPanZoomUb() {
     if (vbPendiente) { aplicarCamUb(vbPendiente); vbPendiente = null; }
   };
   const ini = () => {
+    pararInercia();
     commit();
     const svg = wrap.querySelector("svg.ub-mapa-svg");
     const r = svg ? svg.getBoundingClientRect() : null;
     if (!r || !r.width || !r.height) return;
     const arr = [...ptrs.values()];
-    if (arr.length === 1) st = { m: "pan", p0: { ...arr[0] }, vb0: [...ubCam], r, mov: false };
-    else if (arr.length >= 2) st = { m: "pinch", d0: dist(arr[0], arr[1]) || 1, m0: mid(arr[0], arr[1]), vb0: [...ubCam], r, mov: true };
+    if (arr.length === 1) {
+      st = { m: "pan", p0: { ...arr[0] }, vb0: [...ubCam], r, mov: false };
+      vel = { x: 0, y: 0, t: performance.now(), lx: arr[0].x, ly: arr[0].y };
+    } else if (arr.length >= 2) {
+      st = { m: "pinch", d0: dist(arr[0], arr[1]) || 1, m0: mid(arr[0], arr[1]), vb0: [...ubCam], r, mov: true };
+    }
   };
   const pintarGPU = () => {
     rafId = 0;
@@ -1694,7 +1822,8 @@ function conectarPanZoomUb() {
     svg.style.transform = `translate3d(${tx.toFixed(1)}px, ${ty.toFixed(1)}px, 0) scale(${scale.toFixed(4)})`;
   };
   wrap.addEventListener("pointerdown", ev => {
-    if (ev.target.closest(".ub-zoom-bar")) return;
+    if (ev.target.closest(".ub-zoom-bar") || ev.target.closest("[data-ub-ed]")) return;
+    wrap.setPointerCapture?.(ev.pointerId);
     ptrs.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
     ini();
   });
@@ -1706,6 +1835,9 @@ function conectarPanZoomUb() {
       const p = ptrs.get(ev.pointerId);
       if (Math.hypot(p.x - st.p0.x, p.y - st.p0.y) > 8) st.mov = true;
       if (!st.mov) return;
+      const now = performance.now();
+      const dt = Math.max(8, now - vel.t);
+      vel = { x: ((p.x - vel.lx) / dt) * 16, y: ((p.y - vel.ly) / dt) * 16, t: now, lx: p.x, ly: p.y };
       const dx = (p.x - st.p0.x) * (vb0[2] / r.width);
       const dy = (p.y - st.p0.y) * (vb0[3] / r.height);
       vbPendiente = acotarCamUb([vb0[0] - dx, vb0[1] - dy, vb0[2], vb0[3]]);
@@ -1724,13 +1856,48 @@ function conectarPanZoomUb() {
     if (!rafId) rafId = requestAnimationFrame(pintarGPU);
   });
   const fin = ev => {
+    const eraPan = st && st.m === "pan" && st.mov && ptrs.size === 1;
+    const rectUlt = st?.r;
     ptrs.delete(ev.pointerId);
     commit();
-    if (ptrs.size === 0) st = null;
-    else ini();
+    if (ptrs.size === 0) {
+      st = null;
+      if (eraPan && rectUlt && Math.hypot(vel.x, vel.y) > 1.8 && (performance.now() - vel.t) < 90) {
+        let vx = vel.x, vy = vel.y;
+        const paso = () => {
+          vx *= 0.88; vy *= 0.88;
+          if (Math.hypot(vx, vy) < 0.35) { inerciaId = 0; return; }
+          const dx = vx * (ubCam[2] / rectUlt.width), dy = vy * (ubCam[3] / rectUlt.height);
+          aplicarCamUb([ubCam[0] - dx, ubCam[1] - dy, ubCam[2], ubCam[3]]);
+          inerciaId = requestAnimationFrame(paso);
+        };
+        inerciaId = requestAnimationFrame(paso);
+      }
+    } else ini();
   };
   wrap.addEventListener("pointerup", fin);
   wrap.addEventListener("pointercancel", fin);
+  wrap.addEventListener("wheel", ev => {
+    ev.preventDefault();
+    const svg = wrap.querySelector("svg.ub-mapa-svg");
+    if (!svg) return;
+    const rect = svg.getBoundingClientRect();
+    const f = ev.deltaY > 0 ? 1.18 : 0.84;
+    const cx = ubCam[0] + ((ev.clientX - rect.left) / rect.width) * ubCam[2];
+    const cy = ubCam[1] + ((ev.clientY - rect.top) / rect.height) * ubCam[3];
+    const nw = ubCam[2] * f, nh = ubCam[3] * f;
+    aplicarCamUb([cx - ((cx - ubCam[0]) / ubCam[2]) * nw, cy - ((cy - ubCam[1]) / ubCam[3]) * nh, nw, nh]);
+  }, { passive: false });
+  wrap.addEventListener("dblclick", ev => {
+    if (ev.target.closest(".ub-zoom-bar")) return;
+    const svg = wrap.querySelector("svg.ub-mapa-svg");
+    if (!svg) return;
+    const rect = svg.getBoundingClientRect();
+    const cx = ubCam[0] + ((ev.clientX - rect.left) / rect.width) * ubCam[2];
+    const cy = ubCam[1] + ((ev.clientY - rect.top) / rect.height) * ubCam[3];
+    const nw = ubCam[2] * 0.72, nh = ubCam[3] * 0.72;
+    aplicarCamUb([cx - ((cx - ubCam[0]) / ubCam[2]) * nw, cy - ((cy - ubCam[1]) / ubCam[3]) * nh, nw, nh]);
+  });
 }
 
 function renderPasoCampus() {
@@ -1748,7 +1915,24 @@ function renderPasoCampus() {
   conectarPanZoomUb();
   if (PLANO && PROY) {
     let areas = "";
+    const polsPorNombre = new Map();
+    if (AREAS_UBIC && Array.isArray(AREAS_UBIC.areas)) {
+      for (const a of AREAS_UBIC.areas) {
+        if (!Array.isArray(a.pol) || a.pol.length < 3) continue;
+        const clave = a.edificio || a.vertice || a.nombre;
+        if (clave && !polsPorNombre.has(clave)) polsPorNombre.set(clave, a.pol);
+      }
+    }
     for (const item of disponibles) {
+      const polReal = polsPorNombre.get(item.id) || polsPorNombre.get(item.label) || polsPorNombre.get(item.ref);
+      if (polReal) {
+        const pts = polReal.map(([x, y]) => {
+          const p = proyectar(x, y, 4);
+          return `${p.x.toFixed(1)},${p.y.toFixed(1)}`;
+        }).join(" ");
+        areas += `<polygon class="ub-hit-area${item.multi ? " multinivel" : ""}" points="${pts}" data-ub-ed="${esc(item.id)}" data-ub-multi="${item.multi ? "1" : "0"}" role="button" tabindex="0" aria-label="${esc(item.label)}"/>`;
+        continue;
+      }
       let xy = null;
       if (item.multi) {
         const pe = PLANO.posiciones[`${item.id} Salida Este`];
@@ -2080,17 +2264,19 @@ function eventos() {
   $("#campus-ubicacion").addEventListener("change", ev => {
     seleccionarLugar(ev.target.value);
   });
-  const norm = s => String(s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[\s-]+/g, "");
+  const normalizarBusquedaLugar = txt => String(txt || "").trim().toUpperCase().replace(/^([A-Z])\s*-?\s*(\d{3})$/, "$1-$2");
+  const norm = s => normalizarBusquedaLugar(s).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[\s-]+/g, "");
   const buscarInp = $("#campus-buscar");
   const sugBox = $("#campus-sug");
   if (buscarInp && sugBox) {
     buscarInp.addEventListener("input", () => {
-      const q = norm(buscarInp.value.trim());
+      const normExacta = normalizarBusquedaLugar(buscarInp.value);
+      const q = norm(normExacta);
       if (!q || !E) { sugBox.hidden = true; sugBox.innerHTML = ""; return; }
       const zonas = new Set(E.campus.zonasSeguras);
       const hits = E.campus.vertices
-        .filter(v => !zonas.has(v) && norm(v).includes(q))
-        .sort((a, b) => (norm(a).startsWith(q) ? 0 : 1) - (norm(b).startsWith(q) ? 0 : 1) || a.localeCompare(b, "es", { numeric: true }))
+        .filter(v => !zonas.has(v) && (norm(v).includes(q) || v.toUpperCase() === normExacta))
+        .sort((a, b) => (a.toUpperCase() === normExacta ? -1 : b.toUpperCase() === normExacta ? 1 : (norm(a).startsWith(q) ? 0 : 1) - (norm(b).startsWith(q) ? 0 : 1) || a.localeCompare(b, "es", { numeric: true })))
         .slice(0, 8);
       if (!hits.length) {
         sugBox.innerHTML = `<p class="nota">Sin coincidencias para «${esc(buscarInp.value.trim())}».</p>`;
@@ -2418,6 +2604,19 @@ async function accion(a) {
     zoomCampus(1.38);
   } else if (a === "mapa-centrar") {
     if (camCampusIni) aplicarCamaraCampus(camCampusIni);
+  } else if (a === "reintentar-plano") {
+    cargarPlanoCampus();
+  } else if (a === "mapa-gps") {
+    if (gpsVivoPt && camCampus) {
+      const w = Math.min(camCampus[2], 420), h = w * (camCampus[3] / (camCampus[2] || 1));
+      aplicarCamaraCampus([gpsVivoPt.x - w / 2, gpsVivoPt.y - h / 2, w, h]);
+    } else if (posCampus(miLugar) && camCampus) {
+      const p = posCampus(miLugar);
+      const w = Math.min(camCampus[2], 420), h = w * (camCampus[3] / (camCampus[2] || 1));
+      aplicarCamaraCampus([p.x - w / 2, p.y - h / 2, w, h]);
+    } else {
+      abrirSelectorUbicacion();
+    }
   } else if (a === "finalizar-emergencia") {
     const incidente = E.emergencia?.id;
     hoja("Finalizar emergencia", "Se cerrará la alerta activa. Los reportes de bloqueo siguen vigentes.", [
@@ -2520,8 +2719,8 @@ window.iniciarUnexuam = function () {
       "/static/img/figma/tarjeta-inundacion.jpg",
       "/static/img/figma/tarjeta-incendio.jpg",
       "/static/img/figma/tarjeta-sismo.jpg",
-      "/static/img/figma/tarjeta-auxilios.jpg",
-      "/static/img/figma/tarjeta-sin-senal.jpg",
+      "/static/img/figma/tarjeta-auxilios.svg",
+      "/static/img/figma/tarjeta-sin-senal.svg",
     ];
     for (const src of rutasImg) {
       const im = new Image();

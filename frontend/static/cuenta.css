@@ -240,8 +240,8 @@ body.con-chat .fab-scrim, body.sin-sesion .fab-scrim, body.vista-inicio .fab-scr
 @keyframes fabSube { from { opacity: 0; transform: translateY(10px) scale(.92); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) { .fab-mini-btn { animation: none; } }
 
-.toast { bottom: calc(var(--alto-nav) + 26px + env(safe-area-inset-bottom)); z-index: 30; }
-body.con-chat .toast { bottom: calc(86px + env(safe-area-inset-bottom)); z-index: 30; }
+.toast { bottom: calc(var(--alto-nav) + 26px + env(safe-area-inset-bottom)); z-index: 200; }
+body.con-chat .toast { bottom: calc(86px + env(safe-area-inset-bottom)); z-index: 200; }
 
 .badge {
   display: inline-grid;
@@ -359,7 +359,10 @@ html[data-tema="oscuro"] .login-carta {
 .login-lang { display: flex; width: fit-content; }
 .login-lang button {
   min-width: 44px;
-  min-height: 32px;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   padding: 4px 10px;
   border: 0;
   border-radius: 999px;
@@ -576,7 +579,7 @@ html[data-tema="oscuro"] .login-carta .campo select {
 }
 .chat-lista li { max-width: 84%; padding: 8px 11px 6px 12px; border-radius: 18px; box-shadow: 0 1px 2px rgba(0, 40, 90, .12); }
 .chat-lista li p { margin: 0; font-weight: 600; font-size: 0.9375rem; line-height: var(--interlineado, 1.38); white-space: pre-wrap; overflow-wrap: anywhere; }
-.chat-lista li.mio { align-self: flex-end; background: var(--azul-btn); color: var(--blanco); border: 2px solid #004fa8; border-bottom-right-radius: 4px; }
+.chat-lista li.mio { align-self: flex-end; background: var(--azul-btn); color: var(--texto-sobre-acento, #ffffff); border: 2px solid #004fa8; border-bottom-right-radius: 4px; }
 .chat-lista li.suyo { align-self: flex-start; background: var(--blanco); color: var(--texto); border: 2px solid #c9d8ea; border-bottom-left-radius: 4px; }
 .chat-msg-cab { display: flex; align-items: center; gap: 6px; margin-bottom: 3px; font-size: 0.72rem; font-weight: 900; }
 .chat-lista li.mio .chat-msg-cab { justify-content: flex-end; color: rgba(255, 255, 255, .92); }
@@ -793,7 +796,7 @@ html[data-tema="oscuro"] .login-carta .campo select {
   transition: transform .15s ease, box-shadow .15s ease, background .15s ease;
 }
 .btn:not(.primario):not(.alerta):not(.peligro):not(.aviso-btn):not(.blanco):not(.seguro):not(.mini) { background: var(--blanco); color: var(--azul-btn); }
-.btn.primario { background: var(--azul-btn); color: var(--blanco); border-color: var(--azul-btn); box-shadow: 0 6px 16px rgba(0, 98, 204, .28); }
+.btn.primario { background: var(--azul-btn); color: var(--texto-sobre-acento, #ffffff); border-color: var(--azul-btn); box-shadow: 0 6px 16px rgba(0, 98, 204, .28); }
 .btn.peligro, .btn.alerta { border-color: var(--rojo); }
 .btn.mini { min-height: 44px; padding: 6px 14px; font-size: 0.8125rem; }
 .btn:active:not(:disabled) { transform: scale(.97); }
@@ -1622,7 +1625,10 @@ html[data-filtro-color="acromatopsia"] body { filter: grayscale(1); }
 .banner-em-txt { flex: 1 1 12rem; min-width: 0; overflow-wrap: anywhere; }
 .banner-em-btn {
   flex: none;
-  padding: 6px 12px;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 14px;
   border-radius: 999px;
   background: #ffffff;
   color: var(--rojo);

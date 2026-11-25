@@ -435,18 +435,8 @@ def barril(poligono, pared, flecha, n=14):
 
 
 def terraza(pol, alto):
-    """Baranda gris de la terraza en el techo (Edificio P Copérnico, foto aérea de la UAM)."""
-    g = []
-    for i in range(len(pol)):
-        (ax, ay), (bx, by) = pol[i], pol[(i + 1) % len(pol)]
-        a, b = P(ax, ay, alto + 1.1), P(bx, by, alto + 1.1)
-        g.append(f'<line x1="{a[0]:.1f}" y1="{a[1]:.1f}" x2="{b[0]:.1f}" y2="{b[1]:.1f}" stroke="#6b7785" stroke-width="1.6"/>')
-        n = max(1, int(math.dist((ax, ay), (bx, by)) // 3))
-        for k in range(n + 1):
-            x, y = ax + (bx - ax) * k / n, ay + (by - ay) * k / n
-            u, v = P(x, y, alto), P(x, y, alto + 1.1)
-            g.append(f'<line x1="{u[0]:.1f}" y1="{u[1]:.1f}" x2="{v[0]:.1f}" y2="{v[1]:.1f}" stroke="#6b7785" stroke-width=".9"/>')
-    return "".join(g)
+    """Techo limpio del Edificio P (simplificado para evitar ruido visual en 3er piso)."""
+    return ""
 
 
 def cara_plana(x0, y0, x1, y1, z0, z1, color, extra=""):
@@ -1434,9 +1424,6 @@ def documento():
   <radialGradient id="copa0" cx=".36" cy=".3" r=".75"><stop offset="0" stop-color="#a6e39a"/><stop offset=".45" stop-color="#4cb25f"/><stop offset="1" stop-color="#22703a"/></radialGradient>
   <radialGradient id="copa1" cx=".36" cy=".3" r=".75"><stop offset="0" stop-color="#bfe58e"/><stop offset=".45" stop-color="#62b44e"/><stop offset="1" stop-color="#2f7232"/></radialGradient>
   <radialGradient id="copa2" cx=".35" cy=".3" r=".8"><stop offset="0" stop-color="#d8ee8c"/><stop offset=".5" stop-color="#8cc63f"/><stop offset="1" stop-color="#4d8a2a"/></radialGradient>
-  <filter id="sombra" x="-10%" y="-10%" width="120%" height="130%"><feDropShadow dx="0" dy="10" stdDeviation="12" flood-color="#003c82" flood-opacity=".22"/></filter>
-  <filter id="difuso" x="-5%" y="-5%" width="110%" height="110%"><feGaussianBlur stdDeviation="2.4"/></filter>
-  <filter id="contacto" x="-5%" y="-5%" width="110%" height="110%"><feGaussianBlur stdDeviation="1.1"/></filter>
   <pattern id="cesped" width="6" height="6" {plano}><rect width="6" height="6" fill="#d5e8c1"/><circle cx="1" cy="1.5" r=".35" fill="#c4dcac"/><circle cx="4.2" cy="3.6" r=".4" fill="#e2f0d2"/><circle cx="2.6" cy="5" r=".3" fill="#bfd8a6"/><circle cx="5.2" cy=".6" r=".25" fill="#c9e0b2"/></pattern>
   <pattern id="asfalto" width="4" height="4" {plano}><rect width="4" height="4" fill="#9ba4af"/><circle cx="1" cy="1" r=".18" fill="#8a939e"/><circle cx="3" cy="2.6" r=".2" fill="#aab2bc"/></pattern>
   <pattern id="estac" width="2.6" height="16" {plano}><path d="M0 0V5M0 11V16M0 5H2.6M0 11H2.6" stroke="#ffffff" stroke-width=".16" opacity=".85"/><path d="M1.3 7.6h.01" stroke="#fcd222" stroke-width=".3"/></pattern>
@@ -1469,9 +1456,9 @@ def documento():
         x += 26 + len(txt) * 8.9 + 30
     ley.append(f'<text x="{W - 100}" y="23" font-size="12" font-weight="600" fill="{AZUL}" opacity=".8" text-anchor="end" dominant-baseline="central">Plano © OpenStreetMap contributors</text></g>')
 
-    sombras = (f'<g fill="#16304d" opacity=".22" filter="url(#difuso)">{"".join(SOMBRAS)}</g>'
-               f'<g fill="#0e2238" opacity=".24" filter="url(#contacto)">{"".join(CONTACTO)}</g>')
-    cuerpo = "\n".join([f'<g filter="url(#sombra)">{"".join(suelo_)}</g>', "".join(planos), sombras, "".join(objetos),
+    sombras = (f'<g fill="#16304d" opacity=".18">{"".join(SOMBRAS)}</g>'
+               f'<g fill="#0e2238" opacity=".20">{"".join(CONTACTO)}</g>')
+    cuerpo = "\n".join([f'<g>{"".join(suelo_)}</g>', "".join(planos), sombras, "".join(objetos),
                         f'<rect width="{W}" height="{H}" fill="url(#vineta)"/>',
                         rosa(1490, 190), "".join(rotulos(eds)), "".join(insignias), lista_codigos()])
     svg = f'''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {W} {H}" width="{W}" height="{H}" font-family="{FUENTE}" shape-rendering="geometricPrecision">

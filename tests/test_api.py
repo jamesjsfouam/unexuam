@@ -99,7 +99,7 @@ class TestApiYParidad(unittest.TestCase):
         with self.client.get("/sw.js") as r:
             self.assertEqual(r.status_code, 200)
             self.assertEqual(r.headers.get("Service-Worker-Allowed"), "/")
-            self.assertIn(b"unexuam-v27", r.data)
+            self.assertIn(b"unexuam-v28", r.data)
 
     def test_operador_real_puede_iniciar_sesion(self):
         resultado = servidor.app.test_cli_runner().invoke(
@@ -177,6 +177,17 @@ class TestSesionYMensajes(unittest.TestCase):
         self.assertFalse(c.get("/api/yo").get_json()["sesion"])
         self.assertTrue(c.get("/api/lugares").get_json()["ok"])
 
+    def test_canal_general_invitado_solo_lectura_y_sos(self):
+        c = servidor.app.test_client()
+        r_get = c.get("/api/mensajes/general")
+        self.assertEqual(r_get.status_code, 200)
+        self.assertTrue(r_get.get_json()["ok"])
+        r_chat = c.post("/api/mensajes/general", json={"texto": "hola a todos"})
+        self.assertEqual(r_chat.status_code, 401)
+        r_sos = c.post("/api/mensajes/general", json={"texto": "SOS · ayuda en Edificio P"})
+        self.assertEqual(r_sos.status_code, 200)
+        self.assertTrue(r_sos.get_json()["ok"])
+
     def test_reintentar_envio_con_la_misma_clave(self):
         cliente, _ = self.nuevo("PRUEBAID1", "Prueba envío", "C-101")
         datos = {"para": "TODOS", "texto": "Prueba", "idempotencia": "reintento-1234567890"}
@@ -248,9 +259,9 @@ class TestSesionYMensajes(unittest.TestCase):
     def test_base_de_datos_persiste(self):
         self.nuevo("PER0001", "Persistente", "Edificio E")
         from basedatos import BaseDatos
-        otra = BaseDatos(servidor.ruta_datos("unexuam.db"))      # otra conexión al mismo archivo
-        self.assertEqual(otra.usuario("PER0001")["nombre"], "Persistente")
-        self.assertNotIn("clave123", otra.usuario("PER0001")["hash"])  # la contraseña va con hash
+        with BaseDatos(servidor.ruta_datos("unexuam.db")) as otra:      # otra conexión al mismo archivo
+            self.assertEqual(otra.usuario("PER0001")["nombre"], "Persistente")
+            self.assertNotIn("clave123", otra.usuario("PER0001")["hash"])  # la contraseña va con hash
 
     def test_estudiante_no_cambia_el_campus_de_todos(self):
         c, _ = self.nuevo("EST0001", "Estudiante", "Edificio E")

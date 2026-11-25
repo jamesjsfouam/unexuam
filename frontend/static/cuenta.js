@@ -159,6 +159,32 @@
 
   let YO = null;
   let modo = "entrar";
+  const INV_ID_KEY = "unexuam-inv-id";
+
+  function obtenerIdInvitado() {
+    try {
+      let id = localStorage.getItem(INV_ID_KEY);
+      if (id && /^INV-[0-9A-F]{4}$/.test(id)) return id;
+      const bytes = new Uint8Array(2);
+      if (window.crypto?.getRandomValues) window.crypto.getRandomValues(bytes);
+      else { bytes[0] = (Math.random() * 256) | 0; bytes[1] = (Math.random() * 256) | 0; }
+      id = "INV-" + Array.from(bytes, b => b.toString(16).padStart(2, "0")).join("").toUpperCase();
+      localStorage.setItem(INV_ID_KEY, id);
+      return id;
+    } catch (_) {
+      return "INV-0001";
+    }
+  }
+
+  function perfilActivo() {
+    if (YO) return YO;
+    return {
+      cif: obtenerIdInvitado(),
+      nombre: "Visitante UAM",
+      lugar: leerLS("mi-lugar", "") || "Edificio E",
+      invitado: true,
+    };
+  }
 
   function aplicarRol() {
     const admin = !!(YO && YO.admin);
@@ -514,7 +540,7 @@
         return;
       }
       if (regPaso === 2) {
-        if (!clave || clave.length < 4) { err.textContent = "La contraseña debe tener al menos 4 caracteres."; $("#login-clave").focus(); return; }
+        if (!clave || clave.length < 6) { err.textContent = "La contraseña debe tener al menos 6 caracteres."; $("#login-clave").focus(); return; }
         if (clave !== $("#login-clave2").value) { err.textContent = "Las contraseñas no coinciden."; $("#login-clave2").focus(); return; }
         regPaso = 3;
         await actualizarWizard(true);
@@ -1037,6 +1063,17 @@
             const lugar = $("#hoja-lugar")?.value;
             if (!lugar) return;
             if (window.seleccionarLugar) window.seleccionarLugar(lugar);
+            guardarLS("mi-lugar", lugar);
+            if (!YO) {
+              const inv = perfilActivo();
+              try {
+                window.UnexuamNativo?.actualizarPerfilMesh?.(JSON.stringify({
+                  cif: inv.cif, nombre: inv.nombre, telefono: "Tel-" + inv.cif, lugar,
+                }));
+              } catch (_) {}
+              avisar(`Ubicación guardada en modo invitado: ${lugar}`);
+              return;
+            }
             if (window.__UNEXUAM_PREFS__?.compartirLugar === false) {
               YO = { ...YO, lugar };
               avisar(`Edificio guardado localmente: ${lugar} (sin compartir por Mesh).`);
@@ -1051,7 +1088,7 @@
       ],
       {
         extraHtml: '<label class="campo"><span>Lugar</span><select id="hoja-lugar"></select></label>',
-        onMount: cont => llenarLugares($("#hoja-lugar", cont), YO.lugar),
+        onMount: cont => llenarLugares($("#hoja-lugar", cont), perfilActivo().lugar || ""),
       }
     );
   }
@@ -1412,6 +1449,10 @@
   async function pedirPermisoNotificaciones() {
     if (window.UnexuamNativo && typeof window.UnexuamNativo.pedirPermisos === "function") {
       window.UnexuamNativo.pedirPermisos();
+      if (typeof window.UnexuamNativo.puedePantallaCompleta === "function" && !window.UnexuamNativo.puedePantallaCompleta()) {
+        avisar("Activa 'Alertas en pantalla completa' en Ajustes para emergencias con pantalla bloqueada.", false);
+        window.UnexuamNativo.abrirAjustesPantallaCompleta?.();
+      }
       return "granted";
     }
     if ("Notification" in window) {
@@ -1454,6 +1495,17 @@
   }
 
   let audioCtxGlobal = null;
+  function desbloquearAudioUsuario() {
+    try {
+      const Ctx = window.AudioContext || window.webkitAudioContext;
+      if (!Ctx) return;
+      if (!audioCtxGlobal || audioCtxGlobal.state === "closed") audioCtxGlobal = new Ctx();
+      if (audioCtxGlobal.state === "suspended") audioCtxGlobal.resume().catch(() => {});
+    } catch (_) {}
+  }
+  ["pointerdown", "touchstart", "keydown"].forEach(ev =>
+    document.addEventListener(ev, desbloquearAudioUsuario, { once: true, passive: true })
+  );
   function sonarAlerta(forzar = false) {
     try {
       const P = window.__UNEXUAM_PREFS__ || {};
@@ -1534,10 +1586,44 @@
 
   let enviandoSos = false;
   async function enviarSOS() {
-    if (!YO || enviandoSos) return;
+    if (enviandoSos) return;
     enviandoSos = true;
+    const emisor = perfilActivo();
     try {
-      const texto = `SOS · Necesito ayuda en ${YO.lugar || "el campus"} (${YO.nombre}).`;
+      const texto = `SOS · Necesito ayuda en ${emisor.lugar || "el campus"} (${emisor.nombre}).`;
+      if (!YO) {
+        const invId = emisor.cif;
+        const pkt = {
+          id: `sos-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+          tipo: "mensaje",
+          de: invId,
+          deNombre: emisor.nombre,
+          deTel: "Tel-" + invId,
+          para: "TODOS",
+          texto,
+          hora: new Date().toTimeString().slice(0, 5),
+          ttl: 6,
+          ruta: ["Tel-" + invId],
+        };
+        let enviados = 0;
+        try { enviados = Number(window.UnexuamNativo?.enviarPaqueteMesh?.(JSON.stringify(pkt)) || 0); } catch (_) {}
+        let okLocal = false;
+        try {
+          const r = await fetch("/api/mensajes/enviar", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ para: "TODOS", texto, guestId: invId }),
+          });
+          const jInv = await r.json().catch(() => ({}));
+          okLocal = Boolean(jInv && jInv.ok);
+        } catch (_) {}
+        if (enviados > 0 || okLocal) {
+          avisar(enviados > 0 ? "SOS enviado a teléfonos cercanos por Mesh." : "SOS guardado para envío en cuanto haya conexión.", true);
+        } else {
+          avisar("SOS emitido como invitado. Activa Bluetooth para difundir a teléfonos cercanos.", false);
+        }
+        return;
+      }
       const j = await pedir("/api/mensajes/enviar", { para: "TODOS", texto });
       const enCola = j.ok && j.enviado && j.enviado.estado !== "entregado";
       avisar(!j.ok ? (j.mensaje || "No se pudo enviar el SOS.") : enCola ? (j.mensaje || "SOS guardado: saldrá al conectar un teléfono cercano.") : "SOS enviado al Canal General.", j.ok && !enCola);

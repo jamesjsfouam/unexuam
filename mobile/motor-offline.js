@@ -389,7 +389,7 @@
         ruta: calcularRuta(),
         bloqueados: S.bloqueados,
         congestion: S.congestion,
-        sinSenal: [...new Set(S.red.vertexs.filter((v) => !v.neig.length && S.ubicaciones[v.nombre]).map((v) => S.ubicaciones[v.nombre]))].sort(),
+        sinSenal: [...new Set(S.red.vertexs.filter((v) => !v.neig.length && UBIC?.[v.nombre]).map((v) => UBIC[v.nombre]))].sort(),
       },
       ultimaAlerta: S.ultimaAlerta,
       emergencia: S.emergencia,
@@ -432,8 +432,43 @@
 
   // --- Cuentas, mensajería por la red Mesh y Dijkstra paso a paso (espejo de backend/) ---
   const CUENTAS_KEY = "unexuam-cuentas-v1";
+  const INV_ID_KEY = "unexuam-inv-id";
   const ALCANCE = 120;
   const UBIC = {};
+
+  function obtenerIdInvitado() {
+    try {
+      let id = window.localStorage.getItem(INV_ID_KEY);
+      if (id && /^INV-[0-9A-F]{4}$/.test(id)) return id;
+      const bytes = new Uint8Array(2);
+      if (window.crypto && typeof window.crypto.getRandomValues === "function") {
+        window.crypto.getRandomValues(bytes);
+      } else {
+        bytes[0] = (Math.random() * 256) | 0;
+        bytes[1] = (Math.random() * 256) | 0;
+      }
+      id = "INV-" + Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("").toUpperCase();
+      window.localStorage.setItem(INV_ID_KEY, id);
+      return id;
+    } catch (_) {
+      return "INV-0001";
+    }
+  }
+
+  function perfilInvitadoOffline(d) {
+    const idReq = texto(d, "guestId", 15).toUpperCase();
+    const id = /^INV-[0-9A-F]{4}$/.test(idReq) ? idReq : obtenerIdInvitado();
+    let lugar = "Edificio E";
+    try {
+      const g = window.localStorage.getItem("mi-lugar");
+      if (g) lugar = JSON.parse(g) || "Edificio E";
+    } catch (_) {}
+    return {
+      cif: id,
+      invitado: true,
+      u: { nombre: "Visitante UAM", telefono: "Tel-" + id, lugar, admin: false },
+    };
+  }
 
   function cuentas() {
     try {
@@ -604,14 +639,19 @@
   }
 
   async function despacharApi(ruta, d, searchParams) {
-    const LIBRES = ["/api/yo", "/api/login", "/api/registro", "/api/registro/disponible", "/api/lugares", "/api/campus/publico", "/api/campus/ruta", "/api/mensajes/general"];
-    const SOLO_ADMIN = ["/api/reiniciar", "/api/mesh/vertice", "/api/mesh/arista", "/api/mesh/alerta", "/api/campus/vertice", "/api/campus/arista", "/api/campus/ubicacion", "/api/campus/desbloquear", "/api/campus/congestionar", "/api/algoritmo", "/api/campus/cuellos", "/api/emergencia/declarar", "/api/emergencia/finalizar"];
+    const LIBRES = ["/api/yo", "/api/login", "/api/registro", "/api/registro/disponible", "/api/lugares", "/api/campus/publico", "/api/campus/ruta"];
+    const SOLO_ADMIN = ["/api/reiniciar", "/api/mesh/vertice", "/api/mesh/arista", "/api/mesh/alerta", "/api/campus/vertice", "/api/campus/arista", "/api/campus/ubicacion", "/api/campus/bloquear", "/api/campus/desbloquear", "/api/campus/congestionar", "/api/algoritmo", "/api/campus/cuellos", "/api/emergencia/declarar", "/api/emergencia/finalizar"];
     if (!LIBRES.includes(ruta)) {
       const yo = cuentaActual();
-      if (!yo) {
+      const txtPost = String((d && d.texto) || "").trim();
+      const esGeneralInvitado = ruta === "/api/mensajes/general" && (!txtPost || /^SOS\b/i.test(txtPost));
+      const esSosInvitado = (ruta === "/api/mensajes/enviar"
+        && String((d && d.para) || "").trim().toUpperCase() === "TODOS"
+        && /^SOS\b/i.test(txtPost)) || esGeneralInvitado;
+      if (!yo && !esSosInvitado) {
         return { _status: 401, ok: false, sesion: false, mensaje: "Inicia sesión con tu CIF y tu contraseña." };
       }
-      if (SOLO_ADMIN.includes(ruta) && !yo.u.admin) {
+      if (SOLO_ADMIN.includes(ruta) && (!yo || !yo.u.admin)) {
         return { _status: 403, ok: false, mensaje: "Solo el administrador puede editar los grafos." };
       }
     }
@@ -668,7 +708,7 @@
       if (yoEm) {
         enviarPaqueteReal({
           id: idEm, tipo: "incidente", accion: "emergencia", emergenciaTipo: tipo,
-          titulo: tituloDef, texto: `SOS · ${tituloDef}: ${txtEm}`,
+          titulo: tituloDef, texto: `SOS · ${tituloDef}: ${txtEm}`, deAdmin: Boolean(yoEm.u.admin),
           de: yoEm.cif, deNombre: yoEm.u.nombre, deTel: yoEm.u.telefono,
           para: "TODOS", hora: horaEm, ttl: 6, ruta: [yoEm.u.telefono],
         });
@@ -686,7 +726,7 @@
       const yoFin = cuentaActual();
       if (yoFin) {
         enviarPaqueteReal({
-          id: generarId(), tipo: "incidente", accion: "finalizar", incidente,
+          id: generarId(), tipo: "incidente", accion: "finalizar", incidente, deAdmin: Boolean(yoFin.u.admin),
           texto: "Emergencia finalizada por el administrador. Campus en calma.",
           de: yoFin.cif, deNombre: yoFin.u.nombre, deTel: yoFin.u.telefono,
           para: "TODOS", hora: horaActual(), ttl: 6, ruta: [yoFin.u.telefono],
@@ -756,6 +796,7 @@
         const txtB = `Bloqueo reportado: ${o} y ${dst}. Recalculando rutas.`;
         const envB = enviarPaqueteReal({
           id: idB, tipo: "incidente", accion: "bloquear", origen: o, destino: dst, ambos,
+          deAdmin: Boolean(yoBloq.u.admin),
           de: yoBloq.cif, deNombre: yoBloq.u.nombre, deTel: yoBloq.u.telefono,
           para: "TODOS", texto: txtB, hora: ahoraB, ttl: 6, ruta: [yoBloq.u.telefono],
         });
@@ -938,6 +979,9 @@
         const lugarInicial = (lugarPedidoReg && S.campus.buscarVertice(lugarPedidoReg)) ? lugarPedidoReg : "Edificio E";
         const nuevo = { cif, nombre, sal, hash, telefono, lugar: lugarInicial, admin: false, creado: Date.now() };
         if (window.UNEXO_NUBE) {
+          if (typeof window.UNEXO_NUBE.autenticarEstudiante === "function") {
+            await window.UNEXO_NUBE.autenticarEstudiante(cif, clave, true);
+          }
           const resNube = await window.UNEXO_NUBE.crearUsuario(nuevo);
           if (!resNube.offline && resNube.duplicado) {
             return { ok: false, mensaje: "Ese CIF ya tiene cuenta. Inicia sesión." };
@@ -946,6 +990,9 @@
         C.usuarios[cif] = { nombre, sal, hash, telefono, lugar: lugarInicial };
         registrar(`Nueva cuenta: ${nombre} (${telefono}).`, "ok");
       } else {
+        if (window.UNEXO_NUBE && typeof window.UNEXO_NUBE.autenticarEstudiante === "function") {
+          await window.UNEXO_NUBE.autenticarEstudiante(cif, clave, false);
+        }
         let u = C.usuarios[cif];
         if ((!u || u.real) && window.UNEXO_NUBE) {
           const nube = await window.UNEXO_NUBE.obtenerUsuario(cif);
@@ -987,6 +1034,9 @@
         S.red.eliminarVertice(yo.u.telefono);
         delete UBIC[yo.u.telefono];
         registrar(`${yo.u.nombre} salió: su teléfono dejó la red (eliminarVertice).`);
+        if (window.UNEXO_NUBE && typeof window.UNEXO_NUBE.cerrarSesionEstudianteFirebase === "function") {
+          window.UNEXO_NUBE.cerrarSesionEstudianteFirebase();
+        }
         const C = cuentas();
         C.sesion = null;
         guardarCuentas(C);
@@ -1001,11 +1051,15 @@
       if (!textoMsj) {
         return { ok: true, mensajes: C.mensajes.filter((m) => m.para === "TODOS").slice(-200) };
       }
+      if (!yo && !/^SOS\b/i.test(textoMsj)) {
+        return { _status: 401, ok: false, sesion: false, mensaje: "Inicia sesión para chatear; como invitado puedes enviar alertas SOS." };
+      }
       const ahora = horaActual();
       const id = generarId();
-      const de = yo ? yo.cif : "INVITADO";
+      const idInv = yo ? "" : obtenerIdInvitado();
+      const de = yo ? yo.cif : idInv;
       const deNombre = yo ? yo.u.nombre : "Visitante UAM";
-      const deTel = yo ? yo.u.telefono : "Tel-Visitante";
+      const deTel = yo ? yo.u.telefono : `Tel-${idInv}`;
       const enviadosReal = enviarPaqueteReal({
         id, tipo: "mensaje", de, deNombre, deTel,
         para: "TODOS", texto: textoMsj, hora: ahora, ttl: 6, ruta: [deTel],
@@ -1033,7 +1087,10 @@
       };
     }
     if (ruta.startsWith("/api/yo/") || ruta.startsWith("/api/mensajes") || ruta.startsWith("/api/contactos") || ruta === "/api/algoritmo") {
-      const yo = cuentaActual();
+      const esSosInv = ruta === "/api/mensajes/enviar"
+        && String((d && d.para) || "").trim().toUpperCase() === "TODOS"
+        && /^SOS\b/i.test(String((d && d.texto) || "").trim());
+      const yo = cuentaActual() || (esSosInv ? perfilInvitadoOffline(d) : null);
       if (!yo) return { _status: 401, ok: false, sesion: false, mensaje: "Inicia sesión con tu CIF y tu contraseña." };
       // Contactos por CIF: cada cuenta guarda su propia lista (la base de datos local del teléfono).
       const ficha = (C, cif) => {
@@ -1395,21 +1452,26 @@
         const para = String(pq.para || "").trim().toUpperCase().slice(0, 15);
         if (!de || !pq.texto) return;
         let recalcularRuta = false;
-        // Si es un incidente de bloqueo recibido por Mesh, aplicarlo directo al grafo del campus
+        // Si es un incidente de bloqueo recibido por Mesh, aplicarlo solo si el remitente tiene rol admin
         if (pq.tipo === "incidente" && pq.accion === "bloquear" && pq.origen && pq.destino) {
-          const pares = pq.ambos !== false ? [[pq.origen, pq.destino], [pq.destino, pq.origen]] : [[pq.origen, pq.destino]];
-          for (const [a, b] of pares) {
-            const va = S.campus.vertexs.find((v) => v.nombre === a);
-            const arista = va ? va.neig.find(([w]) => w.nombre === b) : null;
-            if (arista && S.campus.eliminarArista(a, b)) {
-              S.bloqueados.push({ origen: a, destino: b, peso: num(arista[1]) });
-              recalcularRuta = true;
+          const esAdminRemoto = pq.deAdmin === true || Boolean(C.usuarios[de]?.admin);
+          if (!esAdminRemoto) {
+            registrar(`Bloqueo Mesh ignorado (remitente sin rol admin: ${de}).`, "error");
+          } else {
+            const pares = pq.ambos !== false ? [[pq.origen, pq.destino], [pq.destino, pq.origen]] : [[pq.origen, pq.destino]];
+            for (const [a, b] of pares) {
+              const va = S.campus.vertexs.find((v) => v.nombre === a);
+              const arista = va ? va.neig.find(([w]) => w.nombre === b) : null;
+              if (arista && S.campus.eliminarArista(a, b)) {
+                S.bloqueados.push({ origen: a, destino: b, peso: num(arista[1]) });
+                recalcularRuta = true;
+              }
             }
-          }
-          if (recalcularRuta) {
-            invalidarCacheRutas();
-            registrar(`Bloqueo recibido por Mesh: ${pq.origen} y ${pq.destino}.`, "error");
-            guardarEstadoLocal();
+            if (recalcularRuta) {
+              invalidarCacheRutas();
+              registrar(`Bloqueo recibido por Mesh: ${pq.origen} y ${pq.destino}.`, "error");
+              guardarEstadoLocal();
+            }
           }
         } else if (pq.tipo === "incidente" && pq.accion === "emergencia") {
           S.emergencia = {
@@ -1456,7 +1518,7 @@
             registrar(`Mensaje real recibido de ${C.usuarios[de].nombre} por Mesh.`, "ok");
             guardarEstadoLocal();
           }
-          if (para === yo.cif && pq.id && window.UnexuamNativo?.confirmarEntradaMesh) {
+          if ((para === yo.cif || para === "TODOS") && pq.id && window.UnexuamNativo?.confirmarEntradaMesh) {
             window.UnexuamNativo.confirmarEntradaMesh(pq.id);
           }
           window.dispatchEvent(new CustomEvent("unexuam-mesh-update", { detail: { ...ev, recalcularRuta } }));
@@ -1477,12 +1539,13 @@
       meshIniciado = true;
       return;
     }
+    const idInv = obtenerIdInvitado();
     let lugarInv = "Edificio E";
     try {
       const guardado = localStorage.getItem("mi-lugar");
       if (guardado) lugarInv = JSON.parse(guardado) || "Edificio E";
     } catch (_) {}
-    iniciarMeshReal("INVITADO", { nombre: "Visitante UAM", telefono: "Tel-Visitante", lugar: lugarInv });
+    iniciarMeshReal(idInv, { nombre: "Visitante UAM", telefono: "Tel-" + idInv, lugar: lugarInv });
     meshIniciado = true;
   }
 
@@ -1623,8 +1686,8 @@
   }
 
   window.addEventListener("offline", () => {
-    meshIniciado = false;
-    asegurarMeshActivo();
+    if (!meshIniciado) asegurarMeshActivo();
+    else window.UnexuamNativo?.reintentarMeshSiDesconectado?.();
   });
   window.addEventListener("online", () => {
     vaciarColaNube();
@@ -1639,8 +1702,8 @@
   }, 800);
   setInterval(() => {
     if (navigator.onLine === false) {
-      meshIniciado = false;
-      asegurarMeshActivo();
+      if (!meshIniciado) asegurarMeshActivo();
+      else window.UnexuamNativo?.reintentarMeshSiDesconectado?.();
     } else {
       sincronizarCampusNube(false);
     }

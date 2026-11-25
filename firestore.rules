@@ -8,14 +8,22 @@ service cloud.firestore {
     // ===============================================================
     //
     // Project: unexuam-campus-ni (Standard edition, (default) database)
-    // Auth Note: Students authenticate with CIF + PBKDF2-SHA256 directly
-    // in the client without Firebase Auth (request.auth is null for
-    // /usuarios, /mensajes, /reportes_bloqueo, and public reads on /campus).
-    // Writes (create, update) to /campus/estado require Firebase Auth
-    // administrator authentication (custom claim admin == true or /admins/{uid}).
+    // Auth Note (REM-08):
+    //   - /usuarios, /mensajes, and /reportes_bloqueo require Firebase Auth
+    //     (request.auth != null). Student identity is matched against
+    //     request.auth.uid == cif, custom claim request.auth.token.cif == cif,
+    //     or Firebase Auth REST email
+    //     request.auth.token.email == (cif.lower() + '@unexuam.uam.edu.ni').
+    //   - Administrators are verified via custom claim admin == true or
+    //     /admins/{request.auth.uid}.
+    //   - /campus/estado allows unauthenticated public read (required by
+    //     MeshForegroundService via public REST) and restricts writes to
+    //     authenticated Firebase Auth administrators (isAdminAuth()).
     //
     // Collection: usuarios
     // Document ID: {cif} matching ^[0-9A-Z-]{4,15}$, != 'ADMIN', != 'TODOS'
+    // Access: Read/create/update restricted to the authenticated owner (cif)
+    //         or isAdminAuth(); prevents public exposure of sal and hash.
     // Fields:
     //   - cif: string (required, immutable, == document ID)
     //   - nombre: string (required, immutable, 2..40 chars)
@@ -29,6 +37,9 @@ service cloud.firestore {
     //
     // Collection: mensajes
     // Document ID: {msgId}
+    // Access: Authenticated read only for participants (de/para), broadcast
+    //         messages (para == 'TODOS'), or isAdminAuth(). Authenticated
+    //         create/update only for authorized sender/participants or admins.
     // Fields:
     //   - de: string (required, immutable, 2..15 chars)
     //   - deNombre: string (required, immutable, 1..40 chars)
@@ -36,12 +47,12 @@ service cloud.firestore {
     //   - texto: string (required, immutable, 1..500 chars)
     //   - hora: string (required, immutable, 1..20 chars)
     //   - ts: number (required, immutable)
-    //   - estado: string (required, 'entregado' | 'en cola'; update only to 'entregado')
+    //   - estado: string (required, 'entregado' | 'en cola'; update only 'en cola' -> 'entregado')
     //
     // Collection: campus
     // Document ID: 'estado' only
-    // Access: Public read; create/update restricted to Firebase Auth admins
-    //         (custom claim admin == true or /admins/{uid}).
+    // Access: Public read on /campus/estado; create/update restricted to
+    //         Firebase Auth admins (isAdminAuth()).
     // Fields:
     //   - bloqueados: list (required, max 100 items)
     //   - congestion: map (required, max 100 entries)
@@ -55,18 +66,33 @@ service cloud.firestore {
     //
     // Collection: reportes_bloqueo
     // Document ID: {repId}
+    // Access: Authenticated read and create; updates (resolve/approve/discard)
+    //         restricted strictly to isAdminAuth().
     // Fields:
     //   - origen: string (required, immutable, 1..60 chars)
     //   - destino: string (required, immutable, 1..60 chars)
     //   - autor: string (required, immutable, 2..15 chars)
     //   - ts: number (required, immutable)
-    //   - estado: string (optional on create, mutable, 1..30 chars)
+    //   - estado: string (optional on create ['pendiente'], mutable by admin, 1..30 chars)
     //
     // ===============================================================
 
     // ===============================================================
     // Helper Functions
     // ===============================================================
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isSelfUser(cif) {
+      return isAuthenticated() &&
+             cif is string &&
+             (request.auth.uid == cif ||
+              ('cif' in request.auth.token && request.auth.token.cif == cif) ||
+              ('email' in request.auth.token &&
+               request.auth.token.email == (cif.lower() + '@unexuam.uam.edu.ni')));
+    }
 
     function hasRequiredFields(fields) {
       return request.resource.data.keys().hasAll(fields);
@@ -132,7 +158,7 @@ service cloud.firestore {
     }
 
     function isAdminAuth() {
-      return request.auth != null &&
+      return isAuthenticated() &&
              (('admin' in request.auth.token && request.auth.token.admin == true) ||
               exists(/databases/$(database)/documents/admins/$(request.auth.uid)));
     }
@@ -193,15 +219,17 @@ service cloud.firestore {
     // ===============================================================
 
     match /usuarios/{cif} {
-      allow read: if true;
+      allow read: if isSelfUser(cif) || isAdminAuth();
 
-      allow create: if isValidCifId(cif) &&
+      allow create: if (isSelfUser(cif) || isAdminAuth()) &&
+                       isValidCifId(cif) &&
                        !exists(/databases/$(database)/documents/usuarios/$(cif)) &&
                        isValidUsuario(request.resource.data, cif) &&
                        request.resource.data.admin == false &&
                        !('ultimoAcceso' in request.resource.data);
 
-      allow update: if isValidCifId(cif) &&
+      allow update: if (isSelfUser(cif) || isAdminAuth()) &&
+                       isValidCifId(cif) &&
                        isValidUsuario(request.resource.data, cif) &&
                        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['lugar', 'ultimoAcceso']) &&
                        areImmutableFieldsUnchanged(['cif', 'nombre', 'sal', 'hash', 'telefono', 'admin', 'creado']);
@@ -210,19 +238,31 @@ service cloud.firestore {
     }
 
     match /mensajes/{msgId} {
-      allow read: if true;
+      allow read: if isAuthenticated() &&
+                     (resource.data.para == 'TODOS' ||
+                      isSelfUser(resource.data.de) ||
+                      isSelfUser(resource.data.para) ||
+                      isAdminAuth());
 
-      allow create: if isValidMensaje(request.resource.data);
+      allow create: if isAuthenticated() &&
+                       isValidMensaje(request.resource.data) &&
+                       (isSelfUser(request.resource.data.de) || isAdminAuth());
 
-      allow update: if isValidMensaje(request.resource.data) &&
+      allow update: if isAuthenticated() &&
+                       (isSelfUser(resource.data.de) ||
+                        isSelfUser(resource.data.para) ||
+                        isAdminAuth()) &&
+                       isValidMensaje(request.resource.data) &&
                        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['estado']) &&
+                       areImmutableFieldsUnchanged(['de', 'deNombre', 'para', 'texto', 'hora', 'ts']) &&
+                       resource.data.estado == 'en cola' &&
                        request.resource.data.estado == 'entregado';
 
       allow delete: if false;
     }
 
     match /campus/{docId} {
-      allow read: if true;
+      allow read: if docId == 'estado';
 
       allow create, update: if docId == 'estado' &&
                                isAdminAuth() &&
@@ -232,18 +272,25 @@ service cloud.firestore {
     }
 
     match /admins/{uid} {
-      allow read: if request.auth != null && request.auth.uid == uid;
+      allow read: if isAuthenticated() && request.auth.uid == uid;
 
       allow write: if false;
     }
 
     match /reportes_bloqueo/{repId} {
-      allow read: if true;
+      allow read: if isAuthenticated();
 
-      allow create: if isValidReporteBloqueo(request.resource.data);
+      allow create: if isAuthenticated() &&
+                       isValidReporteBloqueo(request.resource.data) &&
+                       (isSelfUser(request.resource.data.autor) || isAdminAuth()) &&
+                       (!('estado' in request.resource.data) ||
+                        request.resource.data.estado == 'pendiente' ||
+                        isAdminAuth());
 
-      allow update: if isValidReporteBloqueo(request.resource.data) &&
+      allow update: if isAdminAuth() &&
+                       isValidReporteBloqueo(request.resource.data) &&
                        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['estado']) &&
+                       areImmutableFieldsUnchanged(['origen', 'destino', 'autor', 'ts']) &&
                        validStringLength('estado', 1, 30);
 
       allow delete: if false;

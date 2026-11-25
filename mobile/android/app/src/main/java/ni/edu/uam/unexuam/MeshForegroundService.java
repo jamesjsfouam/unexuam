@@ -40,17 +40,113 @@ public class MeshForegroundService extends Service {
             "https://firestore.googleapis.com/v1/projects/unexuam-campus-ni/databases/(default)/documents/campus/estado";
     private static final String PREFS_EM = "unexuam_fg_em";
     private static final String KEY_ULTIMO_ID = "ultimo_em_id";
+    private static final String PREFS_PERFIL = "unexuam_mesh_perfil";
+    private static final String KEY_PERFIL = "perfil_json";
+    private static volatile MeshNativa instanciaMesh;
+    private static volatile MeshNativa.Listener listenerUi;
+    private static volatile MeshForegroundService servicioActivo;
     private ScheduledExecutorService vigiaCampus;
+
+    public static synchronized MeshNativa obtenerMesh(Context ctx) {
+        if (instanciaMesh == null) {
+            instanciaMesh = new MeshNativa(ctx.getApplicationContext(), MeshForegroundService::despacharEventoGlobal);
+        }
+        return instanciaMesh;
+    }
+
+    public static void adjuntarListener(MeshNativa.Listener listener) {
+        listenerUi = listener;
+    }
+
+    public static void desadjuntarListener(MeshNativa.Listener listener) {
+        if (listenerUi == listener) {
+            listenerUi = null;
+        }
+    }
+
+    public static void guardarPerfilActivo(Context ctx, String perfilJson) {
+        if (ctx == null || perfilJson == null) return;
+        ctx.getApplicationContext().getSharedPreferences(PREFS_PERFIL, MODE_PRIVATE)
+                .edit().putString(KEY_PERFIL, perfilJson).apply();
+    }
+
+    public static void limpiarPerfilActivo(Context ctx) {
+        if (ctx == null) return;
+        ctx.getApplicationContext().getSharedPreferences(PREFS_PERFIL, MODE_PRIVATE)
+                .edit().remove(KEY_PERFIL).apply();
+    }
+
+    public static String obtenerPerfilGuardado(Context ctx) {
+        if (ctx == null) return null;
+        return ctx.getApplicationContext().getSharedPreferences(PREFS_PERFIL, MODE_PRIVATE)
+                .getString(KEY_PERFIL, null);
+    }
+
+    private static void despacharEventoGlobal(String eventoJson) {
+        MeshNativa.Listener ui = listenerUi;
+        if (ui != null) {
+            ui.onEvento(eventoJson);
+            return;
+        }
+        MeshForegroundService srv = servicioActivo;
+        if (srv == null) return;
+        try {
+            JSONObject ev = new JSONObject(eventoJson);
+            if ("paquete".equals(ev.optString("tipo"))) {
+                JSONObject pq = ev.optJSONObject("paquete");
+                if (pq == null) return;
+                String txt = pq.optString("texto", "");
+                String accion = pq.optString("accion", "");
+                if ("emergencia".equals(accion) || "bloquear".equals(accion) || txt.startsWith("SOS")) {
+                    String tit = pq.optString("titulo", "EMERGENCIA UNEXUAM");
+                    String emTipo = pq.optString("emergenciaTipo", "general");
+                    srv.dispararAlarmaEnSegundoPlano(emTipo, tit, txt);
+                }
+            }
+        } catch (Exception e) {
+            Log.w(TAG, "Error despachando evento en segundo plano: " + e.getMessage());
+        }
+    }
+
+    private static boolean tienePermisosMeshBasicos(Context ctx) {
+        boolean fine = ContextCompat.checkSelfPermission(ctx, android.Manifest.permission.ACCESS_FINE_LOCATION)
+                == PackageManager.PERMISSION_GRANTED;
+        boolean coarse = ContextCompat.checkSelfPermission(ctx, android.Manifest.permission.ACCESS_COARSE_LOCATION)
+                == PackageManager.PERMISSION_GRANTED;
+        if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.S_V2 ? !fine : (!fine && !coarse)) return false;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            if (ContextCompat.checkSelfPermission(ctx, android.Manifest.permission.BLUETOOTH_SCAN)
+                    != PackageManager.PERMISSION_GRANTED) return false;
+            if (ContextCompat.checkSelfPermission(ctx, android.Manifest.permission.BLUETOOTH_CONNECT)
+                    != PackageManager.PERMISSION_GRANTED) return false;
+            if (ContextCompat.checkSelfPermission(ctx, android.Manifest.permission.BLUETOOTH_ADVERTISE)
+                    != PackageManager.PERMISSION_GRANTED) return false;
+        }
+        return true;
+    }
+
+    private void asegurarMeshEnServicio() {
+        MeshNativa mesh = obtenerMesh(this);
+        String perfil = obtenerPerfilGuardado(this);
+        if (perfil != null && !perfil.isEmpty() && tienePermisosMeshBasicos(this)) {
+            mesh.iniciar(perfil);
+        }
+    }
 
     @Override
     public void onCreate() {
         super.onCreate();
+        servicioActivo = this;
         crearCanal();
+        asegurarMeshEnServicio();
         iniciarVigilanciaCampus();
     }
 
     @Override
     public void onDestroy() {
+        if (servicioActivo == this) {
+            servicioActivo = null;
+        }
         if (vigiaCampus != null) {
             vigiaCampus.shutdownNow();
             vigiaCampus = null;
@@ -152,6 +248,7 @@ public class MeshForegroundService extends Service {
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
+        servicioActivo = this;
         try {
             Notification notif = construirNotificacion();
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
@@ -162,6 +259,7 @@ public class MeshForegroundService extends Service {
         } catch (Exception e) {
             Log.w(TAG, "No se pudo iniciar ForegroundService: " + e.getMessage());
         }
+        asegurarMeshEnServicio();
         return START_STICKY;
     }
 

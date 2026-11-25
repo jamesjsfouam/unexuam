@@ -1,9 +1,11 @@
 package ni.edu.uam.unexuam;
 
+import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.os.Build;
 import android.util.Log;
 import androidx.core.app.NotificationCompat;
 import androidx.core.app.NotificationManagerCompat;
@@ -17,6 +19,26 @@ import java.util.Map;
  */
 public class UnexuamMessagingService extends FirebaseMessagingService {
     private static final String CANAL_EMERGENCIAS = "unexuam_emergencias";
+
+    @Override
+    public void onCreate() {
+        super.onCreate();
+        crearCanalEmergencias();
+    }
+
+    private void crearCanalEmergencias() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return;
+        NotificationManager nm = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
+        if (nm != null && nm.getNotificationChannel(CANAL_EMERGENCIAS) == null) {
+            NotificationChannel ch = new NotificationChannel(
+                    CANAL_EMERGENCIAS,
+                    "Alertas de emergencia UAM",
+                    NotificationManager.IMPORTANCE_HIGH);
+            ch.setDescription("Notificaciones prioritarias de emergencia y evacuación");
+            ch.enableVibration(true);
+            nm.createNotificationChannel(ch);
+        }
+    }
 
     @Override
     public void onNewToken(String token) {
@@ -52,6 +74,7 @@ public class UnexuamMessagingService extends FirebaseMessagingService {
     }
 
     private void mostrarAlarmaPush(String tipo, String titulo, String texto) {
+        crearCanalEmergencias();
         Intent fullIntent = new Intent(this, EmergencyAlertActivity.class);
         fullIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
         fullIntent.putExtra(EmergencyAlertActivity.EXTRA_TIPO, tipo);
@@ -84,6 +107,7 @@ public class UnexuamMessagingService extends FirebaseMessagingService {
     }
 
     private void mostrarNotificacionSimple(String titulo, String texto) {
+        crearCanalEmergencias();
         if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.POST_NOTIFICATIONS)
                 != PackageManager.PERMISSION_GRANTED) {
             return;

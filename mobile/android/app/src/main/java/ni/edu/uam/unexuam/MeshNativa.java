@@ -21,6 +21,7 @@ import com.google.android.gms.nearby.connection.PayloadCallback;
 import com.google.android.gms.nearby.connection.PayloadTransferUpdate;
 import com.google.android.gms.nearby.connection.Strategy;
 import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
@@ -42,10 +43,10 @@ import org.json.JSONObject;
  * usando Google Nearby Connections (Strategy.P2P_CLUSTER).
  *
  * Incluye:
- * - Límite de conexiones simultáneas (MAX_CONECTADOS = 4) y duty-cycling adaptativo.
+ * - Límite de conexiones simultáneas (MAX_CONECTADOS = 6) con rotación de vecinos y duty-cycling adaptativo.
  * - Custodia DTN con prioridad (incluye SOS e incidentes con TTL temporal) y purga por ACK.
  * - Summary Vector en handshake `hello` para evitar volcado ciego de paquetes repetidos.
- * - Firma HMAC-SHA256 para integridad de paquetes (`mensaje`, `ack`, `incidente`).
+ * - Firma HMAC-SHA256 sobre todos los campos de control (`mensaje`, `ack`, `incidente`, `hello`).
  * - Limpieza de `pendientes` zombi (>15 s), guardia MTU (<= 30 KB) y deduplicación persistente.
  */
 public class MeshNativa {
@@ -53,15 +54,26 @@ public class MeshNativa {
     private static final String SERVICE_ID = "ni.edu.uam.unexuam.mesh";
     private static final Strategy ESTRATEGIA = Strategy.P2P_CLUSTER;
     private static final int MAX_CUSTODIA = 200;
-    private static final int MAX_CONECTADOS = 4;
+    private static final int MAX_CONECTADOS = 6;
     private static final int MAX_TRANSFERENCIAS = 128;
     private static final int MAX_REINTENTOS = 3;
     private static final int MAX_BYTES_PAYLOAD = 30000;
     private static final long TIMEOUT_PENDIENTE_MS = 15_000L;
+    private static final long TIMEOUT_ROTACION_MS = 90_000L;
     private static final long TTL_BROADCAST_MS = 60L * 60L * 1000L; // 60 min para SOS/bloqueos
     private static final long TTL_DIRECTO_MS = 24L * 60L * 60L * 1000L; // 24 h para 1-a-1
     private static final String PREFS_DTN = "unexuam_dtn_v1";
-    private static final byte[] HMAC_KEY = "UNEXUAM-UAM-MESH-INTEGRITY-2026".getBytes(StandardCharsets.UTF_8);
+    private static final byte[] HMAC_KEY = derivarClaveHmac();
+
+    private static byte[] derivarClaveHmac() {
+        String semilla = BuildConfig.MESH_HMAC_KEY + "|" + SERVICE_ID;
+        try {
+            MessageDigest md = MessageDigest.getInstance("SHA-256");
+            return md.digest(semilla.getBytes(StandardCharsets.UTF_8));
+        } catch (Exception e) {
+            return semilla.getBytes(StandardCharsets.UTF_8);
+        }
+    }
 
     public interface Listener {
         void onEvento(String eventoJson);
@@ -81,9 +93,10 @@ public class MeshNativa {
     private final ConnectionsClient client;
     private final SharedPreferences prefs;
     private final SharedPreferences bandeja;
-    private final Listener listener;
+    private volatile Listener listener;
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
     private final Map<String, JSONObject> conectados = new ConcurrentHashMap<>();
+    private final Map<String, Long> conectadosTs = new ConcurrentHashMap<>();
     private final Map<String, JSONObject> pendientes = new ConcurrentHashMap<>();
     private final Map<String, Long> pendientesTs = new ConcurrentHashMap<>();
     private final Map<Long, Integer> transferencias = new ConcurrentHashMap<>();
@@ -94,17 +107,22 @@ public class MeshNativa {
     private final Set<String> confirmados = Collections.synchronizedSet(new LinkedHashSet<>());
 
     private volatile JSONObject perfilLocal = new JSONObject();
+    private volatile String ultimoPerfilJson = "";
     private volatile boolean deseandoActivo = false;
     private volatile boolean anunciando = false;
     private volatile boolean buscando = false;
     private volatile boolean custodiaHabilitada = true;
 
     public MeshNativa(Context context, Listener listener) {
-        this.client = Nearby.getConnectionsClient(context);
-        this.prefs = context.getSharedPreferences(PREFS_DTN, Context.MODE_PRIVATE);
-        this.bandeja = context.getSharedPreferences("unexuam_entrada_mesh", Context.MODE_PRIVATE);
+        this.client = Nearby.getConnectionsClient(context.getApplicationContext());
+        this.prefs = context.getApplicationContext().getSharedPreferences(PREFS_DTN, Context.MODE_PRIVATE);
+        this.bandeja = context.getApplicationContext().getSharedPreferences("unexuam_entrada_mesh", Context.MODE_PRIVATE);
         this.listener = listener;
         cargarEstadoDtn();
+    }
+
+    public void setListener(Listener listener) {
+        this.listener = listener;
     }
 
     public void setCustodiaHabilitada(boolean on) {
@@ -113,10 +131,23 @@ public class MeshNativa {
 
     private static String firmar(JSONObject obj) {
         try {
+            String ambos = obj.has("ambos") ? String.valueOf(obj.optBoolean("ambos")) : "";
+            String deAdmin = obj.has("deAdmin") ? String.valueOf(obj.optBoolean("deAdmin")) : "";
+            JSONArray rutaArr = obj.optJSONArray("ruta");
+            String rutaStr = rutaArr != null ? rutaArr.toString() : "";
+            JSONArray tengoArr = obj.optJSONArray("tengo");
+            String tengoStr = tengoArr != null ? tengoArr.toString() : "";
             String base = obj.optString("tipo", "") + "|" + obj.optString("id", "") + "|"
                     + obj.optString("de", "") + "|" + obj.optString("para", "") + "|"
                     + obj.optString("texto", "") + "|" + obj.optString("ackDe", "") + "|"
-                    + obj.optString("origen", "") + "|" + obj.optString("destino", "");
+                    + obj.optString("origen", "") + "|" + obj.optString("destino", "") + "|"
+                    + obj.optString("accion", "") + "|" + obj.optString("emergenciaTipo", "") + "|"
+                    + obj.optString("titulo", "") + "|" + ambos + "|"
+                    + obj.optString("incidente", "") + "|" + obj.optInt("ttl", 0) + "|"
+                    + rutaStr + "|" + deAdmin + "|"
+                    + obj.optString("cif", "") + "|" + obj.optString("nombre", "") + "|"
+                    + obj.optString("telefono", "") + "|" + obj.optString("lugar", "") + "|"
+                    + tengoStr;
             Mac mac = Mac.getInstance("HmacSHA256");
             mac.init(new SecretKeySpec(HMAC_KEY, "HmacSHA256"));
             byte[] h = mac.doFinal(base.getBytes(StandardCharsets.UTF_8));
@@ -195,39 +226,54 @@ public class MeshNativa {
     }
 
     public synchronized void iniciar(String perfilJson) {
+        String limpio = perfilJson != null ? perfilJson : "";
+        boolean cambioPerfil = !limpio.equals(ultimoPerfilJson);
+        ultimoPerfilJson = limpio;
         try {
-            perfilLocal = new JSONObject(perfilJson);
+            perfilLocal = new JSONObject(limpio);
         } catch (Exception e) {
             Log.w(TAG, "Perfil JSON inválido: " + e.getMessage());
             perfilLocal = new JSONObject();
         }
         deseandoActivo = true;
         recuperarEntradas();
-        if (anunciando && buscando) {
-            enviarHelloATodos();
+        if (anunciando && (buscando || conectados.size() >= MAX_CONECTADOS)) {
+            if (cambioPerfil) enviarHelloATodos();
+            rotarVecinoMasAntiguoSiNecesario();
             return;
         }
-        if (!anunciando) iniciarAnuncio();
-        if (!buscando && conectados.size() < MAX_CONECTADOS) iniciarBusqueda();
+        if (conectados.size() < MAX_CONECTADOS) {
+            if (!anunciando) iniciarAnuncio();
+            if (!buscando) iniciarBusqueda();
+        } else {
+            rotarVecinoMasAntiguoSiNecesario();
+        }
     }
 
     public synchronized void reintentarSiNecesario() {
         if (!deseandoActivo) return;
-        if (!anunciando) iniciarAnuncio();
-        if (!buscando && conectados.size() < MAX_CONECTADOS) iniciarBusqueda();
+        rotarVecinoMasAntiguoSiNecesario();
+        if (conectados.size() < MAX_CONECTADOS) {
+            if (!anunciando) iniciarAnuncio();
+            if (!buscando) iniciarBusqueda();
+        }
     }
 
     public synchronized void actualizarPerfil(String perfilJson) {
+        String limpio = perfilJson != null ? perfilJson : "";
+        boolean cambio = !limpio.equals(ultimoPerfilJson);
+        ultimoPerfilJson = limpio;
         try {
-            perfilLocal = new JSONObject(perfilJson);
+            perfilLocal = new JSONObject(limpio);
         } catch (Exception e) {
             Log.w(TAG, "Error actualizando perfil: " + e.getMessage());
         }
-        if (deseandoActivo) enviarHelloATodos();
+        if (deseandoActivo && cambio) enviarHelloATodos();
     }
 
     public synchronized void detener() {
         deseandoActivo = false;
+        ultimoPerfilJson = "";
         generacionTransporte++;
         transferencias.clear();
         reintentos.clear();
@@ -241,6 +287,7 @@ public class MeshNativa {
             Log.w(TAG, "Error deteniendo Nearby: " + e.getMessage());
         }
         conectados.clear();
+        conectadosTs.clear();
         pendientes.clear();
         pendientesTs.clear();
     }
@@ -430,13 +477,40 @@ public class MeshNativa {
                 });
     }
 
-    private void ajustarDutyCycle() {
+    private synchronized void ajustarDutyCycle() {
         if (!deseandoActivo) return;
-        if (conectados.size() >= MAX_CONECTADOS && buscando) {
-            try { client.stopDiscovery(); } catch (Exception ignored) {}
-            buscando = false;
-        } else if (conectados.size() < MAX_CONECTADOS && !buscando) {
-            iniciarBusqueda();
+        if (conectados.size() >= MAX_CONECTADOS) {
+            if (buscando) {
+                try { client.stopDiscovery(); } catch (Exception ignored) {}
+                buscando = false;
+            }
+            if (anunciando) {
+                try { client.stopAdvertising(); } catch (Exception ignored) {}
+                anunciando = false;
+            }
+        } else {
+            if (!anunciando) iniciarAnuncio();
+            if (!buscando) iniciarBusqueda();
+        }
+    }
+
+    private synchronized void rotarVecinoMasAntiguoSiNecesario() {
+        if (!deseandoActivo || conectados.size() < MAX_CONECTADOS) return;
+        long ahora = System.currentTimeMillis();
+        String masAntiguo = null;
+        long menorTs = Long.MAX_VALUE;
+        for (Map.Entry<String, Long> e : conectadosTs.entrySet()) {
+            if (e.getValue() < menorTs) {
+                menorTs = e.getValue();
+                masAntiguo = e.getKey();
+            }
+        }
+        if (masAntiguo != null && (ahora - menorTs) >= TIMEOUT_ROTACION_MS) {
+            conectados.remove(masAntiguo);
+            conectadosTs.remove(masAntiguo);
+            try { client.disconnectFromEndpoint(masAntiguo); } catch (Exception ignored) {}
+            Log.i(TAG, "Rotación Mesh para evitar isla: liberando " + masAntiguo);
+            ajustarDutyCycle();
         }
     }
 
@@ -459,7 +533,7 @@ public class MeshNativa {
             JSONObject peer = parsearEndpoint(endpointId, info.getEndpointName());
             String cifRemoto = peer.optString("cif", "");
             String cifLocal = perfilLocal.optString("cif", "");
-            if (!cifLocal.isEmpty() && cifLocal.equals(cifRemoto)) return;
+            if (!cifLocal.isEmpty() && !"INVITADO".equals(cifLocal) && cifLocal.equals(cifRemoto)) return;
             for (JSONObject c : conectados.values()) {
                 if (!cifRemoto.isEmpty() && cifRemoto.equals(c.optString("cif", ""))) return;
             }
@@ -518,11 +592,13 @@ public class MeshNativa {
                     for (Map.Entry<String, JSONObject> e : new ArrayList<>(conectados.entrySet())) {
                         if (!e.getKey().equals(endpointId) && cifNuevo.equals(e.getValue().optString("cif", ""))) {
                             conectados.remove(e.getKey());
+                            conectadosTs.remove(e.getKey());
                             try { client.disconnectFromEndpoint(e.getKey()); } catch (Exception ignored) {}
                         }
                     }
                 }
                 conectados.put(endpointId, peer);
+                conectadosTs.put(endpointId, System.currentTimeMillis());
                 enviarHello(endpointId);
                 emitirEvento("conectado", "peer", peer);
                 ajustarDutyCycle();
@@ -533,6 +609,7 @@ public class MeshNativa {
         public void onDisconnected(String endpointId) {
             pendientes.remove(endpointId);
             pendientesTs.remove(endpointId);
+            conectadosTs.remove(endpointId);
             JSONObject peer = conectados.remove(endpointId);
             if (peer != null) emitirEvento("desconectado", "peer", peer);
             ajustarDutyCycle();
@@ -551,7 +628,10 @@ public class MeshNativa {
                 String tipo = obj.optString("tipo");
                 if ("hello".equals(tipo)) {
                     JSONArray sv = obj.optJSONArray("tengo");
-                    if (!conectados.containsKey(endpointId) || sv == null || sv.length() > 400) return;
+                    if (!conectados.containsKey(endpointId) || sv == null || sv.length() > 400 || !firmaValida(obj)) {
+                        Log.w(TAG, "Hello rechazado (firma o formato inválido) desde " + endpointId);
+                        return;
+                    }
                     obj.put("endpointId", endpointId);
                     conectados.put(endpointId, obj);
                     emitirEvento("perfil", "peer", obj);
@@ -601,6 +681,7 @@ public class MeshNativa {
                         int ttl = obj.optInt("ttl", 6);
                         if (ttl > 1) {
                             obj.put("ttl", ttl - 1);
+                            obj.put("sig", firmar(obj));
                             guardarEnCustodia(ackId, obj.toString(), true, TTL_DIRECTO_MS);
                             reenviarAOtros(endpointId, obj.toString());
                         }
@@ -625,11 +706,14 @@ public class MeshNativa {
                 agregarARuta(obj, "ruta", miTel);
                 boolean esBroadcast = "TODOS".equals(para);
                 boolean esPrioritario = "incidente".equals(tipo) || obj.optString("texto", "").startsWith("SOS");
-                if (esBroadcast) emitirEvento("paquete", "paquete", obj);
+                if (esBroadcast && guardarEntrada(id, obj)) {
+                    emitirEvento("paquete", "paquete", obj);
+                }
 
                 int ttl = obj.optInt("ttl", 6);
                 if (ttl > 1) {
                     obj.put("ttl", ttl - 1);
+                    obj.put("sig", firmar(obj));
                     String reenvio = obj.toString();
                     if (!id.isEmpty() && custodiaHabilitada) {
                         guardarEnCustodia(id, reenvio, esPrioritario, esBroadcast ? TTL_BROADCAST_MS : TTL_DIRECTO_MS);
@@ -676,12 +760,14 @@ public class MeshNativa {
         }
     }
 
-    private synchronized void recuperarEntradas() {
+    public synchronized void recuperarEntradas() {
+        String miCif = perfilLocal.optString("cif", "");
         for (Object valor : bandeja.getAll().values()) {
             if (!(valor instanceof String)) continue;
             try {
                 JSONObject paquete = new JSONObject((String) valor);
-                if (perfilLocal.optString("cif").equals(paquete.optString("para"))) {
+                String para = paquete.optString("para", "");
+                if ((!miCif.isEmpty() && miCif.equals(para)) || "TODOS".equals(para)) {
                     String evento = "ack".equals(paquete.optString("tipo")) ? "ack" : "paquete";
                     emitirEvento(evento, evento, paquete);
                 }
@@ -696,8 +782,13 @@ public class MeshNativa {
         if (datos == null) return;
         try {
             JSONObject paquete = new JSONObject(datos);
+            String para = paquete.optString("para", "");
+            if ("TODOS".equals(para)) {
+                bandeja.edit().remove(id).apply();
+                return;
+            }
             String miCif = perfilLocal.optString("cif");
-            if (miCif.isEmpty() || !miCif.equals(paquete.optString("para"))) return;
+            if (miCif.isEmpty() || !miCif.equals(para)) return;
             if ("ack".equals(paquete.optString("tipo"))) {
                 bandeja.edit().remove(id).apply();
                 return;
@@ -757,6 +848,7 @@ public class MeshNativa {
                 for (int i = Math.max(0, ok.size() - 200); i < ok.size(); i++) tengo.put(ok.get(i));
             }
             h.put("tengo", tengo);
+            h.put("sig", firmar(h));
             enviarSeguro(endpointId, h.toString().getBytes(StandardCharsets.UTF_8));
         } catch (Exception e) {
             Log.w(TAG, "Error enviando hello: " + e.getMessage());
@@ -786,10 +878,12 @@ public class MeshNativa {
 
     private void emitirEstado(String estado) {
         try {
+            Listener l = this.listener;
+            if (l == null) return;
             JSONObject ev = new JSONObject();
             ev.put("tipo", "estado");
             ev.put("estado", estado);
-            listener.onEvento(ev.toString());
+            l.onEvento(ev.toString());
         } catch (Exception e) {
             Log.w(TAG, "Error emitiendo estado: " + e.getMessage());
         }
@@ -797,10 +891,12 @@ public class MeshNativa {
 
     private void emitirEvento(String tipo, String clave, JSONObject dato) {
         try {
+            Listener l = this.listener;
+            if (l == null) return;
             JSONObject ev = new JSONObject();
             ev.put("tipo", tipo);
             ev.put(clave, dato);
-            listener.onEvento(ev.toString());
+            l.onEvento(ev.toString());
         } catch (Exception e) {
             Log.w(TAG, "Error emitiendo evento: " + e.getMessage());
         }
