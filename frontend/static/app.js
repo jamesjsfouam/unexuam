@@ -2353,10 +2353,7 @@ const spEl = $("#splash");
 if (spEl) {
   const reducido = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   spEl.addEventListener("click", ocultarSplash);
-  let vistaSp = false;
-  try { vistaSp = sessionStorage.getItem("unexuam-splash") === "1"; sessionStorage.setItem("unexuam-splash", "1"); } catch (e) { /* sin almacenamiento */ }
-  if (vistaSp) spEl.classList.add("rapido");
-  setTimeout(ocultarSplash, reducido ? 100 : vistaSp ? 250 : 600);
+  setTimeout(ocultarSplash, reducido ? 250 : 2400);
 }
 
 if (!window.__UNEXUAM_OFFLINE__ && "serviceWorker" in navigator) {
