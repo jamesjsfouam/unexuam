@@ -2329,3 +2329,64 @@ html[data-tema="oscuro"] .em-ni-card {
     filter: none !important;
   }
 }
+
+/* ---------- Vista de celular en pantallas de escritorio (>= 540px) ---------- */
+@media (min-width: 540px) {
+  html {
+    height: 100%;
+    overflow: hidden;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 14px;
+    background: radial-gradient(circle at 50% 0%, #153462 0%, #081224 72%);
+  }
+  body {
+    position: relative;
+    width: 412px;
+    max-width: 100%;
+    height: min(860px, calc(100dvh - 28px));
+    margin: 0;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    border-radius: 38px;
+    border: 8px solid #162235;
+    box-shadow: 0 28px 72px rgba(0, 0, 0, .58), 0 0 0 1px rgba(255, 255, 255, .14);
+    transform: translateZ(0);
+  }
+  .barra,
+  .banner-emergencia {
+    flex: 0 0 auto;
+  }
+  main {
+    flex: 1 1 auto;
+    min-height: 0;
+    width: 100%;
+    max-width: none;
+    overflow-y: auto;
+    overflow-x: clip;
+    scrollbar-width: thin;
+  }
+  .login {
+    justify-content: flex-end;
+    padding: 20px 0 0;
+  }
+  .login-marca {
+    margin: auto 0;
+    padding: 12px 20px 18px;
+  }
+  .login-carta {
+    max-width: none;
+    border-radius: 32px 32px 0 0;
+    border-bottom: 0;
+    padding: 22px 20px 24px;
+  }
+  .hoja-carta {
+    max-width: none;
+    width: 100%;
+  }
+  .navbar a {
+    font-size: 11px;
+  }
+}
