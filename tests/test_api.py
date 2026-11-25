@@ -407,6 +407,20 @@ class TestSesionYMensajes(unittest.TestCase):
         with patch.dict(os.environ, {}, clear=True):
             self.assertEqual(servidor.publicar_emergencia_campus(None), (False, False))
 
+    def test_admin_puede_terminar_la_publicacion_desde_su_cliente_firebase(self):
+        cliente = servidor.app.test_client()
+        _login_admin(cliente)
+        with patch.object(servidor, "publicar_emergencia_campus") as publicar:
+            res = cliente.post("/api/emergencia/declarar", json={"tipo": "sismo", "publicarDesdeWeb": True}).json
+            self.assertTrue(res["ok"])
+            self.assertIsNone(res["nube"])
+            cierre = cliente.post("/api/emergencia/finalizar", json={
+                "incidente": res["estado"]["emergencia"]["id"], "publicarDesdeWeb": True,
+            }).json
+            self.assertTrue(cierre["ok"])
+            self.assertIsNone(cierre["estado"]["emergencia"])
+            publicar.assert_not_called()
+
     def test_admin_publica_firestore_y_push_y_luego_limpia_el_documento(self):
         cliente = servidor.app.test_client()
         _login_admin(cliente)

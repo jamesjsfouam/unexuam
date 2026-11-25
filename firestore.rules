@@ -198,13 +198,30 @@ service cloud.firestore {
              data.estado in ['entregado', 'en cola'];
     }
 
+    function isValidAlertaPublica(data) {
+      return !data.keys().hasAny(['activa', 'tipo', 'titulo', 'mensaje', 'ts']) ||
+             (data.keys().hasAll(['activa', 'tipo', 'titulo', 'mensaje', 'ts', 'emergencia']) &&
+              data.activa is bool &&
+              data.ts == data.actualizado &&
+              validStringLength('tipo', 0, 30) &&
+              validStringLength('titulo', 0, 120) &&
+              validStringLength('mensaje', 0, 240) &&
+              ((data.activa && data.emergencia is map &&
+                data.tipo == data.emergencia.tipo &&
+                data.titulo == data.emergencia.titulo &&
+                data.mensaje == data.emergencia.texto) ||
+               (!data.activa && data.emergencia == null &&
+                data.tipo == '' && data.titulo == '' && data.mensaje == '')));
+    }
+
     function isValidCampusEstado(data) {
       return hasRequiredFields(['bloqueados', 'congestion', 'actualizado']) &&
-             hasOnlyAllowedFields(['bloqueados', 'congestion', 'actualizado', 'emergencia']) &&
+             hasOnlyAllowedFields(['bloqueados', 'congestion', 'actualizado', 'emergencia', 'activa', 'tipo', 'titulo', 'mensaje', 'ts']) &&
              isValidList(data.bloqueados, 100) &&
              isValidMap(data.congestion, 100) &&
              data.actualizado is number &&
-             isValidEmergencia(data);
+             isValidEmergencia(data) &&
+             isValidAlertaPublica(data);
     }
 
     function isValidReporteBloqueo(data) {

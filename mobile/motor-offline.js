@@ -284,7 +284,6 @@
   function reiniciarMesh() {
     S.red = construirGrafo(SEED.mesh);
     S.ultimaAlerta = null;
-    S.emergencia = null;
     for (const k of Object.keys(UBIC)) delete UBIC[k];
     if (SEED && SEED.ubicaciones) Object.assign(UBIC, SEED.ubicaciones);
     const yo = cuentaActual();
@@ -319,6 +318,7 @@
         congestion: S.congestion,
         ultimaAlerta: S.ultimaAlerta,
         emergencia: S.emergencia,
+        emergenciaOficial: S.emergenciaOficial,
         historial: S.historial,
       };
       window.localStorage.setItem(STORAGE_KEY, JSON.stringify(snap));
@@ -339,6 +339,7 @@
       S.congestion = snap.congestion && typeof snap.congestion === "object" ? snap.congestion : {};
       S.ultimaAlerta = snap.ultimaAlerta || null;
       S.emergencia = snap.emergencia || null;
+      S.emergenciaOficial = Boolean(snap.emergenciaOficial && S.emergencia);
       S.historial = Array.isArray(snap.historial) ? snap.historial : [];
       if (!S.bloqueados.length && !Object.keys(S.congestion).length) cargarCacheBase();
       else invalidarCacheRutas();
@@ -393,6 +394,7 @@
       },
       ultimaAlerta: S.ultimaAlerta,
       emergencia: S.emergencia,
+      emergenciaOficial: Boolean(S.emergenciaOficial),
       historial: S.historial,
     };
   }
@@ -940,6 +942,7 @@
           },
           ultimaAlerta: null,
           emergencia: S.emergencia,
+          emergenciaOficial: Boolean(S.emergenciaOficial),
           historial: [],
         },
       };
@@ -1490,7 +1493,7 @@
               guardarEstadoLocal();
             }
           }
-        } else if (pq.tipo === "incidente" && pq.accion === "emergencia") {
+        } else if (pq.tipo === "incidente" && pq.accion === "emergencia" && !S.emergenciaOficial) {
           S.emergencia = {
             id: pq.id || generarId(),
             tipo: String(pq.emergenciaTipo || "general"),
@@ -1501,7 +1504,7 @@
           recalcularRuta = true;
           guardarEstadoLocal();
         } else if (pq.tipo === "incidente" && pq.accion === "finalizar") {
-          if (!pq.incidente || pq.incidente !== S.emergencia?.id) return;
+          if (S.emergenciaOficial || !pq.incidente || pq.incidente !== S.emergencia?.id) return;
           S.ultimaAlerta = null;
           S.emergencia = null;
           recalcularRuta = true;
@@ -1677,9 +1680,11 @@
     const emergencia = doc.emergencia && typeof doc.emergencia === "object" ? doc.emergencia : null;
     const cambioGrafo = JSON.stringify(bloqueados) !== JSON.stringify(S.bloqueados)
       || JSON.stringify(congestion) !== JSON.stringify(S.congestion);
-    if (!cambioGrafo && JSON.stringify(emergencia) === JSON.stringify(S.emergencia || null)) return;
+    const cambioOficial = Boolean(emergencia) !== Boolean(S.emergenciaOficial);
+    if (!cambioGrafo && !cambioOficial && JSON.stringify(emergencia) === JSON.stringify(S.emergencia || null)) return;
     if (cambioGrafo) reconstruirCampusDesdeNube(bloqueados, congestion);
     S.emergencia = emergencia;
+    S.emergenciaOficial = Boolean(emergencia);
     guardarEstadoLocal();
     if (window.refrescarEstado) window.refrescarEstado();
     window.dispatchEvent(new CustomEvent("unexuam-mesh-update", {

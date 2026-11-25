@@ -306,10 +306,15 @@
     let consultando = false;
     let ultimo = 0;
     const entregar = (datos) => {
-      const revision = Number(datos?.actualizado);
+      const revision = Number(datos?.ts ?? datos?.actualizado);
       if (!activo || !Number.isFinite(revision) || revision <= ultimo) return;
       ultimo = revision;
-      recibir(datos);
+      let emergencia = datos.emergencia ?? null;
+      if (datos.activa === false) emergencia = null;
+      if (datos.activa === true && !emergencia) {
+        emergencia = { id: String(revision), tipo: datos.tipo, titulo: datos.titulo, texto: datos.mensaje };
+      }
+      recibir({ ...datos, emergencia, actualizado: revision });
     };
     const consultar = async () => {
       if (!activo || consultando) return;
@@ -367,11 +372,18 @@
           hora: String(estadoObj.emergencia.hora || "").slice(0, 20),
         }
       : null;
+    if (!tieneAuthAdmin()) return false;
+    const actualizado = Number(estadoObj?.actualizado ?? Date.now());
     const payload = {
       bloqueados: Array.isArray(estadoObj?.bloqueados) ? estadoObj.bloqueados.slice(0, 100) : [],
       congestion: (estadoObj && typeof estadoObj.congestion === "object") ? estadoObj.congestion : {},
       emergencia: em,
-      actualizado: Number(estadoObj?.actualizado || Date.now()),
+      actualizado,
+      activa: Boolean(em),
+      tipo: em?.tipo || "",
+      titulo: em?.titulo || "",
+      mensaje: em?.texto || "",
+      ts: actualizado,
     };
     const res = await reqFS(
       "/campus/estado",

@@ -1065,10 +1065,11 @@ def api_declarar_emergencia():
     }
     with lock:
         DB.guardar_emergencia(em)
-        nube, push = publicar_emergencia_campus(em)
+        publicar_desde_web = d.get("publicarDesdeWeb") is True
+        nube, push = (None, None) if publicar_desde_web else publicar_emergencia_campus(em)
         mensaje = f"Emergencia declarada: {titulo_def}."
-        if not nube:
-            mensaje += " No se pudo publicar en Firebase."
+        if nube is False:
+            mensaje += " No se pudo publicar en Firebase. Conecta Firebase Admin para publicar desde la web."
         elif push is False:
             mensaje += " Publicada en Firebase. El envío push falló."
         return responder(True, mensaje, nube=nube, push=push)
@@ -1077,13 +1078,14 @@ def api_declarar_emergencia():
 @app.post("/api/emergencia/finalizar")
 def api_finalizar_emergencia():
     with lock:
-        incidente = cuerpo_json().get("incidente")
+        d = cuerpo_json()
+        incidente = d.get("incidente")
         if not DB.finalizar_emergencia(incidente):
             return responder(False, "La emergencia activa cambió. Actualiza e inténtalo de nuevo.")
         S["ultimaAlerta"] = None
-        nube, _ = publicar_emergencia_campus(None)
+        nube, _ = (None, None) if d.get("publicarDesdeWeb") is True else publicar_emergencia_campus(None)
         mensaje = "Emergencia finalizada."
-        if not nube:
+        if nube is False:
             mensaje += " No se pudo publicar el cierre en Firebase."
         return responder(True, mensaje, nube=nube)
 
