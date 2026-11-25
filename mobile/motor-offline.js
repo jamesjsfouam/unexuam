@@ -603,7 +603,7 @@
   }
 
   async function despacharApi(ruta, d, searchParams) {
-    const LIBRES = ["/api/yo", "/api/login", "/api/login/demo", "/api/registro", "/api/registro/disponible", "/api/lugares", "/api/campus/publico", "/api/campus/ruta", "/api/mensajes/general"];
+    const LIBRES = ["/api/yo", "/api/login", "/api/registro", "/api/registro/disponible", "/api/lugares", "/api/campus/publico", "/api/campus/ruta", "/api/mensajes/general"];
     const SOLO_ADMIN = ["/api/reiniciar", "/api/mesh/vertice", "/api/mesh/arista", "/api/mesh/alerta", "/api/campus/vertice", "/api/campus/arista", "/api/campus/ubicacion", "/api/campus/desbloquear", "/api/campus/congestionar", "/api/algoritmo", "/api/emergencia/declarar", "/api/emergencia/finalizar"];
     if (!LIBRES.includes(ruta)) {
       const yo = cuentaActual();
@@ -873,9 +873,6 @@
       }
       iniciarMeshReal(yo.cif, yo.u);
       return { ok: true, sesion: true, usuario: datosUsuario(yo.cif) };
-    }
-    if (ruta === "/api/login/demo") {
-      return { ok: false, mensaje: "El acceso demo no está disponible en Android." };
     }
     if (ruta === "/api/registro/disponible") {
       const C = cuentas();

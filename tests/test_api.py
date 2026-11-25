@@ -5,17 +5,36 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from werkzeug.security import generate_password_hash
+
 os.environ.setdefault("UNEXUAM_DATOS", tempfile.mkdtemp(prefix="unexuam-pruebas-"))
-os.environ.setdefault("UNEXUAM_ENABLE_DEMO", "1")
 
 import app as servidor
 from backend.datos import crearCampus
 
 
+def _login_admin(client):
+    cif = "ADM0001"
+    clave = "AdminUnexuam2026!"
+    with servidor.lock:
+        if servidor.DB.usuario(cif) is None:
+            servidor.DB.crear_usuario(
+                cif,
+                "Operador Campus",
+                generate_password_hash(clave),
+                servidor.nombre_telefono(cif, "Operador Campus"),
+                servidor.LUGAR_INICIAL,
+                admin=True,
+            )
+    resp = client.post("/api/login", json={"cif": cif, "contrasena": clave})
+    assert resp.status_code == 200 and resp.get_json()["ok"]
+    return resp
+
+
 class TestApiYParidad(unittest.TestCase):
     def setUp(self):
         self.client = servidor.app.test_client()
-        self.client.post("/api/login/demo", json={})      # perfil administrador
+        _login_admin(self.client)
         self.client.post("/api/reiniciar", json={"grafo": "ambos"})
 
     def test_cabeceras_y_estado_inicial(self):
@@ -253,7 +272,7 @@ class TestSesionYMensajes(unittest.TestCase):
     def test_reporte_de_bloqueo_requiere_aprobacion_y_protege_autoria(self):
         estudiante, usuario = self.nuevo("REP0001", "Reporte", "C-305")
         admin = servidor.app.test_client()
-        admin.post("/api/login/demo", json={})
+        _login_admin(admin)
         admin.post("/api/reiniciar", json={"grafo": "ambos"})
         ruta = {"lugar": "C-305"}
         antes = estudiante.post("/api/campus/ruta", json=ruta).json["ruta"]
@@ -296,7 +315,7 @@ class TestSesionYMensajes(unittest.TestCase):
 
     def test_algoritmo_paso_a_paso(self):
         c = servidor.app.test_client()
-        c.post("/api/login/demo", json={})
+        _login_admin(c)
         r = c.post("/api/algoritmo", json={"origen": "C-101"}).get_json()
         ruta, tiempo = servidor.rutaEvacuacion(servidor.S["campus"], "C-101", servidor.S["zonas"])
         self.assertEqual(r["tiempo"], tiempo)
@@ -309,7 +328,7 @@ class TestSesionYMensajes(unittest.TestCase):
         self.assertEqual(est.post("/api/emergencia/finalizar", json={}).status_code, 403)
 
         adm = servidor.app.test_client()
-        adm.post("/api/login/demo", json={})
+        _login_admin(adm)
         adm.post("/api/reiniciar", json={"grafo": "ambos"})
         bloqueo = adm.post("/api/campus/bloquear", json={
             "origen": "C Escalera Central P3", "destino": "B Escalera Central P2",
@@ -345,6 +364,15 @@ class TestSesionYMensajes(unittest.TestCase):
             "cif": "dup0001", "nombre": "Segundo", "contrasena": "otra_clave", "lugar": "Edificio E",
         }).get_json()
         self.assertFalse(r2["ok"])
+
+    def test_demo_admin_eliminado(self):
+        c = servidor.app.test_client()
+        self.assertEqual(c.post("/api/login/demo", json={}).status_code, 401)
+        est, _ = self.nuevo("NOD0001", "Estudiante", "Edificio E")
+        self.assertEqual(est.post("/api/login/demo", json={}).status_code, 404)
+        cap = c.get("/api/capacidades").get_json()
+        self.assertTrue(cap["ok"])
+        self.assertFalse(cap["demo"])
 
 
 if __name__ == "__main__":

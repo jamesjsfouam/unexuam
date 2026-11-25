@@ -8,8 +8,11 @@ service cloud.firestore {
     // ===============================================================
     //
     // Project: unexuam-campus-ni (Standard edition, (default) database)
-    // Auth Note: The app uses CIF + PBKDF2-SHA256 authentication directly
-    // in the client without Firebase Auth, so request.auth is null.
+    // Auth Note: Students authenticate with CIF + PBKDF2-SHA256 directly
+    // in the client without Firebase Auth (request.auth is null for
+    // /usuarios, /mensajes, /reportes_bloqueo, and public reads on /campus).
+    // Writes (create, update) to /campus/estado require Firebase Auth
+    // administrator authentication (custom claim admin == true or /admins/{uid}).
     //
     // Collection: usuarios
     // Document ID: {cif} matching ^[0-9A-Z-]{4,15}$, != 'ADMIN', != 'TODOS'
@@ -37,11 +40,18 @@ service cloud.firestore {
     //
     // Collection: campus
     // Document ID: 'estado' only
+    // Access: Public read; create/update restricted to Firebase Auth admins
+    //         (custom claim admin == true or /admins/{uid}).
     // Fields:
     //   - bloqueados: list (required, max 100 items)
     //   - congestion: map (required, max 100 entries)
     //   - actualizado: number (required)
     //   - emergencia: map | null (optional, keys <= 5: id, tipo, titulo, texto, hora; each string <= 250 chars)
+    //
+    // Collection: admins
+    // Document ID: {uid} (Firebase Auth UID)
+    // Access: Self-read only (request.auth.uid == uid); writes denied to clients
+    //         (managed exclusively via Firebase Console or Admin SDK).
     //
     // Collection: reportes_bloqueo
     // Document ID: {repId}
@@ -119,6 +129,12 @@ service cloud.firestore {
              cif.matches('^[0-9A-Z-]{4,15}$') &&
              cif != 'ADMIN' &&
              cif != 'TODOS';
+    }
+
+    function isAdminAuth() {
+      return request.auth != null &&
+             (('admin' in request.auth.token && request.auth.token.admin == true) ||
+              exists(/databases/$(database)/documents/admins/$(request.auth.uid)));
     }
 
     // ===============================================================
@@ -209,9 +225,16 @@ service cloud.firestore {
       allow read: if true;
 
       allow create, update: if docId == 'estado' &&
+                               isAdminAuth() &&
                                isValidCampusEstado(request.resource.data);
 
       allow delete: if false;
+    }
+
+    match /admins/{uid} {
+      allow read: if request.auth != null && request.auth.uid == uid;
+
+      allow write: if false;
     }
 
     match /reportes_bloqueo/{repId} {

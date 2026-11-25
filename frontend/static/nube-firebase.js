@@ -5,7 +5,97 @@
 
   const PROYECTO = "unexuam-campus-ni";
   const BASE = `https://firestore.googleapis.com/v1/projects/${PROYECTO}/databases/(default)/documents`;
+  const STORAGE_AUTH = "unexuam_fb_auth";
   const TIMEOUT_MS = 3500;
+
+  function leerAuth() {
+    try {
+      const raw = localStorage.getItem(STORAGE_AUTH);
+      return raw ? JSON.parse(raw) : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  function guardarAuth(auth) {
+    try {
+      if (!auth) localStorage.removeItem(STORAGE_AUTH);
+      else localStorage.setItem(STORAGE_AUTH, JSON.stringify(auth));
+    } catch (_) {}
+  }
+
+  async function refrescarToken(auth) {
+    if (!auth || !auth.refreshToken || !auth.apiKey) return null;
+    try {
+      const url = `https://securetoken.googleapis.com/v1/token?key=${encodeURIComponent(auth.apiKey)}`;
+      const body = `grant_type=refresh_token&refresh_token=${encodeURIComponent(auth.refreshToken)}`;
+      const r = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body,
+      });
+      const d = await r.json().catch(() => null);
+      if (!r.ok || !d || !d.id_token) {
+        guardarAuth(null);
+        return null;
+      }
+      const actualizado = {
+        ...auth,
+        idToken: d.id_token,
+        refreshToken: d.refresh_token || auth.refreshToken,
+        expiresAt: Date.now() + Math.max(60, Number(d.expires_in || 3600) - 60) * 1000,
+      };
+      guardarAuth(actualizado);
+      return actualizado.idToken;
+    } catch (_) {
+      return auth.idToken || null;
+    }
+  }
+
+  async function asegurarToken() {
+    const auth = leerAuth();
+    if (!auth || !auth.idToken) return null;
+    if (auth.expiresAt && Date.now() < auth.expiresAt) return auth.idToken;
+    return refrescarToken(auth);
+  }
+
+  async function iniciarSesionAdminFirebase(email, password, apiKey) {
+    const key = String(apiKey || (leerAuth() && leerAuth().apiKey) || "").trim();
+    if (!key) return { ok: false, mensaje: "Falta la Firebase Web API Key." };
+    try {
+      const url = `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${encodeURIComponent(key)}`;
+      const r = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password, returnSecureToken: true }),
+      });
+      const d = await r.json().catch(() => null);
+      if (!r.ok || !d || !d.idToken) {
+        return { ok: false, mensaje: d?.error?.message || "Credenciales Firebase inválidas." };
+      }
+      const auth = {
+        idToken: d.idToken,
+        refreshToken: d.refreshToken,
+        apiKey: key,
+        email: d.email || email,
+        localId: d.localId || "",
+        expiresAt: Date.now() + Math.max(60, Number(d.expiresIn || 3600) - 60) * 1000,
+      };
+      guardarAuth(auth);
+      return { ok: true, email: auth.email, uid: auth.localId };
+    } catch (_) {
+      return { ok: false, mensaje: "Sin conexión para autenticar en Firebase." };
+    }
+  }
+
+  function cerrarSesionAdminFirebase() {
+    guardarAuth(null);
+  }
+
+  function tieneAuthAdmin() {
+    const auth = leerAuth();
+    return Boolean(auth && auth.idToken);
+  }
 
   function aValorFS(v) {
     if (v === null || v === undefined) return { nullValue: null };
@@ -61,10 +151,13 @@
     const ctrl = typeof AbortController !== "undefined" ? new AbortController() : null;
     const timer = ctrl ? setTimeout(() => ctrl.abort(), TIMEOUT_MS) : null;
     try {
+      const token = await asegurarToken();
+      const headers = { "Content-Type": "application/json", ...(opts.headers || {}) };
+      if (token && !headers.Authorization) headers.Authorization = `Bearer ${token}`;
       const r = await fetch(BASE + ruta, {
         ...opts,
         signal: ctrl ? ctrl.signal : undefined,
-        headers: { "Content-Type": "application/json", ...(opts.headers || {}) },
+        headers,
       });
       const data = await r.json().catch(() => null);
       return { offline: false, status: r.status, ok: r.ok, data };
@@ -168,6 +261,9 @@
 
   window.UNEXO_NUBE = {
     proyecto: PROYECTO,
+    iniciarSesionAdminFirebase,
+    cerrarSesionAdminFirebase,
+    tieneAuthAdmin,
     obtenerUsuario,
     crearUsuario,
     actualizarLugar,

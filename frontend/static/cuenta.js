@@ -539,19 +539,6 @@
     }
   }
 
-  async function entrarDemo() {
-    const btn = $("#login-demo");
-    if (btn && btn.disabled) return;
-    if (btn) { btn.disabled = true; btn.textContent = "Abriendo demo…"; }
-    try {
-      const j = await pedir("/api/login/demo", {});
-      if (!j.ok) { $("#login-error").textContent = j.mensaje || "No se pudo entrar."; return; }
-      trasEntrar(j);
-    } finally {
-      if (btn) { btn.disabled = false; btn.textContent = "Demo rápida · Admin"; }
-    }
-  }
-
   function confirmarSalir() {
     if (window.abrirHoja) {
       window.abrirHoja("Cerrar sesión", "Tu teléfono saldrá de la red Mesh hasta que vuelvas a entrar.", [
@@ -1631,11 +1618,6 @@
     navEventos();
     fabEventos();
     $("#login-form").addEventListener("submit", entrar);
-    const demo = $("#login-demo");
-    demo.addEventListener("click", entrarDemo);
-    if (!window.__UNEXUAM_OFFLINE__) {
-      pedir("/api/capacidades").then((resultado) => { demo.hidden = !resultado.demo; });
-    }
     const btnInv = $("#btn-evacuar-invitado");
     if (btnInv) btnInv.addEventListener("click", async () => {
       $("#v-login").hidden = true;

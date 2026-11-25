@@ -17,6 +17,10 @@ _apoyo/
 .env.*
 !.env.example
 mobile/android/app/google-services.json
+mobile/android/keystore/
+mobile/android/key.properties
+*.jks
+*.keystore
 *.pem
 *.key
 *.secret

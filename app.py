@@ -68,7 +68,8 @@ def cabeceras_respuesta(resp):
     resp.headers.setdefault(
         "Content-Security-Policy",
         "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; "
-        "img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; "
+        "img-src 'self' data: blob:; font-src 'self' data:; "
+        "connect-src 'self' https://firestore.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com; "
         "frame-ancestors 'none'; base-uri 'self'; form-action 'self'",
     )
     if request.path.startswith("/api/"):
@@ -359,7 +360,7 @@ def error_backend(e):
 # Inicio de sesión (CIF + contraseña) y mensajería por la red Mesh
 # ----------------------------------------------------------------------------
 
-LIBRES = {"/api/capacidades", "/api/yo", "/api/login", "/api/login/demo", "/api/registro", "/api/registro/disponible", "/api/lugares", "/api/campus/publico", "/api/campus/ruta", "/api/mensajes/general"}
+LIBRES = {"/api/capacidades", "/api/yo", "/api/login", "/api/registro", "/api/registro/disponible", "/api/lugares", "/api/campus/publico", "/api/campus/ruta", "/api/mensajes/general"}
 # Reportar un pasillo bloqueado (/api/campus/bloquear) es una función de emergencia para todos;
 # reabrir, congestionar, reiniciar y editar los grafos es solo del administrador.
 SOLO_ADMIN = ("/api/reiniciar", "/api/mesh/vertice", "/api/mesh/arista", "/api/mesh/alerta",
@@ -367,7 +368,7 @@ SOLO_ADMIN = ("/api/reiniciar", "/api/mesh/vertice", "/api/mesh/arista", "/api/m
               "/api/campus/desbloquear", "/api/campus/congestionar", "/api/campus/reportes/resolver", "/api/algoritmo",
               "/api/emergencia/declarar", "/api/emergencia/finalizar")
 LUGAR_INICIAL = "Edificio E"      # lugar por defecto al entrar (luego el GPS o la persona lo cambia)
-CIF_DEMO = "ADMIN"
+CIF_RESERVADO = "ADMIN"
 CIF_TODOS = "TODOS"     # Canal General: un "usuario" especial que representa a todo el campus
 
 
@@ -541,7 +542,7 @@ def api_yo():
 def api_registro_disponible():
     d = cuerpo_json()
     cif = leer_cif(d)
-    if not re.fullmatch(r"[0-9A-Z-]{4,15}", cif) or cif == CIF_DEMO:
+    if not re.fullmatch(r"[0-9A-Z-]{4,15}", cif) or cif == CIF_RESERVADO:
         return jsonify({"ok": False, "disponible": False, "mensaje": "Escribe un CIF válido (4 a 15 letras o números)."})
     with lock:
         if DB.usuario(cif):
@@ -555,7 +556,7 @@ def api_registro():
     cif = leer_cif(d)
     nombre = " ".join(str(d.get("nombre", "")).split())[:40]
     clave = str(d.get("contrasena", ""))[:64]
-    if not re.fullmatch(r"[0-9A-Z-]{4,15}", cif) or cif == CIF_DEMO:
+    if not re.fullmatch(r"[0-9A-Z-]{4,15}", cif) or cif == CIF_RESERVADO:
         return jsonify({"ok": False, "mensaje": "Escribe un CIF válido (4 a 15 letras o números)."})
     if len(nombre) < 2:
         return jsonify({"ok": False, "mensaje": "Escribe tu nombre."})
@@ -627,7 +628,7 @@ def api_login():
     if bloqueado_por_intentos(cif):
         return jsonify({"ok": False, "mensaje": "Demasiados intentos. Espera un minuto."})
     u = DB.usuario(cif)
-    acceso_real = u is not None and cif != CIF_DEMO
+    acceso_real = u is not None and cif != CIF_RESERVADO
     hash_ = u["hash"] if acceso_real else HASH_FICTICIO
     valida = check_password_hash(hash_, clave)
     if not acceso_real or not valida:
@@ -644,7 +645,7 @@ def api_login():
 def crear_admin(cif, nombre):
     cif = cif.strip().upper()
     nombre = " ".join(nombre.split())
-    if not re.fullmatch(r"[0-9A-Z-]{4,15}", cif) or cif in {CIF_DEMO, CIF_TODOS}:
+    if not re.fullmatch(r"[0-9A-Z-]{4,15}", cif) or cif in {CIF_RESERVADO, CIF_TODOS}:
         raise click.ClickException("Usa un CIF institucional de 4 a 15 letras, números o guiones.")
     if not 2 <= len(nombre) <= 40:
         raise click.ClickException("Usa un nombre de 2 a 40 caracteres.")
@@ -659,25 +660,9 @@ def crear_admin(cif, nombre):
     click.echo(f"Cuenta de administrador creada para {cif}.")
 
 
-def demo_habilitada():
-    return os.environ.get("UNEXUAM_DISABLE_DEMO") != "1" and (
-        app.testing or os.environ.get("UNEXUAM_ENABLE_DEMO") == "1"
-    )
-
-
 @app.get("/api/capacidades")
 def api_capacidades():
-    return jsonify({"ok": True, "demo": demo_habilitada()})
-
-
-@app.post("/api/login/demo")
-def api_login_demo():
-    if not demo_habilitada():
-        return jsonify({"ok": False, "mensaje": "El acceso demo está deshabilitado."}), 403
-    with lock:
-        if DB.usuario(CIF_DEMO) is None:
-            DB.crear_usuario(CIF_DEMO, "Administrador", "!", "Tel-Admin", LUGAR_INICIAL, admin=True)
-        return abrir_sesion(CIF_DEMO)
+    return jsonify({"ok": True, "demo": False})
 
 
 @app.post("/api/logout")
