@@ -3,19 +3,19 @@
 
 :root { --alto-nav: 72px; }
 
-/* ---------- encabezado compacto Liquid Glass ---------- */
+/* ---------- encabezado compacto Liquid Glass (azul a la izquierda → difuminado blanco a la derecha) ---------- */
 .barra {
   grid-template-columns: minmax(0, 1fr) auto auto;
   gap: 6px;
-  background: rgba(255, 255, 255, .82);
+  background: linear-gradient(90deg, #0062cc 0%, #0080ff 38%, rgba(154, 208, 255, .92) 74%, rgba(255, 255, 255, .94) 100%);
   -webkit-backdrop-filter: blur(14px) saturate(1.55);
   backdrop-filter: blur(14px) saturate(1.55);
   transform: translateZ(0);
-  border-bottom: 1px solid rgba(255, 255, 255, .75);
-  box-shadow: 0 4px 20px rgba(11, 42, 74, .06), inset 0 -1px 0 rgba(0, 98, 204, .08);
+  border-bottom: 1px solid rgba(0, 98, 204, .18);
+  box-shadow: 0 4px 20px rgba(11, 42, 74, .08), inset 0 -1px 0 rgba(255, 255, 255, .35);
 }
 html[data-tema="oscuro"] .barra {
-  background: rgba(16, 25, 38, .78);
+  background: linear-gradient(90deg, #004ba3 0%, #0066cc 40%, rgba(19, 31, 48, .92) 100%);
   border-bottom-color: rgba(255, 255, 255, .1);
   box-shadow: 0 6px 20px rgba(0, 0, 0, .28), inset 0 -1px 0 rgba(255, 255, 255, .06);
 }
@@ -32,9 +32,22 @@ html[data-tema="oscuro"] .barra {
   position: relative;
 }
 .avatar::after { content: ""; position: absolute; inset: -4px; }
-.marca-unexo { height: 14px; max-width: 96px; }
-.chip-offgrid { font-size: 10.5px; padding: 3px 7px; gap: 4px; }
-.avatar { border: 2px solid rgba(255, 255, 255, .9); cursor: pointer; padding: 0; }
+.marca-x { filter: drop-shadow(0 1px 2px rgba(0, 30, 80, .25)); }
+.marca-unexo { height: 16px; max-width: 112px; filter: drop-shadow(0 1px 2px rgba(0, 30, 80, .25)); }
+.chip-offgrid {
+  font-size: 10.5px;
+  padding: 3px 7px;
+  gap: 4px;
+  background: rgba(255, 255, 255, .88);
+  color: #0b2a4a;
+  border: 1px solid rgba(0, 98, 204, .22);
+}
+html[data-tema="oscuro"] .chip-offgrid {
+  background: rgba(19, 31, 48, .86);
+  color: #eef4fc;
+  border-color: rgba(140, 196, 255, .28);
+}
+.avatar { border: 2px solid rgba(0, 98, 204, .25); box-shadow: 0 2px 6px rgba(11, 42, 74, .18); cursor: pointer; padding: 0; }
 .avatar[hidden] { display: none; }
 .pie { display: none; }
 
