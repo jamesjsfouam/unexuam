@@ -391,6 +391,14 @@ class TestSesionYMensajes(unittest.TestCase):
         self.assertEqual(pag.status_code, 200)
         self.assertIn("Unexuam", pag.get_data(as_text=True))
 
+    def test_fcm_sin_service_account_no_falla(self):
+        prev = os.environ.pop("FIREBASE_SERVICE_ACCOUNT_FILE", None)
+        try:
+            self.assertFalse(servidor.enviar_fcm_emergencia({"id": "abc", "tipo": "sismo", "titulo": "Sismo", "texto": "Evacuar"}))
+        finally:
+            if prev is not None:
+                os.environ["FIREBASE_SERVICE_ACCOUNT_FILE"] = prev
+
 
 if __name__ == "__main__":
     unittest.main()

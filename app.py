@@ -18,6 +18,7 @@ import secrets
 import sys
 import threading
 import time
+import urllib.request
 
 import click
 from flask import Flask, jsonify, render_template, request, send_file, session
@@ -911,6 +912,64 @@ EMERGENCIAS_DEF = {
 }
 
 
+def enviar_fcm_emergencia(emergencia):
+    """Envía FCM HTTP v1 al tema `campus_emergencias` desde Flask sin requerir plan Blaze."""
+    if not isinstance(emergencia, dict):
+        return False
+    ruta_sa = (
+        os.environ.get("FIREBASE_SERVICE_ACCOUNT_FILE")
+        or os.environ.get("GOOGLE_APPLICATION_CREDENTIALS")
+        or ""
+    ).strip()
+    if not ruta_sa or not os.path.isfile(ruta_sa):
+        return False
+    try:
+        from google.auth.transport.requests import Request as GoogleAuthRequest
+        from google.oauth2 import service_account
+    except ImportError:
+        app.logger.warning("Falta google-auth para enviar FCM desde Flask.")
+        return False
+    try:
+        with open(ruta_sa, encoding="utf-8") as f:
+            info_sa = json.load(f)
+        proyecto = (os.environ.get("FIREBASE_PROJECT_ID") or info_sa.get("project_id") or "").strip()
+        if not proyecto:
+            return False
+        creds = service_account.Credentials.from_service_account_info(
+            info_sa,
+            scopes=["https://www.googleapis.com/auth/firebase.messaging"],
+        )
+        creds.refresh(GoogleAuthRequest())
+        cuerpo = json.dumps({
+            "message": {
+                "topic": "campus_emergencias",
+                "android": {"priority": "high", "ttl": "3600s"},
+                "data": {
+                    "emergencia": "1",
+                    "id": str(emergencia.get("id", ""))[:60],
+                    "tipo": str(emergencia.get("tipo", "general"))[:30],
+                    "titulo": str(emergencia.get("titulo", "EMERGENCIA UNEXUAM"))[:120],
+                    "texto": str(emergencia.get("texto", ""))[:240],
+                    "hora": str(emergencia.get("hora", ""))[:20],
+                },
+            }
+        }).encode("utf-8")
+        req = urllib.request.Request(
+            f"https://fcm.googleapis.com/v1/projects/{proyecto}/messages:send",
+            data=cuerpo,
+            method="POST",
+            headers={
+                "Authorization": f"Bearer {creds.token}",
+                "Content-Type": "application/json; charset=utf-8",
+            },
+        )
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            return 200 <= resp.status < 300
+    except Exception as e:
+        app.logger.warning("No se pudo enviar push FCM: %s", e)
+        return False
+
+
 @app.post("/api/emergencia/declarar")
 def api_declarar_emergencia():
     d = cuerpo_json()
@@ -919,15 +978,19 @@ def api_declarar_emergencia():
         tipo = "general"
     titulo_def, texto_def = EMERGENCIAS_DEF[tipo]
     texto_em = texto(d, "texto", 200) or texto_def
+    em = {
+        "id": secrets.token_hex(6),
+        "tipo": tipo,
+        "titulo": titulo_def,
+        "texto": texto_em,
+        "hora": time.strftime("%H:%M:%S"),
+    }
     with lock:
-        DB.guardar_emergencia({
-            "id": secrets.token_hex(6),
-            "tipo": tipo,
-            "titulo": titulo_def,
-            "texto": texto_em,
-            "hora": time.strftime("%H:%M:%S"),
-        })
-        return responder(True, f"Emergencia declarada: {titulo_def}.")
+        DB.guardar_emergencia(em)
+        resp = responder(True, f"Emergencia declarada: {titulo_def}.")
+    if not app.testing:
+        threading.Thread(target=enviar_fcm_emergencia, args=(em,), daemon=True).start()
+    return resp
 
 
 @app.post("/api/emergencia/finalizar")
