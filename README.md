@@ -92,11 +92,11 @@ sequenceDiagram
 
 ## Funcionalidades y pantallas
 
-Se entra con **CIF único y la contraseña** elegida al crear la cuenta (validación desde el paso 1 vía `/api/registro/disponible`, guardada con hash). El botón **Demo rápida · Admin** entra como administrador sin contraseña (solo para la demostración). La navegación inferior es una barra de vidrio con las pestañas **Inicio**, **Evacuar**, **Mensajes**, **Ajustes** y **Admin** (esta última solo para el administrador).
+Se entra con **CIF único y la contraseña** elegida al crear la cuenta (validación desde el paso 1 vía `/api/registro/disponible`, guardada con hash PBKDF2-SHA256 / scrypt), con botón integrado para mostrar u ocultar la contraseña. Las cuentas de **Admin** se autentican con credenciales reales para habilitar la gestión de grafos y emergencias globales. La navegación inferior es una barra de vidrio con las pestañas **Inicio**, **Evacuar**, **Mensajes**, **Ajustes** y **Admin** (esta última solo para el administrador).
 
 | Pestaña | Qué hace |
 |---|---|
-| ![Inicio](https://img.shields.io/badge/-Inicio-0080FF?style=flat-square) | Estado híbrido (**Nube Firebase + Mesh Off-Grid**), actividad en vivo, botón **🆘 SOS**, píldoras rápidas de emergencia nacional (**115 Bomberos**, **128 Cruz Blanca**, **100 SINAPRED**) y banner/sirena de emergencia global activada únicamente por **Admin** (`campus/estado` + FCM). |
+| ![Inicio](https://img.shields.io/badge/-Inicio-0080FF?style=flat-square) | Estado híbrido (**Nube Firebase + Mesh Off-Grid**), actividad en vivo, deslizador **🆘 SOS** con vibración háptica y bloqueo anti-spam de 2 s, píldoras rápidas de emergencia nacional (**115 Bomberos**, **128 Cruz Blanca**, **100 SINAPRED**) y banner/sirena de emergencia global activada únicamente por **Admin** (`campus/estado` + FCM). |
 | ![Evacuar](https://img.shields.io/badge/-Evacuar-0B2A4A?style=flat-square) | **GPS** («Activar»): detecta tu ubicación (polígonos OSM en `ubicacion-campus.json`, incluyendo `Kioskos del Chilamate` y `El Ranchito`) y recalcula al moverte. Buscador de aulas, guía paso a paso con voz, selector de piso para edificios B, C y P y **mapa 3D acelerado por GPU** con la ruta dibujada como grafo. |
 | ![Mensajes](https://img.shields.io/badge/-Mensajes-00D656?style=flat-square) | Chats tipo WhatsApp con sincronización híbrida (**Cloud Firestore + Nearby Connections + cola DTN**). Los contactos se agregan verificando su **CIF** (con alerta de colisiones en la red Mesh). Cada mensaje muestra sus saltos y retardo (Dijkstra por retardo), más el **Canal General · Campus** para notificaciones SOS. |
 | ![Ajustes](https://img.shields.io/badge/-Ajustes-5A6B7C?style=flat-square) | Selector de idioma 100 % offline (**Español**, **English**, **Mískitu** vía `i18n.js`), modo de texto grande, alto contraste, guía por voz y diagnóstico de conexión Nube/Mesh. |
@@ -119,7 +119,7 @@ Se entra con **CIF único y la contraseña** elegida al crear la cuenta (validac
 | ![Móvil](https://img.shields.io/badge/-App_Android-3DDC84?style=flat-square&logo=android&logoColor=white) | **Capacitor + Nearby + FCM** | APK autónomo (`ni.edu.uam.unexuam`) con splash nativo a 120 FPS (`SplashNativoView.java`), `MeshForegroundService`, `EmergencyAlertActivity` y enlace directo por Bluetooth / Wi-Fi. |
 | ![i18n](https://img.shields.io/badge/-Idiomas-6F42C1?style=flat-square) | **i18n.js (ES · EN · MIQ)** | Traducción 100 % offline en **Español**, **English** y **Mískitu** para Login, Inicio y Ajustes. |
 | ![Cartografía](https://img.shields.io/badge/-Mapa_UAM-7EBC6F?style=flat-square&logo=openstreetmap&logoColor=white) | **OpenStreetMap + SVG 3D** | Geometría real del campus (`campus-plano.json`, `ubicacion-campus.json` y `img/mapa-campus-3d.svg`) con zoom/pan por GPU. |
-| ![Pruebas](https://img.shields.io/badge/-Pruebas-1FBF5F?style=flat-square) | **unittest + Estrés** | Suite de **64 pruebas** de backend, API, sesión, mensajería y paridad + prueba de estrés validada con **40 dispositivos concurrentes** (`40/40 OK` en `3.12 s`, bloqueo `HTTP 403` a emergencias no autorizadas). |
+| ![Pruebas](https://img.shields.io/badge/-Pruebas-1FBF5F?style=flat-square) | **unittest + Offline + Estrés** | Suite de **69 pruebas Python** + **6 escenarios JS offline** (`0 ResourceWarning`), auditoría post-remediación **33/33 PASS** (`VERIFICACION_POST_REMEDIACION_UNEXUAM.md`) y estrés de **40 dispositivos concurrentes** (`40/40 OK` en `3.12 s`). |
 
 ### Sistema de diseño
 
@@ -192,14 +192,14 @@ SQLite en `datos/unexuam.db`. Las contraseñas se guardan con hash (werkzeug), n
 
 ### API JSON (`app.py`)
 
-Todas las rutas requieren sesión salvo `lugares`, `yo`, `registro`, `registro/disponible`, `login` y `login/demo`. Las marcadas con **Admin** responden `403` a quien no es administrador.
+Todas las rutas requieren sesión salvo `lugares`, `yo`, `campus/publico`, `mensajes/general`, `registro`, `registro/disponible`, `login` y `logout`. Las marcadas con **Admin** responden `403` a quien no es administrador.
 
 | Método y ruta | Acceso | Acción |
 |---|---|---|
 | `GET /api/lugares` | Libre | Lugares del campus para elegir dónde estás. |
 | `GET /api/yo` | Libre | Usuario de la sesión actual (o ninguno). |
 | `GET/POST /api/registro/disponible` | Libre | Verifica en vivo si un CIF ya está registrado desde el paso 1. |
-| `POST /api/registro` · `login` · `login/demo` · `logout` | Libre / sesión | Cuenta con CIF único y contraseña (hash), acceso demo de administrador y cierre de sesión. |
+| `POST /api/registro` · `login` · `logout` | Libre / sesión | Cuenta con CIF único y contraseña (hash), acceso de estudiante/admin y cierre de sesión. |
 | `POST /api/yo/lugar` | Sesión | Mueve tu teléfono a un lugar del campus y lo enlaza con los que están a su alcance. |
 | `POST /api/contactos/buscar` · `agregar` | Sesión | Busca a una persona por su CIF y la agrega a tus contactos. |
 | `GET /api/mensajes` | Sesión | Tus contactos y conversaciones, con el estado de cada mensaje (entregado o en cola). |
@@ -291,12 +291,12 @@ Requisitos: **Node.js 18+**, **JDK 17+** y **Android SDK**. Antes de sincronizar
 ```powershell
 cd mobile
 npm install            # solo la primera vez
-npm run sync           # exporta backend/datos.py + frontend/ al proyecto Android
+python preparar_web.py # exporta backend/datos.py, frontend/ y sincroniza Android assets
 cd android
-.\gradlew.bat assembleDebug
+.\gradlew.bat assembleRelease
 ```
 
-El APK queda en `mobile/android/app/build/outputs/apk/debug/app-debug.apk`.
+El APK firmado queda en [`mobile/Unexuam.apk`](mobile/Unexuam.apk) (compilado desde `mobile/android/app/build/outputs/apk/release/app-release.apk`).
 
 <br />
 
@@ -306,10 +306,11 @@ El APK queda en `mobile/android/app/build/outputs/apk/debug/app-debug.apk`.
 
 | Comando | Descripción |
 |---|---|
-| `python app.py` | Levanta el servidor en `http://0.0.0.0:5000` y `https://0.0.0.0:5443` |
+| `python app.py` | Levanta el servidor local en `http://127.0.0.1:5000` (o `https://0.0.0.0:5443` con TLS) |
 | `python -m backend.menu` | Abre el menú interactivo de consola para operar los grafos |
-| `python -m unittest discover -s tests -v` | Ejecuta las 64 pruebas |
-| `cd mobile && npm run sync` | Sincroniza el grafo de `backend/datos.py` y el frontend con Android |
+| `python -W default -m unittest discover -s tests -v` | Ejecuta las **69 pruebas Python** (`0 ResourceWarning`) |
+| `node tests/test_motor_offline.js` | Ejecuta los **6 escenarios** del motor offline/Mesh |
+| `python mobile/preparar_web.py` | Sincroniza el grafo de `backend/datos.py` y el frontend con `www/` y Android |
 
 <br />
 
@@ -317,13 +318,14 @@ El APK queda en `mobile/android/app/build/outputs/apk/debug/app-debug.apk`.
 
 ## Pruebas y validación
 
-La suite en [`tests/`](tests/) incluye **64 pruebas automatizadas** (`test_backend.py` + `test_api.py`):
+La suite en [`tests/`](tests/) incluye **69 pruebas Python** (`test_backend.py` + `test_api.py`, con **0 `ResourceWarning`**) y **6 pruebas del motor offline** (`test_motor_offline.js`), además de la auditoría de verificación post-remediación en [`VERIFICACION_POST_REMEDIACION_UNEXUAM.md`](VERIFICACION_POST_REMEDIACION_UNEXUAM.md) (**33/33 `PASS`**, veredicto **GO PARA PRIMER PILOTO**):
 
 ```powershell
-python -m unittest discover -s tests -v
+python -W default -m unittest discover -s tests -v
+node tests/test_motor_offline.js
 ```
 
-Cubren las operaciones fundamentales de `Graph` (inserción, búsqueda, eliminación de vértices/aristas y actualización de pesos), la propagación BFS con límite de `TTL` y prevención de ciclos en `propagarAlerta`, el cálculo de rutas mínimas con `dijkstra` / `rutaEvacuacion`, la reevaluación de rutas tras `aplicarAlerta` y bloqueos, la unicidad de CIF (`/api/registro/disponible`), el registro e inicio de sesión, los permisos de administrador (`HTTP 403` ante emergencias no autorizadas) y la entrega de mensajes directa o desde la cola DTN. Adicionalmente se validó una prueba de estrés de **40 dispositivos concurrentes** (`40/40 OK` en `3.12 s`).
+Cubren las operaciones fundamentales de `Graph` (inserción, búsqueda, eliminación de vértices/aristas y actualización de pesos), la propagación BFS con límite de `TTL` y prevención de ciclos en `propagarAlerta`, el cálculo de rutas mínimas con `dijkstra` / `rutaEvacuacion`, la reevaluación de rutas tras `aplicarAlerta` y bloqueos, la unicidad de CIF (`/api/registro/disponible`), el registro e inicio de sesión (incluyendo credenciales de administrador), los permisos de administrador (`HTTP 403` ante emergencias no autorizadas) y la entrega de mensajes directa o desde la cola DTN. Adicionalmente se validó una prueba de estrés de **40 dispositivos concurrentes** (`40/40 OK` en `3.12 s`).
 
 <br />
 

@@ -574,6 +574,22 @@ public class MainActivity extends BridgeActivity {
         }
 
         @JavascriptInterface
+        @SuppressLint("MissingPermission")
+        public void vibrarPulso(int ms) {
+            try {
+                Vibrator v = (Vibrator) getSystemService(Context.VIBRATOR_SERVICE);
+                if (v == null || !v.hasVibrator()) return;
+                long dur = Math.max(10L, Math.min(600L, (long) ms));
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    v.vibrate(VibrationEffect.createOneShot(dur, VibrationEffect.DEFAULT_AMPLITUDE));
+                } else {
+                    v.vibrate(dur);
+                }
+            } catch (Exception ignored) {
+            }
+        }
+
+        @JavascriptInterface
         public void notificar(String titulo, String cuerpo, String tipo) {
             runOnUiThread(() -> mostrarNotificacionNativa(titulo, cuerpo, tipo));
         }

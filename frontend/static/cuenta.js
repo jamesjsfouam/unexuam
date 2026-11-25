@@ -922,16 +922,8 @@
     ];
   }
 
-  function renderRapidos(lista) {
-    const box = $("#chat-rapidos");
-    if (!box) return;
-    const sugs = sugerenciasContextuales(lista);
-    const firma = sugs.map(s => s.lbl).join("|");
-    if (firma === firmaRapidos) return;
-    firmaRapidos = firma;
-    box.innerHTML = sugs.map((s, i) => `<button type="button" data-rapido="${esc(s.txt)}" data-hotkey="${i + 1}"><kbd>${i + 1}</kbd>${esc(s.lbl)}</button>`).join("") +
-      `<button type="button" data-escribir-otro="1"><kbd>${sugs.length + 1}</kbd>Escribir otro…</button>` +
-      `<button type="button" id="btn-reportar-bloqueo"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7h18v6H3zm2 2v2l2-2zm5 0-2 2h3l2-2zm6 0-2 2h3l2-2zM5 13h2v6H5zm12 0h2v6h-2z"/></svg> Reportar bloqueo</button>`;
+  function renderRapidos() {
+    // Burbujas de mensajes sugeridos removidas para dejar el compositor limpio.
   }
 
   function renderItemChat(m, c) {
@@ -1813,22 +1805,68 @@
       el.classList.add("fila-deslizable");
       const thumb = el.querySelector(".fila-icono");
       const txtB = el.querySelector(".fila-texto b");
+      const smallEl = el.querySelector(".fila-texto small");
+      const thumbOrig = thumb ? thumb.innerHTML : "";
       const txtOrig = txtB ? txtB.innerHTML : "";
+      const smallOrig = smallEl ? smallEl.textContent : "";
+      const BLOQUEO_MS = 2200;
       let sx = 0, sy = 0, dx = 0, maxDx = 0, activo = false, bloqueoHoriz = false;
+      let bloqueadoHasta = 0, ultimoPasoVib = 0, eraListo = false, timerBloqueo = null;
+      const vibrar = (ms) => {
+        if (window.__UNEXUAM_PREFS__?.vibrar === false) return;
+        try {
+          if (window.UnexuamNativo && typeof window.UnexuamNativo.vibrarPulso === "function") {
+            window.UnexuamNativo.vibrarPulso(ms);
+            return;
+          }
+          if (navigator.vibrate) navigator.vibrate(ms);
+        } catch (_) {}
+      };
       const reset = () => {
-        activo = false; bloqueoHoriz = false; dx = 0;
-        el.classList.remove("deslizando", "listo");
+        activo = false; bloqueoHoriz = false; dx = 0; ultimoPasoVib = 0; eraListo = false;
+        el.classList.remove("deslizando", "listo", "confirmado");
+        el.removeAttribute("aria-disabled");
         el.style.setProperty("--sos-p", "0");
-        if (thumb) thumb.style.transform = "";
+        if (thumb) {
+          thumb.style.transform = "";
+          if (thumb.innerHTML !== thumbOrig) thumb.innerHTML = thumbOrig;
+        }
         if (txtB && txtB.innerHTML !== txtOrig) txtB.innerHTML = txtOrig;
+        if (smallEl && smallEl.textContent !== smallOrig) smallEl.textContent = smallOrig;
+      };
+      const dispararConfirmado = () => {
+        if (Date.now() < bloqueadoHasta) return;
+        activo = false; bloqueoHoriz = false;
+        bloqueadoHasta = Date.now() + BLOQUEO_MS;
+        vibrar(95);
+        setTimeout(() => vibrar(130), 150);
+        el.classList.remove("deslizando", "listo");
+        el.classList.add("confirmado");
+        el.setAttribute("aria-disabled", "true");
+        el.style.setProperty("--sos-p", "1");
+        if (thumb) {
+          thumb.style.transform = `translateX(${maxDx || Math.max(80, el.clientWidth - thumb.offsetWidth - 8)}px)`;
+          thumb.innerHTML = "<b>✓ OK</b>";
+        }
+        if (txtB) txtB.textContent = "SOS enviado";
+        if (smallEl) smallEl.textContent = "Bloqueado 2 s anti-spam";
+        onActivar();
+        if (timerBloqueo) clearTimeout(timerBloqueo);
+        timerBloqueo = setTimeout(() => {
+          bloqueadoHasta = 0;
+          timerBloqueo = null;
+          reset();
+        }, BLOQUEO_MS);
       };
       el.addEventListener("pointerdown", ev => {
+        if (Date.now() < bloqueadoHasta) return;
         if (ev.button && ev.button !== 0) return;
         if (ev.target.closest(".drag-asa")) return;
-        sx = ev.clientX; sy = ev.clientY; dx = 0;
+        sx = ev.clientX; sy = ev.clientY; dx = 0; ultimoPasoVib = 0; eraListo = false;
         maxDx = Math.max(80, el.clientWidth - (thumb ? thumb.offsetWidth : 100) - 8);
         activo = true; bloqueoHoriz = false;
         el.classList.add("deslizando");
+        vibrar(15);
         try { el.setPointerCapture(ev.pointerId); } catch (_) {}
       });
       el.addEventListener("pointermove", ev => {
@@ -1843,25 +1881,29 @@
           const p = Math.min(1, dx / (maxDx * 0.55));
           el.style.setProperty("--sos-p", p.toFixed(2));
           if (thumb) thumb.style.transform = `translateX(${dx}px)`;
+          const paso = Math.floor((dx / maxDx) * 4);
+          if (paso > ultimoPasoVib && paso <= 3) {
+            ultimoPasoVib = paso;
+            vibrar(12);
+          }
           const listo = dx >= maxDx * 0.55;
+          if (listo && !eraListo) vibrar(35);
+          eraListo = listo;
           el.classList.toggle("listo", listo);
           if (txtB) txtB.textContent = listo ? "Suelta para enviar SOS" : "Sigue deslizando →";
-          if (dx >= maxDx * 0.88) {
-            reset();
-            if (navigator.vibrate && window.__UNEXUAM_PREFS__?.vibrar !== false) navigator.vibrate(25);
-            onActivar();
-          }
+          if (dx >= maxDx * 0.88) dispararConfirmado();
         }
       });
       const fin = (ev) => {
         if (!activo) return;
         const disparo = bloqueoHoriz && dx >= maxDx * 0.55;
         const fueToque = !bloqueoHoriz && dx < 12;
-        reset();
         if (disparo) {
-          if (navigator.vibrate && window.__UNEXUAM_PREFS__?.vibrar !== false) navigator.vibrate(25);
-          onActivar();
-        } else if (fueToque && ev?.type !== "pointercancel") {
+          dispararConfirmado();
+          return;
+        }
+        reset();
+        if (fueToque && ev?.type !== "pointercancel") {
           el.classList.remove("nudge");
           void el.offsetWidth;
           el.classList.add("nudge");
@@ -1872,15 +1914,16 @@
       el.addEventListener("pointerup", fin);
       el.addEventListener("pointercancel", fin);
       el.addEventListener("click", ev => {
+        if (Date.now() < bloqueadoHasta) { ev.preventDefault(); ev.stopPropagation(); return; }
         // Solo permitir activación por teclado (detail === 0); los toques táctiles/ratón deben deslizar
         if (ev.detail !== 0) { ev.preventDefault(); ev.stopPropagation(); return; }
         ev.preventDefault();
         if (confirmarTeclado && window.abrirHoja) {
           window.abrirHoja("Confirmar alerta SOS", "Se enviará tu edificio al Canal General sin internet.", [
-            { txt: "Enviar SOS ahora", cls: "peligro", fn: onActivar },
+            { txt: "Enviar SOS ahora", cls: "peligro", fn: dispararConfirmado },
           ]);
         } else {
-          onActivar();
+          dispararConfirmado();
         }
       });
     };
@@ -1949,22 +1992,16 @@
       const b = ev.target.closest("[data-contacto]");
       if (b) abrirChat(b.dataset.contacto);
     });
-    const usarRapido = b => {
-      b.classList.add("seleccionado");
-      setTimeout(() => b.classList.remove("seleccionado"), 220);
-      if (b.dataset.escribirOtro) {
-        ta.focus();
-        anunciarChat("Campo de mensaje listo para escribir.");
-        return;
-      }
-      ta.value = b.dataset.rapido;
-      ta.focus();
-      anunciarChat(`Respuesta rápida seleccionada: ${b.dataset.rapido}`);
-    };
-    $("#chat-rapidos").addEventListener("click", ev => {
-      if (ev.target.closest("#btn-reportar-bloqueo")) { abrirReportarBloqueo(); return; }
-      const b = ev.target.closest("[data-rapido], [data-escribir-otro]");
-      if (b) usarRapido(b);
+    document.addEventListener("click", ev => {
+      const btn = ev.target.closest(".btn-ver-clave[data-ver-clave]");
+      if (!btn) return;
+      const inp = document.getElementById(btn.dataset.verClave);
+      if (!inp) return;
+      const visible = inp.type === "text";
+      inp.type = visible ? "password" : "text";
+      btn.classList.toggle("activo", !visible);
+      btn.setAttribute("aria-pressed", String(!visible));
+      btn.setAttribute("aria-label", !visible ? "Ocultar contraseña" : "Mostrar contraseña");
     });
     document.addEventListener("keydown", ev => {
       if ($("#chat").hidden || !$("#hoja").hidden) return;
@@ -1977,11 +2014,6 @@
           if (ev.shiftKey && document.activeElement === pri) { ev.preventDefault(); ult.focus(); return; }
           if (!ev.shiftKey && document.activeElement === ult) { ev.preventDefault(); pri.focus(); return; }
         }
-      }
-      if (document.activeElement && /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName)) return;
-      if (/^[1-4]$/.test(ev.key) && !ev.ctrlKey && !ev.metaKey && !ev.altKey) {
-        const b = $(`#chat-rapidos [data-hotkey="${ev.key}"]`) || (ev.key === "4" ? $("#chat-rapidos [data-escribir-otro]") : null);
-        if (b) { ev.preventDefault(); usarRapido(b); }
       }
     });
     window.addEventListener("hashchange", () => {

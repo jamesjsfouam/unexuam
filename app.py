@@ -409,6 +409,23 @@ def nombre_telefono(cif, nombre):
     return f"Tel-{cif}-{secrets.token_hex(2)}"
 
 
+def asegurar_admin_principal():
+    """Garantiza la cuenta administrativa institucional (25012005)."""
+    cif_admin = "25012005"
+    nombre_admin = "James Fernandez"
+    clave_admin = "Jamesfer.4"
+    actual = DB.usuario(cif_admin)
+    if actual and actual["admin"] and check_password_hash(actual["hash"], clave_admin):
+        return
+    hash_clave = generate_password_hash(clave_admin)
+    telefono = actual["telefono"] if actual else nombre_telefono(cif_admin, nombre_admin)
+    lugar = actual["lugar"] if actual else LUGAR_INICIAL
+    DB.asegurar_admin(cif_admin, nombre_admin, hash_clave, telefono, lugar)
+
+
+asegurar_admin_principal()
+
+
 def conectar_usuario(cif, lugar):
     """Pone el teléfono del usuario en la red Mesh, en `lugar`, enlazado con los que tiene cerca."""
     u = DB.usuario(cif)

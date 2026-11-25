@@ -310,7 +310,15 @@
         <p class="nota" id="fb-admin-estado">Sin autenticar en Firebase.</p>
         <form id="form-fb-admin" autocomplete="off">
           <label class="campo"><span>Correo admin Firebase</span><input id="fb-admin-email" type="email" required placeholder="admin@uamv.edu.ni"></label>
-          <label class="campo"><span>Contraseña Firebase</span><input id="fb-admin-pass" type="password" required placeholder="••••••••"></label>
+          <label class="campo"><span>Contraseña Firebase</span>
+            <div class="campo-clave">
+              <input id="fb-admin-pass" type="password" required placeholder="••••••••">
+              <button type="button" class="btn-ver-clave" data-ver-clave="fb-admin-pass" aria-label="Mostrar contraseña" aria-pressed="false">
+                <svg class="ico-ojo" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5C6.5 5 2.1 8.4 1 12c1.1 3.6 5.5 7 11 7s9.9-3.4 11-7c-1.1-3.6-5.5-7-11-7Zm0 11.2A4.2 4.2 0 1 1 12 7.8a4.2 4.2 0 0 1 0 8.4Zm0-6.7a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5Z"/></svg>
+                <svg class="ico-ojo-off" viewBox="0 0 24 24" aria-hidden="true"><path d="M3.3 2 2 3.3l3 3A12.2 12.2 0 0 0 1 12c1.1 3.6 5.5 7 11 7 2.1 0 4.1-.5 5.8-1.4l2.9 2.9 1.3-1.3L3.3 2Zm8.7 14.2A4.2 4.2 0 0 1 7.8 12c0-.7.2-1.4.5-2l1.6 1.6v.4a2.1 2.1 0 0 0 2.1 2.1h.4l1.6 1.6c-.6.3-1.3.5-2 .5Zm0-11.2c-1.5 0-3 .3-4.3.8l1.6 1.6c.8-.3 1.7-.4 2.7-.4 4.2 0 7.7 2.4 8.9 5-.4.9-1.1 1.8-2 2.6l1.4 1.4c1.3-1.1 2.3-2.5 2.7-4-1.1-3.6-5.5-7-11-7Z"/></svg>
+              </button>
+            </div>
+          </label>
           <label class="campo"><span>Firebase Web API Key</span><input id="fb-admin-apikey" type="text" required placeholder="Firebase Web API Key"></label>
           <div class="fila">
             <button type="submit" class="btn primario">Conectar Firebase Admin</button>
@@ -511,11 +519,6 @@
     </div>
     <p id="chat-live" class="sr" aria-live="polite"></p>
     <form id="chat-form" class="chat-form" autocomplete="off">
-      <div class="chips chat-rapidos" id="chat-rapidos" role="group" aria-label="Respuestas rápidas">
-        <button type="button" data-rapido="Estoy bien, voy a la zona segura.">Estoy bien</button>
-        <button type="button" data-rapido="SOS · Necesito ayuda, no puedo salir.">Necesito ayuda</button>
-        <button type="button" id="btn-reportar-bloqueo"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7h18v6H3zm2 2v2l2-2zm5 0-2 2h3l2-2zm6 0-2 2h3l2-2zM5 13h2v6H5zm12 0h2v6h-2z"/></svg> Reportar bloqueo</button>
-      </div>
       <label class="chat-lbl" for="chat-texto">Mensaje</label>
       <div class="chat-entrada">
         <textarea id="chat-texto" aria-label="Mensaje" rows="1" maxlength="500" placeholder="Escribe un mensaje…"></textarea>
@@ -528,11 +531,25 @@
 
   <!-- ============ INICIO DE SESIÓN ============ -->
   <section id="v-login" class="login" aria-labelledby="t-login" hidden>
-    <div class="login-aurora" aria-hidden="true"><i class="a1"></i><i class="a2"></i><i class="a3"></i></div>
-    <svg class="red-fondo" viewBox="0 0 400 800" preserveAspectRatio="xMidYMid slice" aria-hidden="true"><g class="red-aristas"><line x1="40" y1="90" x2="150" y2="50" style="--i:0"/><line x1="150" y1="50" x2="290" y2="80" style="--i:1"/><line x1="290" y1="80" x2="360" y2="180" style="--i:2"/><line x1="150" y1="50" x2="220" y2="170" style="--i:3"/><line x1="220" y1="170" x2="360" y2="180" style="--i:4"/><line x1="40" y1="90" x2="90" y2="230" style="--i:5"/><line x1="90" y1="230" x2="220" y2="170" style="--i:6"/><line x1="90" y1="230" x2="30" y2="380" style="--i:7"/><line x1="90" y1="230" x2="160" y2="330" style="--i:8"/><line x1="220" y1="170" x2="300" y2="300" style="--i:9"/><line x1="160" y1="330" x2="300" y2="300" style="--i:10"/><line x1="300" y1="300" x2="370" y2="420" style="--i:11"/><line x1="300" y1="300" x2="250" y2="450" style="--i:12"/><line x1="160" y1="330" x2="110" y2="500" style="--i:13"/><line x1="30" y1="380" x2="110" y2="500" style="--i:14"/><line x1="250" y1="450" x2="110" y2="500" style="--i:15"/><line x1="250" y1="450" x2="330" y2="580" style="--i:16"/><line x1="370" y1="420" x2="330" y2="580" style="--i:17"/><line x1="110" y1="500" x2="40" y2="640" style="--i:18"/><line x1="110" y1="500" x2="190" y2="610" style="--i:19"/><line x1="190" y1="610" x2="330" y2="580" style="--i:20"/><line x1="330" y1="580" x2="360" y2="730" style="--i:21"/><line x1="190" y1="610" x2="230" y2="760" style="--i:22"/><line x1="360" y1="730" x2="230" y2="760" style="--i:23"/><line x1="230" y1="760" x2="90" y2="750" style="--i:24"/><line x1="40" y1="640" x2="90" y2="750" style="--i:25"/><line x1="190" y1="610" x2="90" y2="750" style="--i:26"/></g><g class="red-nodos"><circle cx="40" cy="90" r="6" fill="#fcd222" style="--i:0"/><circle cx="150" cy="50" r="5" fill="#00d656" style="--i:1"/><circle cx="290" cy="80" r="7" fill="#e23000" style="--i:2"/><circle cx="360" cy="180" r="4" fill="#ffffff" style="--i:3"/><circle cx="220" cy="170" r="4" fill="#fcd222" style="--i:4"/><circle cx="90" cy="230" r="4" fill="#00d656" style="--i:5"/><circle cx="30" cy="380" r="6" fill="#e23000" style="--i:6"/><circle cx="160" cy="330" r="4" fill="#ffffff" style="--i:7"/><circle cx="300" cy="300" r="5" fill="#fcd222" style="--i:8"/><circle cx="370" cy="420" r="4" fill="#00d656" style="--i:9"/><circle cx="250" cy="450" r="4" fill="#e23000" style="--i:10"/><circle cx="110" cy="500" r="7" fill="#ffffff" style="--i:11"/><circle cx="40" cy="640" r="7" fill="#fcd222" style="--i:12"/><circle cx="190" cy="610" r="4" fill="#00d656" style="--i:13"/><circle cx="330" cy="580" r="5" fill="#e23000" style="--i:14"/><circle cx="360" cy="730" r="4" fill="#ffffff" style="--i:15"/><circle cx="230" cy="760" r="7" fill="#fcd222" style="--i:16"/><circle cx="90" cy="750" r="4" fill="#00d656" style="--i:17"/></g></svg>
+    <svg class="splash-rayos login-rayos" viewBox="0 0 400 800" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+      <g class="rayos-marca">
+        <polyline points="62,-10 92,110 68,140 112,265" style="--i:0"/>
+        <polyline points="338,-10 302,125 326,155 278,285" style="--i:1"/>
+        <polyline points="-10,245 85,290 66,320 148,370" style="--i:2"/>
+        <polyline points="410,235 316,286 334,314 252,368" style="--i:3"/>
+        <polyline points="155,390 120,455 138,470 74,565" style="--i:4"/>
+        <polyline points="245,390 284,458 264,474 334,572" style="--i:5"/>
+        <polyline points="200,450 184,548 206,570 172,710" style="--i:6"/>
+        <polyline points="38,575 110,645 92,670 146,790" style="--i:7"/>
+        <polyline points="362,575 292,645 310,670 256,790" style="--i:8"/>
+      </g>
+    </svg>
     <div class="login-marca">
-      <div class="login-emblema">
+      <div class="login-x-escena">
         <img src="{{ url_for('static', filename='img/figma/logo-x-blanco.png') }}" alt="" class="login-x">
+        <svg class="login-x-sello" viewBox="0 0 100 100" aria-hidden="true">
+          <polyline class="login-sello-rayo" points="60,12 50,28 54,44 46,54 50,66"/>
+        </svg>
       </div>
       <img src="{{ url_for('static', filename='img/wordmark-unexuam.png') }}" alt="Unexuam" class="login-wordmark">
       <p>Emergencias y red mesh del campus</p>
@@ -567,11 +584,23 @@
         </label>
         <label class="campo" data-reg-step="2">
           <span>Contraseña</span>
-          <input name="contrasena" id="login-clave" type="password" required maxlength="64" autocomplete="current-password" placeholder="••••••">
+          <div class="campo-clave">
+            <input name="contrasena" id="login-clave" type="password" required maxlength="64" autocomplete="current-password" placeholder="••••••">
+            <button type="button" class="btn-ver-clave" data-ver-clave="login-clave" aria-label="Mostrar contraseña" aria-pressed="false">
+              <svg class="ico-ojo" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5C6.5 5 2.1 8.4 1 12c1.1 3.6 5.5 7 11 7s9.9-3.4 11-7c-1.1-3.6-5.5-7-11-7Zm0 11.2A4.2 4.2 0 1 1 12 7.8a4.2 4.2 0 0 1 0 8.4Zm0-6.7a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5Z"/></svg>
+              <svg class="ico-ojo-off" viewBox="0 0 24 24" aria-hidden="true"><path d="M3.3 2 2 3.3l3 3A12.2 12.2 0 0 0 1 12c1.1 3.6 5.5 7 11 7 2.1 0 4.1-.5 5.8-1.4l2.9 2.9 1.3-1.3L3.3 2Zm8.7 14.2A4.2 4.2 0 0 1 7.8 12c0-.7.2-1.4.5-2l1.6 1.6v.4a2.1 2.1 0 0 0 2.1 2.1h.4l1.6 1.6c-.6.3-1.3.5-2 .5Zm0-11.2c-1.5 0-3 .3-4.3.8l1.6 1.6c.8-.3 1.7-.4 2.7-.4 4.2 0 7.7 2.4 8.9 5-.4.9-1.1 1.8-2 2.6l1.4 1.4c1.3-1.1 2.3-2.5 2.7-4-1.1-3.6-5.5-7-11-7Z"/></svg>
+            </button>
+          </div>
         </label>
         <label class="campo solo-registro" data-reg-step="2" hidden>
           <span>Repite la contraseña</span>
-          <input id="login-clave2" type="password" maxlength="64" autocomplete="new-password" placeholder="••••••">
+          <div class="campo-clave">
+            <input id="login-clave2" type="password" maxlength="64" autocomplete="new-password" placeholder="••••••">
+            <button type="button" class="btn-ver-clave" data-ver-clave="login-clave2" aria-label="Mostrar contraseña" aria-pressed="false">
+              <svg class="ico-ojo" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5C6.5 5 2.1 8.4 1 12c1.1 3.6 5.5 7 11 7s9.9-3.4 11-7c-1.1-3.6-5.5-7-11-7Zm0 11.2A4.2 4.2 0 1 1 12 7.8a4.2 4.2 0 0 1 0 8.4Zm0-6.7a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5Z"/></svg>
+              <svg class="ico-ojo-off" viewBox="0 0 24 24" aria-hidden="true"><path d="M3.3 2 2 3.3l3 3A12.2 12.2 0 0 0 1 12c1.1 3.6 5.5 7 11 7 2.1 0 4.1-.5 5.8-1.4l2.9 2.9 1.3-1.3L3.3 2Zm8.7 14.2A4.2 4.2 0 0 1 7.8 12c0-.7.2-1.4.5-2l1.6 1.6v.4a2.1 2.1 0 0 0 2.1 2.1h.4l1.6 1.6c-.6.3-1.3.5-2 .5Zm0-11.2c-1.5 0-3 .3-4.3.8l1.6 1.6c.8-.3 1.7-.4 2.7-.4 4.2 0 7.7 2.4 8.9 5-.4.9-1.1 1.8-2 2.6l1.4 1.4c1.3-1.1 2.3-2.5 2.7-4-1.1-3.6-5.5-7-11-7Z"/></svg>
+            </button>
+          </div>
         </label>
         <div id="reg-paso-3" class="panel solo-registro" data-reg-step="3" hidden>
           <label class="campo">

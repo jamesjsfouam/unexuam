@@ -187,6 +187,18 @@ class BaseDatos:
         self._x("INSERT INTO usuarios (cif, nombre, hash, telefono, lugar, admin, creado) VALUES (?,?,?,?,?,?,?)",
                 (cif, nombre, hash_, telefono, lugar, int(admin), ahora()))
 
+    def asegurar_admin(self, cif, nombre, hash_, telefono, lugar):
+        """Crea o promueve una cuenta de administrador institucional de forma idempotente."""
+        with self.lock, self.con:
+            fila = self.con.execute("SELECT cif FROM usuarios WHERE cif = ?", (cif,)).fetchone()
+            if fila:
+                self.con.execute("UPDATE usuarios SET admin = 1, hash = ? WHERE cif = ?", (hash_, cif))
+            else:
+                self.con.execute(
+                    "INSERT INTO usuarios (cif, nombre, hash, telefono, lugar, admin, creado) VALUES (?,?,?,?,?,1,?)",
+                    (cif, nombre, hash_, telefono, lugar, ahora()),
+                )
+
     def mover_usuario(self, cif, lugar):
         self._x("UPDATE usuarios SET lugar = ? WHERE cif = ?", (lugar, cif))
 

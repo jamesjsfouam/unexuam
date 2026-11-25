@@ -188,7 +188,21 @@ async function main() {
   assert.equal(jSos.ok, true, "SOS de invitado debe permitirse offline");
   assert.match(jSos.enviado.de, /^INV-[0-9A-F]{4}$/, "El remitente invitado debe usar INV-<4HEX>");
 
-  console.log("PASS tests/test_motor_offline.js (5/5 escenarios OK)");
+  // 6) Cuenta Admin principal (25012005 / Jamesfer.4) disponible y verificada offline
+  const resAdmBad = await sandbox.fetch("/api/login", {
+    method: "POST",
+    body: JSON.stringify({ cif: "25012005", contrasena: "incorrecta" }),
+  });
+  assert.equal((await resAdmBad.json()).ok, false, "Admin no debe iniciar sesión con clave errónea");
+  const resAdmOk = await sandbox.fetch("/api/login", {
+    method: "POST",
+    body: JSON.stringify({ cif: "25012005", contrasena: "Jamesfer.4" }),
+  });
+  const jAdmOk = await resAdmOk.json();
+  assert.equal(jAdmOk.ok, true, "Admin 25012005 debe iniciar sesión offline");
+  assert.equal(jAdmOk.usuario.admin, true, "Usuario 25012005 debe tener rol admin");
+
+  console.log("PASS tests/test_motor_offline.js (6/6 escenarios OK)");
 }
 
 main().catch((err) => {

