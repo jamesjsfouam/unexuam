@@ -986,7 +986,20 @@
       C.mensajes.push(m);
       if (C.mensajes.length > 5000) C.mensajes.splice(0, C.mensajes.length - 5000);
       guardarCuentas(C);
-      return { ok: true, enviado: m, mensaje: enviadosReal > 0 ? `Difundido a ${enviadosReal} teléfono(s) cercano(s).` : "Difundido en el Canal General." };
+      let enviadoNube = false;
+      if (window.UNEXO_NUBE && navigator.onLine !== false) {
+        enviadoNube = await window.UNEXO_NUBE.enviarMensaje({ ...m, ts: Date.now(), estado: "entregado" });
+      }
+      if (!enviadoNube) asegurarMeshActivo();
+      return {
+        ok: true,
+        enviado: m,
+        mensaje: enviadoNube
+          ? "Enviado al Canal General."
+          : enviadosReal > 0
+            ? `Difundido por Mesh a ${enviadosReal} teléfono(s) cercano(s).`
+            : "Difundido en el Canal General (Mesh activo).",
+      };
     }
     if (ruta.startsWith("/api/yo/") || ruta.startsWith("/api/mensajes") || ruta.startsWith("/api/contactos") || ruta === "/api/algoritmo") {
       const yo = cuentaActual();
@@ -1036,6 +1049,7 @@
           mensaje: `Ahora estás en ${lugar}: ${vecinos.length} teléfono(s) a tu alcance.` + (n ? ` Salieron ${n} mensaje(s) que estaban en cola.` : "") };
       }
       if (ruta === "/api/mensajes") {
+        await vaciarColaNube();
         const C = cuentas();
         if (window.UNEXO_NUBE) {
           const nubeMsj = await window.UNEXO_NUBE.listarMensajes(60);
@@ -1100,9 +1114,15 @@
         // En red Mesh real (Android) para mensajes 1-a-1, queda en custodia ("en cola")
         // hasta que regrese el ACK de entrega del destinatario final (y purgue las copias intermedias).
         const esMeshReal = !!(window.UnexuamNativo && typeof window.UnexuamNativo.enviarPaqueteMesh === "function");
-        // Destinatario con cuenta en este mismo teléfono: se entrega directo.
         const esLocal = !esTodos && C.usuarios[para] && !C.usuarios[para].real;
-        const entregadoInmediato = esLocal || (!esMeshReal && !esTodos && rSim.length > 0);
+        let entregadoNube = false;
+        if (window.UNEXO_NUBE && navigator.onLine !== false) {
+          entregadoNube = await window.UNEXO_NUBE.enviarMensaje({
+            id, de: yo.cif, deNombre: yo.u.nombre, para, texto: textoMsj,
+            hora: ahora, ts: Date.now(), estado: "entregado",
+          });
+        }
+        const entregadoInmediato = entregadoNube || esLocal || (!esMeshReal && !esTodos && rSim.length > 0);
         const rutaFinal = entregadoInmediato ? (rSim.length ? rSim : [yo.u.telefono, dest.telefono]) : [];
         const retFinal = entregadoInmediato && rSim.length ? num(retardoSim) : null;
         const m = { id, idempotencia: clave, de: yo.cif, deNombre: yo.u.nombre, para, texto: textoMsj, hora: ahora,
@@ -1111,22 +1131,23 @@
         C.mensajes.push(m);
         if (C.mensajes.length > 5000) C.mensajes.splice(0, C.mensajes.length - 5000);
         guardarCuentas(C);
-        const enviadosReal = entregadoInmediato ? 0 : enviarPaqueteReal({
-          id, tipo: "mensaje", de: yo.cif, deNombre: yo.u.nombre, deTel: yo.u.telefono,
-          para, texto: textoMsj, hora: ahora, ttl: 6, ruta: [yo.u.telefono],
-        });
-        if (enviadosReal > 0) {
-          m.estado = "transmitiendo";
-          guardarCuentas(C);
+        let enviadosReal = 0;
+        if (!entregadoInmediato) {
+          asegurarMeshActivo();
+          enviadosReal = enviarPaqueteReal({
+            id, tipo: "mensaje", de: yo.cif, deNombre: yo.u.nombre, deTel: yo.u.telefono,
+            para, texto: textoMsj, hora: ahora, ttl: 6, ruta: [yo.u.telefono],
+          });
+          if (enviadosReal > 0) {
+            m.estado = "transmitiendo";
+            guardarCuentas(C);
+          }
         }
         registrar(`Mensaje ${yo.u.telefono} → ${dest.telefono}: ${m.estado}.`, entregadoInmediato ? "ok" : "info");
         guardarEstadoLocal();
-        if (window.UNEXO_NUBE) {
-          window.UNEXO_NUBE.enviarMensaje({ ...m, ts: Date.now(), estado: "entregado" });
-        }
-        let msgTxt = "En cola hasta encontrar un teléfono cercano.";
-        if (enviadosReal > 0) msgTxt = "Transmisión iniciada. Recepción sin confirmar.";
-        if (entregadoInmediato) msgTxt = "Mensaje entregado.";
+        let msgTxt = "Sin internet: guardado en cola Mesh hasta encontrar un teléfono cercano.";
+        if (enviadosReal > 0) msgTxt = "Sin internet: enviado por red Mesh cercana.";
+        if (entregadoInmediato) msgTxt = entregadoNube ? "Mensaje enviado." : "Mensaje entregado.";
         return { ok: true, enviado: m, mensaje: msgTxt };
       }
       if (ruta === "/api/mensajes/alerta") {
@@ -1435,4 +1456,64 @@
       console.warn("[UNEXUAM] Error procesando evento Mesh:", err);
     }
   };
+
+  let meshIniciado = false;
+  function asegurarMeshActivo() {
+    if (!window.UnexuamNativo || typeof window.UnexuamNativo.iniciarMesh !== "function") return;
+    if (meshIniciado) return;
+    const yo = cuentaActual();
+    if (yo) {
+      iniciarMeshReal(yo.cif, yo.u);
+      meshIniciado = true;
+      return;
+    }
+    let lugarInv = "Edificio E";
+    try {
+      const guardado = localStorage.getItem("mi-lugar");
+      if (guardado) lugarInv = JSON.parse(guardado) || "Edificio E";
+    } catch (_) {}
+    iniciarMeshReal("INVITADO", { nombre: "Visitante UAM", telefono: "Tel-Visitante", lugar: lugarInv });
+    meshIniciado = true;
+  }
+
+  async function vaciarColaNube() {
+    if (!window.UNEXO_NUBE || navigator.onLine === false) return 0;
+    const C = cuentas();
+    let enviados = 0;
+    let cambio = false;
+    for (const m of C.mensajes) {
+      if (m.estado === "en cola" || m.estado === "transmitiendo") {
+        const ok = await window.UNEXO_NUBE.enviarMensaje({ ...m, ts: Date.now(), estado: "entregado" });
+        if (ok) {
+          m.estado = "entregado";
+          m.entregado = horaActual();
+          enviados += 1;
+          cambio = true;
+        }
+      }
+    }
+    if (cambio) {
+      guardarCuentas(C);
+      window.dispatchEvent(new CustomEvent("unexuam-mesh-update", { detail: { tipo: "estado" } }));
+    }
+    return enviados;
+  }
+
+  window.addEventListener("offline", () => {
+    meshIniciado = false;
+    asegurarMeshActivo();
+  });
+  window.addEventListener("online", () => {
+    vaciarColaNube();
+  });
+  setTimeout(() => {
+    asegurarMeshActivo();
+    if (navigator.onLine !== false) vaciarColaNube();
+  }, 800);
+  setInterval(() => {
+    if (navigator.onLine === false) {
+      meshIniciado = false;
+      asegurarMeshActivo();
+    }
+  }, 15000);
 })();
