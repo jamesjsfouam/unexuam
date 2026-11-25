@@ -16,6 +16,8 @@ import android.location.Location;
 import android.location.LocationManager;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.os.VibrationEffect;
 import android.os.Vibrator;
 import android.util.Log;
@@ -74,7 +76,11 @@ public class MainActivity extends BridgeActivity {
         if (this.bridge != null && this.bridge.getWebView() != null) {
             this.bridge.getWebView().setBackgroundColor(0xFF0080FF);
             this.bridge.getWebView().addJavascriptInterface(new PuenteNativo(), "UnexuamNativo");
-            this.bridge.getWebView().reload();
+            new Handler(Looper.getMainLooper()).postDelayed(() -> {
+                if (this.bridge != null && this.bridge.getWebView() != null) {
+                    this.bridge.getWebView().reload();
+                }
+            }, 1600L);
         }
         try {
             registerReceiver(btReceiver, new IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED));

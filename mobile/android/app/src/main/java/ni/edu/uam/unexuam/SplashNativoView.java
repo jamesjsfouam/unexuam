@@ -4,32 +4,36 @@ import android.animation.Animator;
 import android.animation.AnimatorListenerAdapter;
 import android.animation.ValueAnimator;
 import android.content.Context;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Path;
 import android.graphics.PathMeasure;
+import android.graphics.RectF;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.animation.LinearInterpolator;
 
 /**
- * Pantalla de carga nativa a 60-120 FPS desde el instante en que abre la app.
- * Fondo azul UNEXO (#0080ff), rayos del manual de marca y animacion continua de
- * X normal rompiendose hasta formar el logo oficial con ruptura central.
+ * Pantalla de carga nativa sin lag a 60-120 FPS usando el bitmap oficial de la X UNEXO.
+ * Inicia como X normal, traza la ruptura con rayos y muestra la X oficial exacta.
  */
 public class SplashNativoView extends View {
     private static final int AZUL_UNEXO = 0xFF0080FF;
     private static final int AMARILLO_UNEXO = 0xFFFCD222;
-    private static final long DURACION_MS = 2700L;
+    private static final long DURACION_MS = 2800L;
 
+    private final Bitmap logoOficial;
     private final Paint paintFondo = new Paint();
-    private final Paint paintX = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final Paint paintLogo = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.FILTER_BITMAP_FLAG);
+    private final Paint paintSello = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint paintRayoGrieta = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint paintRayoFondo = new Paint(Paint.ANTI_ALIAS_FLAG);
 
-    private final Path pathXIzq = new Path();
-    private final Path pathXDer = new Path();
+    private final RectF dstLogo = new RectF();
+    private final Path pathSelloBlanco = new Path();
     private final Path pathGrieta = new Path();
     private final Path pathGrietaParcial = new Path();
     private final PathMeasure measureGrieta = new PathMeasure();
@@ -38,6 +42,7 @@ public class SplashNativoView extends View {
     private final PathMeasure[] measuresRayos = new PathMeasure[8];
     private final Path pathRayoTemp = new Path();
 
+    private float tamX = 0f;
     private float progreso = 0f;
     private ValueAnimator animator;
     private boolean cerrando = false;
@@ -47,11 +52,13 @@ public class SplashNativoView extends View {
         setClickable(true);
         setFocusable(true);
         setElevation(100f);
+        setLayerType(LAYER_TYPE_HARDWARE, null);
+
+        logoOficial = BitmapFactory.decodeResource(getResources(), R.drawable.logo_x_oficial);
 
         paintFondo.setColor(AZUL_UNEXO);
-
-        paintX.setColor(Color.WHITE);
-        paintX.setStyle(Paint.Style.FILL);
+        paintSello.setColor(Color.WHITE);
+        paintSello.setStyle(Paint.Style.FILL);
 
         paintRayoGrieta.setColor(AMARILLO_UNEXO);
         paintRayoGrieta.setStyle(Paint.Style.STROKE);
@@ -69,7 +76,7 @@ public class SplashNativoView extends View {
         }
 
         setOnClickListener(v -> {
-            if (progreso > 0.45f) desvanecerYSalir();
+            if (progreso > 0.55f) desvanecerYSalir();
         });
     }
 
@@ -97,9 +104,9 @@ public class SplashNativoView extends View {
         if (animator != null) animator.cancel();
         animate()
                 .alpha(0f)
-                .scaleX(1.04f)
-                .scaleY(1.04f)
-                .setDuration(320L)
+                .scaleX(1.03f)
+                .scaleY(1.03f)
+                .setDuration(280L)
                 .setListener(new AnimatorListenerAdapter() {
                     @Override
                     public void onAnimationEnd(Animator animation) {
@@ -114,6 +121,36 @@ public class SplashNativoView extends View {
     @Override
     protected void onSizeChanged(int w, int h, int oldw, int oldh) {
         super.onSizeChanged(w, h, oldw, oldh);
+        if (w <= 0 || h <= 0) return;
+
+        tamX = Math.min(w, h) * 0.35f;
+        float ratio = (logoOficial != null && logoOficial.getWidth() > 0)
+                ? (float) logoOficial.getHeight() / logoOficial.getWidth()
+                : 1f;
+        float halfW = tamX * 0.5f;
+        float halfH = tamX * ratio * 0.5f;
+        dstLogo.set(-halfW, -halfH, halfW, halfH);
+
+        // Sello blanco que cubre la grieta central de logo_x_oficial para que inicie como X normal
+        pathSelloBlanco.reset();
+        pathSelloBlanco.moveTo(-halfW * 0.16f, -halfH * 0.34f);
+        pathSelloBlanco.lineTo(halfW * 0.21f, -halfH * 0.64f);
+        pathSelloBlanco.lineTo(halfW * 0.27f, -halfH * 0.44f);
+        pathSelloBlanco.lineTo(halfW * 0.14f, halfH * 0.04f);
+        pathSelloBlanco.lineTo(halfW * 0.02f, halfH * 0.36f);
+        pathSelloBlanco.lineTo(-halfW * 0.04f, halfH * 0.36f);
+        pathSelloBlanco.lineTo(-halfW * 0.17f, -halfH * 0.10f);
+        pathSelloBlanco.close();
+
+        // Trazo exacto de la grieta/rayo en zig-zag para la ruptura
+        pathGrieta.reset();
+        pathGrieta.moveTo(halfW * 0.21f, -halfH * 0.68f);
+        pathGrieta.lineTo(halfW * 0.01f, -halfH * 0.41f);
+        pathGrieta.lineTo(halfW * 0.08f, -halfH * 0.13f);
+        pathGrieta.lineTo(-halfW * 0.05f, halfH * 0.05f);
+        pathGrieta.lineTo(0f, halfH * 0.34f);
+        measureGrieta.setPath(pathGrieta, false);
+
         construirRayosFondo(w, h);
     }
 
@@ -150,12 +187,6 @@ public class SplashNativoView extends View {
         return 1f - u * u * u;
     }
 
-    private float easeOutBack(float t) {
-        float u = clamp01(t) - 1f;
-        float s = 1.6f;
-        return 1f + u * u * ((s + 1f) * u + s);
-    }
-
     @Override
     protected void onDraw(Canvas canvas) {
         super.onDraw(canvas);
@@ -163,133 +194,71 @@ public class SplashNativoView extends View {
         int h = getHeight();
         if (w <= 0 || h <= 0) return;
 
-        // 1. Fondo full azul UNEXO sin bordes
         canvas.drawRect(0, 0, w, h, paintFondo);
 
         float t = progreso;
-
-        // 2. Rayos del manual de marca animandose en el fondo al momento del quiebre
         float dp = getResources().getDisplayMetrics().density;
+
+        // Rayos del manual de marca en el fondo
         paintRayoFondo.setStrokeWidth(2.1f * dp);
         for (int i = 0; i < rayosFondo.length; i++) {
-            float inicio = 0.26f + i * 0.03f;
-            float progRayo = easeOutCubic((t - inicio) / 0.34f);
+            float inicio = 0.26f + i * 0.025f;
+            float progRayo = easeOutCubic((t - inicio) / 0.28f);
             if (progRayo > 0f) {
                 float len = measuresRayos[i].getLength();
                 pathRayoTemp.reset();
                 measuresRayos[i].getSegment(0f, len * progRayo, pathRayoTemp, true);
-                float fade = t < 0.78f ? 1f : 1f - 0.52f * clamp01((t - 0.78f) / 0.22f);
-                paintRayoFondo.setAlpha((int) (78f * Math.min(1f, progRayo * 1.4f) * fade));
+                float fade = t < 0.78f ? 1f : 1f - 0.5f * clamp01((t - 0.78f) / 0.22f);
+                paintRayoFondo.setAlpha((int) (82f * Math.min(1f, progRayo * 1.4f) * fade));
                 canvas.drawPath(pathRayoTemp, paintRayoFondo);
             }
         }
 
-        // 3. Geometria de la X centrada sola (de X normal -> X rota oficial UNEXO)
-        float tamX = Math.min(w, h) * 0.34f;
         float cx = w * 0.5f;
         float cy = h * 0.5f;
+        float entrada = easeOutCubic(t / 0.20f);
+        float escala = 0.88f + 0.12f * entrada;
 
-        // Entrada suave 0.00 -> 0.22
-        float entrada = easeOutCubic(t / 0.22f);
-        float escala = 0.86f + 0.14f * entrada;
-
-        // Temblor sismico antes/durante la ruptura (0.28 -> 0.42)
-        float shakeX = 0f;
-        float shakeY = 0f;
-        if (t >= 0.28f && t <= 0.43f) {
-            float k = (t - 0.28f) / 0.15f;
-            float amp = tamX * 0.025f * (1f - Math.abs(k * 2f - 1f));
-            shakeX = (float) Math.sin(k * Math.PI * 6.0) * amp;
-            shakeY = (float) Math.cos(k * Math.PI * 5.0) * amp * 0.7f;
+        // Pulso sutil de impacto al romperse (0.42 -> 0.58)
+        if (t >= 0.42f && t <= 0.58f) {
+            float k = (t - 0.42f) / 0.16f;
+            escala += 0.06f * (float) Math.sin(k * Math.PI);
         }
 
-        // Factor de apertura de la grieta central: 0 (X normal) -> 1 (logo roto UNEXO)
-        float ruptura = t < 0.34f ? 0f : easeOutBack((t - 0.34f) / 0.28f);
-        float gap = tamX * 0.115f * ruptura; // ancho de la grieta central en el logo
-        float retroceso = (t >= 0.36f && t <= 0.62f)
-                ? (float) Math.sin(((t - 0.36f) / 0.26f) * Math.PI) * tamX * 0.028f
-                : 0f;
+        // Vibracion sismica suave (0.30 -> 0.46)
+        float shakeX = 0f;
+        float shakeY = 0f;
+        if (t >= 0.30f && t <= 0.46f) {
+            float k = (t - 0.30f) / 0.16f;
+            float amp = tamX * 0.022f * (1f - Math.abs(k * 2f - 1f));
+            shakeX = (float) Math.sin(k * Math.PI * 5.0) * amp;
+            shakeY = (float) Math.cos(k * Math.PI * 4.0) * amp * 0.7f;
+        }
 
         canvas.save();
         canvas.translate(cx + shakeX, cy + shakeY);
         canvas.scale(escala, escala);
 
-        float half = tamX * 0.5f;
-        float brazo = tamX * 0.27f; // ancho del brazo en los extremos
-
-        // Vertices en coordenadas relativas [-half, +half]
-        // Mitad izquierda (con borde derecho en zig-zag que se abre hacia la izquierda al romperse)
-        pathXIzq.reset();
-        pathXIzq.moveTo(-half, -half);
-        pathXIzq.lineTo(-half + brazo, -half);
-        // Al llegar al nucleo central, la grieta zig-zag baja desde y = -half*0.38 hasta y = +half*0.30
-        float g1x = -gap * 0.45f;
-        float g2x = -gap * 0.92f;
-        float g3x = -gap * 0.36f;
-        float g4x = -gap * 0.62f;
-        float yTop = -half * 0.36f;
-        float yG1 = -half * 0.28f;
-        float yG2 = -half * 0.04f;
-        float yG3 = half * 0.14f;
-        float yBot = half * 0.34f;
-
-        pathXIzq.lineTo(g1x, yTop);
-        pathXIzq.lineTo(g2x, yG1);
-        pathXIzq.lineTo(g3x, yG2);
-        pathXIzq.lineTo(g4x, yG3);
-        pathXIzq.lineTo(0f, yBot);
-        pathXIzq.lineTo(-half + brazo, half);
-        pathXIzq.lineTo(-half, half);
-        pathXIzq.lineTo(-half * 0.34f, 0f);
-        pathXIzq.close();
-
-        // Mitad derecha (con el zig-zag complementario abriendo hacia la derecha)
-        pathXDer.reset();
-        pathXDer.moveTo(half - brazo, -half);
-        pathXDer.lineTo(half, -half);
-        pathXDer.lineTo(half * 0.34f, 0f);
-        pathXDer.lineTo(half, half);
-        pathXDer.lineTo(half - brazo, half);
-        pathXDer.lineTo(0f, yBot);
-        pathXDer.lineTo(gap * 0.28f, yG3);
-        pathXDer.lineTo(gap * 0.82f, yG2);
-        pathXDer.lineTo(gap * 0.32f, yG1);
-        pathXDer.lineTo(gap * 0.68f, yTop);
-        pathXDer.close();
-
-        paintX.setAlpha((int) (255f * entrada));
-
-        // Cuando ruptura == 0 (X normal), unimos sin costura dibujando una linea central solapada
-        canvas.save();
-        canvas.translate(-retroceso, -retroceso * 0.35f);
-        canvas.drawPath(pathXIzq, paintX);
-        canvas.restore();
-
-        canvas.save();
-        canvas.translate(retroceso, retroceso * 0.35f);
-        canvas.drawPath(pathXDer, paintX);
-        canvas.restore();
-
-        if (ruptura < 0.06f) {
-            // Sello subpixel para que la X sea 100% continua antes de la ruptura
-            canvas.drawRect(-tamX * 0.04f, yTop, tamX * 0.04f, yBot, paintX);
+        // 1. Logo oficial exacto (sin caja, sin bordes)
+        if (logoOficial != null) {
+            paintLogo.setAlpha((int) (255f * entrada));
+            canvas.drawBitmap(logoOficial, null, dstLogo, paintLogo);
         }
 
-        // 4. Rayo amarillo/blanco trazando la grieta en el instante exacto de romperse (0.31 -> 0.56)
-        if (t >= 0.31f && t <= 0.58f) {
-            pathGrieta.reset();
-            pathGrieta.moveTo(tamX * 0.05f, yTop - half * 0.14f);
-            pathGrieta.lineTo(-tamX * 0.03f, yG1);
-            pathGrieta.lineTo(tamX * 0.035f, yG2);
-            pathGrieta.lineTo(-tamX * 0.025f, yG3);
-            pathGrieta.lineTo(0f, yBot + half * 0.04f);
-            measureGrieta.setPath(pathGrieta, false);
+        // 2. Sello blanco para mostrar X normal al inicio (0.00 -> 0.46), se abre al romperse (0.46 -> 0.58)
+        if (t < 0.58f) {
+            float alphaSello = t <= 0.46f ? 1f : 1f - clamp01((t - 0.46f) / 0.12f);
+            paintSello.setAlpha((int) (255f * entrada * alphaSello));
+            canvas.drawPath(pathSelloBlanco, paintSello);
+        }
 
-            float pRayo = easeOutCubic((t - 0.31f) / 0.14f);
-            float alphaRayo = t < 0.44f ? 1f : 1f - clamp01((t - 0.44f) / 0.14f);
+        // 3. Rayo amarillo dibujando la grieta en el instante del quiebre (0.32 -> 0.56)
+        if (t >= 0.32f && t <= 0.56f) {
+            float pRayo = easeOutCubic((t - 0.32f) / 0.13f);
+            float alphaRayo = t < 0.45f ? 1f : 1f - clamp01((t - 0.45f) / 0.11f);
             pathGrietaParcial.reset();
             measureGrieta.getSegment(0f, measureGrieta.getLength() * pRayo, pathGrietaParcial, true);
-            paintRayoGrieta.setStrokeWidth(3.6f * dp);
+            paintRayoGrieta.setStrokeWidth(3.4f * dp);
             paintRayoGrieta.setAlpha((int) (255f * alphaRayo));
             canvas.drawPath(pathGrietaParcial, paintRayoGrieta);
         }
