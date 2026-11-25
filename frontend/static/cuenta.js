@@ -1522,7 +1522,6 @@
     if (!YO || enviandoSos) return;
     enviandoSos = true;
     try {
-      sonarAlerta();
       const texto = `SOS · Necesito ayuda en ${YO.lugar || "el campus"} (${YO.nombre}).`;
       const j = await pedir("/api/mensajes/enviar", { para: "TODOS", texto });
       const enCola = j.ok && j.enviado && j.enviado.estado !== "entregado";
@@ -1557,7 +1556,6 @@
         fn: async () => {
           const j = await pedir("/api/campus/bloquear", { origen: p.o, destino: p.d, ambos: true });
           if (j.ok) {
-            if (!j.pendiente) sonarAlerta();
             avisar(j.pendiente ? j.mensaje : `Bloqueo registrado: ${p.txt}`);
             if (window.refrescarEstado) window.refrescarEstado();
             else if (window.iniciarUnexuam) window.iniciarUnexuam();
@@ -1813,7 +1811,6 @@
         if (window.refrescarEstado) window.refrescarEstado();
         else if (window.iniciarUnexuam) window.iniciarUnexuam();
         if (P.bloqueos !== false) {
-          sonarAlerta();
           avisar("Bloqueo recibido por Mesh: tu ruta de evacuación fue recalculada.", false);
           if (!window.UnexuamNativo) notificarPush("Pasillo bloqueado en campus", "Tu ruta de evacuación fue recalculada.", "bloqueo");
         }
@@ -1823,17 +1820,8 @@
         avisar("Entrega confirmada: copias intermedias eliminadas.");
       } else if (d.tipo === "paquete" && d.paquete) {
         if (/^SOS\b/.test(String(d.paquete.texto || ""))) {
-          sonarAlerta();
           avisar(String(d.paquete.texto), false);
           if (window.actualizarBannerEmergencia) window.actualizarBannerEmergencia(String(d.paquete.texto));
-          if (window.mostrarModalEmergencia) {
-            window.mostrarModalEmergencia({
-              clave: `sos:${d.paquete.id || d.paquete.hora}:${d.paquete.de}`,
-              tipo: /incendio|humo|fuego/i.test(d.paquete.texto) ? "incendio" : /sismo|temblor/i.test(d.paquete.texto) ? "sismo" : /inundaci/i.test(d.paquete.texto) ? "inundacion" : "general",
-              titulo: `Alerta SOS · ${d.paquete.deNombre || d.paquete.de}`,
-              texto: String(d.paquete.texto),
-            });
-          }
           if (!window.UnexuamNativo) notificarPush(`ALERTA SOS · ${d.paquete.deNombre || d.paquete.de}`, String(d.paquete.texto), "sos");
         } else if ($("#chat").hidden) {
           avisar(`Mensaje recibido de ${d.paquete.deNombre || d.paquete.de}`);

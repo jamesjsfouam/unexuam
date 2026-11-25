@@ -1557,46 +1557,19 @@ window.cerrarModalEmergencia = cerrarModalEmergencia;
 
 function evaluarEmergenciaAutomatica() {
   if (!E || document.body.classList.contains("sin-sesion")) return;
-  const c = E.campus;
   const em = E.emergencia;
-  const hayAlguna = !!(em || E.ultimaAlerta || (c && (c.bloqueados.length || Object.keys(c.congestion).length)));
-  if (!hayAlguna) {
+  if (!em) {
     if (claveModalEmergencia.startsWith("prueba:")) return;
     claveModalEmergencia = "";
     cerrarModalEmergencia();
     return;
   }
-  if (em) {
-    mostrarModalEmergencia({
-      clave: `em:${em.id || em.hora}:${em.tipo}`,
-      tipo: em.tipo,
-      titulo: em.titulo,
-      texto: em.texto,
-    });
-  } else if (c && c.bloqueados.length) {
-    const ult = c.bloqueados[c.bloqueados.length - 1];
-    mostrarModalEmergencia({
-      clave: `bloq:${c.bloqueados.length}:${ult.origen}:${ult.destino}`,
-      tipo: "general",
-      titulo: "Pasillo bloqueado en el campus",
-      texto: `Se bloqueó ${ult.origen} → ${ult.destino}. Tu ruta de evacuación fue recalculada.`,
-    });
-  } else if (c && Object.keys(c.congestion).length) {
-    const lugs = Object.keys(c.congestion);
-    mostrarModalEmergencia({
-      clave: `cong:${lugs.join(",")}`,
-      tipo: "general",
-      titulo: "Congestión en ruta de evacuación",
-      texto: `Alta congestión detectada en ${lugs[lugs.length - 1]}. Revisa tu ruta alternativa.`,
-    });
-  } else if (E.ultimaAlerta) {
-    mostrarModalEmergencia({
-      clave: `ua:${E.ultimaAlerta.hora}:${E.ultimaAlerta.origen}`,
-      tipo: "general",
-      titulo: "Alerta en la red Mesh",
-      texto: `Se propagó una alerta desde ${E.ultimaAlerta.origen} a las ${E.ultimaAlerta.hora}.`,
-    });
-  }
+  mostrarModalEmergencia({
+    clave: `em:${em.id || em.hora}:${em.tipo}`,
+    tipo: em.tipo,
+    titulo: em.titulo,
+    texto: em.texto,
+  });
 }
 
 /* ---------- Selector Visual 3D de Campus y Fachada Frontal de Edificio ---------- */
