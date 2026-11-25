@@ -286,7 +286,7 @@ Los reportes de usuarios aparecen en **Admin → Simulacros → Reportes de bloq
 
 ### 5. Compilar la app Android (APK autónomo)
 
-Requisitos: **Node.js 18+**, **JDK 17+** y **Android SDK**. La carpeta [`mobile/`](mobile/) empaqueta la aplicación para que funcione en Android **sin la PC encendida**:
+Requisitos: **Node.js 18+**, **JDK 17+** y **Android SDK**. Antes de sincronizar para Android con Firebase/FCM, copia `.env.example` a `.env` y completa tus credenciales de Firebase para que `npm run sync` genere `mobile/android/app/google-services.json` localmente sin subir claves al repositorio. La carpeta [`mobile/`](mobile/) empaqueta la aplicación para que funcione en Android **sin la PC encendida**:
 
 ```powershell
 cd mobile

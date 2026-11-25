@@ -75,6 +75,31 @@ def cabeceras_respuesta(resp):
         resp.headers["Cache-Control"] = "no-store"
     return resp
 
+def _cargar_env(ruta=None):
+    """Carga variables de un archivo .env local sin sobrescribir el entorno existente."""
+    archivo = ruta or os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env")
+    if not os.path.isfile(archivo):
+        return
+    with open(archivo, encoding="utf-8") as f:
+        for linea in f:
+            s = linea.strip()
+            if not s or s.startswith("#"):
+                continue
+            if s.startswith("export "):
+                s = s[7:].strip()
+            if "=" not in s:
+                continue
+            clave, valor = s.split("=", 1)
+            clave = clave.strip()
+            valor = valor.strip()
+            if len(valor) >= 2 and valor[0] == valor[-1] and valor[0] in ("'", '"'):
+                valor = valor[1:-1]
+            if clave:
+                os.environ.setdefault(clave, valor)
+
+
+_cargar_env()
+
 # Cuentas y mensajes se guardan en disco (carpeta datos/) para no perderlos al reiniciar.
 CARPETA_DATOS = os.environ.get("UNEXUAM_DATOS") or os.path.join(os.path.dirname(os.path.abspath(__file__)), "datos")
 os.makedirs(CARPETA_DATOS, exist_ok=True)
@@ -85,6 +110,9 @@ def ruta_datos(nombre):
 
 
 def clave_secreta():
+    env_key = (os.environ.get("UNEXUAM_SECRET_KEY") or "").strip()
+    if env_key:
+        return env_key
     archivo = ruta_datos("clave.secret")
     if not os.path.exists(archivo):
         with open(archivo, "w", encoding="utf-8") as f:

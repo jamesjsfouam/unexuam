@@ -1,6 +1,7 @@
 """Empaqueta el frontend de Unexuam y exporta los grafos reales del backend para la app móvil offline."""
 
 import json
+import os
 import re
 import shutil
 import sys
@@ -14,6 +15,75 @@ from backend.datos import crearCampus, crearRedMesh, ubicacionesTelefonos
 from backend.evacuacion import rutaEvacuacion
 
 
+_PLACEHOLDERS_FIREBASE = {
+    "tu-proyecto-firebase",
+    "000000000000",
+    "TU_FIREBASE_ANDROID_API_KEY",
+    "1:000000000000:android:xxxxxxxxxxxxxxxxxxxxxx",
+}
+
+
+def _cargar_env(archivo):
+    """Carga variables de .env sin dependencias externas y sin sobrescribir el entorno."""
+    if not archivo.is_file():
+        return
+    for linea in archivo.read_text(encoding="utf-8").splitlines():
+        s = linea.strip()
+        if not s or s.startswith("#"):
+            continue
+        if s.startswith("export "):
+            s = s[7:].strip()
+        if "=" not in s:
+            continue
+        clave, valor = s.split("=", 1)
+        clave = clave.strip()
+        valor = valor.strip()
+        if len(valor) >= 2 and valor[0] == valor[-1] and valor[0] in ("'", '"'):
+            valor = valor[1:-1]
+        if clave:
+            os.environ.setdefault(clave, valor)
+
+
+def generar_google_services(mobile_dir):
+    """Genera mobile/android/app/google-services.json desde las variables Firebase en .env."""
+    project_id = os.environ.get("FIREBASE_PROJECT_ID", "").strip()
+    project_number = os.environ.get("FIREBASE_PROJECT_NUMBER", "").strip()
+    app_id = os.environ.get("FIREBASE_ANDROID_APP_ID", "").strip()
+    api_key = os.environ.get("FIREBASE_ANDROID_API_KEY", "").strip()
+    if not all([project_id, project_number, app_id, api_key]):
+        return False
+    if any(v in _PLACEHOLDERS_FIREBASE for v in (project_id, project_number, app_id, api_key)):
+        return False
+
+    storage_bucket = os.environ.get("FIREBASE_STORAGE_BUCKET", f"{project_id}.firebasestorage.app").strip()
+    package_name = os.environ.get("FIREBASE_ANDROID_PACKAGE", "ni.edu.uam.unexuam").strip() or "ni.edu.uam.unexuam"
+
+    payload = {
+        "project_info": {
+            "project_number": project_number,
+            "project_id": project_id,
+            "storage_bucket": storage_bucket,
+        },
+        "client": [
+            {
+                "client_info": {
+                    "mobilesdk_app_id": app_id,
+                    "android_client_info": {"package_name": package_name},
+                },
+                "oauth_client": [],
+                "api_key": [{"current_key": api_key}],
+                "services": {"appinvite_service": {"other_platform_oauth_client": []}},
+            }
+        ],
+        "configuration_version": "1",
+    }
+    destino = mobile_dir / "android" / "app" / "google-services.json"
+    if destino.parent.is_dir():
+        destino.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+        return True
+    return False
+
+
 def serializar(g):
     vertices = [v.nombre for v in g.vertexs]
     aristas = []
@@ -24,7 +94,9 @@ def serializar(g):
 
 
 def main():
+    _cargar_env(RAIZ / ".env")
     mobile_dir = Path(__file__).resolve().parent
+    generar_google_services(mobile_dir)
     www_dir = mobile_dir / "www"
     static_dst = www_dir / "static"
 
