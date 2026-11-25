@@ -1049,29 +1049,8 @@
           mensaje: `Ahora estás en ${lugar}: ${vecinos.length} teléfono(s) a tu alcance.` + (n ? ` Salieron ${n} mensaje(s) que estaban en cola.` : "") };
       }
       if (ruta === "/api/mensajes") {
-        await vaciarColaNube();
+        sincronizarNubeEnSegundoPlano(yo.cif);
         const C = cuentas();
-        if (window.UNEXO_NUBE) {
-          const nubeMsj = await window.UNEXO_NUBE.listarMensajes(60);
-          if (Array.isArray(nubeMsj) && nubeMsj.length) {
-            const ids = new Set(C.mensajes.map((m) => String(m.id)));
-            let cambio = false;
-            for (const nm of nubeMsj) {
-              const mid = String(nm._id || "");
-              if (!mid || ids.has(mid)) continue;
-              if (nm.de === yo.cif || nm.para === yo.cif || nm.para === "TODOS") {
-                C.mensajes.push({
-                  id: mid, de: nm.de, deNombre: nm.deNombre, para: nm.para,
-                  texto: nm.texto, hora: nm.hora, estado: nm.estado || "entregado",
-                  ruta: [], retardo: null, entregado: nm.hora, viaCola: false,
-                });
-                ids.add(mid);
-                cambio = true;
-              }
-            }
-            if (cambio) guardarCuentas(C);
-          }
-        }
         const mios0 = C.mensajes.filter((m) => m.de === yo.cif || m.para === yo.cif);
         const cifs = ((C.contactos || {})[yo.cif] || []).slice();
         for (const m of mios0) {
@@ -1497,6 +1476,46 @@
       window.dispatchEvent(new CustomEvent("unexuam-mesh-update", { detail: { tipo: "estado" } }));
     }
     return enviados;
+  }
+
+  let ultSyncNubeMs = 0;
+  let syncNubeEnCurso = false;
+  function sincronizarNubeEnSegundoPlano(cif) {
+    if (!window.UNEXO_NUBE || navigator.onLine === false || syncNubeEnCurso) return;
+    const ahoraMs = Date.now();
+    if (ahoraMs - ultSyncNubeMs < 4000) return;
+    ultSyncNubeMs = ahoraMs;
+    syncNubeEnCurso = true;
+    (async () => {
+      try {
+        const subidos = await vaciarColaNube();
+        const nubeMsj = await window.UNEXO_NUBE.listarMensajes(60);
+        let nuevos = 0;
+        if (Array.isArray(nubeMsj) && nubeMsj.length) {
+          const C = cuentas();
+          const ids = new Set(C.mensajes.map((m) => String(m.id)));
+          for (const nm of nubeMsj) {
+            const mid = String(nm._id || "");
+            if (!mid || ids.has(mid)) continue;
+            if (nm.de === cif || nm.para === cif || nm.para === "TODOS") {
+              C.mensajes.push({
+                id: mid, de: nm.de, deNombre: nm.deNombre, para: nm.para,
+                texto: nm.texto, hora: nm.hora, estado: nm.estado || "entregado",
+                ruta: [], retardo: null, entregado: nm.hora, viaCola: false,
+              });
+              ids.add(mid);
+              nuevos += 1;
+            }
+          }
+          if (nuevos > 0) guardarCuentas(C);
+        }
+        if (nuevos > 0 && subidos === 0) {
+          window.dispatchEvent(new CustomEvent("unexuam-mesh-update", { detail: { tipo: "estado" } }));
+        }
+      } finally {
+        syncNubeEnCurso = false;
+      }
+    })();
   }
 
   window.addEventListener("offline", () => {

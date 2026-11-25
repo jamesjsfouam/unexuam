@@ -2322,6 +2322,24 @@ window.iniciarUnexuam = function () {
   api("/api/estado");
   if (appIniciada) return;
   appIniciada = true;
+  // Precarga y decodificación en segundo plano para cambiar de pestaña sin parpadeos.
+  setTimeout(() => {
+    const rutasImg = [
+      "/static/img/figma/campus-uam-inicio.jpg",
+      "/static/img/figma/campus-uam-evacuar.jpg",
+      "/static/img/figma/campus-uam-mesh.jpg",
+      "/static/img/figma/tarjeta-inundacion.jpg",
+      "/static/img/figma/tarjeta-incendio.jpg",
+      "/static/img/figma/tarjeta-sismo.jpg",
+      "/static/img/figma/tarjeta-auxilios.jpg",
+      "/static/img/figma/tarjeta-sin-senal.jpg",
+    ];
+    for (const src of rutasImg) {
+      const im = new Image();
+      im.src = src;
+      if (im.decode) im.decode().catch(() => {});
+    }
+  }, 250);
   if (!window.__UNEXUAM_OFFLINE__) {
     clearTimeout(sondeoTimer);
     sondeoTimer = setTimeout(sondeo, 4000);

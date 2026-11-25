@@ -7,9 +7,10 @@
 .barra {
   grid-template-columns: minmax(0, 1fr) auto auto;
   gap: 6px;
-  background: rgba(255, 255, 255, .78);
-  -webkit-backdrop-filter: blur(22px) saturate(1.7);
-  backdrop-filter: blur(22px) saturate(1.7);
+  background: rgba(255, 255, 255, .82);
+  -webkit-backdrop-filter: blur(14px) saturate(1.55);
+  backdrop-filter: blur(14px) saturate(1.55);
+  transform: translateZ(0);
   border-bottom: 1px solid rgba(255, 255, 255, .75);
   box-shadow: 0 4px 20px rgba(11, 42, 74, .06), inset 0 -1px 0 rgba(0, 98, 204, .08);
 }
@@ -52,11 +53,12 @@ main { padding-bottom: calc(var(--alto-nav) + 88px + env(safe-area-inset-bottom)
   gap: 0;
   padding: 0 0 env(safe-area-inset-bottom);
   border-radius: 0;
-  background: rgba(255, 255, 255, .76);
+  background: rgba(255, 255, 255, .82);
   border-top: 1px solid rgba(255, 255, 255, .85);
   box-shadow: 0 -8px 28px rgba(11, 42, 74, .11), inset 0 1px 0 rgba(255, 255, 255, .95);
-  -webkit-backdrop-filter: blur(26px) saturate(1.85);
-  backdrop-filter: blur(26px) saturate(1.85);
+  -webkit-backdrop-filter: blur(14px) saturate(1.55);
+  backdrop-filter: blur(14px) saturate(1.55);
+  transform: translateZ(0);
   touch-action: none;
   user-select: none;
   -webkit-user-select: none;
@@ -266,10 +268,10 @@ body.sin-sesion main, body.sin-sesion .barra { visibility: hidden; }
   position: absolute;
   inset: -18%;
   pointer-events: none;
-  filter: blur(56px) saturate(1.35);
+  contain: strict;
   z-index: 0;
 }
-.login-aurora i { position: absolute; display: block; border-radius: 50%; mix-blend-mode: screen; }
+.login-aurora i { position: absolute; display: block; border-radius: 50%; mix-blend-mode: screen; will-change: transform; }
 .login-aurora .a1 { width: 64vmax; height: 64vmax; left: -14%; top: -18%; background: radial-gradient(circle, rgba(56, 182, 255, .85) 0%, rgba(56, 182, 255, 0) 66%); animation: aurora1 8s ease-in-out infinite alternate; }
 .login-aurora .a2 { width: 52vmax; height: 52vmax; right: -16%; top: 8%; background: radial-gradient(circle, rgba(0, 214, 86, .48) 0%, rgba(0, 214, 86, 0) 64%); animation: aurora2 9.5s ease-in-out infinite alternate; }
 .login-aurora .a3 { width: 48vmax; height: 48vmax; left: 8%; bottom: 18%; background: radial-gradient(circle, rgba(252, 210, 34, .42) 0%, rgba(252, 210, 34, 0) 62%); animation: aurora3 11s ease-in-out infinite alternate; }
@@ -291,8 +293,9 @@ body.sin-sesion main, body.sin-sesion .barra { visibility: hidden; }
   background: linear-gradient(145deg, rgba(255, 255, 255, .36), rgba(255, 255, 255, .1));
   border: 1.5px solid rgba(255, 255, 255, .58);
   box-shadow: 0 14px 32px rgba(0, 20, 60, .3), inset 0 1.5px 0 rgba(255, 255, 255, .75);
-  -webkit-backdrop-filter: blur(18px) saturate(1.6);
-  backdrop-filter: blur(18px) saturate(1.6);
+  -webkit-backdrop-filter: blur(14px) saturate(1.55);
+  backdrop-filter: blur(14px) saturate(1.55);
+  transform: translateZ(0);
 }
 .login-emblema::after,
 .splash-vidrio::after {
@@ -300,19 +303,21 @@ body.sin-sesion main, body.sin-sesion .barra { visibility: hidden; }
   position: absolute;
   inset: -40% -70%;
   background: linear-gradient(112deg, transparent 36%, rgba(255, 255, 255, .42) 50%, transparent 64%);
-  transform: translateX(-60%);
+  transform: translate3d(-60%, 0, 0);
+  will-change: transform, opacity;
   animation: vidrioBrillo 4.2s ease-in-out infinite;
   pointer-events: none;
 }
 .login-x { width: 34px; height: auto; display: block; position: relative; z-index: 1; }
-.login-wordmark { display: block; height: 24px; width: auto; margin: 0 auto 6px; filter: drop-shadow(0 2px 8px rgba(0, 20, 60, .25)); }
-.login-marca p { margin: 0; font-size: 0.85rem; opacity: .94; font-weight: 700; text-shadow: 0 1px 6px rgba(0, 20, 60, .25); }
+.login-wordmark { display: block; height: 24px; width: auto; margin: 0 auto 6px; }
+.login-marca p { margin: 0; font-size: 0.85rem; opacity: .94; font-weight: 700; }
 .login-carta {
   width: 100%;
   max-width: 440px;
-  background: rgba(255, 255, 255, .88);
-  -webkit-backdrop-filter: blur(26px) saturate(1.85);
-  backdrop-filter: blur(26px) saturate(1.85);
+  background: rgba(255, 255, 255, .9);
+  -webkit-backdrop-filter: blur(14px) saturate(1.55);
+  backdrop-filter: blur(14px) saturate(1.55);
+  transform: translateZ(0);
   border: 1.5px solid rgba(255, 255, 255, .85);
   border-bottom: 0;
   border-radius: 32px 32px 0 0;
@@ -691,9 +696,9 @@ html[data-tema="oscuro"] .login-carta .campo select {
   opacity: 0;
   transform-box: fill-box;
   transform-origin: center;
+  will-change: transform, opacity;
   animation: nodo .55s cubic-bezier(.22, 1.28, .36, 1) forwards, pulsoNodo 3.4s 1s ease-in-out infinite alternate;
   animation-delay: calc(140ms + var(--i) * 55ms), calc(1s + var(--i) * 140ms);
-  filter: drop-shadow(0 0 8px rgba(255, 255, 255, .6));
 }
 @keyframes trazo { to { stroke-dashoffset: 0; } }
 @keyframes pulsoArista {
@@ -706,17 +711,17 @@ html[data-tema="oscuro"] .login-carta .campo select {
   100% { transform: scale(1.18); opacity: 1; }
 }
 @keyframes vidrioBrillo {
-  0%, 15% { transform: translateX(-75%); opacity: 0; }
+  0%, 15% { transform: translate3d(-75%, 0, 0); opacity: 0; }
   40% { opacity: 1; }
-  65%, 100% { transform: translateX(75%); opacity: 0; }
+  65%, 100% { transform: translate3d(75%, 0, 0); opacity: 0; }
 }
 @keyframes loginMarcaEntra {
-  from { opacity: 0; transform: translateY(-14px) scale(.96); filter: blur(6px); }
-  to { opacity: 1; transform: none; filter: none; }
+  from { opacity: 0; transform: translate3d(0, -14px, 0) scale(.96); }
+  to { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
 }
 @keyframes loginSheetEntra {
-  from { opacity: 0; transform: translateY(28px) scale(.98); filter: blur(8px); }
-  to { opacity: 1; transform: none; filter: none; }
+  from { opacity: 0; transform: translate3d(0, 28px, 0) scale(.98); }
+  to { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
 }
 .splash { overflow: hidden; }
 .splash-centro { position: relative; z-index: 2; }
@@ -933,18 +938,19 @@ html[data-tema="oscuro"] .login-carta .campo select {
 .splash {
   background: #0050c8 !important;
   overflow: hidden;
-  transition: opacity .6s ease, transform .6s cubic-bezier(.22, 1, .36, 1), filter .6s ease;
+  will-change: opacity, transform;
+  transition: opacity .5s ease, transform .5s cubic-bezier(.22, 1, .36, 1);
 }
-.splash.fuera { opacity: 0; transform: scale(1.08); filter: blur(12px); }
-.splash-aurora { position: absolute; inset: -20%; filter: blur(60px) saturate(1.3); }
-.splash-aurora i { position: absolute; display: block; border-radius: 50%; mix-blend-mode: screen; opacity: .9; }
+.splash.fuera { opacity: 0; transform: scale(1.06); }
+.splash-aurora { position: absolute; inset: -20%; contain: strict; }
+.splash-aurora i { position: absolute; display: block; border-radius: 50%; mix-blend-mode: screen; opacity: .9; will-change: transform; }
 .splash-aurora .a1 { width: 70vmax; height: 70vmax; left: -10%; top: -15%; background: radial-gradient(circle, #38b6ff 0%, rgba(56, 182, 255, 0) 65%); animation: aurora1 7s ease-in-out infinite alternate; }
 .splash-aurora .a2 { width: 60vmax; height: 60vmax; right: -15%; top: 10%; background: radial-gradient(circle, #00d656 0%, rgba(0, 214, 86, 0) 62%); opacity: .55; animation: aurora2 8s ease-in-out infinite alternate; }
 .splash-aurora .a3 { width: 55vmax; height: 55vmax; left: 5%; bottom: -20%; background: radial-gradient(circle, #fcd222 0%, rgba(252, 210, 34, 0) 60%); opacity: .5; animation: aurora3 9s ease-in-out infinite alternate; }
 .splash-aurora .a4 { width: 45vmax; height: 45vmax; right: 0; bottom: -10%; background: radial-gradient(circle, #e23000 0%, rgba(226, 48, 0, 0) 60%); opacity: .35; animation: aurora1 10s ease-in-out infinite alternate-reverse; }
-@keyframes aurora1 { to { transform: translate(12%, 10%) scale(1.15); } }
-@keyframes aurora2 { to { transform: translate(-14%, 8%) scale(.9); } }
-@keyframes aurora3 { to { transform: translate(10%, -12%) scale(1.2); } }
+@keyframes aurora1 { to { transform: translate3d(12%, 10%, 0) scale(1.15); } }
+@keyframes aurora2 { to { transform: translate3d(-14%, 8%, 0) scale(.9); } }
+@keyframes aurora3 { to { transform: translate3d(10%, -12%, 0) scale(1.2); } }
 .splash-grano {
   position: absolute;
   inset: 0;
@@ -966,11 +972,12 @@ html[data-tema="oscuro"] .login-carta .campo select {
   background: linear-gradient(145deg, rgba(255, 255, 255, .34), rgba(255, 255, 255, .08));
   border: 1.5px solid rgba(255, 255, 255, .55);
   box-shadow: 0 20px 50px rgba(0, 30, 90, .35), inset 0 1px 0 rgba(255, 255, 255, .6);
-  -webkit-backdrop-filter: blur(18px);
-  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(14px) saturate(1.55);
+  backdrop-filter: blur(14px) saturate(1.55);
+  transform: translateZ(0);
   animation: vidrioEntra .9s cubic-bezier(.22, 1.3, .36, 1) both;
 }
-.splash-x { width: 58px; height: auto; filter: drop-shadow(0 6px 12px rgba(0, 30, 90, .35)); animation: xGira 1.1s .25s cubic-bezier(.22, 1, .36, 1) both; }
+.splash-x { width: 58px; height: auto; animation: xGira 1.1s .25s cubic-bezier(.22, 1, .36, 1) both; }
 .splash-anillo { position: absolute; inset: 0; border-radius: 50%; border: 2px solid rgba(255, 255, 255, .55); animation: anillo 2.4s cubic-bezier(.22, 1, .36, 1) infinite; opacity: 0; }
 .splash-anillo.r2 { animation-delay: .5s; border-color: rgba(252, 210, 34, .7); }
 .splash-anillo.r3 { animation-delay: 1s; border-color: rgba(0, 214, 86, .65); }
@@ -985,7 +992,7 @@ html[data-tema="oscuro"] .login-carta .campo select {
 .splash-sub span:nth-child(3) { animation-delay: .69s; }
 .splash-sub span:nth-child(4) { animation-delay: .76s; opacity: .6; }
 .splash-sub span:nth-child(5) { animation-delay: .83s; }
-@keyframes textoSube { from { opacity: 0; transform: translateY(12px); filter: blur(6px); } to { opacity: 1; transform: none; filter: none; } }
+@keyframes textoSube { from { opacity: 0; transform: translate3d(0, 12px, 0); } to { opacity: 1; transform: translate3d(0, 0, 0); } }
 .splash-carga { width: 150px; height: 5px; border-radius: 5px; overflow: hidden; background: rgba(255, 255, 255, .22); margin-top: 6px; }
 .splash-carga span { display: block; height: 100%; width: 40%; border-radius: 5px; background: linear-gradient(90deg, #fcd222, #00d656, #38b6ff); animation: carga 1.2s cubic-bezier(.65, 0, .35, 1) infinite; }
 @keyframes carga { from { transform: translateX(-110%); } to { transform: translateX(260%); } }
@@ -2038,97 +2045,106 @@ html[data-filtro-color="acromatopsia"] body { filter: grayscale(1); }
 html[data-tema="oscuro"] .em-ni-card { background: #131c29; border-color: #263952; }
 
 /* =====================================================================
-   Transiciones de pantalla y efecto Liquid Glass en toda la app
+   Transiciones de pantalla 60fps (GPU-only) y Liquid Glass optimizado
    ===================================================================== */
 @keyframes vistaLiquidEntra {
   from {
     opacity: 0;
-    transform: translateY(14px) scale(.978);
-    filter: blur(6px);
+    transform: translate3d(0, 14px, 0) scale(.98);
   }
   to {
     opacity: 1;
-    transform: translateY(0) scale(1);
-    filter: blur(0);
+    transform: translate3d(0, 0, 0) scale(1);
   }
 }
 
 @keyframes vistaHijoEntra {
   from {
     opacity: 0;
-    transform: translateY(10px) scale(.985);
+    transform: translate3d(0, 10px, 0) scale(.988);
   }
   to {
     opacity: 1;
-    transform: translateY(0) scale(1);
+    transform: translate3d(0, 0, 0) scale(1);
   }
 }
 
 @keyframes chatLiquidEntra {
   from {
     opacity: 0;
-    transform: translateX(22px) scale(.985);
-    filter: blur(6px);
+    transform: translate3d(20px, 0, 0) scale(.988);
   }
   to {
     opacity: 1;
-    transform: translateX(0) scale(1);
-    filter: blur(0);
+    transform: translate3d(0, 0, 0) scale(1);
   }
 }
 
 @keyframes hojaLiquidSube {
   from {
     opacity: 0;
-    transform: translateY(34px) scale(.97);
-    filter: blur(8px);
+    transform: translate3d(0, 32px, 0) scale(.975);
   }
   to {
     opacity: 1;
-    transform: translateY(0) scale(1);
-    filter: blur(0);
+    transform: translate3d(0, 0, 0) scale(1);
   }
 }
 
-.vista:not([hidden]) {
-  animation: vistaLiquidEntra .36s cubic-bezier(.22, 1, .36, 1) both;
+.vista {
+  contain: layout style;
 }
-.vista:not([hidden]) > *:nth-child(1) { animation: vistaHijoEntra .34s .02s cubic-bezier(.22, 1, .36, 1) both; }
-.vista:not([hidden]) > *:nth-child(2) { animation: vistaHijoEntra .34s .06s cubic-bezier(.22, 1, .36, 1) both; }
-.vista:not([hidden]) > *:nth-child(3) { animation: vistaHijoEntra .34s .1s cubic-bezier(.22, 1, .36, 1) both; }
-.vista:not([hidden]) > *:nth-child(4) { animation: vistaHijoEntra .34s .14s cubic-bezier(.22, 1, .36, 1) both; }
+.vista:not([hidden]) {
+  will-change: transform, opacity;
+  animation: vistaLiquidEntra .3s cubic-bezier(.22, 1, .36, 1) both;
+}
+.vista:not([hidden]) > *:nth-child(1) { animation: vistaHijoEntra .28s .015s cubic-bezier(.22, 1, .36, 1) both; }
+.vista:not([hidden]) > *:nth-child(2) { animation: vistaHijoEntra .28s .045s cubic-bezier(.22, 1, .36, 1) both; }
+.vista:not([hidden]) > *:nth-child(3) { animation: vistaHijoEntra .28s .075s cubic-bezier(.22, 1, .36, 1) both; }
+.vista:not([hidden]) > *:nth-child(4) { animation: vistaHijoEntra .28s .105s cubic-bezier(.22, 1, .36, 1) both; }
 
 .chat-vista:not([hidden]) {
-  animation: chatLiquidEntra .32s cubic-bezier(.22, 1, .36, 1) both;
+  will-change: transform, opacity;
+  animation: chatLiquidEntra .28s cubic-bezier(.22, 1, .36, 1) both;
+}
+
+.chat-lista,
+.contactos,
+.carrusel-pista {
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
 }
 
 .hoja:not([hidden]) .hoja-fondo {
-  -webkit-backdrop-filter: blur(10px) saturate(1.2);
-  backdrop-filter: blur(10px) saturate(1.2);
-  animation: aparece .24s ease-out both;
+  -webkit-backdrop-filter: blur(8px) saturate(1.2);
+  backdrop-filter: blur(8px) saturate(1.2);
+  animation: aparece .22s ease-out both;
 }
 .hoja:not([hidden]) .hoja-carta {
-  background: rgba(255, 255, 255, .88);
-  -webkit-backdrop-filter: blur(28px) saturate(1.85);
-  backdrop-filter: blur(28px) saturate(1.85);
+  background: rgba(255, 255, 255, .9);
+  -webkit-backdrop-filter: blur(14px) saturate(1.55);
+  backdrop-filter: blur(14px) saturate(1.55);
+  transform: translateZ(0);
+  will-change: transform, opacity;
   border: 1.5px solid rgba(255, 255, 255, .88);
   border-bottom: 0;
   box-shadow: 0 -12px 38px rgba(11, 42, 74, .22), inset 0 1.5px 0 rgba(255, 255, 255, .95);
-  animation: hojaLiquidSube .34s cubic-bezier(.22, 1.12, .36, 1) both;
+  animation: hojaLiquidSube .3s cubic-bezier(.22, 1.12, .36, 1) both;
 }
 html[data-tema="oscuro"] .hoja:not([hidden]) .hoja-carta {
-  background: rgba(19, 28, 41, .86);
+  background: rgba(19, 28, 41, .88);
   border-color: rgba(255, 255, 255, .14);
   box-shadow: 0 -12px 38px rgba(0, 0, 0, .46), inset 0 1px 0 rgba(255, 255, 255, .14);
 }
 
 .modal-ub-carta {
-  background: rgba(255, 255, 255, .9);
-  -webkit-backdrop-filter: blur(26px) saturate(1.8);
-  backdrop-filter: blur(26px) saturate(1.8);
+  background: rgba(255, 255, 255, .92);
+  -webkit-backdrop-filter: blur(14px) saturate(1.55);
+  backdrop-filter: blur(14px) saturate(1.55);
+  transform: translateZ(0);
   border: 1.5px solid rgba(255, 255, 255, .88);
   box-shadow: 0 22px 52px rgba(11, 42, 74, .28), inset 0 1.5px 0 rgba(255, 255, 255, .95);
-  animation: modalPop .28s cubic-bezier(.22, 1.12, .36, 1) both;
+  animation: modalPop .26s cubic-bezier(.22, 1.12, .36, 1) both;
 }
 html[data-tema="oscuro"] .modal-ub-carta {
   background: rgba(19, 28, 41, .88);

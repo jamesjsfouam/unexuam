@@ -228,10 +228,24 @@
       if (btn) setIdioma(btn.dataset.lang);
     });
 
-    const obs = new MutationObserver(() => {
+    const colaNodos = new Set();
+    const obs = new MutationObserver((mutaciones) => {
       if (aplicando || idiomaActual === "es") return;
+      for (const mut of mutaciones) {
+        for (const nodo of mut.addedNodes) {
+          if (nodo.nodeType === 1) colaNodos.add(nodo);
+          else if (nodo.nodeType === 3 && nodo.parentElement) colaNodos.add(nodo.parentElement);
+        }
+      }
+      if (!colaNodos.size) return;
       cancelAnimationFrame(rafId);
-      rafId = requestAnimationFrame(() => aplicarNodo(document.body));
+      rafId = requestAnimationFrame(() => {
+        const lote = [...colaNodos];
+        colaNodos.clear();
+        for (const nodo of lote) {
+          if (nodo.isConnected) aplicarNodo(nodo);
+        }
+      });
     });
     obs.observe(document.body, { childList: true, subtree: true });
   }
