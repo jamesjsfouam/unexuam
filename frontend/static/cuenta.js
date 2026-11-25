@@ -1611,11 +1611,20 @@
         try { enviados = Number(window.UnexuamNativo?.enviarPaqueteMesh?.(JSON.stringify(pkt)) || 0); } catch (_) {}
         let okLocal = false;
         try {
-          const r = await fetch("/api/mensajes/enviar", {
+          let r = await fetch("/api/mensajes/enviar", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ para: "TODOS", texto, guestId: invId }),
           });
+          if (r.status === 401) {
+            // En el servidor web /api/mensajes/enviar exige sesión; el SOS de invitado
+            // se acepta en el Canal General (textos que empiezan por "SOS").
+            r = await fetch("/api/mensajes/general", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ texto }),
+            });
+          }
           const jInv = await r.json().catch(() => ({}));
           okLocal = Boolean(jInv && jInv.ok);
         } catch (_) {}

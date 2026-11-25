@@ -410,13 +410,26 @@ def nombre_telefono(cif, nombre):
 
 
 def asegurar_admin_principal():
-    """Garantiza la cuenta administrativa institucional (25012005)."""
-    cif_admin = "25012005"
-    nombre_admin = "James Fernandez"
-    clave_admin = "Jamesfer.4"
-    actual = DB.usuario(cif_admin)
-    if actual and actual["admin"] and check_password_hash(actual["hash"], clave_admin):
+    """Crea o promueve el administrador inicial solo si se configura por entorno.
+
+    Las credenciales nunca van en el código: define UNEXUAM_ADMIN_CIF y
+    UNEXUAM_ADMIN_CLAVE (en .env) o usa `flask --app app crear-admin`.
+    Si la cuenta ya existe, su contraseña NO se sobrescribe en cada arranque.
+    """
+    cif_admin = (os.environ.get("UNEXUAM_ADMIN_CIF") or "").strip().upper()
+    clave_admin = os.environ.get("UNEXUAM_ADMIN_CLAVE") or ""
+    if not cif_admin or not clave_admin:
         return
+    if not re.fullmatch(r"[0-9A-Z-]{4,15}", cif_admin) or cif_admin in {CIF_RESERVADO, CIF_TODOS}:
+        app.logger.warning("UNEXUAM_ADMIN_CIF no es un CIF válido; no se crea el administrador.")
+        return
+    if not 12 <= len(clave_admin) <= 64:
+        app.logger.warning("UNEXUAM_ADMIN_CLAVE debe tener de 12 a 64 caracteres; no se crea el administrador.")
+        return
+    actual = DB.usuario(cif_admin)
+    if actual and actual["admin"]:
+        return
+    nombre_admin = " ".join((os.environ.get("UNEXUAM_ADMIN_NOMBRE") or "Administrador UAM").split())[:40]
     hash_clave = generate_password_hash(clave_admin)
     telefono = actual["telefono"] if actual else nombre_telefono(cif_admin, nombre_admin)
     lugar = actual["lugar"] if actual else LUGAR_INICIAL
@@ -1154,7 +1167,10 @@ def tramos_bloqueables(origen, destino, ambos):
 def bloquear_tramos(tramos):
     for origen, destino, peso in tramos:
         S["campus"].eliminarArista(origen, destino)
-        S["bloqueados"].append({"origen": origen, "destino": destino, "peso": peso})
+        # Se guarda el peso BASE (sin congestión): al reabrir se vuelve a aplicar la
+        # congestión vigente una sola vez.
+        base = peso / S["congestion"].get(destino, 1)
+        S["bloqueados"].append({"origen": origen, "destino": destino, "peso": round(base, 6)})
     invalidar_rutas()
     guardar_campus_compartido()
     return "Pasillo bloqueado: " + ", ".join(f"{o} → {d}" for o, d, _ in tramos) + "."
