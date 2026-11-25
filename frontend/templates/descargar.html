@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0080FF">
+  <title>Descargar Unexuam · Campus UAM</title>
+  <link rel="icon" href="/static/img/icono-192.png" type="image/png">
+  <style>
+    @font-face {
+      font-family: "Montserrat";
+      src: url("/static/fonts/Montserrat-Regular.woff2") format("woff2");
+      font-weight: 400;
+      font-display: swap;
+    }
+    @font-face {
+      font-family: "Montserrat";
+      src: url("/static/fonts/Montserrat-Bold.woff2") format("woff2");
+      font-weight: 700;
+      font-display: swap;
+    }
+    @font-face {
+      font-family: "Montserrat";
+      src: url("/static/fonts/Montserrat-Black.woff2") format("woff2");
+      font-weight: 900;
+      font-display: swap;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "Montserrat", system-ui, sans-serif;
+      color: #0B2A4A;
+      background:
+        linear-gradient(155deg, rgba(0, 128, 255, .94) 0%, rgba(0, 88, 194, .97) 100%),
+        url("/static/img/fondo-marca.svg") repeat;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .card {
+      width: min(100%, 460px);
+      background: #ffffff;
+      border-radius: 28px;
+      padding: 26px 24px;
+      box-shadow: 0 24px 60px rgba(7, 25, 48, .28);
+      text-align: center;
+    }
+    .logo { width: 72px; height: 72px; border-radius: 18px; margin-bottom: 10px; }
+    h1 { margin: 0 0 6px; font-size: 1.55rem; font-weight: 900; color: #0B2A4A; }
+    .sub { margin: 0 0 18px; font-size: .88rem; color: #4A5A6D; line-height: 1.4; }
+    .qr-wrap {
+      display: inline-flex;
+      padding: 12px;
+      border-radius: 20px;
+      border: 2px solid #DCE9F8;
+      background: #ffffff;
+      margin-bottom: 12px;
+    }
+    .url-box {
+      font-size: .76rem;
+      background: #F1F6FC;
+      border-radius: 12px;
+      padding: 8px 10px;
+      word-break: break-all;
+      color: #0B2A4A;
+      margin-bottom: 14px;
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      padding: 13px 18px;
+      border: 0;
+      border-radius: 99px;
+      font: inherit;
+      font-weight: 800;
+      font-size: .95rem;
+      cursor: pointer;
+      text-decoration: none;
+      margin-bottom: 10px;
+    }
+    .btn-primario { background: #0080FF; color: #ffffff; box-shadow: 0 8px 20px rgba(0, 128, 255, .28); }
+    .btn-sec { background: #EEF4FB; color: #0B2A4A; }
+    .meta {
+      display: flex;
+      justify-content: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin: 8px 0 14px;
+      font-size: .75rem;
+      font-weight: 700;
+    }
+    .pill { background: #E6F2FF; color: #0059B3; padding: 4px 10px; border-radius: 99px; }
+    .pill.verde { background: #DCF5E6; color: #006B2B; }
+    ol {
+      text-align: left;
+      margin: 10px 0 0;
+      padding-left: 20px;
+      font-size: .8rem;
+      color: #3D4E61;
+      line-height: 1.5;
+    }
+  </style>
+</head>
+<body>
+  <main class="card">
+    <img src="/static/img/icono-192.png" alt="Unexuam" class="logo">
+    <h1>Instalar Unexuam</h1>
+    <p class="sub">Evacuación híbrida (Nube + Mesh Bluetooth/Wi-Fi Direct) para el campus UAM.</p>
+
+    {% if apk.disponible %}
+      <div class="meta">
+        <span class="pill verde">{{ apk.tipo }}</span>
+        <span class="pill">{{ apk.tamano_mb }} MB</span>
+        <span class="pill">SHA-256: {{ apk.sha256 }}</span>
+      </div>
+      <div class="qr-wrap" id="qr-caja" data-url="{{ url_apk }}"></div>
+      <div class="url-box" id="url-apk-texto">{{ url_apk }}</div>
+      <a class="btn btn-primario" href="/descargar/apk">Descargar Unexuam (.apk)</a>
+      <button type="button" class="btn btn-sec" id="btn-copiar-link">Copiar enlace</button>
+    {% else %}
+      <p class="sub">El archivo APK todavía no está compilado en este servidor.</p>
+    {% endif %}
+
+    <ol>
+      <li>Escanea el QR o toca <b>Descargar Unexuam (.apk)</b> en tu teléfono Android.</li>
+      <li>Abre el archivo descargado y permite la instalación desde este origen.</li>
+      <li>Activa Bluetooth y GPS al abrir la app para habilitar alertas Mesh en campus.</li>
+    </ol>
+  </main>
+  <script src="/static/qr-descarga.js"></script>
+</body>
+</html>

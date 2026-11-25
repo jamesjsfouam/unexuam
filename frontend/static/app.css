@@ -2861,3 +2861,181 @@ body {
   font-size: 0.75rem;
   font-weight: 900;
 }
+
+/* ---------- Cola de prioridad UNEXO, filas bicolores, capas mapa y cuellos ---------- */
+.bloque-prioridad {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.prio-cab {
+  background: #CC0000;
+  color: #ffffff;
+  font-weight: 900;
+  font-size: 0.9rem;
+  padding: 7px 14px;
+  border-radius: 99px;
+  letter-spacing: 0.01em;
+}
+
+.cola-prioridad {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.cola-prioridad li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.94);
+  border: 2px solid #CC0000;
+  border-radius: 99px;
+  padding: 6px 12px;
+  font-size: 0.84rem;
+  font-weight: 700;
+  color: #8f0000;
+}
+
+.cola-prioridad li.verde {
+  border-color: #00A843;
+  color: #006B2B;
+}
+
+.prio-icos {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex: none;
+}
+
+.prio-icos svg {
+  width: 17px;
+  height: 17px;
+  fill: currentColor;
+}
+
+.reportes-vivo {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.rep-fila {
+  display: flex;
+  align-items: stretch;
+  border-radius: 99px;
+  overflow: hidden;
+  border: 1.5px solid rgba(11, 42, 74, 0.14);
+  background: #ffffff;
+  box-shadow: 0 3px 10px rgba(11, 42, 74, 0.06);
+}
+
+.rep-fila.rojo { border-color: #CC0000; }
+.rep-fila.amarillo { border-color: #E0A800; }
+.rep-fila.azul { border-color: #0080FF; }
+.rep-fila.verde { border-color: #00A843; }
+
+.rep-izq {
+  flex: 0 0 38%;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px;
+  background: #ffffff;
+  color: var(--texto);
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+
+.rep-izq svg {
+  width: 17px;
+  height: 17px;
+  flex: none;
+  fill: currentColor;
+}
+
+.rep-fila.rojo .rep-izq { color: #CC0000; }
+.rep-fila.amarillo .rep-izq { color: #A66E00; }
+.rep-fila.azul .rep-izq { color: #0066CC; }
+.rep-fila.verde .rep-izq { color: #007A33; }
+
+.rep-der {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 7px 14px 7px 12px;
+  border-radius: 99px 0 0 99px;
+  font-size: 0.78rem;
+  line-height: 1.22;
+}
+
+.rep-der b { font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rep-der span { opacity: 0.92; font-size: 0.73rem; }
+.rep-der.rojo { background: #CC0000; color: #ffffff; }
+.rep-der.azul { background: #0080FF; color: #ffffff; }
+.rep-der.amarillo { background: #FCD222; color: #1d232b; }
+.rep-der.verde { background: #00D656; color: #0B2A4A; }
+
+.capas-filtros {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 8px 0 6px;
+}
+
+.capa-chip {
+  border: 1.5px solid rgba(11, 42, 74, 0.18);
+  background: #ffffff;
+  color: var(--texto);
+  font: inherit;
+  font-size: 0.76rem;
+  font-weight: 700;
+  padding: 5px 11px;
+  border-radius: 99px;
+  cursor: pointer;
+  transition: transform 0.15s ease, background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.capa-chip[aria-pressed="true"].azul { background: #0080FF; color: #ffffff; border-color: #0080FF; }
+.capa-chip[aria-pressed="true"].amarillo { background: #FCD222; color: #0B2A4A; border-color: #E0B200; }
+.capa-chip[aria-pressed="true"].verde { background: #00D656; color: #0B2A4A; border-color: #00A843; }
+.capa-chip[aria-pressed="true"].rojo { background: #CC0000; color: #ffffff; border-color: #CC0000; }
+
+.cuello-item {
+  margin-bottom: 8px;
+}
+
+.cuello-cab {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.8rem;
+  font-weight: 700;
+  margin-bottom: 3px;
+}
+
+.cuello-barra {
+  height: 8px;
+  border-radius: 99px;
+  background: #e6eef8;
+  overflow: hidden;
+}
+
+.cuello-barra i {
+  display: block;
+  height: 100%;
+  border-radius: 99px;
+  background: linear-gradient(90deg, #0080FF, #CC0000);
+}
+
+.cuello-barra.zona i {
+  background: linear-gradient(90deg, #00A843, #00D656);
+}

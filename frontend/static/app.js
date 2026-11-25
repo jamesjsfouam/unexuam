@@ -574,6 +574,82 @@ function renderInicio() {
         `<li class="${h.tipo === "error" ? "error" : ""}"><time>${esc(h.hora)}</time><span>${esc(h.texto)}</span></li>`).join("")
     : `<li class="nota">Sin actividad registrada todavía.</li>`;
 
+  renderPrioridadYReportes();
+}
+
+const ICO_PRIO = {
+  edificio: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 21h16v-2h-1V4a1 1 0 0 0-1-1H6a1 1 0 0 0-1 1v15H4v2Zm4-4H7v-2h1v2Zm0-4H7v-2h1v2Zm0-4H7V7h1v2Zm4 8h-2v-2h2v2Zm0-4h-2v-2h2v2Zm0-4h-2V7h2v2Zm5 8h-3v-2h3v2Zm0-4h-3v-2h3v2Zm0-4h-3V7h3v2Z"/></svg>',
+  fuego: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13.5 2.2s.7 3.1-1.3 5.3c-1.4 1.5-2.6 2-2.6 2s.3-1.4-.4-2.4c-1.9 1.7-3.7 4.4-3.7 7.3a6.5 6.5 0 0 0 13 0c0-4.7-3.4-9-5-12.2Zm-1.5 16a2.8 2.8 0 0 1-2.8-2.8c0-1.5 1.1-2.7 2.2-3.7.3.9.9 1.5 1.7 1.8-.1-1 .4-1.8.4-1.8 1 .9 1.5 2.2 1.5 3.7a2.8 2.8 0 0 1-3 2.8Z"/></svg>',
+  alerta: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 2.2 20h19.6L12 3Zm1 13.5h-2v-2h2v2Zm0-3.5h-2V8.5h2V13Z"/></svg>',
+  sinSenal: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.3 3.7 3.7 2.3l18 18-1.4 1.4-3.4-3.4a10 10 0 0 1-4.9 1.4v-2a8 8 0 0 0 3.4-.8l-1.5-1.5A6 6 0 0 1 12 16v-2c.6 0 1.2-.1 1.7-.4L12 11.9V12a2 2 0 0 1-2-2v-.1L7.3 7.2A10 10 0 0 0 4.9 11l-1.8-.9A12 12 0 0 1 5.9 5.8L2.3 3.7ZM12 6c2.6 0 5 1 6.8 2.8l-1.4 1.4A7.6 7.6 0 0 0 12 8c-.8 0-1.5.1-2.2.4L8.2 6.8A9.8 9.8 0 0 1 12 6Z"/></svg>',
+};
+
+function renderPrioridadYReportes() {
+  const ul = $("#cola-prioridad");
+  const rv = $("#reportes-vivo");
+  if (!ul || !rv || !E) return;
+  const cola = [];
+  const filas = [];
+  const sinSenal = E.campus.sinSenal || [];
+  const bloqueados = E.campus.bloqueados || [];
+  const congKeys = Object.keys(E.campus.congestion || {});
+  const reps = E.reportesBloqueo || [];
+
+  if (E.emergencia) {
+    cola.push({
+      lugar: E.emergencia.titulo || "Emergencia activa",
+      verde: false,
+      icos: [ICO_PRIO.edificio, ICO_PRIO.fuego, ICO_PRIO.alerta],
+    });
+    filas.push({
+      cls: "rojo",
+      tipo: "Alerta oficial",
+      ico: ICO_PRIO.fuego,
+      titulo: E.emergencia.titulo || "Emergencia en campus",
+      sub: E.emergencia.texto || "Sigue la ruta segura en Evacuar",
+    });
+  }
+
+  for (const b of bloqueados.slice(0, 3)) {
+    const tramo = `${corto(b.origen)} → ${corto(b.destino)}`;
+    cola.push({ lugar: tramo, verde: false, icos: [ICO_PRIO.edificio, ICO_PRIO.alerta] });
+    filas.push({ cls: "rojo", tipo: "Bloqueo", ico: ICO_PRIO.alerta, titulo: tramo, sub: "Pasillo cerrado · ruta recalculada" });
+  }
+
+  for (const l of congKeys.slice(0, 3)) {
+    const f = E.campus.congestion[l];
+    cola.push({ lugar: corto(l), verde: false, icos: [ICO_PRIO.edificio, ICO_PRIO.alerta] });
+    filas.push({ cls: "amarillo", tipo: "Congestión", ico: ICO_PRIO.alerta, titulo: corto(l), sub: `Factor ×${fmt(f)} en accesos` });
+  }
+
+  for (const r of reps.slice(0, 2)) {
+    filas.push({ cls: "azul", tipo: "Reporte CIF", ico: ICO_PRIO.edificio, titulo: `${corto(r.origen)} → ${corto(r.destino)}`, sub: `Pendiente · CIF ${esc(r.autor)}` });
+  }
+
+  for (const s of sinSenal.slice(0, 2)) {
+    cola.push({ lugar: `${corto(s)} (sin enlace)`, verde: false, icos: [ICO_PRIO.sinSenal] });
+  }
+
+  if (!cola.length) {
+    cola.push({ lugar: "Campus despejado · 0 zonas críticas", verde: true, icos: [ICO_PRIO.edificio] });
+  }
+  if (!filas.length) {
+    filas.push({
+      cls: "verde",
+      tipo: "Zonas seguras",
+      ico: ICO_PRIO.edificio,
+      titulo: `${(E.campus.zonasSeguras || []).length} puntos activos`,
+      sub: "Pasillos y escaleras despejados",
+    });
+  }
+
+  ul.innerHTML = cola.slice(0, 5).map(item =>
+    `<li class="${item.verde ? "verde" : ""}"><span>${esc(item.lugar)}</span><span class="prio-icos">${item.icos.join("")}</span></li>`
+  ).join("");
+
+  rv.innerHTML = filas.slice(0, 4).map(f =>
+    `<div class="rep-fila ${f.cls}"><div class="rep-izq">${f.ico}<span>${esc(f.tipo)}</span></div><div class="rep-der ${f.cls}"><b>${esc(f.titulo)}</b><span>${esc(f.sub)}</span></div></div>`
+  ).join("");
 }
 
 /* -------------------------------------------------------------- campus */
@@ -1148,6 +1224,8 @@ function posCampus(n) {
   return null;
 }
 
+const CAPAS_MAPA = { bloqueos: true, congestion: true, zonas: true, sinSenal: false };
+
 /* Mapa 3D del campus con el tramo exterior de la ruta. o.resaltar: índices de aristas; o.minW: zoom */
 function campusSvg(ruta, o) {
   // dentro de un edificio la ruta se ve en su vista propia: aquí se une con un marcador «Tú»
@@ -1252,16 +1330,39 @@ function campusSvg(ruta, o) {
       <circle cx="${pinTu.x}" cy="${pinTu.y}" r="${10 * s}" stroke-width="${2 * s}"/><text x="${pinTu.x}" y="${pinTu.y}" font-size="${8.5 * s}">Tú</text>
       <text class="r3-etq" x="${pinTu.x}" y="${tuY}" font-size="${10 * s}" stroke-width="${3.2 * s}">${esc(ruta[0])}</text></g>`;
   }
+  let halos = "";
+  if (CAPAS_MAPA.zonas && E?.campus?.zonasSeguras) {
+    for (const z of E.campus.zonasSeguras) {
+      const p = posCampus(z);
+      if (p) halos += `<circle cx="${p.x}" cy="${p.y}" r="${18 * s}" fill="rgba(0,214,86,0.22)" stroke="rgba(0,168,67,0.65)" stroke-width="${1.6 * s}"/>`;
+    }
+  }
+  if (CAPAS_MAPA.congestion && E?.campus?.congestion) {
+    for (const l of Object.keys(E.campus.congestion)) {
+      const p = posCampus(l);
+      if (p) halos += `<circle cx="${p.x}" cy="${p.y}" r="${20 * s}" fill="rgba(252,210,34,0.32)" stroke="rgba(224,168,0,0.8)" stroke-width="${1.8 * s}"/>`;
+    }
+  }
   let bloq = "";
-  for (const b of E.campus.bloqueados) {
-    const A = posCampus(b.origen), B = posCampus(b.destino);
-    if (A && B) bloq += `<line class="r3-bloq" x1="${A.x}" y1="${A.y}" x2="${B.x}" y2="${B.y}" stroke-width="${3 * s}" stroke-dasharray="${6 * s} ${5 * s}"/>`;
+  if (CAPAS_MAPA.bloqueos && E?.campus?.bloqueados) {
+    for (const b of E.campus.bloqueados) {
+      const A = posCampus(b.origen), B = posCampus(b.destino);
+      if (A && B) bloq += `<line class="r3-bloq" x1="${A.x}" y1="${A.y}" x2="${B.x}" y2="${B.y}" stroke-width="${3 * s}" stroke-dasharray="${6 * s} ${5 * s}"/>`;
+      if (A) halos += `<circle cx="${A.x}" cy="${A.y}" r="${14 * s}" fill="rgba(204,0,0,0.16)" stroke="rgba(204,0,0,0.55)" stroke-width="${1.4 * s}"/>`;
+      if (B) halos += `<circle cx="${B.x}" cy="${B.y}" r="${14 * s}" fill="rgba(204,0,0,0.16)" stroke="rgba(204,0,0,0.55)" stroke-width="${1.4 * s}"/>`;
+    }
+  }
+  if (CAPAS_MAPA.sinSenal && E?.campus?.sinSenal) {
+    for (const l of E.campus.sinSenal) {
+      const p = posCampus(l);
+      if (p) halos += `<g><circle cx="${p.x}" cy="${p.y}" r="${15 * s}" fill="rgba(255,255,255,0.9)" stroke="#CC0000" stroke-width="${2 * s}"/><text x="${p.x}" y="${p.y + 3 * s}" text-anchor="middle" font-size="${9 * s}" font-weight="900" fill="#CC0000">✕</text></g>`;
+    }
   }
   const estilo = o.mini ? `style="aspect-ratio:${vb[2].toFixed(1)}/${vb[3].toFixed(1)}"` : "";
   return `<svg class="c3d${o.mini ? " mini" : " interactivo"}" viewBox="${vb.map(n => n.toFixed(1)).join(" ")}" ${estilo} role="img" aria-label="Ruta sobre el mapa 3D del campus">
     <image href="/static/img/mapa-campus-3d.svg" width="${MAPA_W}" height="${MAPA_H}"/>
     <rect x="0" y="0" width="${MAPA_W}" height="${MAPA_H}" class="r3-velo"/>
-    ${bloq}<g>${aristas}</g><g>${pesos}</g><g>${nodos}</g></svg>`;
+    ${halos}${bloq}<g>${aristas}</g><g>${pesos}</g><g>${nodos}</g></svg>`;
 }
 
 /* Vista pequeña de un paso: por dentro del edificio, o el tramo por el campus. */
@@ -1517,6 +1618,12 @@ function renderAdmin() {
     const sal = g.aristas.filter(a => a.origen === v);
     return `<li><b>${esc(v)}${!esMesh && zonas.has(v) ? " · zona segura" : ""}</b><span>${sal.length ? sal.map(a => `${esc(a.destino)} (${fmt(a.peso)} s)`).join(" · ") : "Sin salidas"}</span></li>`;
   }).join("") : `<li class="nota">Sin elementos en este grafo.</li>`;
+
+  const fbEst = $("#fb-admin-estado");
+  const btnFbSalir = $("#btn-fb-admin-salir");
+  const authed = Boolean(window.UNEXO_NUBE && window.UNEXO_NUBE.tieneAuthAdmin && window.UNEXO_NUBE.tieneAuthAdmin());
+  if (fbEst) fbEst.textContent = authed ? "Conectado a Firebase Admin (escritura campus/estado habilitada)." : "Sin autenticar en Firebase (solo lectura pública / red local).";
+  if (btnFbSalir) btnFbSalir.hidden = !authed;
 }
 
 /* ---------------------------------------------------------------- tabs */
@@ -1890,6 +1997,48 @@ function eventos() {
     } finally {
       acciones.forEach((accion) => { accion.disabled = false; });
     }
+  });
+  $("#capas-filtros")?.addEventListener("click", (ev) => {
+    const btn = ev.target.closest("[data-capa]");
+    if (!btn) return;
+    const capa = btn.dataset.capa;
+    if (!(capa in CAPAS_MAPA)) return;
+    CAPAS_MAPA[capa] = !CAPAS_MAPA[capa];
+    btn.setAttribute("aria-pressed", String(CAPAS_MAPA[capa]));
+    if (vista === "campus") renderCampus();
+  });
+  $("#form-fb-admin")?.addEventListener("submit", async (ev) => {
+    ev.preventDefault();
+    if (!window.UNEXO_NUBE?.iniciarSesionAdminFirebase) return;
+    const email = $("#fb-admin-email")?.value?.trim() || "";
+    const pass = $("#fb-admin-pass")?.value || "";
+    const key = $("#fb-admin-apikey")?.value?.trim() || "";
+    const res = await window.UNEXO_NUBE.iniciarSesionAdminFirebase(email, pass, key);
+    aviso(res.ok ? `Firebase Admin conectado (${res.email}).` : (res.mensaje || "Error de autenticación Firebase."), res.ok);
+    if (res.ok && $("#fb-admin-pass")) $("#fb-admin-pass").value = "";
+    renderAdmin();
+  });
+  $("#btn-fb-admin-salir")?.addEventListener("click", () => {
+    window.UNEXO_NUBE?.cerrarSesionAdminFirebase?.();
+    aviso("Sesión Firebase Admin cerrada.");
+    renderAdmin();
+  });
+  $("#btn-cuellos")?.addEventListener("click", async () => {
+    const box = $("#cuellos-resultado");
+    if (box) box.innerHTML = '<p class="nota">Calculando rutas simultáneas…</p>';
+    const j = await api("/api/campus/cuellos");
+    if (!j.ok || !j.analisis || !box) {
+      if (box) box.innerHTML = '<p class="nota">No se pudo calcular el análisis de cuellos de botella.</p>';
+      return;
+    }
+    const a = j.analisis;
+    const cuellosHtml = (a.cuellos || []).map(c =>
+      `<div class="cuello-item"><div class="cuello-cab"><span>${esc(c.vertice)}</span><span>${c.flujo} rutas (${c.porcentaje}%)</span></div><div class="cuello-barra"><i style="width:${Math.min(100, c.porcentaje)}%"></i></div></div>`
+    ).join("");
+    const zonasHtml = (a.zonas || []).map(z =>
+      `<div class="cuello-item"><div class="cuello-cab"><span>${esc(z.zona)}</span><span>${z.flujo} rutas (${z.porcentaje}%)</span></div><div class="cuello-barra zona"><i style="width:${Math.min(100, z.porcentaje)}%"></i></div></div>`
+    ).join("");
+    box.innerHTML = `<p class="nota"><b>${a.totalOrigenes}</b> lugares evaluados · <b>${a.sinSalida}</b> sin salida.</p><h4>Puntos intermedios críticos</h4>${cuellosHtml || '<p class="nota">Sin datos.</p>'}<h4>Carga por zona segura</h4>${zonasHtml || '<p class="nota">Sin datos.</p>'}`;
   });
   $(".skip-link")?.addEventListener("click", (ev) => {
     ev.preventDefault();

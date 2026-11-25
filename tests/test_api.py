@@ -374,6 +374,23 @@ class TestSesionYMensajes(unittest.TestCase):
         self.assertTrue(cap["ok"])
         self.assertFalse(cap["demo"])
 
+    def test_cuellos_de_botella_solo_admin_y_descarga(self):
+        est, _ = self.nuevo("CUE0001", "Estudiante", "C-101")
+        self.assertEqual(est.get("/api/campus/cuellos").status_code, 403)
+
+        adm = servidor.app.test_client()
+        _login_admin(adm)
+        res = adm.get("/api/campus/cuellos")
+        self.assertEqual(res.status_code, 200)
+        analisis = res.get_json()["analisis"]
+        self.assertGreater(analisis["totalOrigenes"], 100)
+        self.assertTrue(len(analisis["cuellos"]) > 0)
+        self.assertTrue(len(analisis["zonas"]) > 0)
+
+        pag = servidor.app.test_client().get("/descargar")
+        self.assertEqual(pag.status_code, 200)
+        self.assertIn("Unexuam", pag.get_data(as_text=True))
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -20,13 +20,13 @@ import threading
 import time
 
 import click
-from flask import Flask, jsonify, render_template, request, session
+from flask import Flask, jsonify, render_template, request, send_file, session
 from werkzeug.exceptions import HTTPException
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from backend.grafo import Graph
 from backend.datos import crearCampus, crearRedMesh, ubicacionesTelefonos
-from backend.evacuacion import aplicarAlerta, dijkstraPasos, rutaEvacuacion
+from backend.evacuacion import analizarCuellosDeBotella, aplicarAlerta, dijkstraPasos, rutaEvacuacion
 from backend.mensajeria import ALCANCE, conectarTelefono, desconectarTelefono, procesarCola, rutaMensaje
 from backend.mesh import propagarAlerta
 from basedatos import BaseDatos
@@ -281,6 +281,7 @@ def estado():
             "ruta": ruta,
             "bloqueados": S["bloqueados"],
             "congestion": S["congestion"],
+            "sinSenal": sorted({S["ubicaciones"][v.nombre] for v in S["red"].vertexs if not v.neig and v.nombre in S["ubicaciones"]}),
         },
         "ultimaAlerta": S["ultimaAlerta"],
         "emergencia": DB.emergencia_actual(),
@@ -360,13 +361,13 @@ def error_backend(e):
 # Inicio de sesión (CIF + contraseña) y mensajería por la red Mesh
 # ----------------------------------------------------------------------------
 
-LIBRES = {"/api/capacidades", "/api/yo", "/api/login", "/api/registro", "/api/registro/disponible", "/api/lugares", "/api/campus/publico", "/api/campus/ruta", "/api/mensajes/general"}
+LIBRES = {"/api/capacidades", "/api/yo", "/api/login", "/api/registro", "/api/registro/disponible", "/api/lugares", "/api/campus/publico", "/api/campus/ruta", "/api/mensajes/general", "/descargar", "/descargar/apk"}
 # Reportar un pasillo bloqueado (/api/campus/bloquear) es una función de emergencia para todos;
 # reabrir, congestionar, reiniciar y editar los grafos es solo del administrador.
 SOLO_ADMIN = ("/api/reiniciar", "/api/mesh/vertice", "/api/mesh/arista", "/api/mesh/alerta",
               "/api/campus/vertice", "/api/campus/arista", "/api/campus/ubicacion",
               "/api/campus/desbloquear", "/api/campus/congestionar", "/api/campus/reportes/resolver", "/api/algoritmo",
-              "/api/emergencia/declarar", "/api/emergencia/finalizar")
+              "/api/campus/cuellos", "/api/emergencia/declarar", "/api/emergencia/finalizar")
 LUGAR_INICIAL = "Edificio E"      # lugar por defecto al entrar (luego el GPS o la persona lo cambia)
 CIF_RESERVADO = "ADMIN"
 CIF_TODOS = "TODOS"     # Canal General: un "usuario" especial que representa a todo el campus
@@ -1155,6 +1156,53 @@ def api_arista(grafo):
                 guardar_campus_compartido()
             return responder(True, f"Arista {o} → {dst} eliminada de {grafo}.")
         return responder(False, "Acción no válida.")
+
+
+@app.get("/api/campus/cuellos")
+def api_campus_cuellos():
+    with lock:
+        analisis = analizarCuellosDeBotella(S["campus"], S["zonas"])
+    return jsonify({"ok": True, "analisis": analisis})
+
+
+def _ruta_apk_campus():
+    raiz = os.path.dirname(os.path.abspath(__file__))
+    candidatos = [
+        os.path.join(raiz, "mobile", "android", "app", "build", "outputs", "apk", "release", "app-release.apk"),
+        os.path.join(raiz, "mobile", "android", "app", "build", "outputs", "apk", "debug", "app-debug.apk"),
+    ]
+    for ruta in candidatos:
+        if os.path.isfile(ruta):
+            return ruta
+    return None
+
+
+@app.get("/descargar")
+def pagina_descargar():
+    ruta = _ruta_apk_campus()
+    info = {"disponible": False, "tamano_mb": None, "sha256": None, "tipo": None}
+    if ruta:
+        tam = os.path.getsize(ruta)
+        h = hashlib.sha256()
+        with open(ruta, "rb") as f:
+            for bloque in iter(lambda: f.read(65536), b""):
+                h.update(bloque)
+        info = {
+            "disponible": True,
+            "tamano_mb": f"{tam / (1024 * 1024):.2f}",
+            "sha256": h.hexdigest()[:16].upper(),
+            "tipo": "Release firmado" if "release" in ruta else "Debug",
+        }
+    url_apk = request.url_root.rstrip("/") + "/descargar/apk"
+    return render_template("descargar.html", apk=info, url_apk=url_apk)
+
+
+@app.get("/descargar/apk")
+def descargar_apk():
+    ruta = _ruta_apk_campus()
+    if not ruta:
+        return jsonify({"ok": False, "mensaje": "APK no compilado todavía en este servidor."}), 404
+    return send_file(ruta, as_attachment=True, download_name="Unexuam-UAM.apk", mimetype="application/vnd.android.package-archive")
 
 
 # ----------------------------------------------------------------------------

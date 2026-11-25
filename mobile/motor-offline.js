@@ -389,6 +389,7 @@
         ruta: calcularRuta(),
         bloqueados: S.bloqueados,
         congestion: S.congestion,
+        sinSenal: [...new Set(S.red.vertexs.filter((v) => !v.neig.length && S.ubicaciones[v.nombre]).map((v) => S.ubicaciones[v.nombre]))].sort(),
       },
       ultimaAlerta: S.ultimaAlerta,
       emergencia: S.emergencia,
@@ -604,7 +605,7 @@
 
   async function despacharApi(ruta, d, searchParams) {
     const LIBRES = ["/api/yo", "/api/login", "/api/registro", "/api/registro/disponible", "/api/lugares", "/api/campus/publico", "/api/campus/ruta", "/api/mensajes/general"];
-    const SOLO_ADMIN = ["/api/reiniciar", "/api/mesh/vertice", "/api/mesh/arista", "/api/mesh/alerta", "/api/campus/vertice", "/api/campus/arista", "/api/campus/ubicacion", "/api/campus/desbloquear", "/api/campus/congestionar", "/api/algoritmo", "/api/emergencia/declarar", "/api/emergencia/finalizar"];
+    const SOLO_ADMIN = ["/api/reiniciar", "/api/mesh/vertice", "/api/mesh/arista", "/api/mesh/alerta", "/api/campus/vertice", "/api/campus/arista", "/api/campus/ubicacion", "/api/campus/desbloquear", "/api/campus/congestionar", "/api/algoritmo", "/api/campus/cuellos", "/api/emergencia/declarar", "/api/emergencia/finalizar"];
     if (!LIBRES.includes(ruta)) {
       const yo = cuentaActual();
       if (!yo) {
@@ -617,6 +618,28 @@
     if (ruta === "/api/estado") {
       sincronizarCampusNube();
       return { ok: true, mensaje: "", estado: estado() };
+    }
+    if (ruta === "/api/campus/cuellos") {
+      const zonasLower = new Set(S.zonas.map((z) => z.toLowerCase()));
+      const paso = {};
+      const cargaZonas = {};
+      let totalOrigenes = 0;
+      let sinSalida = 0;
+      for (const v of S.campus.vertexs) {
+        if (zonasLower.has(v.nombre.toLowerCase())) continue;
+        totalOrigenes++;
+        const [r, t] = rutaEvacuacion(S.campus, v.nombre, S.zonas);
+        if (!r.length || !Number.isFinite(t)) { sinSalida++; continue; }
+        const zf = r[r.length - 1];
+        cargaZonas[zf] = (cargaZonas[zf] || 0) + 1;
+        for (let i = 1; i < r.length - 1; i++) paso[r[i]] = (paso[r[i]] || 0) + 1;
+      }
+      const base = totalOrigenes || 1;
+      const cuellos = Object.entries(paso).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).slice(0, 8)
+        .map(([vertice, flujo]) => ({ vertice, flujo, porcentaje: Math.round((flujo * 1000) / base) / 10 }));
+      const zonas = Object.entries(cargaZonas).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).slice(0, 8)
+        .map(([zona, flujo]) => ({ zona, flujo, porcentaje: Math.round((flujo * 1000) / base) / 10 }));
+      return { ok: true, analisis: { totalOrigenes, sinSalida, cuellos, zonas } };
     }
 
     if (ruta === "/api/reiniciar") {

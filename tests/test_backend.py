@@ -3,7 +3,7 @@ import unittest
 
 from backend.grafo import Graph, Vertex
 from backend.datos import crearCampus, crearRedMesh
-from backend.evacuacion import dijkstra, rutaMasCorta, rutaEvacuacion, aplicarAlerta, INF
+from backend.evacuacion import analizarCuellosDeBotella, dijkstra, rutaMasCorta, rutaEvacuacion, aplicarAlerta, INF
 from backend.mesh import propagarAlerta
 from backend.evacuacion import dijkstraPasos
 from backend.datos import ubicacionesTelefonos
@@ -316,6 +316,15 @@ class TestCasosLimite(unittest.TestCase):
         cola = [{"id": 1, "origen": None, "destino": "Tel-Ana"}]
         self.assertEqual(procesarCola(crearRedMesh(), cola), [])
         self.assertEqual(len(cola), 1)
+
+    def test_analizar_cuellos_de_botella(self):
+        campus, zonas = crearCampus()
+        res = analizarCuellosDeBotella(campus, zonas, limite=5)
+        self.assertEqual(res["totalOrigenes"], len(campus.vertexs) - len(zonas))
+        self.assertEqual(res["sinSalida"], 0)
+        self.assertEqual(len(res["cuellos"]), 5)
+        self.assertGreater(res["cuellos"][0]["flujo"], 0)
+        self.assertTrue(len(res["zonas"]) > 0)
 
 if __name__ == "__main__":
     unittest.main()

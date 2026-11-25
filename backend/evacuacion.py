@@ -159,3 +159,42 @@ def dijkstraPasos(campus, origen, zonasSeguras):
         ruta.insert(0, lugar)
         lugar = anteriores[lugar]
     return pasos, ruta, distancias[zonaAlcanzada]
+
+
+def analizarCuellosDeBotella(campus, zonasSeguras, limite=8):
+    # Simula evacuacion simultanea desde todos los lugares no seguros y cuenta
+    # cuantas rutas atraviesan cada vertice intermedio (escaleras, pabellones, salidas).
+    zonasLower = {z.lower() for z in zonasSeguras if isinstance(z, str)}
+    paso = {}
+    cargaZonas = {}
+    totalOrigenes = 0
+    sinSalida = 0
+
+    for v in campus.vertexs:
+        if v.nombre.lower() in zonasLower:
+            continue
+        totalOrigenes += 1
+        ruta, tiempo = rutaEvacuacion(campus, v.nombre, zonasSeguras)
+        if not ruta or tiempo == INF:
+            sinSalida += 1
+            continue
+        zonaFin = ruta[-1]
+        cargaZonas[zonaFin] = cargaZonas.get(zonaFin, 0) + 1
+        for intermedio in ruta[1:-1]:
+            paso[intermedio] = paso.get(intermedio, 0) + 1
+
+    base = totalOrigenes or 1
+    cuellos = sorted(paso.items(), key=lambda par: (-par[1], par[0]))[:limite]
+    zonasOrd = sorted(cargaZonas.items(), key=lambda par: (-par[1], par[0]))[:limite]
+    return {
+        "totalOrigenes": totalOrigenes,
+        "sinSalida": sinSalida,
+        "cuellos": [
+            {"vertice": k, "flujo": n, "porcentaje": round(n * 100.0 / base, 1)}
+            for k, n in cuellos
+        ],
+        "zonas": [
+            {"zona": k, "flujo": n, "porcentaje": round(n * 100.0 / base, 1)}
+            for k, n in zonasOrd
+        ],
+    }

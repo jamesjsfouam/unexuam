@@ -139,6 +139,12 @@
         </div>
       </div>
 
+      <div class="bloque-prioridad" id="bloque-prioridad-inicio">
+        <div class="prio-cab">Cola de prioridad en vivo</div>
+        <ul id="cola-prioridad" class="cola-prioridad"></ul>
+        <div id="reportes-vivo" class="reportes-vivo"></div>
+      </div>
+
       <div class="tarjeta solo-admin" hidden>
         <div class="tarjeta-cab">
           <h3>Capa 1 · Mensajes</h3>
@@ -239,6 +245,12 @@
         <div class="lienzo-cab" id="campus-cab"></div>
         <div id="mapa-campus" class="vista-3d"></div>
         <p class="credito">Plano © colaboradores de <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> (ODbL)</p>
+      </div>
+      <div class="capas-filtros" id="capas-filtros" role="group" aria-label="Capas del mapa">
+        <button type="button" class="capa-chip azul" data-capa="bloqueos" aria-pressed="true">Bloqueos</button>
+        <button type="button" class="capa-chip amarillo" data-capa="congestion" aria-pressed="true">Congestión</button>
+        <button type="button" class="capa-chip verde" data-capa="zonas" aria-pressed="true">Zonas seguras</button>
+        <button type="button" class="capa-chip rojo" data-capa="sinSenal" aria-pressed="false">Sin señal</button>
       </div>
       <div class="leyenda">
         <span class="chip amarillo"><i class="l-tu"></i>Tú</span>
@@ -348,6 +360,28 @@
           <button type="button" class="btn primario" data-declarar-em="inundacion">Declarar Inundación</button>
           <button type="button" class="btn seguro" data-accion="finalizar-emergencia">Finalizar emergencia</button>
         </div>
+      </div>
+
+      <div class="tarjeta">
+        <div class="tarjeta-cab"><h3>Sesión Firebase Admin (Nube + FCM)</h3></div>
+        <p class="nota" id="fb-admin-estado">Sin autenticar en Firebase.</p>
+        <form id="form-fb-admin" autocomplete="off">
+          <label class="campo"><span>Correo admin Firebase</span><input id="fb-admin-email" type="email" required placeholder="admin@uamv.edu.ni"></label>
+          <label class="campo"><span>Contraseña Firebase</span><input id="fb-admin-pass" type="password" required placeholder="••••••••"></label>
+          <label class="campo"><span>Firebase Web API Key</span><input id="fb-admin-apikey" type="text" required placeholder="Firebase Web API Key"></label>
+          <div class="fila">
+            <button type="submit" class="btn primario">Conectar Firebase Admin</button>
+            <button type="button" class="btn secundario" id="btn-fb-admin-salir" hidden>Desconectar</button>
+          </div>
+        </form>
+      </div>
+
+      <div class="tarjeta">
+        <div class="tarjeta-cab">
+          <h3>Cuellos de botella del campus</h3>
+          <button type="button" class="btn mini" id="btn-cuellos">Analizar carga</button>
+        </div>
+        <div id="cuellos-resultado"><p class="nota">Pulsa «Analizar carga» para calcular escaleras y salidas con mayor flujo simultáneo.</p></div>
       </div>
 
       <div class="tarjeta">
