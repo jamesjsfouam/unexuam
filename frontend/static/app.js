@@ -2702,7 +2702,13 @@ eventos();
 // La app arranca cuando hay sesión iniciada (ver cuenta.js).
 let appIniciada = false;
 window.refrescarEstado = function () {
-  return api("/api/estado");
+  if (document.body.classList.contains("modo-invitado")) return api("/api/campus/publico");
+  if (!document.body.classList.contains("sin-sesion")) return api("/api/estado");
+};
+window.aplicarEmergenciaInvitado = function (emergencia) {
+  if (E && document.body.classList.contains("modo-invitado")) {
+    aplicarEstado({ ...E, emergencia });
+  }
 };
 window.iniciarUnexuam = function () {
   document.body.classList.remove("modo-invitado");

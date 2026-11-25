@@ -261,7 +261,11 @@
     actualizarWizard(false);
   }
 
+  let cancelarCampusInvitado;
+
   function mostrarLogin() {
+    cancelarCampusInvitado?.();
+    cancelarCampusInvitado = null;
     YO = null;
     pausar();
     detenerSondeoMensajes();
@@ -1733,6 +1737,12 @@
         document.body.classList.remove("modo-invitado");
         mostrarLogin();
         $('#login-error').textContent = "Conéctate para descargar el mapa del campus.";
+        return;
+      }
+      if (!YO && !window.__UNEXUAM_OFFLINE__ && !cancelarCampusInvitado) {
+        cancelarCampusInvitado = window.UNEXO_NUBE?.observarCampusEstado((doc) => {
+          if (!YO) window.aplicarEmergenciaInvitado?.(doc.emergencia || null);
+        });
       }
     });
     const btnIrLoginMsj = $("#btn-ir-login-mensajes");

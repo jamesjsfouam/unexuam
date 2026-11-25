@@ -99,7 +99,8 @@ public class MainActivity extends BridgeActivity {
         solicitarPermisosEntrada();
         procesarIntentRuta(getIntent());
         try {
-            FirebaseMessaging.getInstance().subscribeToTopic("campus_emergencias");
+            FirebaseMessaging.getInstance().subscribeToTopic("campus_emergencias")
+                    .addOnFailureListener(e -> Log.w("UnexuamMain", "No se pudo suscribir al canal de campus.", e));
         } catch (Exception e) {
             Log.w("UnexuamMain", "FCM topic diferido sin red: " + e.getMessage());
         }

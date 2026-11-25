@@ -203,14 +203,14 @@
     return { fields };
   }
 
-  async function reqFS(ruta, opts = {}) {
+  async function reqFS(ruta, opts = {}, publico = false) {
     if (typeof navigator !== "undefined" && navigator.onLine === false) {
       return { offline: true, status: 0, data: null };
     }
     const ctrl = typeof AbortController !== "undefined" ? new AbortController() : null;
     const timer = ctrl ? setTimeout(() => ctrl.abort(), TIMEOUT_MS) : null;
     try {
-      const token = await asegurarToken();
+      const token = publico ? null : await asegurarToken();
       const headers = { "Content-Type": "application/json", ...(opts.headers || {}) };
       if (token && !headers.Authorization) headers.Authorization = `Bearer ${token}`;
       const r = await fetch(BASE + ruta, {
@@ -293,9 +293,68 @@
   }
 
   async function leerCampusEstado() {
-    const res = await reqFS("/campus/estado");
+    const res = await reqFS("/campus/estado", {}, true);
     if (res.offline || !res.ok || !res.data) return null;
-    return docAObjeto(res.data);
+    const { _id, ...estado } = docAObjeto(res.data) || {};
+    return Object.keys(estado).length ? estado : null;
+  }
+
+  let firebaseCampus;
+  function observarCampusEstado(recibir) {
+    let activo = true;
+    let cancelarSnapshot;
+    let consultando = false;
+    let ultimo = 0;
+    const entregar = (datos) => {
+      const revision = Number(datos?.actualizado);
+      if (!activo || !Number.isFinite(revision) || revision <= ultimo) return;
+      ultimo = revision;
+      recibir(datos);
+    };
+    const consultar = async () => {
+      if (!activo || consultando) return;
+      consultando = true;
+      try { entregar(await leerCampusEstado()); }
+      finally { consultando = false; }
+    };
+    let timer;
+    const activarRespaldo = () => {
+      if (!activo || timer) return;
+      consultar();
+      timer = setInterval(consultar, 6000);
+      window.addEventListener("online", consultar);
+    };
+    const pararRespaldo = () => {
+      clearInterval(timer);
+      timer = null;
+      window.removeEventListener("online", consultar);
+    };
+    activarRespaldo();
+
+    firebaseCampus ??= Promise.all([
+      import("https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js"),
+      import("https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js"),
+    ]).then(([app, sdk]) => ({
+      sdk,
+      db: sdk.getFirestore(app.initializeApp({ projectId: PROYECTO }, "unexuam-campus-publico")),
+    })).catch(() => { firebaseCampus = null; return null; });
+
+    firebaseCampus.then((firebase) => {
+      if (!activo || !firebase) return;
+      const { sdk, db } = firebase;
+      cancelarSnapshot = sdk.onSnapshot(sdk.doc(db, "campus", "estado"), { includeMetadataChanges: true },
+        (snapshot) => {
+          if (snapshot.metadata.fromCache) return;
+          pararRespaldo();
+          if (snapshot.exists()) entregar(snapshot.data());
+        }, activarRespaldo);
+    }).catch(activarRespaldo);
+
+    return () => {
+      activo = false;
+      pararRespaldo();
+      cancelarSnapshot?.();
+    };
   }
 
   async function guardarCampusEstado(estadoObj) {
@@ -334,6 +393,7 @@
     enviarMensaje,
     listarMensajes,
     leerCampusEstado,
+    observarCampusEstado,
     guardarCampusEstado,
   };
 })();

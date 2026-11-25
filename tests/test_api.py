@@ -3,6 +3,7 @@ import os
 import re
 import tempfile
 import unittest
+from unittest.mock import patch
 from pathlib import Path
 
 from werkzeug.security import generate_password_hash
@@ -403,12 +404,32 @@ class TestSesionYMensajes(unittest.TestCase):
         self.assertIn("Unexuam", pag.get_data(as_text=True))
 
     def test_fcm_sin_service_account_no_falla(self):
-        prev = os.environ.pop("FIREBASE_SERVICE_ACCOUNT_FILE", None)
-        try:
-            self.assertFalse(servidor.enviar_fcm_emergencia({"id": "abc", "tipo": "sismo", "titulo": "Sismo", "texto": "Evacuar"}))
-        finally:
-            if prev is not None:
-                os.environ["FIREBASE_SERVICE_ACCOUNT_FILE"] = prev
+        with patch.dict(os.environ, {}, clear=True):
+            self.assertEqual(servidor.publicar_emergencia_campus(None), (False, False))
+
+    def test_admin_publica_firestore_y_push_y_luego_limpia_el_documento(self):
+        cliente = servidor.app.test_client()
+        _login_admin(cliente)
+        with patch.dict(os.environ, {"FIREBASE_SERVICE_ACCOUNT_FILE": "prueba.json",
+                                     "FIREBASE_PROJECT_ID": "unexuam-pruebas",
+                                     "FIREBASE_FUNCTIONS_PUSH": "0"}), \
+                patch("google.oauth2.service_account.Credentials.from_service_account_file"), \
+                patch.object(servidor, "firebase_rest", return_value=True) as transporte:
+            declarada = cliente.post("/api/emergencia/declarar", json={"tipo": "incendio"}).json
+            self.assertTrue(declarada["nube"])
+            self.assertTrue(declarada["push"])
+            id_alerta = declarada["estado"]["emergencia"]["id"]
+            cierre = cliente.post("/api/emergencia/finalizar", json={"incidente": id_alerta}).json
+            self.assertTrue(cierre["nube"])
+
+        escritura, push, limpieza = [llamada.args for llamada in transporte.call_args_list]
+        self.assertTrue(escritura[0].endswith("/documents/campus/estado"))
+        self.assertEqual(escritura[3], "PATCH")
+        campos = escritura[1]["fields"]["emergencia"]["mapValue"]["fields"]
+        self.assertEqual(campos["id"]["stringValue"], id_alerta)
+        self.assertEqual(push[1]["message"]["topic"], "campus_emergencias")
+        self.assertEqual(push[1]["message"]["data"]["id"], id_alerta)
+        self.assertEqual(limpieza[1]["fields"]["emergencia"], {"nullValue": None})
 
 
 if __name__ == "__main__":

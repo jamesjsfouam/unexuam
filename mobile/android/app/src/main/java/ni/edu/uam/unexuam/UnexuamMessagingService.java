@@ -3,13 +3,16 @@ package ni.edu.uam.unexuam;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
+import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.os.Build;
 import android.util.Log;
 import androidx.core.app.NotificationCompat;
 import androidx.core.app.NotificationManagerCompat;
 import androidx.core.content.ContextCompat;
+import com.google.firebase.messaging.FirebaseMessaging;
 import com.google.firebase.messaging.FirebaseMessagingService;
 import com.google.firebase.messaging.RemoteMessage;
 import java.util.Map;
@@ -43,7 +46,8 @@ public class UnexuamMessagingService extends FirebaseMessagingService {
     @Override
     public void onNewToken(String token) {
         super.onNewToken(token);
-        Log.i("UnexuamFCM", "Token FCM actualizado.");
+        FirebaseMessaging.getInstance().subscribeToTopic("campus_emergencias")
+                .addOnFailureListener(e -> Log.w("UnexuamFCM", "No se pudo suscribir al canal de campus.", e));
     }
 
     @Override
@@ -66,11 +70,25 @@ public class UnexuamMessagingService extends FirebaseMessagingService {
                     : "Emergencia activa en el campus. Sigue tu ruta segura.";
         }
 
-        if (data.containsKey("tipo") || data.containsKey("emergencia")) {
-            mostrarAlarmaPush(tipo, titulo, texto);
+        if ("1".equals(data.get("emergencia"))) {
+            if (registrarAlerta(this, data.get("id"))) mostrarAlarmaPush(tipo, titulo, texto);
         } else {
             mostrarNotificacionSimple(titulo, texto);
         }
+    }
+
+    static synchronized boolean registrarAlerta(Context contexto, String id) {
+        if (id == null || id.trim().isEmpty()) return false;
+        SharedPreferences prefs = contexto.getSharedPreferences("unexuam_fg_em", Context.MODE_PRIVATE);
+        if (id.equals(prefs.getString("ultimo_em_id", ""))) return false;
+        prefs.edit().putString("ultimo_em_id", id).apply();
+        return true;
+    }
+
+    static boolean puedeNotificar(Context contexto) {
+        return Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
+                ContextCompat.checkSelfPermission(contexto, android.Manifest.permission.POST_NOTIFICATIONS)
+                        == PackageManager.PERMISSION_GRANTED;
     }
 
     private void mostrarAlarmaPush(String tipo, String titulo, String texto) {
@@ -84,8 +102,7 @@ public class UnexuamMessagingService extends FirebaseMessagingService {
         PendingIntent fullPi = PendingIntent.getActivity(
                 this, 912, fullIntent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
 
-        if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.POST_NOTIFICATIONS)
-                == PackageManager.PERMISSION_GRANTED) {
+        if (puedeNotificar(this)) {
             NotificationCompat.Builder b = new NotificationCompat.Builder(this, CANAL_EMERGENCIAS)
                     .setSmallIcon(R.mipmap.ic_launcher)
                     .setContentTitle(titulo)
@@ -108,8 +125,7 @@ public class UnexuamMessagingService extends FirebaseMessagingService {
 
     private void mostrarNotificacionSimple(String titulo, String texto) {
         crearCanalEmergencias();
-        if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.POST_NOTIFICATIONS)
-                != PackageManager.PERMISSION_GRANTED) {
+        if (!puedeNotificar(this)) {
             return;
         }
         Intent intent = new Intent(this, MainActivity.class);

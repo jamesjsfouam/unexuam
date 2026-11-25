@@ -9,8 +9,8 @@ service cloud.firestore {
     //
     // Project: unexuam-campus-ni (Standard edition, (default) database)
     // Auth Note (REM-08):
-    //   - /usuarios, /mensajes, and /reportes_bloqueo require Firebase Auth
-    //     (request.auth != null). Student identity is matched against
+    //   - /usuarios, /mensajes, and /reportes_bloqueo require a non-anonymous
+    //     Firebase Auth session. Student identity is matched against
     //     request.auth.uid == cif, custom claim request.auth.token.cif == cif,
     //     or Firebase Auth REST email
     //     request.auth.token.email == (cif.lower() + '@unexuam.uam.edu.ni').
@@ -82,7 +82,10 @@ service cloud.firestore {
     // ===============================================================
 
     function isAuthenticated() {
-      return request.auth != null;
+      return request.auth != null &&
+             (!('firebase' in request.auth.token) ||
+              !('sign_in_provider' in request.auth.token.firebase) ||
+              request.auth.token.firebase.sign_in_provider != 'anonymous');
     }
 
     function isSelfUser(cif) {

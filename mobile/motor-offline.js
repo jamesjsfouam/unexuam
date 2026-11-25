@@ -672,7 +672,6 @@
       }
     }
     if (ruta === "/api/estado") {
-      sincronizarCampusNube();
       return { ok: true, mensaje: "", estado: estado() };
     }
     if (ruta === "/api/campus/cuellos") {
@@ -730,8 +729,9 @@
         });
       }
       guardarEstadoLocal();
-      publicarCampusNube();
-      return responder(true, `Emergencia declarada: ${tituloDef}.`);
+      const nube = await publicarCampusNube();
+      const mensaje = `Emergencia declarada: ${tituloDef}.`;
+      return responder(true, nube ? mensaje : `${mensaje} No se pudo publicar en Firebase.`, { nube });
     }
 
     if (ruta === "/api/emergencia/finalizar") {
@@ -749,8 +749,8 @@
         });
       }
       guardarEstadoLocal();
-      publicarCampusNube();
-      return responder(true, "Emergencia finalizada. El campus vuelve a estar en calma.");
+      const nube = await publicarCampusNube();
+      return responder(true, nube ? "Emergencia finalizada." : "Emergencia finalizada. No se pudo publicar el cierre en Firebase.", { nube });
     }
 
     if (ruta === "/api/mesh/alerta") {
@@ -939,6 +939,7 @@
             congestion: S.congestion,
           },
           ultimaAlerta: null,
+          emergencia: S.emergencia,
           historial: [],
         },
       };
@@ -1629,19 +1630,18 @@
   }
 
   let ultCampusActualizado = 0;
-  let ultSyncCampusMs = 0;
-  let syncCampusEnCurso = false;
 
-  function publicarCampusNube() {
-    if (!window.UNEXO_NUBE || navigator.onLine === false) return;
+  async function publicarCampusNube() {
+    if (!window.UNEXO_NUBE || navigator.onLine === false) return false;
     const ts = Date.now();
-    ultCampusActualizado = ts;
-    window.UNEXO_NUBE.guardarCampusEstado({
+    const publicado = await window.UNEXO_NUBE.guardarCampusEstado({
       bloqueados: S.bloqueados,
       congestion: S.congestion,
       emergencia: S.emergencia || null,
       actualizado: ts,
     });
+    if (publicado) ultCampusActualizado = Math.max(ultCampusActualizado, ts);
+    return publicado;
   }
 
   function reconstruirCampusDesdeNube(bloqList, congMap) {
@@ -1667,39 +1667,29 @@
     else invalidarCacheRutas();
   }
 
-  function sincronizarCampusNube(forzar = false) {
-    if (!window.UNEXO_NUBE || navigator.onLine === false || syncCampusEnCurso) return;
-    const ahoraMs = Date.now();
-    if (!forzar && ahoraMs - ultSyncCampusMs < 4000) return;
-    ultSyncCampusMs = ahoraMs;
-    syncCampusEnCurso = true;
-    (async () => {
-      try {
-        const doc = await window.UNEXO_NUBE.leerCampusEstado();
-        if (!doc || !doc.actualizado || doc.actualizado <= ultCampusActualizado) return;
-        ultCampusActualizado = doc.actualizado;
+  async function aplicarCampusNube(doc) {
+    await asegurarInicializado();
+    if (!doc.actualizado || doc.actualizado <= ultCampusActualizado) return;
+    ultCampusActualizado = doc.actualizado;
 
-        const bloqNube = Array.isArray(doc.bloqueados) ? doc.bloqueados : [];
-        const congNube = (doc.congestion && typeof doc.congestion === "object") ? doc.congestion : {};
-        const emNube = (doc.emergencia && typeof doc.emergencia === "object") ? doc.emergencia : null;
-
-        const cambioGrafo = JSON.stringify(bloqNube) !== JSON.stringify(S.bloqueados)
-          || JSON.stringify(congNube) !== JSON.stringify(S.congestion);
-        const cambioEm = JSON.stringify(emNube) !== JSON.stringify(S.emergencia || null);
-
-        if (!cambioGrafo && !cambioEm) return;
-        if (cambioGrafo) reconstruirCampusDesdeNube(bloqNube, congNube);
-        S.emergencia = emNube;
-        guardarEstadoLocal();
-        if (window.refrescarEstado) window.refrescarEstado();
-        window.dispatchEvent(new CustomEvent("unexuam-mesh-update", {
-          detail: { tipo: "estado", recalcularRuta: cambioGrafo },
-        }));
-      } finally {
-        syncCampusEnCurso = false;
-      }
-    })();
+    const bloqueados = Array.isArray(doc.bloqueados) ? doc.bloqueados : [];
+    const congestion = doc.congestion && typeof doc.congestion === "object" ? doc.congestion : {};
+    const emergencia = doc.emergencia && typeof doc.emergencia === "object" ? doc.emergencia : null;
+    const cambioGrafo = JSON.stringify(bloqueados) !== JSON.stringify(S.bloqueados)
+      || JSON.stringify(congestion) !== JSON.stringify(S.congestion);
+    if (!cambioGrafo && JSON.stringify(emergencia) === JSON.stringify(S.emergencia || null)) return;
+    if (cambioGrafo) reconstruirCampusDesdeNube(bloqueados, congestion);
+    S.emergencia = emergencia;
+    guardarEstadoLocal();
+    if (window.refrescarEstado) window.refrescarEstado();
+    window.dispatchEvent(new CustomEvent("unexuam-mesh-update", {
+      detail: { tipo: "estado", recalcularRuta: cambioGrafo },
+    }));
   }
+
+  window.UNEXO_NUBE?.observarCampusEstado((doc) => {
+    aplicarCampusNube(doc).catch((error) => console.warn("No se pudo aplicar el estado del campus.", error));
+  });
 
   window.addEventListener("offline", () => {
     if (!meshIniciado) asegurarMeshActivo();
@@ -1707,21 +1697,17 @@
   });
   window.addEventListener("online", () => {
     vaciarColaNube();
-    sincronizarCampusNube(true);
   });
   setTimeout(() => {
     asegurarMeshActivo();
     if (navigator.onLine !== false) {
       vaciarColaNube();
-      sincronizarCampusNube(true);
     }
   }, 800);
   setInterval(() => {
     if (navigator.onLine === false) {
       if (!meshIniciado) asegurarMeshActivo();
       else window.UnexuamNativo?.reintentarMeshSiDesconectado?.();
-    } else {
-      sincronizarCampusNube(false);
     }
   }, 6000);
 })();

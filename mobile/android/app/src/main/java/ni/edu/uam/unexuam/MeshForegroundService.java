@@ -38,8 +38,6 @@ public class MeshForegroundService extends Service {
     private static final int NOTIF_ID = 101;
     private static final String URL_CAMPUS_ESTADO =
             "https://firestore.googleapis.com/v1/projects/unexuam-campus-ni/databases/(default)/documents/campus/estado";
-    private static final String PREFS_EM = "unexuam_fg_em";
-    private static final String KEY_ULTIMO_ID = "ultimo_em_id";
     private static final String PREFS_PERFIL = "unexuam_mesh_perfil";
     private static final String KEY_PERFIL = "perfil_json";
     private static volatile MeshNativa instanciaMesh;
@@ -180,20 +178,7 @@ public class MeshForegroundService extends Service {
             JSONObject emMap = emNode != null ? emNode.optJSONObject("mapValue") : null;
             JSONObject emFields = emMap != null ? emMap.optJSONObject("fields") : null;
 
-            SharedPreferences prefs = getSharedPreferences(PREFS_EM, MODE_PRIVATE);
-            if (emFields == null || emFields.length() == 0) {
-                prefs.edit().remove(KEY_ULTIMO_ID).apply();
-                return;
-            }
-            String id = valorTextoFS(emFields, "id");
-            if (id.isEmpty()) {
-                prefs.edit().remove(KEY_ULTIMO_ID).apply();
-                return;
-            }
-            String previo = prefs.getString(KEY_ULTIMO_ID, "");
-            if (id.equals(previo)) return;
-
-            prefs.edit().putString(KEY_ULTIMO_ID, id).apply();
+            if (emFields == null || !UnexuamMessagingService.registrarAlerta(this, valorTextoFS(emFields, "id"))) return;
             String tipo = valorTextoFS(emFields, "tipo");
             if (tipo.isEmpty()) tipo = "general";
             String titulo = valorTextoFS(emFields, "titulo");
@@ -224,8 +209,7 @@ public class MeshForegroundService extends Service {
         PendingIntent fullPi = PendingIntent.getActivity(
                 this, 914, fullIntent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
 
-        if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.POST_NOTIFICATIONS)
-                == PackageManager.PERMISSION_GRANTED) {
+        if (UnexuamMessagingService.puedeNotificar(this)) {
             NotificationCompat.Builder b = new NotificationCompat.Builder(this, CANAL_EMERGENCIAS)
                     .setSmallIcon(R.mipmap.ic_launcher)
                     .setContentTitle(titulo)
