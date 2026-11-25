@@ -37,7 +37,8 @@ ANG = math.radians(16)   # giro del plano
 K = 0.58                 # inclinación (achatamiento vertical)
 CA, SA = math.cos(ANG), math.sin(ANG)
 ESC, OX, OY = 1.0, 0.0, 0.0   # se calculan con encajar()
-ALTURA = 1.0                   # exageración de las alturas para que se lea el 3D
+ALTURA = 1.45                  # exageración de las alturas para que se lea el 3D (igual que ALTURA_3D en app.js)
+CONTRASTE = .16                # cuánto se oscurecen las caras a la sombra (más volumen)
 
 CAMPUS = [tuple(p) for p in DATOS["campus"]]
 
@@ -219,7 +220,7 @@ def paredes(poligono, z0, z1, claro, oscuro, borde):
         nx, ny = (dy / l, -dx / l) if horario else (-dy / l, dx / l)
         if (nx * SA + ny * CA) <= 0.02:
             continue
-        color = mezclar(oscuro, claro, luz(nx, ny))
+        color = mezclar(mezclar(oscuro, "#13263d", CONTRASTE), claro, luz(nx, ny))
         q = [P(*a, z0), P(*b, z0), P(*b, z1), P(*a, z1)]
         d = " ".join(f"{u:.1f},{v:.1f}" for u, v in q)
         relleno = cara(color) if z1 - z0 > 1.5 else color
@@ -256,7 +257,7 @@ def fachada(poligono, alto, pisos, claro, oscuro, borde, acentos=()):
 
     g = []
     for c in sorted(caras, key=lambda c: c["prof"]):
-        color = mezclar(oscuro, claro, c["t"])
+        color = mezclar(mezclar(oscuro, "#13263d", CONTRASTE), claro, c["t"])
         for ac in acentos:               # una cara con otro color (M: costado este gris azulado, video)
             if ac[0] == "cara_este" and c["nx"] > .7:
                 color = mezclar(mezclar(ac[1], "#33404e", .3), ac[1], c["t"])
@@ -1456,8 +1457,8 @@ def documento():
         x += 26 + len(txt) * 8.9 + 30
     ley.append(f'<text x="{W - 100}" y="23" font-size="12" font-weight="600" fill="{AZUL}" opacity=".8" text-anchor="end" dominant-baseline="central">Plano © OpenStreetMap contributors</text></g>')
 
-    sombras = (f'<g fill="#16304d" opacity=".18">{"".join(SOMBRAS)}</g>'
-               f'<g fill="#0e2238" opacity=".20">{"".join(CONTACTO)}</g>')
+    sombras = (f'<g fill="#16304d" opacity=".26">{"".join(SOMBRAS)}</g>'
+               f'<g fill="#0e2238" opacity=".28">{"".join(CONTACTO)}</g>')
     cuerpo = "\n".join([f'<g>{"".join(suelo_)}</g>', "".join(planos), sombras, "".join(objetos),
                         f'<rect width="{W}" height="{H}" fill="url(#vineta)"/>',
                         rosa(1490, 190), "".join(rotulos(eds)), "".join(insignias), lista_codigos()])

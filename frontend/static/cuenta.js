@@ -803,7 +803,7 @@
     const accLug = $("#acc-lugar-val");
     if (accLug) accLug.textContent = YO.lugar ? `${YO.lugar} · Toca para cambiar o usar GPS` : "Toca para detectar por GPS";
     const accLugChip = $("#acc-lugar-chip");
-    if (accLugChip && YO.lugar) accLugChip.textContent = YO.lugar;
+    if (accLugChip && YO.lugar) { accLugChip.textContent = YO.lugar; accLugChip.title = YO.lugar; }
     const accMesh = $("#acc-mesh-val");
     if (accMesh) accMesh.textContent = YO.vecinos.length
       ? `${YO.vecinos.length} teléfono${YO.vecinos.length === 1 ? "" : "s"} cercano${YO.vecinos.length === 1 ? "" : "s"} · Abrir Canal General`

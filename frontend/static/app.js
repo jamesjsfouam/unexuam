@@ -543,7 +543,7 @@ function renderInicio() {
     }
   }
   const accLugChip = $("#acc-lugar-chip");
-  if (accLugChip && miLugar) accLugChip.textContent = miLugar;
+  if (accLugChip && miLugar) { accLugChip.textContent = miLugar; accLugChip.title = miLugar; }
 
   const emObj = E.emergencia;
   const emergencia = !!(emObj || ua || c.bloqueados.length || nCong);
@@ -737,7 +737,6 @@ function renderCampus() {
   const lugares = c.vertices.filter(v => !c.zonasSeguras.includes(v));
   llenarAgrupado($("#campus-ubicacion"), lugares.map(v => ({ v, t: v })), "Elige dónde estás…", o => grupoLugar(o.v));
   $("#campus-ubicacion").value = lugares.includes(miLugar) ? miLugar : "";
-  renderSelectorDinamico();
   llenarAgrupado($("#bloq-paso"), c.aristas.map(a => ({ v: JSON.stringify([a.origen, a.destino]), t: `${a.origen} → ${a.destino} (${fmt(a.peso)} s)`, o: a.origen })),
     "", o => grupoLugar(o.o));
   llenarAgrupado($("#cong-lugar"), c.vertices.map(v => ({ v, t: v + (c.congestion[v] ? ` (×${c.congestion[v]})` : "") })), "", o => grupoLugar(o.v));
@@ -830,6 +829,7 @@ let pasosActuales = [];      // pasos calculados de la ruta activa
 
 const MAPA_W = 1600, MAPA_H = 1060;
 const GIRO = 16 * Math.PI / 180, ACHATE = 0.58, COS_G = Math.cos(GIRO), SEN_G = Math.sin(GIRO);
+const ALTURA_3D = 1.45;       // exageración de alturas: igual que ALTURA en docs/mapa-campus/generar_mapa.py
 const ANCHO_ED = 12;         // ancho del edificio (m): aulas atrás, pabellón adelante
 const SEP_PISO = 13;         // separación entre pisos en la vista explotada (el real es 3.6 m)
 
@@ -843,7 +843,7 @@ const FACHADA = {
 
 function proyBase(x, y, z) {
   const xr = x * COS_G - y * SEN_G, yr = x * SEN_G + y * COS_G;
-  return [xr, yr * ACHATE - z];
+  return [xr, yr * ACHATE - z * ALTURA_3D];
 }
 
 function prepararProyeccion() {
@@ -931,9 +931,19 @@ function nodoEnEdificio(G, n) {
   return null;
 }
 
+/* Aclara (t > 0) u oscurece (t < 0) un color #rrggbb para sombrear caras del volumen. */
+function tono(hex, t) {
+  const n = parseInt(String(hex).slice(1), 16);
+  if (!Number.isFinite(n)) return hex;
+  const c = [n >> 16, (n >> 8) & 255, n & 255].map(v => Math.round(t < 0 ? v * (1 + t) : v + (255 - v) * t));
+  return "#" + c.map(v => v.toString(16).padStart(2, "0")).join("");
+}
+
 function poli(pts, cls, extra = "") {
   return `<polygon class="${cls}" ${extra} points="${pts.map(p => `${p.x.toFixed(2)},${p.y.toFixed(2)}`).join(" ")}"/>`;
 }
+
+let E3_ID = 0;   // id único por SVG para los degradados (puede haber varias vistas del edificio a la vez)
 
 /* Dibuja el edificio L con sus pisos separados y la ruta como grafo.
  * o.ruta: vértices de la ruta · o.resaltar: Set de índices de aristas del paso · o.mini: vista pequeña */
@@ -973,6 +983,21 @@ function edificio3D(L, o) {
   let svg = "";
   let hitsSvg = "";
 
+  // Qué extremo del edificio (este u = 0 / oeste u = 1) mira al observador: se dibuja su cara lateral.
+  const haciaOeste = G.ux * SEN_G + G.uy * COS_G;          // componente "hacia la cámara" del eje este→oeste
+  const uLado = haciaOeste > 0 ? 1 : 0;                       // extremo con la cara lateral visible
+  const GROSOR = 1.6;                                          // canto de la losa (m)
+  const H_AULA = 4.2;                                          // alto de las aulas (m) en la vista explotada
+  // degradados de luz: cara iluminada arriba, oclusión abajo (como las caras del mapa 3D)
+  const gid = `e3g${++E3_ID}`;
+  const defs = `<defs>
+    <linearGradient id="${gid}m" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${tono(F.muro, 0.35)}"/><stop offset=".7" stop-color="${F.muro}"/><stop offset="1" stop-color="${tono(F.muro, -0.14)}"/></linearGradient>
+    <linearGradient id="${gid}l" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${tono(F.muro, -0.08)}"/><stop offset="1" stop-color="${tono(F.muro, -0.28)}"/></linearGradient>
+    <linearGradient id="${gid}t" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="${tono(F.techo, -0.06)}"/></linearGradient>
+  </defs>`;
+  // sombra suave del edificio sobre el terreno
+  svg += poli([P(-0.06, -W / 2 - 1.5, -GROSOR), P(1.06, -W / 2 - 1.5, -GROSOR), P(1.08, W / 2 + 4, -GROSOR), P(-0.04, W / 2 + 4, -GROSOR)], "e3-suelo");
+
   // pozos de las escaleras (unen los pisos)
   for (const u of (L === "B" || L === "C" ? [0.03, 0.5, 0.97] : [0.03, 0.97])) {
     const a = P(u, sg * W / 4, 0), b = P(u, sg * W / 4, zPiso(top));
@@ -987,22 +1012,64 @@ function edificio3D(L, o) {
     // losa del piso (con sombra proyectada y canto)
     svg += poli([P(-0.01, -W / 2 + 1, z - 1.5), P(1.03, -W / 2 + 1, z - 1.5), P(1.03, W / 2 + 1.2, z - 1.5), P(-0.01, W / 2 + 1.2, z - 1.5)], "e3-sombra");
     svg += poli([P(-0.02, -W / 2, z), P(1.02, -W / 2, z), P(1.02, W / 2, z), P(-0.02, W / 2, z)], "e3-losa" + cls, `stroke-width="${0.9 * k}"`);
-    svg += poli([P(-0.02, W / 2, z), P(1.02, W / 2, z), P(1.02, W / 2, z - 0.8), P(-0.02, W / 2, z - 0.8)], "e3-canto" + cls);
+    svg += poli([P(-0.02, W / 2, z), P(1.02, W / 2, z), P(1.02, W / 2, z - GROSOR), P(-0.02, W / 2, z - GROSOR)], "e3-canto" + cls);
+    {
+      const uL = uLado ? 1.02 : -0.02;
+      svg += poli([P(uL, -W / 2, z), P(uL, W / 2, z), P(uL, W / 2, z - GROSOR), P(uL, -W / 2, z - GROSOR)], "e3-canto-lado" + cls);
+    }
     // pabellones (las dos mitades del pasillo, adelante)
     svg += poli([P(0.06, 0, z), P(0.5, 0, z), P(0.5, sg * W / 2, z), P(0.06, sg * W / 2, z)], "e3-pab este" + cls);
     svg += poli([P(0.5, 0, z), P(0.94, 0, z), P(0.94, sg * W / 2, z), P(0.5, sg * W / 2, z)], "e3-pab oeste" + cls);
+    if (sg > 0) {
+      // baranda de vidrio en el borde abierto del pasillo (da profundidad a cada piso)
+      const vb = W / 2 - 0.2, zb = z + 1.1;
+      svg += poli([P(0.06, vb, z), P(0.94, vb, z), P(0.94, vb, zb), P(0.06, vb, zb)], "e3-vidrio");
+      const b0 = P(0.06, vb, zb), b1 = P(0.94, vb, zb);
+      svg += `<line class="e3-pasamanos" x1="${b0.x}" y1="${b0.y}" x2="${b1.x}" y2="${b1.y}" stroke-width="${0.7 * k}"/>`;
+      if (!o.mini) {
+        for (let t = 0.06; t <= 0.9401; t += 0.088) {
+          const q0 = P(t, vb, z), q1 = P(t, vb, zb);
+          svg += `<line class="e3-pasamanos" x1="${q0.x}" y1="${q0.y}" x2="${q1.x}" y2="${q1.y}" stroke-width="${0.4 * k}"/>`;
+        }
+      }
+    }
     if (F.barandas && sg < 0) {   // pasillo abierto al norte: la baranda queda detrás de las aulas
       const b0 = P(0.04, -W / 2, z + 1.1), b1 = P(0.96, -W / 2, z + 1.1);
       svg += `<line class="e3-baranda" x1="${b0.x}" y1="${b0.y}" x2="${b1.x}" y2="${b1.y}" stroke="${F.barandas}" stroke-width="${0.8 * k}"/>`;
     }
     // fila de aulas (atrás): muro frontal con franja de ventanas y una puerta por aula
-    const n = G.aulas[p] || 0, h = 3;
-    svg += poli([P(0.06, -sg * W / 2, z + h), P(0.94, -sg * W / 2, z + h), P(0.94, 0, z + h), P(0.06, 0, z + h)], "e3-techo-aulas", `fill="${F.techo}"`);
-    svg += poli([P(0.06, vMuro, z), P(0.94, vMuro, z), P(0.94, vMuro, z + h), P(0.06, vMuro, z + h)], "e3-muro", `fill="${F.muro}"`);
-    svg += poli([P(0.06, vMuro, z + 1.0), P(0.94, vMuro, z + 1.0), P(0.94, vMuro, z + 2.4), P(0.06, vMuro, z + 2.4)], "e3-ventanas", `fill="${F.ventana}"`);
+    const n = G.aulas[p] || 0, h = H_AULA;
+    const vAtras = vMuro === 0 ? -sg * W / 2 : 0;              // cara trasera del bloque de aulas
+    {
+      // cara lateral del bloque (del lado que mira al observador), más oscura
+      const uL = uLado ? 0.94 : 0.06;
+      svg += poli([P(uL, vAtras, z), P(uL, vMuro, z), P(uL, vMuro, z + h), P(uL, vAtras, z + h)], "e3-muro-lado", `fill="url(#${gid}l)"`);
+    }
+    svg += poli([P(0.06, vMuro, z), P(0.94, vMuro, z), P(0.94, vMuro, z + h), P(0.06, vMuro, z + h)], "e3-muro", `fill="url(#${gid}m)"`);
+    // zócalo oscuro al pie del muro: asienta el volumen sobre la losa
+    svg += poli([P(0.06, vMuro, z), P(0.94, vMuro, z), P(0.94, vMuro, z + 0.35), P(0.06, vMuro, z + 0.35)], "e3-zocalo");
+    svg += poli([P(0.06, vMuro, z + 1.3), P(0.94, vMuro, z + 1.3), P(0.94, vMuro, z + 3.3), P(0.06, vMuro, z + 3.3)], "e3-ventanas", `fill="${F.ventana}"`);
+    // reflejo del vidrio en la mitad alta de la franja
+    svg += poli([P(0.06, vMuro, z + 2.6), P(0.94, vMuro, z + 2.6), P(0.94, vMuro, z + 3.3), P(0.06, vMuro, z + 3.3)], "e3-brillo");
+    svg += poli([P(0.06, vAtras, z + h), P(0.94, vAtras, z + h), P(0.94, vMuro, z + h), P(0.06, vMuro, z + h)], "e3-techo-aulas", `fill="url(#${gid}t)"`);
+    {
+      const r0 = P(0.06, vMuro, z + h), r1 = P(0.94, vMuro, z + h);   // pretil: canto superior del muro
+      svg += `<line class="e3-pretil" x1="${r0.x}" y1="${r0.y}" x2="${r1.x}" y2="${r1.y}" stroke-width="${1.1 * k}"/>`;
+    }
     for (let a = 1; a <= n; a++) {
-      const u = 0.1 + 0.8 * (a - 0.5) / n, d0 = P(u - 0.012, vMuro, z), d1 = P(u + 0.012, vMuro, z + 2.1);
-      if (sg > 0) svg += `<rect class="e3-puerta" x="${Math.min(d0.x, d1.x)}" y="${d1.y}" width="${Math.abs(d1.x - d0.x) + 0.4 * k}" height="${d0.y - d1.y}"/>`;
+      const u = 0.1 + 0.8 * (a - 0.5) / n;
+      if (!o.mini) {
+        // marcos de las ventanas del aula (dos parteluces)
+        for (const f of [-0.33, 0.33]) {
+          const uf = u + f * 0.8 / n, m0 = P(uf, vMuro, z + 1.3), m1 = P(uf, vMuro, z + 3.3);
+          svg += `<line class="e3-marco" x1="${m0.x}" y1="${m0.y}" x2="${m1.x}" y2="${m1.y}" stroke-width="${0.45 * k}"/>`;
+        }
+      }
+      if (sg > 0) {
+        // puerta del aula hacia el pasillo
+        const q = [P(u - 0.007, vMuro, z + 0.35), P(u + 0.007, vMuro, z + 0.35), P(u + 0.007, vMuro, z + 2.6), P(u - 0.007, vMuro, z + 2.6)];
+        svg += poli(q, "e3-puerta");
+      }
       const codAula = `${L}-${p}${String(a).padStart(2, "0")}`;
       if (o.interactivo && (!o.pisoFiltro || o.pisoFiltro === p)) {
         const hit = P(u, vMuro, z + h + 0.6);
@@ -1133,7 +1200,7 @@ function edificio3D(L, o) {
   });
   const alto = (y1 - y0) / (x1 - x0) * 340;
   return `<svg class="e3d${o.mini ? " mini" : ""}" viewBox="${x0.toFixed(1)} ${y0.toFixed(1)} ${(x1 - x0).toFixed(1)} ${(y1 - y0).toFixed(1)}" style="aspect-ratio:${(x1 - x0).toFixed(1)}/${(y1 - y0).toFixed(1)}" role="img" aria-label="${esc(F.nombre)} por dentro: ${alto > 0 ? G.pisos.length : 0} pisos">
-    ${svg}<g>${aristas}</g><g>${pesos}</g><g>${nodos}</g><g>${hitsSvg}</g></svg>`;
+    ${defs}${svg}<g>${aristas}</g><g>${pesos}</g><g>${nodos}</g><g>${hitsSvg}</g></svg>`;
 }
 
 /* Flecha de A a B (para las aristas dirigidas) en unidades de la vista. */
@@ -2308,35 +2375,31 @@ function eventos() {
       const hits = E.campus.vertices
         .filter(v => !zonas.has(v) && (norm(v).includes(q) || v.toUpperCase() === normExacta))
         .sort((a, b) => (a.toUpperCase() === normExacta ? -1 : b.toUpperCase() === normExacta ? 1 : (norm(a).startsWith(q) ? 0 : 1) - (norm(b).startsWith(q) ? 0 : 1) || a.localeCompare(b, "es", { numeric: true })))
-        .slice(0, 8);
+        .slice(0, 6);
       if (!hits.length) {
         sugBox.innerHTML = `<p class="nota">Sin coincidencias para «${esc(buscarInp.value.trim())}».</p>`;
         sugBox.hidden = false;
         return;
       }
-      sugBox.innerHTML = hits.map(v => `<button type="button" data-ir-lugar="${esc(v)}">${esc(v)}</button>`).join("");
+      sugBox.innerHTML = hits.map(v => `<button type="button" role="option" data-ir-lugar="${esc(v)}">${esc(v)}</button>`).join("");
       sugBox.hidden = false;
     });
+    // Las sugerencias solo aparecen mientras escribes: se cierran con Escape o al tocar fuera.
+    const cerrarSug = () => { sugBox.hidden = true; buscarInp.setAttribute("aria-expanded", "false"); };
+    new MutationObserver(() => buscarInp.setAttribute("aria-expanded", String(!sugBox.hidden)))
+      .observe(sugBox, { attributes: true, attributeFilter: ["hidden"] });
+    buscarInp.addEventListener("focus", () => { if (buscarInp.value.trim()) buscarInp.dispatchEvent(new Event("input")); });
+    document.addEventListener("pointerdown", ev => {
+      if (!sugBox.hidden && !ev.target.closest("#campus-sug, #campus-buscar")) cerrarSug();
+    });
     buscarInp.addEventListener("keydown", ev => {
+      if (ev.key === "Escape") { cerrarSug(); return; }
       if (ev.key === "Enter") {
         const primero = sugBox.querySelector("button[data-ir-lugar]");
         if (primero) { ev.preventDefault(); seleccionarLugar(primero.dataset.irLugar); }
       }
     });
   }
-  $("#sel-cats")?.addEventListener("click", ev => {
-    const b = ev.target.closest("[data-sel-cat]");
-    if (!b) return;
-    selCatActiva = selCatActiva === b.dataset.selCat ? "" : b.dataset.selCat;
-    selPisoActivo = 0;
-    renderSelectorDinamico();
-  });
-  $("#sel-pisos")?.addEventListener("click", ev => {
-    const b = ev.target.closest("[data-sel-piso]");
-    if (!b) return;
-    selPisoActivo = Number(b.dataset.selPiso) || 0;
-    renderSelectorDinamico();
-  });
   document.addEventListener("click", ev => {
     const irL = ev.target.closest("[data-ir-lugar]");
     if (irL) { seleccionarLugar(irL.dataset.irLugar); return; }
@@ -2453,65 +2516,6 @@ function enfocarPaso(idx) {
     li.setAttribute("aria-pressed", String(act));
   });
   if (miRuta) renderMapa3D(miRuta, pasosActuales);
-}
-
-let selCatActiva = "";
-let selPisoActivo = 0;
-
-function renderSelectorDinamico() {
-  const catsEl = $("#sel-cats");
-  const pisosEl = $("#sel-pisos");
-  const listaEl = $("#sel-lista");
-  if (!catsEl || !pisosEl || !listaEl || !E) return;
-  const cats = [
-    { id: "B", label: "Edificio B" },
-    { id: "C", label: "Edificio C" },
-    { id: "P", label: "Edificio P" },
-    { id: "campus", label: "Campus" },
-    { id: "zonas", label: "Zonas seguras" },
-  ];
-  catsEl.innerHTML = cats.map(c =>
-    `<button type="button" class="sel-cat" data-sel-cat="${c.id}" role="tab" aria-selected="${selCatActiva === c.id}">${c.label}</button>`
-  ).join("");
-
-  if (!selCatActiva) {
-    pisosEl.hidden = true;
-    listaEl.hidden = true;
-    pisosEl.innerHTML = "";
-    listaEl.innerHTML = "";
-    return;
-  }
-  const zonas = new Set(E.campus.zonasSeguras || []);
-  if (["B", "C", "P"].includes(selCatActiva)) {
-    const pisosSet = new Set();
-    for (const v of E.campus.vertices) {
-      const i = lugarInfo(v);
-      if (i.ed === selCatActiva && i.piso) pisosSet.add(i.piso);
-    }
-    const pisos = [...pisosSet].sort((a, b) => a - b);
-    if (!selPisoActivo || !pisos.includes(selPisoActivo)) selPisoActivo = pisos[0] || 1;
-    pisosEl.hidden = false;
-    pisosEl.innerHTML = pisos.map(p =>
-      `<button type="button" class="sel-piso-btn" data-sel-piso="${p}" aria-pressed="${selPisoActivo === p}">${p === 1 ? "Planta baja" : "Piso " + p}</button>`
-    ).join("");
-    const items = E.campus.vertices.filter(v => {
-      const i = lugarInfo(v);
-      return i.ed === selCatActiva && ((i.piso === selPisoActivo && i.t !== "escalera") || (selPisoActivo === 1 && i.t === "salida"));
-    }).sort((a, b) => a.localeCompare(b, "es", { numeric: true }));
-    listaEl.hidden = false;
-    listaEl.innerHTML = items.map(v => `<button type="button" data-ir-lugar="${esc(v)}">${esc(v)}</button>`).join("");
-    return;
-  }
-  pisosEl.hidden = true;
-  pisosEl.innerHTML = "";
-  const items = selCatActiva === "zonas"
-    ? [...zonas].sort((a, b) => a.localeCompare(b, "es"))
-    : E.campus.vertices.filter(v => {
-        const i = lugarInfo(v);
-        return !zonas.has(v) && !["B", "C", "P"].includes(i.ed);
-      }).sort((a, b) => a.localeCompare(b, "es", { numeric: true }));
-  listaEl.hidden = false;
-  listaEl.innerHTML = items.map(v => `<button type="button" data-ir-lugar="${esc(v)}">${esc(v)}</button>`).join("");
 }
 
 function detenerVoz() {

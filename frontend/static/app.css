@@ -2295,11 +2295,48 @@ form.tarjeta {
 }
 
 .e3-canto {
-  fill: #c9d5e3;
+  fill: #b9c7d8;
 }
 
 .e3-canto.activo {
-  fill: #9cc5f5;
+  fill: #7fb3ef;
+}
+
+.e3-canto-lado {
+  fill: #9fb0c4;
+}
+
+.e3-canto-lado.activo {
+  fill: #5f9be0;
+}
+
+/* sombra suave del edificio sobre el terreno */
+.e3-suelo {
+  fill: rgba(11, 42, 74, .10);
+  filter: blur(1.2px);
+}
+
+.e3-muro-lado {
+  stroke: #6f7c8a;
+  stroke-width: .25;
+}
+
+.e3-zocalo {
+  fill: rgba(43, 58, 77, .28);
+}
+
+.e3-brillo {
+  fill: rgba(255, 255, 255, .28);
+}
+
+.e3-pretil {
+  stroke: #ffffff;
+  stroke-linecap: round;
+  opacity: .9;
+}
+
+.e3-marco {
+  stroke: rgba(255, 255, 255, .75);
 }
 
 .e3-pab {
@@ -2338,7 +2375,9 @@ form.tarjeta {
 }
 
 .e3-puerta {
-  fill: #5b6f86;
+  fill: #4d6580;
+  stroke: rgba(255, 255, 255, .55);
+  stroke-width: .15;
 }
 
 .e3-tabique {
@@ -2787,14 +2826,29 @@ form.tarjeta {
   from { transform: scale(1); opacity: .85; }
   to { transform: scale(2.1); opacity: 0; }
 }
-.sugerencias, .atajos { display: flex; flex-wrap: wrap; gap: 6px; }
-.sugerencias button, .atajos button {
-  font: 700 0.8125rem var(--fuente); color: var(--azul-osc); background: var(--azul-claro);
-  border: 1.5px solid var(--azul-btn); border-radius: var(--radio);
+.atajos { display: flex; flex-wrap: wrap; gap: 6px; }
+.atajos button {
+  font: 700 0.8125rem var(--fuente); color: var(--texto); background: var(--blanco);
+  border: 1.5px solid #c5d6ea; border-radius: var(--radio);
   padding: 6px 12px; min-height: 44px; cursor: pointer;
 }
-.atajos button { background: var(--blanco); color: var(--texto); border-color: #c5d6ea; }
-.atajos button:active, .sugerencias button:active { background: var(--azul-btn); color: var(--texto-sobre-acento); }
+.atajos button:active { background: var(--azul-btn); color: var(--texto-sobre-acento); }
+/* Sugerencias de búsqueda: lista desplegable discreta que solo aparece al escribir. */
+.sugerencias {
+  display: flex; flex-direction: column; margin-top: -4px;
+  background: var(--blanco); border: 1.5px solid #d5e2f2; border-radius: var(--radio);
+  box-shadow: 0 8px 22px rgba(11, 42, 74, .10); overflow: hidden;
+}
+.sugerencias[hidden] { display: none; }
+.sugerencias button {
+  font: 700 0.875rem var(--fuente); color: var(--texto); background: transparent;
+  border: 0; border-top: 1px solid #edf2f8; text-align: left;
+  padding: 10px 14px; min-height: 44px; cursor: pointer;
+}
+.sugerencias button:first-child { border-top: 0; }
+.sugerencias button:hover, .sugerencias button:focus-visible { background: var(--azul-claro); color: var(--azul-osc); }
+.sugerencias button:active { background: var(--azul-btn); color: var(--texto-sobre-acento); }
+.sugerencias .nota { margin: 0; padding: 10px 14px; }
 .simulacros { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .simulacros .btn { font-size: 0.8125rem; padding: 10px 8px; line-height: 1.2; text-align: center; }
 
@@ -3051,83 +3105,7 @@ html[data-tema="oscuro"] .chat-lista {
   background: linear-gradient(90deg, #00A843, #00D656);
 }
 
-/* ---------- Selector dinámico en Evacuar y Guías mejoradas ---------- */
-.selector-dinamico {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.sel-cats, .sel-pisos, .sel-lista {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.sel-cat {
-  min-height: 44px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border: 1.5px solid #c5d6ea;
-  background: var(--blanco);
-  color: var(--texto);
-  font: inherit;
-  font-size: 0.78rem;
-  font-weight: 800;
-  padding: 7px 12px;
-  border-radius: 99px;
-  cursor: pointer;
-}
-
-.sel-cat[aria-selected="true"] {
-  background: var(--azul-btn);
-  color: #ffffff;
-  border-color: var(--azul-btn);
-}
-
-.sel-piso-btn {
-  min-height: 44px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border: 1.5px solid #d5e2f2;
-  background: var(--azul-claro);
-  color: var(--texto);
-  font: inherit;
-  font-size: 0.74rem;
-  font-weight: 800;
-  padding: 6px 11px;
-  border-radius: 99px;
-  cursor: pointer;
-}
-
-.sel-piso-btn[aria-pressed="true"] {
-  background: var(--texto);
-  color: #ffffff;
-  border-color: var(--texto);
-}
-
-.sel-lista button {
-  min-height: 44px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border: 1.5px solid #cfe0f4;
-  background: var(--blanco);
-  color: var(--texto);
-  font: inherit;
-  font-size: 0.78rem;
-  font-weight: 700;
-  padding: 7px 12px;
-  border-radius: 99px;
-  cursor: pointer;
-}
-
-.sel-lista button:active {
-  background: var(--azul-btn);
-  color: #ffffff;
-}
+/* ---------- Guías mejoradas ---------- */
 
 .guia-banner {
   border-radius: 18px;
@@ -3219,3 +3197,10 @@ html[data-tema="oscuro"] .ub-mapa-wrap svg.ub-mapa-svg image {
   gap: 10px;
   margin-top: 8px;
 }
+
+html[data-tema="oscuro"] .sugerencias { border-color: #24354d; box-shadow: 0 8px 22px rgba(0, 0, 0, .35); }
+html[data-tema="oscuro"] .sugerencias button { border-top-color: #1d2a3d; }
+
+/* Edificio 3D: baranda de vidrio del pasillo */
+.e3-vidrio { fill: rgba(190, 225, 255, .28); stroke: none; }
+.e3-pasamanos { stroke: #8fa6bf; stroke-linecap: round; }

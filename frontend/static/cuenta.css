@@ -277,20 +277,23 @@ body.sin-sesion main, body.sin-sesion .barra { visibility: hidden; }
 .login[hidden] { display: none; }
 .login:not([hidden]) .login-marca { animation: loginMarcaEntra .48s cubic-bezier(.22, 1, .36, 1) both; }
 .login:not([hidden]) .login-carta { animation: loginSheetEntra .46s .06s cubic-bezier(.22, 1, .36, 1) both; }
+/* Relieve de rayos: el mismo fondo de la pantalla de carga, a pantalla completa
+   detrás de la marca y la tarjeta (antes quedaba como una franja de 77 px). */
 .login-rayos {
+  position: absolute;
   z-index: 0;
 }
 .login-rayos .rayos-marca polyline {
-  stroke: rgba(255, 255, 255, .24);
   animation-delay: calc(var(--i) * 60ms);
 }
+/* La marca va en el tercio superior, separada de la tarjeta. */
 .login-marca {
   position: relative;
   z-index: 1;
   text-align: center;
   color: #ffffff;
-  margin: auto 0;
-  padding: 12px 20px 18px;
+  margin: 0 0 auto;
+  padding: clamp(28px, 9vh, 88px) 20px 24px;
 }
 .login-x-escena {
   position: relative;
@@ -299,20 +302,6 @@ body.sin-sesion main, body.sin-sesion .barra { visibility: hidden; }
   margin: 0 auto 10px;
 }
 .login-x { width: 100%; height: 100%; object-fit: contain; display: block; }
-.login-x-sello {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  pointer-events: none;
-}
-.login-sello-rayo {
-  fill: none;
-  stroke: #fcd222;
-  stroke-width: 3;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
 .login-wordmark { display: block; height: 24px; width: auto; margin: 0 auto 6px; }
 .login-marca p { margin: 0; font-size: 0.85rem; opacity: .94; font-weight: 700; }
 .login-carta {
@@ -737,7 +726,7 @@ html[data-tema="oscuro"] .login-carta .campo select {
 .splash > .red-fondo { opacity: .78; z-index: 1; }
 .splash-vidrio { overflow: hidden; }
 .login > .red-fondo { opacity: .82; z-index: 1; }
-.login > :not(.red-fondo):not(.login-aurora) { position: relative; z-index: 2; }
+.login > :not(.red-fondo):not(.login-aurora):not(.login-rayos) { position: relative; z-index: 2; }
 @media (prefers-reduced-motion: reduce) {
   .red-aristas line, .red-nodos circle, .login-aurora i, .login-emblema::after, .splash-vidrio::after {
     animation: none !important;
@@ -1414,7 +1403,7 @@ html[data-filtro-color="acromatopsia"] body { filter: grayscale(1); }
 /* ---------- Botones deslizables reales (SOS) ---------- */
 .fila-deslizable {
   position: relative;
-  touch-action: none;
+  touch-action: pan-y;          /* se puede desplazar la página encima; el arrastre horizontal lo maneja JS */
   user-select: none;
   -webkit-user-select: none;
   background: var(--rojo) !important;
@@ -2113,16 +2102,22 @@ html[data-tema="oscuro"] .btn-ver-clave.activo { color: #6bb6ff; }
 .acceso-ico.azul { background: var(--azul-btn); }
 .acceso-ico.verde { background: var(--verde-btn); }
 .acceso-ico.rojo { background: var(--rojo); }
-.acceso-txt { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
-.acceso-txt b { font-size: 0.92rem; font-weight: 900; color: var(--texto); }
+.acceso-txt { flex: 1 1 0; min-width: 10.5em; display: flex; flex-direction: column; gap: 2px; }
+.acceso-txt b { font-size: 0.92rem; font-weight: 900; color: var(--texto); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .acceso-txt small { font-size: 0.78rem; font-weight: 600; color: var(--gris-texto); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* El chip puede llevar un lugar largo ("Auditorio Central (Edif. G)"): se encoge y
+   recorta con puntos suspensivos en vez de montarse sobre el título. */
 .acceso-chip {
-  flex: none;
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 36%;
   padding: 4px 10px;
   border-radius: 999px;
   font-size: 0.72rem;
   font-weight: 900;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .acceso-chip[hidden] { display: none; }
 .acceso-chip.azul { background: var(--azul-claro); color: var(--azul-btn); }
@@ -2240,9 +2235,17 @@ html[data-tema="oscuro"] .em-ni-card { background: #131c29; border-color: #26395
 }
 
 .chat-lista,
-.contactos,
-.carrusel-pista {
+.contactos {
   overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* El carrusel solo contiene el desplazamiento horizontal: el vertical debe pasar a la
+   página; si no, al quedar en medio de la pantalla atrapa el gesto y no se puede volver
+   a subir (el botón SOS quedaba escondido bajo la barra). */
+.carrusel-pista {
+  overscroll-behavior-x: contain;
+  overscroll-behavior-y: auto;
   -webkit-overflow-scrolling: touch;
 }
 
@@ -2373,8 +2376,8 @@ html[data-tema="oscuro"] .em-ni-card {
     padding: 20px 0 0;
   }
   .login-marca {
-    margin: auto 0;
-    padding: 12px 20px 18px;
+    margin: 0 0 auto;
+    padding: clamp(28px, 9vh, 88px) 20px 24px;
   }
   .login-carta {
     max-width: none;

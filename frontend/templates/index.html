@@ -163,14 +163,9 @@
         </div>
         <label class="campo">
           <span>Buscar aula o edificio</span>
-          <input id="campus-buscar" type="search" placeholder="Ej.: B205, C-301, P309, Auditorio…" autocomplete="off">
+          <input id="campus-buscar" type="search" placeholder="Ej.: B205, C-301, P309, Auditorio…" autocomplete="off" role="combobox" aria-autocomplete="list" aria-controls="campus-sug" aria-expanded="false">
         </label>
-        <div id="campus-sug" class="sugerencias" hidden></div>
-        <div id="selector-dinamico" class="selector-dinamico">
-          <div class="sel-cats" id="sel-cats" role="tablist" aria-label="Explorar lugares por edificio"></div>
-          <div class="sel-pisos" id="sel-pisos" hidden></div>
-          <div class="sel-lista" id="sel-lista" hidden></div>
-        </div>
+        <div id="campus-sug" class="sugerencias" role="listbox" aria-label="Lugares que coinciden" hidden></div>
         <select id="campus-ubicacion" hidden aria-hidden="true"></select>
         <p id="ruta-offline" class="nota" role="status" hidden></p>
         <div id="ruta-info" class="ruta-info"></div>
@@ -547,9 +542,6 @@
     <div class="login-marca">
       <div class="login-x-escena">
         <img src="{{ url_for('static', filename='img/figma/logo-x-blanco.png') }}" alt="" class="login-x">
-        <svg class="login-x-sello" viewBox="0 0 100 100" aria-hidden="true">
-          <polyline class="login-sello-rayo" points="60,12 50,28 54,44 46,54 50,66"/>
-        </svg>
       </div>
       <img src="{{ url_for('static', filename='img/wordmark-unexuam.png') }}" alt="Unexuam" class="login-wordmark">
       <p>Emergencias y red mesh del campus</p>
