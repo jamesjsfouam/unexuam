@@ -126,8 +126,8 @@ ol.big{margin:0;padding-left:34px} ol.big li{font-size:25px;margin-bottom:10px}
   <p class="kicker">Proyecto final · Programación Estructurada · UAM</p>
   <div class="pulse"><span></span><span></span><span></span></div>
   <h1>Unexuam</h1>
-  <p style="font-size:40px;font-weight:700;color:#fff;margin:0 0 14px">Evacuación Off-Grid para el campus UAM</p>
-  <p style="font-size:30px;max-width:900px">Dos grafos dirigidos y ponderados para avisar y evacuar cuando no hay internet ni red celular.</p>
+  <p style="font-size:40px;font-weight:700;color:#fff;margin:0 0 14px">Evacuación híbrida Nube + Off-Grid para el campus UAM</p>
+  <p style="font-size:30px;max-width:920px">Dos grafos dirigidos y ponderados junto a Firebase (Firestore + FCM) y red Mesh Nearby para avisar y evacuar con o sin internet.</p>
   <p class="who">James Santiago Fernández Obregón · 23 de noviembre de 2026</p>
 </section>
 
@@ -158,7 +158,7 @@ ol.big{margin:0;padding-left:34px} ol.big li{font-size:25px;margin-bottom:10px}
       <h3>Mapa del campus</h3>
       <p><b>Vértice:</b> aula, pasillo, escalera, salida o zona segura.<br><b>Arista:</b> un paso de A a B; <b>peso</b> = segundos caminando.<br><b>Algoritmo:</b> Dijkstra hacia la zona segura más cercana.</p></div>
   </div>
-  <p class="foot">Todo está escrito a mano en Python sobre las clases <code>Graph</code> y <code>Vertex</code> del curso, sin NetworkX. Se usa desde el teléfono con una web móvil hecha con Flask o con la app Android.</p>
+  <p class="foot">Todo está escrito a mano en Python sobre <code>Graph</code> y <code>Vertex</code>, sin NetworkX (validado con 64 pruebas). Funciona como web móvil con Flask y como app Android autónoma con Nearby Connections y Firebase (Firestore + FCM).</p>
 </section>
 
 <!-- 4 · ESTRUCTURA -->
@@ -266,34 +266,34 @@ ol.big{margin:0;padding-left:34px} ol.big li{font-size:25px;margin-bottom:10px}
 <!-- 10 · DEMO -->
 <section class="slide">
   <p class="kicker">Demo en vivo</p>
-  <h2>La web móvil, conectada a los dos grafos</h2>
+  <h2>Web móvil y Android conectados a Nube + Grafos</h2>
   <div class="row">
     <div class="col">
-      <p style="margin:0 0 10px">Desde el teléfono, en la misma red local (https para usar el GPS):</p>
+      <p style="margin:0 0 10px">Desde el teléfono en LAN (https para GPS) o en la app Android autónoma:</p>
       <div><span class="demo-url">https://IP-del-PC:5443</span></div>
-      <ol class="big" style="margin-top:26px">
-        <li><b>Entrar con CIF</b> y contraseña.</li>
-        <li><b>Mensajes</b>: cada mensaje muestra sus saltos y su retardo; sin camino queda en cola (DTN).</li>
-        <li><b>SOS</b>: un toque envía mi edificio al Canal General de toda la red.</li>
-        <li><b>Evacuar</b> con GPS: detecta el edificio y recalcula la ruta al moverme.</li>
-        <li><b>Admin → Dijkstra 2D</b>: paso a paso desde C-101 al punto seguro más cercano.</li>
+      <ol class="big" style="margin-top:22px">
+        <li><b>Splash nativo 120 FPS</b> y entrada con CIF único (Español, English o Mískitu).</li>
+        <li><b>Mensajes híbridos</b> (Firestore + Mesh Nearby + cola DTN): saltos, retardo y entrega sin red.</li>
+        <li><b>SOS + acceso directo</b> a <code>115</code> Bomberos, <code>128</code> Cruz Blanca y <code>100</code> SINAPRED.</li>
+        <li><b>Evacuar</b> con GPS, voz y mapa 3D: detecta el edificio y recalcula ante bloqueos/congestión.</li>
+        <li><b>Admin → Emergencia global</b> (Firestore + FCM Push, solo Admin), Simulacros y Dijkstra 2D.</li>
       </ol>
     </div>
   </div>
-  <p class="foot">La app Android funciona sin la PC: los teléfonos cercanos se pasan los mensajes por Bluetooth/Wi-Fi (Nearby Connections).</p>
+  <p class="foot">App Android autónoma con Nearby Connections + FCM · Validado bajo estrés con 40 dispositivos concurrentes (40/40 OK en 3.12 s).</p>
 </section>
 
 <!-- 11 · LIMITACIONES Y FUTURO -->
 <section class="slide">
   <p class="kicker">Honestidad técnica</p>
-  <h2>Limitaciones y trabajo futuro</h2>
+  <h2>Avances validados, limitaciones y trabajo futuro</h2>
   <div class="row">
-    <div class="card col"><span class="tag t-alert" style="align-self:flex-start">Hoy es un prototipo</span>
+    <div class="card col"><span class="tag t-alert" style="align-self:flex-start">Lo validado y sus límites hoy</span>
       <ul style="margin:6px 0 0;padding-left:24px">
-        <li>En la web, la red Mesh se modela con el grafo en el servidor de la red local.</li>
-        <li>El enlace directo por Bluetooth/Wi-Fi (Nearby) solo está en la app Android y requiere Google Play Services.</li>
-        <li>Los pesos son estimados, no medidos en el campus.</li>
-        <li>El GPS del navegador necesita https y es poco preciso dentro de los edificios.</li>
+        <li><b>Logrado:</b> Nube Firebase (Firestore + FCM) + Nearby en Android, 64 pruebas y 3 idiomas offline.</li>
+        <li>En la web móvil, la red Mesh se modela con el grafo del servidor en la red local.</li>
+        <li>El enlace directo Bluetooth/Wi-Fi (Nearby) es exclusivo de Android y requiere Google Play Services.</li>
+        <li>Los pesos OSM son estimados y el GPS del navegador pierde precisión dentro de los edificios.</li>
       </ul></div>
     <div class="card col"><span class="tag t-safe" style="align-self:flex-start">Siguiente paso</span>
       <ul style="margin:6px 0 0;padding-left:24px">
@@ -309,8 +309,9 @@ ol.big{margin:0;padding-left:34px} ol.big li{font-size:25px;margin-bottom:10px}
 <section class="slide cover">
   <p class="kicker">Cierre</p>
   <h1>Dos grafos, dos algoritmos,<br>una sola idea</h1>
-  <p style="font-size:30px;max-width:980px">BFS con TTL para que todos se enteren. Dijkstra para que todos salgan por la ruta más rápida. Sin depender de la red.</p>
-  <p class="who" style="font-size:30px;color:#fff">Gracias. ¿Preguntas?</p>
+  <p style="font-size:30px;max-width:980px">BFS con TTL para que todos se enteren. Dijkstra para que todos salgan por la ruta más rápida. Nube Firebase + Off-Grid en el bolsillo.</p>
+  <p class="who" style="font-size:24px;color:#dbe8fb;margin-top:24px">154 vértices · 442 aristas · 64 pruebas · 3 idiomas · Nube + Off-Grid</p>
+  <p class="who" style="font-size:30px;color:#fff;margin-top:26px">Gracias. ¿Preguntas?</p>
   <p class="who" style="margin-top:18px;font-family:Consolas,Menlo,monospace">github.com/jamesjsfouam/unexuam</p>
 </section>
 
