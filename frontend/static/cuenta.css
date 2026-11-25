@@ -960,15 +960,15 @@ html[data-tema="oscuro"] .login-carta .campo select {
 @keyframes aurora2 { to { transform: translate3d(-14%, 8%, 0) scale(.9); } }
 @keyframes aurora3 { to { transform: translate3d(10%, -12%, 0) scale(1.2); } }
 .splash-centro { position: relative; z-index: 2; gap: 16px; color: #0b2a4a; }
-.splash-emblema { width: 146px; height: 146px; display: grid; place-items: center; position: relative; }
+.splash-emblema { width: 162px; height: 162px; display: grid; place-items: center; position: relative; }
 .splash-vidrio {
   position: relative;
   z-index: 2;
-  width: 104px;
-  height: 104px;
+  width: 118px;
+  height: 118px;
   display: grid;
   place-items: center;
-  border-radius: 30px;
+  border-radius: 34px;
   background: linear-gradient(145deg, rgba(0, 98, 204, .34), rgba(0, 128, 255, .14));
   border: 1.5px solid rgba(255, 255, 255, .65);
   box-shadow: 0 20px 44px rgba(0, 56, 130, .28), inset 0 1.5px 0 rgba(255, 255, 255, .75);
@@ -979,8 +979,8 @@ html[data-tema="oscuro"] .login-carta .campo select {
 }
 .splash-x-caja {
   position: relative;
-  width: 62px;
-  height: 62px;
+  width: 72px;
+  height: 72px;
 }
 .splash-x {
   position: absolute;
