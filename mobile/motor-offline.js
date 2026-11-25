@@ -882,6 +882,12 @@
             : "Ese CIF ya tiene cuenta en este dispositivo. Inicia sesión.",
         };
       }
+      if (window.UNEXO_NUBE) {
+        const nube = await window.UNEXO_NUBE.obtenerUsuario(cif);
+        if (!nube.offline && nube.usuario) {
+          return { ok: false, disponible: false, mensaje: "Ese CIF ya tiene cuenta en la nube. Inicia sesión." };
+        }
+      }
       return { ok: true, disponible: true };
     }
     if (ruta === "/api/registro" || ruta === "/api/login") {
@@ -895,10 +901,35 @@
         if (clave.length < 6) return { ok: false, mensaje: "La contraseña debe tener al menos 6 caracteres." };
         if (C.usuarios[cif]) return { ok: false, mensaje: "Ese CIF ya tiene cuenta. Inicia sesión." };
         const sal = generarSal();
-        C.usuarios[cif] = { nombre, sal, hash: await derivarClave(clave, sal), telefono: nombreTelefono(C, cif, nombre), lugar: "Edificio E" };
-        registrar(`Nueva cuenta: ${nombre} (${C.usuarios[cif].telefono}).`, "ok");
+        const hash = await derivarClave(clave, sal);
+        const telefono = nombreTelefono(C, cif, nombre);
+        const lugarPedidoReg = texto(d, "lugar", 60);
+        const lugarInicial = (lugarPedidoReg && S.campus.buscarVertice(lugarPedidoReg)) ? lugarPedidoReg : "Edificio E";
+        const nuevo = { cif, nombre, sal, hash, telefono, lugar: lugarInicial, admin: false, creado: Date.now() };
+        if (window.UNEXO_NUBE) {
+          const resNube = await window.UNEXO_NUBE.crearUsuario(nuevo);
+          if (!resNube.offline && resNube.duplicado) {
+            return { ok: false, mensaje: "Ese CIF ya tiene cuenta. Inicia sesión." };
+          }
+        }
+        C.usuarios[cif] = { nombre, sal, hash, telefono, lugar: lugarInicial };
+        registrar(`Nueva cuenta: ${nombre} (${telefono}).`, "ok");
       } else {
-        const u = C.usuarios[cif];
+        let u = C.usuarios[cif];
+        if ((!u || u.real) && window.UNEXO_NUBE) {
+          const nube = await window.UNEXO_NUBE.obtenerUsuario(cif);
+          if (!nube.offline && nube.usuario) {
+            C.usuarios[cif] = {
+              nombre: nube.usuario.nombre,
+              sal: nube.usuario.sal,
+              hash: nube.usuario.hash,
+              telefono: nube.usuario.telefono,
+              lugar: nube.usuario.lugar || "Edificio E",
+              admin: !!nube.usuario.admin,
+            };
+            u = C.usuarios[cif];
+          }
+        }
         if (!u || u.admin || u.real || !await verificarClave(u, clave)) return { ok: false, mensaje: "CIF o contraseña incorrectos." };
         if (!u.hash.startsWith("pbkdf2-sha256:")) {
           u.sal = generarSal();
@@ -969,8 +1000,21 @@
       if (ruta === "/api/contactos/buscar" || ruta === "/api/contactos/agregar") {
         const C = cuentas();
         const cif = texto(d, "cif", 20).replace(/\s+/g, "").toUpperCase();
-        const u = C.usuarios[cif];
-        if (!u || u.admin || cif === yo.cif) return { ok: false, mensaje: "No hay nadie con ese CIF en este teléfono ni cerca por la red Mesh." };
+        let u = C.usuarios[cif];
+        if (!u && cif && cif !== yo.cif && cif !== "ADMIN" && window.UNEXO_NUBE) {
+          const nube = await window.UNEXO_NUBE.obtenerUsuario(cif);
+          if (!nube.offline && nube.usuario && !nube.usuario.admin) {
+            C.usuarios[cif] = {
+              nombre: nube.usuario.nombre,
+              telefono: nube.usuario.telefono,
+              lugar: nube.usuario.lugar || "Edificio E",
+              real: true,
+            };
+            guardarCuentas(C);
+            u = C.usuarios[cif];
+          }
+        }
+        if (!u || u.admin || cif === yo.cif) return { ok: false, mensaje: "No hay nadie con ese CIF en la nube ni cerca por la red Mesh." };
         C.contactos = C.contactos || {};
         const lista = C.contactos[yo.cif] || (C.contactos[yo.cif] = []);
         if (ruta === "/api/contactos/agregar") {
@@ -987,11 +1031,33 @@
         const n = repartirCola();
         guardarEstadoLocal();
         actualizarPerfilMeshReal(yo.cif, { ...yo.u, lugar });
+        if (window.UNEXO_NUBE) window.UNEXO_NUBE.actualizarLugar(yo.cif, lugar);
         return { ok: true, usuario: datosUsuario(yo.cif),
           mensaje: `Ahora estás en ${lugar}: ${vecinos.length} teléfono(s) a tu alcance.` + (n ? ` Salieron ${n} mensaje(s) que estaban en cola.` : "") };
       }
       if (ruta === "/api/mensajes") {
         const C = cuentas();
+        if (window.UNEXO_NUBE) {
+          const nubeMsj = await window.UNEXO_NUBE.listarMensajes(60);
+          if (Array.isArray(nubeMsj) && nubeMsj.length) {
+            const ids = new Set(C.mensajes.map((m) => String(m.id)));
+            let cambio = false;
+            for (const nm of nubeMsj) {
+              const mid = String(nm._id || "");
+              if (!mid || ids.has(mid)) continue;
+              if (nm.de === yo.cif || nm.para === yo.cif || nm.para === "TODOS") {
+                C.mensajes.push({
+                  id: mid, de: nm.de, deNombre: nm.deNombre, para: nm.para,
+                  texto: nm.texto, hora: nm.hora, estado: nm.estado || "entregado",
+                  ruta: [], retardo: null, entregado: nm.hora, viaCola: false,
+                });
+                ids.add(mid);
+                cambio = true;
+              }
+            }
+            if (cambio) guardarCuentas(C);
+          }
+        }
         const mios0 = C.mensajes.filter((m) => m.de === yo.cif || m.para === yo.cif);
         const cifs = ((C.contactos || {})[yo.cif] || []).slice();
         for (const m of mios0) {
@@ -1055,6 +1121,9 @@
         }
         registrar(`Mensaje ${yo.u.telefono} → ${dest.telefono}: ${m.estado}.`, entregadoInmediato ? "ok" : "info");
         guardarEstadoLocal();
+        if (window.UNEXO_NUBE) {
+          window.UNEXO_NUBE.enviarMensaje({ ...m, ts: Date.now(), estado: "entregado" });
+        }
         let msgTxt = "En cola hasta encontrar un teléfono cercano.";
         if (enviadosReal > 0) msgTxt = "Transmisión iniciada. Recepción sin confirmar.";
         if (entregadoInmediato) msgTxt = "Mensaje entregado.";

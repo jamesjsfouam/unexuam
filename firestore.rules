@@ -1,0 +1,217 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Project: unexuam-campus-ni (Standard edition, (default) database)
+    // Auth Note: The app uses CIF + PBKDF2-SHA256 authentication directly
+    // in the client without Firebase Auth, so request.auth is null.
+    //
+    // Collection: usuarios
+    // Document ID: {cif} matching ^[0-9A-Z-]{4,15}$, != 'ADMIN', != 'TODOS'
+    // Fields:
+    //   - cif: string (required, immutable, == document ID)
+    //   - nombre: string (required, immutable, 2..40 chars)
+    //   - sal: string (required, immutable, 8..64 chars)
+    //   - hash: string (required, immutable, 20..160 chars)
+    //   - telefono: string (required, immutable, 3..40 chars)
+    //   - lugar: string (required, mutable, 1..60 chars)
+    //   - admin: bool (required, immutable, must be false on create)
+    //   - creado: number (required, immutable)
+    //   - ultimoAcceso: number (optional, mutable)
+    //
+    // Collection: mensajes
+    // Document ID: {msgId}
+    // Fields:
+    //   - de: string (required, immutable, 2..15 chars)
+    //   - deNombre: string (required, immutable, 1..40 chars)
+    //   - para: string (required, immutable, 2..15 chars)
+    //   - texto: string (required, immutable, 1..500 chars)
+    //   - hora: string (required, immutable, 1..20 chars)
+    //   - ts: number (required, immutable)
+    //   - estado: string (required, 'entregado' | 'en cola'; update only to 'entregado')
+    //
+    // Collection: campus
+    // Document ID: 'estado' only
+    // Fields:
+    //   - bloqueados: list (required, max 100 items)
+    //   - congestion: map (required, max 100 entries)
+    //   - actualizado: number (required)
+    //
+    // Collection: reportes_bloqueo
+    // Document ID: {repId}
+    // Fields:
+    //   - origen: string (required, immutable, 1..60 chars)
+    //   - destino: string (required, immutable, 1..60 chars)
+    //   - autor: string (required, immutable, 2..15 chars)
+    //   - ts: number (required, immutable)
+    //   - estado: string (optional on create, mutable, 1..30 chars)
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+
+    function hasRequiredFields(fields) {
+      return request.resource.data.keys().hasAll(fields);
+    }
+
+    function hasOnlyAllowedFields(fields) {
+      return request.resource.data.keys().hasOnly(fields);
+    }
+
+    function validStringLength(field, minLen, maxLen) {
+      return request.resource.data[field] is string &&
+             request.resource.data[field].size() >= minLen &&
+             request.resource.data[field].size() <= maxLen;
+    }
+
+    function isValidOptionalString(field, minLen, maxLen) {
+      return !(field in request.resource.data) ||
+             (request.resource.data[field] is string &&
+              request.resource.data[field].size() >= minLen &&
+              request.resource.data[field].size() <= maxLen);
+    }
+
+    function isValidOptionalNumber(field) {
+      return !(field in request.resource.data) ||
+             request.resource.data[field] is number;
+    }
+
+    function isValidList(listData, maxSize) {
+      return listData is list && listData.size() <= maxSize;
+    }
+
+    function isValidMap(mapData, maxSize) {
+      return mapData is map && mapData.size() <= maxSize;
+    }
+
+    function areImmutableFieldsUnchanged(fields) {
+      return !request.resource.data.diff(resource.data).affectedKeys().hasAny(fields);
+    }
+
+    function isValidCifId(cif) {
+      return cif is string &&
+             cif.matches('^[0-9A-Z-]{4,15}$') &&
+             cif != 'ADMIN' &&
+             cif != 'TODOS';
+    }
+
+    // ===============================================================
+    // Domain Validators (Used in both create and update)
+    // ===============================================================
+
+    function isValidUsuario(data, cif) {
+      return hasRequiredFields(['cif', 'nombre', 'sal', 'hash', 'telefono', 'lugar', 'admin', 'creado']) &&
+             hasOnlyAllowedFields(['cif', 'nombre', 'sal', 'hash', 'telefono', 'lugar', 'admin', 'creado', 'ultimoAcceso']) &&
+             data.cif is string &&
+             data.cif == cif &&
+             validStringLength('nombre', 2, 40) &&
+             validStringLength('sal', 8, 64) &&
+             validStringLength('hash', 20, 160) &&
+             validStringLength('telefono', 3, 40) &&
+             validStringLength('lugar', 1, 60) &&
+             data.admin is bool &&
+             data.creado is number &&
+             isValidOptionalNumber('ultimoAcceso');
+    }
+
+    function isValidMensaje(data) {
+      return hasRequiredFields(['de', 'deNombre', 'para', 'texto', 'hora', 'ts', 'estado']) &&
+             hasOnlyAllowedFields(['de', 'deNombre', 'para', 'texto', 'hora', 'ts', 'estado']) &&
+             validStringLength('de', 2, 15) &&
+             validStringLength('deNombre', 1, 40) &&
+             validStringLength('para', 2, 15) &&
+             validStringLength('texto', 1, 500) &&
+             validStringLength('hora', 1, 20) &&
+             data.ts is number &&
+             data.estado is string &&
+             data.estado in ['entregado', 'en cola'];
+    }
+
+    function isValidCampusEstado(data) {
+      return hasRequiredFields(['bloqueados', 'congestion', 'actualizado']) &&
+             hasOnlyAllowedFields(['bloqueados', 'congestion', 'actualizado']) &&
+             isValidList(data.bloqueados, 100) &&
+             isValidMap(data.congestion, 100) &&
+             data.actualizado is number;
+    }
+
+    function isValidReporteBloqueo(data) {
+      return hasRequiredFields(['origen', 'destino', 'autor', 'ts']) &&
+             hasOnlyAllowedFields(['origen', 'destino', 'autor', 'ts', 'estado']) &&
+             validStringLength('origen', 1, 60) &&
+             validStringLength('destino', 1, 60) &&
+             validStringLength('autor', 2, 15) &&
+             data.ts is number &&
+             isValidOptionalString('estado', 1, 30);
+    }
+
+    // ===============================================================
+    // Collection Rules
+    // ===============================================================
+
+    match /usuarios/{cif} {
+      allow read: if true;
+
+      allow create: if isValidCifId(cif) &&
+                       !exists(/databases/$(database)/documents/usuarios/$(cif)) &&
+                       isValidUsuario(request.resource.data, cif) &&
+                       request.resource.data.admin == false &&
+                       !('ultimoAcceso' in request.resource.data);
+
+      allow update: if isValidCifId(cif) &&
+                       isValidUsuario(request.resource.data, cif) &&
+                       request.resource.data.diff(resource.data).affectedKeys().hasOnly(['lugar', 'ultimoAcceso']) &&
+                       areImmutableFieldsUnchanged(['cif', 'nombre', 'sal', 'hash', 'telefono', 'admin', 'creado']);
+
+      allow delete: if false;
+    }
+
+    match /mensajes/{msgId} {
+      allow read: if true;
+
+      allow create: if isValidMensaje(request.resource.data);
+
+      allow update: if isValidMensaje(request.resource.data) &&
+                       request.resource.data.diff(resource.data).affectedKeys().hasOnly(['estado']) &&
+                       request.resource.data.estado == 'entregado';
+
+      allow delete: if false;
+    }
+
+    match /campus/{docId} {
+      allow read: if true;
+
+      allow create, update: if docId == 'estado' &&
+                               isValidCampusEstado(request.resource.data);
+
+      allow delete: if false;
+    }
+
+    match /reportes_bloqueo/{repId} {
+      allow read: if true;
+
+      allow create: if isValidReporteBloqueo(request.resource.data);
+
+      allow update: if isValidReporteBloqueo(request.resource.data) &&
+                       request.resource.data.diff(resource.data).affectedKeys().hasOnly(['estado']) &&
+                       validStringLength('estado', 1, 30);
+
+      allow delete: if false;
+    }
+
+    // ===============================================================
+    // Default Deny
+    // ===============================================================
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
