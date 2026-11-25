@@ -2351,9 +2351,13 @@ function ocultarSplash() {
 }
 const spEl = $("#splash");
 if (spEl) {
-  const reducido = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  spEl.addEventListener("click", ocultarSplash);
-  setTimeout(ocultarSplash, reducido ? 250 : 3000);
+  if (window.UnexuamNativo) {
+    spEl.remove();
+  } else {
+    const reducido = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    spEl.addEventListener("click", ocultarSplash);
+    setTimeout(ocultarSplash, reducido ? 250 : 3000);
+  }
 }
 
 if (!window.__UNEXUAM_OFFLINE__ && "serviceWorker" in navigator) {

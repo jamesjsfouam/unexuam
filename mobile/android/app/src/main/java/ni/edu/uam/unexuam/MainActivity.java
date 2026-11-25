@@ -19,7 +19,9 @@ import android.os.Bundle;
 import android.os.VibrationEffect;
 import android.os.Vibrator;
 import android.util.Log;
+import android.view.ViewGroup;
 import android.webkit.JavascriptInterface;
+import android.widget.FrameLayout;
 import androidx.core.app.ActivityCompat;
 import androidx.core.app.NotificationCompat;
 import androidx.core.app.NotificationManagerCompat;
@@ -59,6 +61,14 @@ public class MainActivity extends BridgeActivity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        ViewGroup raiz = findViewById(android.R.id.content);
+        if (raiz != null) {
+            SplashNativoView splash = new SplashNativoView(this);
+            raiz.addView(splash, new FrameLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.MATCH_PARENT));
+            splash.iniciar();
+        }
         crearCanalesNotificacion();
         meshNativa = new MeshNativa(this, this::enviarEventoAWeb);
         if (this.bridge != null && this.bridge.getWebView() != null) {
