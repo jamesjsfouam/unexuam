@@ -331,7 +331,7 @@ def error_backend(e):
 # Inicio de sesión (CIF + contraseña) y mensajería por la red Mesh
 # ----------------------------------------------------------------------------
 
-LIBRES = {"/api/capacidades", "/api/yo", "/api/login", "/api/login/demo", "/api/registro", "/api/lugares", "/api/campus/publico", "/api/campus/ruta", "/api/mensajes/general"}
+LIBRES = {"/api/capacidades", "/api/yo", "/api/login", "/api/login/demo", "/api/registro", "/api/registro/disponible", "/api/lugares", "/api/campus/publico", "/api/campus/ruta", "/api/mensajes/general"}
 # Reportar un pasillo bloqueado (/api/campus/bloquear) es una función de emergencia para todos;
 # reabrir, congestionar, reiniciar y editar los grafos es solo del administrador.
 SOLO_ADMIN = ("/api/reiniciar", "/api/mesh/vertice", "/api/mesh/arista", "/api/mesh/alerta",
@@ -507,6 +507,18 @@ def api_yo():
             conectar_usuario(u["cif"], u["lugar"])
             repartir_cola()
         return jsonify({"ok": True, "sesion": True, "usuario": datos_usuario(u["cif"])})
+
+
+@app.post("/api/registro/disponible")
+def api_registro_disponible():
+    d = cuerpo_json()
+    cif = leer_cif(d)
+    if not re.fullmatch(r"[0-9A-Z-]{4,15}", cif) or cif == CIF_DEMO:
+        return jsonify({"ok": False, "disponible": False, "mensaje": "Escribe un CIF válido (4 a 15 letras o números)."})
+    with lock:
+        if DB.usuario(cif):
+            return jsonify({"ok": False, "disponible": False, "mensaje": "Ese CIF ya tiene cuenta. Inicia sesión."})
+    return jsonify({"ok": True, "disponible": True})
 
 
 @app.post("/api/registro")

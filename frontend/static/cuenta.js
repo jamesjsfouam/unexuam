@@ -484,8 +484,25 @@
     err.textContent = "";
     if (modo === "registro") {
       if (regPaso === 1) {
-        if (!cif || cif.length < 3) { err.textContent = "Escribe un CIF válido (mínimo 3 caracteres)."; $("#login-cif").focus(); return; }
+        const cifNorm = cif.replace(/\s+/g, "").toUpperCase();
+        if (!/^[0-9A-Z-]{4,15}$/.test(cifNorm) || cifNorm === "ADMIN") {
+          err.textContent = "Escribe un CIF válido (4 a 15 letras o números).";
+          $("#login-cif").focus();
+          return;
+        }
         if (!$("#login-nombre").value.trim()) { err.textContent = "Escribe tu nombre."; $("#login-nombre").focus(); return; }
+        const btnPas1 = $("#login-btn");
+        if (btnPas1) { btnPas1.disabled = true; btnPas1.textContent = "Verificando…"; }
+        try {
+          const disp = await pedir("/api/registro/disponible", { cif: cifNorm });
+          if (disp && disp.disponible === false) {
+            err.textContent = disp.mensaje || "Ese CIF ya tiene cuenta. Inicia sesión.";
+            $("#login-cif").focus();
+            return;
+          }
+        } finally {
+          if (btnPas1) { btnPas1.disabled = false; btnPas1.textContent = "Siguiente"; }
+        }
         regPaso = 2;
         await actualizarWizard(true);
         return;
@@ -1913,6 +1930,11 @@
       if (g) avisar(g.querySelector("title").textContent);
     });
   }
+
+  window.addEventListener("unexuam-cif-duplicado", ev => {
+    const cif = ev && ev.detail && ev.detail.cif ? ev.detail.cif : "";
+    avisar(`Otro dispositivo cercano en la red Mesh usa el CIF ${cif}.`, false);
+  });
 
   async function arrancar() {
     eventos();

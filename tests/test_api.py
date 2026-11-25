@@ -332,6 +332,20 @@ class TestSesionYMensajes(unittest.TestCase):
         self.assertIsNone(r2["estado"]["emergencia"])
         self.assertEqual(r2["estado"]["campus"]["bloqueados"], bloqueo["estado"]["campus"]["bloqueados"])
 
+    def test_registro_bloquea_cif_duplicado_desde_paso_1(self):
+        c = servidor.app.test_client()
+        d1 = c.post("/api/registro/disponible", json={"cif": "DUP0001"}).get_json()
+        self.assertTrue(d1["ok"])
+        self.assertTrue(d1["disponible"])
+        self.nuevo("DUP0001", "Primero", "Edificio E")
+        d2 = c.post("/api/registro/disponible", json={"cif": " dup0001 "}).get_json()
+        self.assertFalse(d2["ok"])
+        self.assertFalse(d2["disponible"])
+        r2 = c.post("/api/registro", json={
+            "cif": "dup0001", "nombre": "Segundo", "contrasena": "otra_clave", "lugar": "Edificio E",
+        }).get_json()
+        self.assertFalse(r2["ok"])
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -603,7 +603,7 @@
   }
 
   async function despacharApi(ruta, d, searchParams) {
-    const LIBRES = ["/api/yo", "/api/login", "/api/login/demo", "/api/registro", "/api/lugares", "/api/campus/publico", "/api/campus/ruta", "/api/mensajes/general"];
+    const LIBRES = ["/api/yo", "/api/login", "/api/login/demo", "/api/registro", "/api/registro/disponible", "/api/lugares", "/api/campus/publico", "/api/campus/ruta", "/api/mensajes/general"];
     const SOLO_ADMIN = ["/api/reiniciar", "/api/mesh/vertice", "/api/mesh/arista", "/api/mesh/alerta", "/api/campus/vertice", "/api/campus/arista", "/api/campus/ubicacion", "/api/campus/desbloquear", "/api/campus/congestionar", "/api/algoritmo", "/api/emergencia/declarar", "/api/emergencia/finalizar"];
     if (!LIBRES.includes(ruta)) {
       const yo = cuentaActual();
@@ -865,6 +865,24 @@
     }
     if (ruta === "/api/login/demo") {
       return { ok: false, mensaje: "El acceso demo no está disponible en Android." };
+    }
+    if (ruta === "/api/registro/disponible") {
+      const C = cuentas();
+      const cif = String((d && d.cif) || "").replace(/\s+/g, "").toUpperCase().slice(0, 15);
+      if (!/^[0-9A-Z-]{4,15}$/.test(cif) || cif === "ADMIN") {
+        return { ok: false, disponible: false, mensaje: "Escribe un CIF válido (4 a 15 letras o números)." };
+      }
+      const existente = C.usuarios[cif];
+      if (existente) {
+        return {
+          ok: false,
+          disponible: false,
+          mensaje: existente.real
+            ? "Ese CIF ya está conectado en la red Mesh cercana."
+            : "Ese CIF ya tiene cuenta en este dispositivo. Inicia sesión.",
+        };
+      }
+      return { ok: true, disponible: true };
     }
     if (ruta === "/api/registro" || ruta === "/api/login") {
       const C = cuentas();
@@ -1215,7 +1233,12 @@
       if ((ev.tipo === "conectado" || ev.tipo === "perfil") && ev.peer) {
         const p = ev.peer;
         const cif = String(p.cif || "").trim().toUpperCase().slice(0, 15);
-        if (!cif || (yo && cif === yo.cif)) return;
+        if (!cif) return;
+        if (yo && cif === yo.cif) {
+          registrar(`Aviso: otro teléfono cercano usa el mismo CIF (${cif}).`, "alerta");
+          window.dispatchEvent(new CustomEvent("unexuam-cif-duplicado", { detail: { cif } }));
+          return;
+        }
         const nombre = String(p.nombre || "Teléfono cercano").slice(0, 40);
         const telefono = String(p.telefono || `Tel-${cif}`).slice(0, 30);
         const lugar = String(p.lugar || "Cercano (Bluetooth)").slice(0, 60);
