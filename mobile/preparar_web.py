@@ -57,6 +57,13 @@ def main():
 
     # Convertir index.html de plantilla Jinja a HTML estático
     html = (RAIZ / "frontend" / "templates" / "index.html").read_text(encoding="utf-8")
+    # En Android nativo el splash lo ejecuta SplashNativoView: eliminar #splash HTML para evitar doble carga
+    html = re.sub(
+        r'\s*<div id="splash"[\s\S]*?</div>\s*(?=<a href="#contenido")',
+        '\n  ',
+        html,
+        count=1,
+    )
     html = re.sub(
         r"\{\{\s*url_for\(\s*['\"]static['\"]\s*,\s*filename=['\"]([^'\"]+)['\"]\s*\)\s*\}\}",
         r"/static/\1",

@@ -80,7 +80,7 @@ public class MainActivity extends BridgeActivity {
                 if (this.bridge != null && this.bridge.getWebView() != null) {
                     this.bridge.getWebView().reload();
                 }
-            }, 1600L);
+            }, 1200L);
         }
         try {
             registerReceiver(btReceiver, new IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED));

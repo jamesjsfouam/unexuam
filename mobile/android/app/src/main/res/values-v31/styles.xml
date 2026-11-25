@@ -3,7 +3,7 @@
     <style name="AppTheme.NoActionBarLaunch" parent="AppTheme.NoActionBar">
         <item name="android:windowBackground">@drawable/splash_unexo</item>
         <item name="android:windowSplashScreenBackground">#0080ff</item>
-        <item name="android:windowSplashScreenAnimatedIcon">@android:color/transparent</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/logo_x_normal</item>
         <item name="android:windowSplashScreenAnimationDuration">0</item>
     </style>
 </resources>
