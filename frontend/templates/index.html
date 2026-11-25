@@ -554,6 +554,11 @@
     </div>
     <div class="login-carta">
       <h2 id="t-login" class="sr">Acceso</h2>
+      <div class="login-lang" role="group" aria-label="Idioma / Language / Bila">
+        <button type="button" data-lang="es" aria-pressed="true">ES</button>
+        <button type="button" data-lang="en" aria-pressed="false">EN</button>
+        <button type="button" data-lang="miq" aria-pressed="false">MIQ</button>
+      </div>
       <div class="segmentado login-tabs" role="tablist">
         <button type="button" role="tab" aria-selected="true" data-modo="entrar">Entrar</button>
         <button type="button" role="tab" aria-selected="false" data-modo="registro">Crear cuenta</button>
@@ -679,6 +684,7 @@
     </defs>
   </svg>
 
+  <script src="{{ url_for('static', filename='i18n.js') }}"></script>
   <script src="{{ url_for('static', filename='app.js') }}"></script>
   <script src="{{ url_for('static', filename='ubicacion.js') }}"></script>
   <script src="{{ url_for('static', filename='cuenta.js') }}"></script>

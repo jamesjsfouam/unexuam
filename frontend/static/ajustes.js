@@ -7,7 +7,7 @@
     vibrar: true, tono: true, vecinos: true, bloqueos: true,
     compartirLugar: true, custodiaDtn: true,
     sincronizarSistema: false, tema: "claro", escalaTexto: 100, contraste: "estandar", sinAnim: false,
-    fuenteDislexia: false, interlineado: 1.4, modoEnfoque: false, filtroColor: "ninguno",
+    fuenteDislexia: false, interlineado: 1.4, modoEnfoque: false, filtroColor: "ninguno", idioma: "es",
   };
   const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const leer = (k, d) => { try { const v = JSON.parse(localStorage.getItem(k)); return v ?? d; } catch { return d; } };
@@ -28,6 +28,9 @@
     { id: "cuenta", nombre: "Cuenta", ico: "M12 12a4.5 4.5 0 1 0-4.5-4.5A4.5 4.5 0 0 0 12 12Zm0 2c-4 0-7.5 2-7.5 4.5V20h15v-1.5C19.5 16 16 14 12 14Z", items: [
       { id: "perfil", label: "Perfil CIF y teléfono", tipo: "nav" },
       { id: "edificio", label: "Mi edificio en el campus", tipo: "nav" },
+      { id: "idioma", label: "Idioma / Language / Bila", tipo: "radio", opciones: [
+        { v: "es", t: "Español" }, { v: "en", t: "English" }, { v: "miq", t: "Mískitu" },
+      ]},
       { id: "instalar", label: "Instalar app offline", tipo: "nav" },
       { id: "salir", label: "Cerrar sesión", tipo: "nav", peligro: true },
     ]},
@@ -105,6 +108,7 @@
     document.body.classList.toggle("aj-sin-anim", sinAnim);
     document.body.classList.toggle("aj-dislexia", !!prefs.fuenteDislexia);
     document.body.classList.toggle("aj-enfoque", !!prefs.modoEnfoque);
+    if (window.UNEXO_I18N && prefs.idioma) window.UNEXO_I18N.setIdioma(prefs.idioma);
     try {
       if (window.UnexuamNativo && typeof window.UnexuamNativo.setCustodiaDtn === "function") {
         window.UnexuamNativo.setCustodiaDtn(prefs.custodiaDtn !== false);
@@ -236,6 +240,7 @@
         if (prevSel && restored.setSelectionRange) restored.setSelectionRange(prevSel[0], prevSel[1]);
       }
     }
+    if (window.UNEXO_I18N) window.UNEXO_I18N.aplicar(host);
   }
 
   function ejecutar(id) {

@@ -2172,7 +2172,7 @@ function leerRutaVoz() {
   ];
   window.speechSynthesis.cancel();
   const u = new SpeechSynthesisUtterance(partes.join(" "));
-  u.lang = "es-NI";
+  u.lang = window.UNEXO_I18N?.idioma?.() === "en" ? "en-US" : "es-NI";
   u.rate = 1.02;
   u.onend = u.onerror = () => detenerVoz();
   leyendoVoz = true;

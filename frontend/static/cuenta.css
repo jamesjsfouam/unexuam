@@ -329,6 +329,32 @@ html[data-tema="oscuro"] .login-carta {
   .login-marca { margin: 0 0 18px; padding: 0; }
   .login-carta { border-radius: 30px; border-bottom: 1.5px solid rgba(255, 255, 255, .85); padding: 24px; box-shadow: 0 22px 48px rgba(0, 24, 70, .32), inset 0 1.5px 0 rgba(255, 255, 255, .95); }
 }
+.login-lang {
+  display: inline-flex;
+  gap: 4px;
+  padding: 3px;
+  margin: 0 auto 12px;
+  border-radius: 999px;
+  background: var(--gris-claro);
+}
+.login-carta { text-align: left; }
+.login-lang { display: flex; width: fit-content; }
+.login-lang button {
+  min-width: 44px;
+  min-height: 32px;
+  padding: 4px 10px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--gris-texto);
+  font: 800 0.72rem/1 var(--fuente);
+  cursor: pointer;
+}
+.login-lang button[aria-pressed="true"] {
+  background: var(--blanco);
+  color: var(--azul-btn);
+  box-shadow: 0 2px 6px rgba(11, 42, 74, .12);
+}
 .login-tabs {
   margin-bottom: 18px;
   padding: 4px;
