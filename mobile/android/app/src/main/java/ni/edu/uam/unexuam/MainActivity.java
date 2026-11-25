@@ -29,6 +29,7 @@ import androidx.core.app.NotificationCompat;
 import androidx.core.app.NotificationManagerCompat;
 import androidx.core.content.ContextCompat;
 import com.getcapacitor.BridgeActivity;
+import com.google.firebase.messaging.FirebaseMessaging;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -90,6 +91,11 @@ public class MainActivity extends BridgeActivity {
         }
         solicitarPermisosEntrada();
         procesarIntentRuta(getIntent());
+        try {
+            FirebaseMessaging.getInstance().subscribeToTopic("campus_emergencias");
+        } catch (Exception e) {
+            Log.w("UnexuamMain", "FCM topic diferido sin red: " + e.getMessage());
+        }
     }
 
     @Override

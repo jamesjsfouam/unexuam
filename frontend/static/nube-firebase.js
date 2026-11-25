@@ -137,6 +137,35 @@
     return docs.map(docAObjeto).filter(Boolean).sort((a, b) => (a.ts || 0) - (b.ts || 0));
   }
 
+  async function leerCampusEstado() {
+    const res = await reqFS("/campus/estado");
+    if (res.offline || !res.ok || !res.data) return null;
+    return docAObjeto(res.data);
+  }
+
+  async function guardarCampusEstado(estadoObj) {
+    const em = estadoObj && estadoObj.emergencia && typeof estadoObj.emergencia === "object"
+      ? {
+          id: String(estadoObj.emergencia.id || "").slice(0, 60),
+          tipo: String(estadoObj.emergencia.tipo || "general").slice(0, 30),
+          titulo: String(estadoObj.emergencia.titulo || "Emergencia en el campus").slice(0, 120),
+          texto: String(estadoObj.emergencia.texto || "").slice(0, 240),
+          hora: String(estadoObj.emergencia.hora || "").slice(0, 20),
+        }
+      : null;
+    const payload = {
+      bloqueados: Array.isArray(estadoObj?.bloqueados) ? estadoObj.bloqueados.slice(0, 100) : [],
+      congestion: (estadoObj && typeof estadoObj.congestion === "object") ? estadoObj.congestion : {},
+      emergencia: em,
+      actualizado: Number(estadoObj?.actualizado || Date.now()),
+    };
+    const res = await reqFS(
+      "/campus/estado",
+      { method: "PATCH", body: JSON.stringify(aFields(payload)) }
+    );
+    return !res.offline && res.ok;
+  }
+
   window.UNEXO_NUBE = {
     proyecto: PROYECTO,
     obtenerUsuario,
@@ -144,5 +173,7 @@
     actualizarLugar,
     enviarMensaje,
     listarMensajes,
+    leerCampusEstado,
+    guardarCampusEstado,
   };
 })();

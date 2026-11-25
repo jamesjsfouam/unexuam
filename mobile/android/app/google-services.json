@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "891193273917",
+    "project_id": "unexuam-campus-ni",
+    "storage_bucket": "unexuam-campus-ni.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:891193273917:android:34fd5996b724261db40454",
+        "android_client_info": {
+          "package_name": "ni.edu.uam.unexuam"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDhW5ot_yXH4fPStUnJ2R2-YXk39QaTDvo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

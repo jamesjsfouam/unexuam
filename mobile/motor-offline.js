@@ -615,6 +615,7 @@
       }
     }
     if (ruta === "/api/estado") {
+      sincronizarCampusNube();
       return { ok: true, mensaje: "", estado: estado() };
     }
 
@@ -649,6 +650,8 @@
           para: "TODOS", hora: horaEm, ttl: 6, ruta: [yoEm.u.telefono],
         });
       }
+      guardarEstadoLocal();
+      publicarCampusNube();
       return responder(true, `Emergencia declarada: ${tituloDef}.`);
     }
 
@@ -666,6 +669,8 @@
           para: "TODOS", hora: horaActual(), ttl: 6, ruta: [yoFin.u.telefono],
         });
       }
+      guardarEstadoLocal();
+      publicarCampusNube();
       return responder(true, "Emergencia finalizada. El campus vuelve a estar en calma.");
     }
 
@@ -739,6 +744,8 @@
         });
         guardarCuentas(CB);
       }
+      guardarEstadoLocal();
+      publicarCampusNube();
       return responder(true, `Pasillo bloqueado: ${quitadas.join(", ")}.`);
     }
 
@@ -751,6 +758,8 @@
       S.bloqueados = [];
       if (!Object.keys(S.congestion).length) cargarCacheBase();
       else invalidarCacheRutas();
+      guardarEstadoLocal();
+      publicarCampusNube();
       return responder(true, `Se reabrieron ${n} pasos con su tiempo original.`);
     }
 
@@ -768,6 +777,8 @@
       }
       S.congestion[lugar] = Math.round(acumulado * 1000) / 1000;
       invalidarCacheRutas();
+      guardarEstadoLocal();
+      publicarCampusNube();
       return responder(true, `${lugar}: congestión aplicada (tiempos ×${factor}).`);
     }
 
@@ -1518,21 +1529,100 @@
     })();
   }
 
+  let ultCampusActualizado = 0;
+  let ultSyncCampusMs = 0;
+  let syncCampusEnCurso = false;
+
+  function publicarCampusNube() {
+    if (!window.UNEXO_NUBE || navigator.onLine === false) return;
+    const ts = Date.now();
+    ultCampusActualizado = ts;
+    window.UNEXO_NUBE.guardarCampusEstado({
+      bloqueados: S.bloqueados,
+      congestion: S.congestion,
+      emergencia: S.emergencia || null,
+      actualizado: ts,
+    });
+  }
+
+  function reconstruirCampusDesdeNube(bloqList, congMap) {
+    S.campus = construirGrafo(SEED.campus);
+    S.zonas = [...SEED.zonas];
+    S.bloqueados = [];
+    S.congestion = {};
+    for (const [lug, fac] of Object.entries(congMap || {})) {
+      const f = Number(fac);
+      if (f > 0 && aplicarAlerta(S.campus, lug, f)) {
+        S.congestion[lug] = f;
+      }
+    }
+    for (const b of bloqList || []) {
+      if (!b || !b.origen || !b.destino) continue;
+      const va = S.campus.vertexs.find((v) => v.nombre === b.origen);
+      const ar = va ? va.neig.find(([w]) => w.nombre === b.destino) : null;
+      if (ar && S.campus.eliminarArista(b.origen, b.destino)) {
+        S.bloqueados.push({ origen: b.origen, destino: b.destino, peso: b.peso ?? num(ar[1]) });
+      }
+    }
+    if (!S.bloqueados.length && !Object.keys(S.congestion).length) cargarCacheBase();
+    else invalidarCacheRutas();
+  }
+
+  function sincronizarCampusNube(forzar = false) {
+    if (!window.UNEXO_NUBE || navigator.onLine === false || syncCampusEnCurso) return;
+    const ahoraMs = Date.now();
+    if (!forzar && ahoraMs - ultSyncCampusMs < 4000) return;
+    ultSyncCampusMs = ahoraMs;
+    syncCampusEnCurso = true;
+    (async () => {
+      try {
+        const doc = await window.UNEXO_NUBE.leerCampusEstado();
+        if (!doc || !doc.actualizado || doc.actualizado <= ultCampusActualizado) return;
+        ultCampusActualizado = doc.actualizado;
+
+        const bloqNube = Array.isArray(doc.bloqueados) ? doc.bloqueados : [];
+        const congNube = (doc.congestion && typeof doc.congestion === "object") ? doc.congestion : {};
+        const emNube = (doc.emergencia && typeof doc.emergencia === "object") ? doc.emergencia : null;
+
+        const cambioGrafo = JSON.stringify(bloqNube) !== JSON.stringify(S.bloqueados)
+          || JSON.stringify(congNube) !== JSON.stringify(S.congestion);
+        const cambioEm = JSON.stringify(emNube) !== JSON.stringify(S.emergencia || null);
+
+        if (!cambioGrafo && !cambioEm) return;
+        if (cambioGrafo) reconstruirCampusDesdeNube(bloqNube, congNube);
+        S.emergencia = emNube;
+        guardarEstadoLocal();
+        if (window.refrescarEstado) window.refrescarEstado();
+        window.dispatchEvent(new CustomEvent("unexuam-mesh-update", {
+          detail: { tipo: "estado", recalcularRuta: cambioGrafo },
+        }));
+      } finally {
+        syncCampusEnCurso = false;
+      }
+    })();
+  }
+
   window.addEventListener("offline", () => {
     meshIniciado = false;
     asegurarMeshActivo();
   });
   window.addEventListener("online", () => {
     vaciarColaNube();
+    sincronizarCampusNube(true);
   });
   setTimeout(() => {
     asegurarMeshActivo();
-    if (navigator.onLine !== false) vaciarColaNube();
+    if (navigator.onLine !== false) {
+      vaciarColaNube();
+      sincronizarCampusNube(true);
+    }
   }, 800);
   setInterval(() => {
     if (navigator.onLine === false) {
       meshIniciado = false;
       asegurarMeshActivo();
+    } else {
+      sincronizarCampusNube(false);
     }
-  }, 15000);
+  }, 6000);
 })();

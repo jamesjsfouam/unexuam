@@ -41,6 +41,7 @@ service cloud.firestore {
     //   - bloqueados: list (required, max 100 items)
     //   - congestion: map (required, max 100 entries)
     //   - actualizado: number (required)
+    //   - emergencia: map | null (optional, keys <= 5: id, tipo, titulo, texto, hora; each string <= 250 chars)
     //
     // Collection: reportes_bloqueo
     // Document ID: {repId}
@@ -91,6 +92,24 @@ service cloud.firestore {
       return mapData is map && mapData.size() <= maxSize;
     }
 
+    function isValidMapStringField(mapData, key, maxLen) {
+      return !(key in mapData) ||
+             (mapData[key] is string && mapData[key].size() <= maxLen);
+    }
+
+    function isValidEmergencia(data) {
+      return !('emergencia' in data) ||
+             data.emergencia == null ||
+             (data.emergencia is map &&
+              data.emergencia.size() <= 5 &&
+              data.emergencia.keys().hasOnly(['id', 'tipo', 'titulo', 'texto', 'hora']) &&
+              isValidMapStringField(data.emergencia, 'id', 250) &&
+              isValidMapStringField(data.emergencia, 'tipo', 250) &&
+              isValidMapStringField(data.emergencia, 'titulo', 250) &&
+              isValidMapStringField(data.emergencia, 'texto', 250) &&
+              isValidMapStringField(data.emergencia, 'hora', 250));
+    }
+
     function areImmutableFieldsUnchanged(fields) {
       return !request.resource.data.diff(resource.data).affectedKeys().hasAny(fields);
     }
@@ -136,10 +155,11 @@ service cloud.firestore {
 
     function isValidCampusEstado(data) {
       return hasRequiredFields(['bloqueados', 'congestion', 'actualizado']) &&
-             hasOnlyAllowedFields(['bloqueados', 'congestion', 'actualizado']) &&
+             hasOnlyAllowedFields(['bloqueados', 'congestion', 'actualizado', 'emergencia']) &&
              isValidList(data.bloqueados, 100) &&
              isValidMap(data.congestion, 100) &&
-             data.actualizado is number;
+             data.actualizado is number &&
+             isValidEmergencia(data);
     }
 
     function isValidReporteBloqueo(data) {
