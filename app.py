@@ -69,7 +69,7 @@ def cabeceras_respuesta(resp):
     resp.headers.setdefault("Referrer-Policy", "no-referrer")
     resp.headers.setdefault(
         "Content-Security-Policy",
-        "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; "
+        "default-src 'self'; script-src 'self' https://www.gstatic.com/firebasejs/; style-src 'self' 'unsafe-inline'; "
         "img-src 'self' data: blob:; font-src 'self' data:; "
         "connect-src 'self' https://firestore.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com; "
         "frame-ancestors 'none'; base-uri 'self'; form-action 'self'",
@@ -982,62 +982,70 @@ EMERGENCIAS_DEF = {
 }
 
 
-def enviar_fcm_emergencia(emergencia):
-    """Envía FCM HTTP v1 al tema `campus_emergencias` desde Flask sin requerir plan Blaze."""
-    if not isinstance(emergencia, dict):
-        return False
-    ruta_sa = (
-        os.environ.get("FIREBASE_SERVICE_ACCOUNT_FILE")
-        or os.environ.get("GOOGLE_APPLICATION_CREDENTIALS")
-        or ""
-    ).strip()
-    if not ruta_sa or not os.path.isfile(ruta_sa):
-        return False
+def firebase_rest(url, cuerpo, token, metodo):
+    req = urllib.request.Request(
+        url, data=json.dumps(cuerpo).encode("utf-8"), method=metodo,
+        headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
+    )
+    with urllib.request.urlopen(req, timeout=5) as respuesta:
+        return 200 <= respuesta.status < 300
+
+
+def valor_firestore(valor):
+    if valor is None:
+        return {"nullValue": None}
+    if isinstance(valor, bool):
+        return {"booleanValue": valor}
+    if isinstance(valor, int):
+        return {"integerValue": str(valor)}
+    if isinstance(valor, float):
+        return {"doubleValue": valor}
+    if isinstance(valor, str):
+        return {"stringValue": valor}
+    if isinstance(valor, list):
+        return {"arrayValue": {"values": [valor_firestore(item) for item in valor]}}
+    return {"mapValue": {"fields": {clave: valor_firestore(item) for clave, item in valor.items()}}}
+
+
+def publicar_emergencia_campus(emergencia):
+    ruta_sa = os.environ.get("FIREBASE_SERVICE_ACCOUNT_FILE") or os.environ.get("GOOGLE_APPLICATION_CREDENTIALS")
+    if not ruta_sa:
+        return False, False
+    functions_push = os.environ.get("FIREBASE_FUNCTIONS_PUSH") == "1"
+    publicado = False
     try:
         from google.auth.transport.requests import Request as GoogleAuthRequest
         from google.oauth2 import service_account
-    except ImportError:
-        app.logger.warning("Falta google-auth para enviar FCM desde Flask.")
-        return False
-    try:
-        with open(ruta_sa, encoding="utf-8") as f:
-            info_sa = json.load(f)
-        proyecto = (os.environ.get("FIREBASE_PROJECT_ID") or info_sa.get("project_id") or "").strip()
-        if not proyecto:
-            return False
-        creds = service_account.Credentials.from_service_account_info(
-            info_sa,
-            scopes=["https://www.googleapis.com/auth/firebase.messaging"],
-        )
+
+        scopes = ["https://www.googleapis.com/auth/datastore"]
+        if not functions_push and emergencia:
+            scopes.append("https://www.googleapis.com/auth/firebase.messaging")
+        creds = service_account.Credentials.from_service_account_file(ruta_sa, scopes=scopes)
+        proyecto = os.environ.get("FIREBASE_PROJECT_ID") or creds.project_id
+        if not proyecto or not re.fullmatch(r"[a-z0-9-]+", proyecto):
+            return False, False
         creds.refresh(GoogleAuthRequest())
-        cuerpo = json.dumps({
-            "message": {
-                "topic": "campus_emergencias",
-                "android": {"priority": "high", "ttl": "3600s"},
-                "data": {
-                    "emergencia": "1",
-                    "id": str(emergencia.get("id", ""))[:60],
-                    "tipo": str(emergencia.get("tipo", "general"))[:30],
-                    "titulo": str(emergencia.get("titulo", "EMERGENCIA UNEXUAM"))[:120],
-                    "texto": str(emergencia.get("texto", ""))[:240],
-                    "hora": str(emergencia.get("hora", ""))[:20],
-                },
-            }
-        }).encode("utf-8")
-        req = urllib.request.Request(
-            f"https://fcm.googleapis.com/v1/projects/{proyecto}/messages:send",
-            data=cuerpo,
-            method="POST",
-            headers={
-                "Authorization": f"Bearer {creds.token}",
-                "Content-Type": "application/json; charset=utf-8",
-            },
+        datos = {"bloqueados": S["bloqueados"][:100], "congestion": dict(list(S["congestion"].items())[:100]),
+                 "emergencia": emergencia, "actualizado": int(time.time() * 1000)}
+        publicado = firebase_rest(
+            f"https://firestore.googleapis.com/v1/projects/{proyecto}/databases/(default)/documents/campus/estado",
+            valor_firestore(datos)["mapValue"], creds.token, "PATCH",
         )
-        with urllib.request.urlopen(req, timeout=5) as resp:
-            return 200 <= resp.status < 300
-    except Exception as e:
-        app.logger.warning("No se pudo enviar push FCM: %s", e)
-        return False
+        if not publicado or not emergencia or functions_push:
+            return publicado, None
+        mensaje = {
+            "topic": "campus_emergencias",
+            "android": {"priority": "high", "ttl": "3600s"},
+            "data": {"emergencia": "1", **emergencia},
+        }
+        enviado = firebase_rest(
+            f"https://fcm.googleapis.com/v1/projects/{proyecto}/messages:send",
+            {"message": mensaje}, creds.token, "POST",
+        )
+        return True, enviado
+    except Exception as error:
+        app.logger.warning("No se pudo completar la publicación de emergencia en Firebase (%s).", type(error).__name__)
+        return publicado, False
 
 
 @app.post("/api/emergencia/declarar")
@@ -1057,20 +1065,29 @@ def api_declarar_emergencia():
     }
     with lock:
         DB.guardar_emergencia(em)
-        resp = responder(True, f"Emergencia declarada: {titulo_def}.")
-    if not app.testing:
-        threading.Thread(target=enviar_fcm_emergencia, args=(em,), daemon=True).start()
-    return resp
+        publicar_desde_web = d.get("publicarDesdeWeb") is True
+        nube, push = (None, None) if publicar_desde_web else publicar_emergencia_campus(em)
+        mensaje = f"Emergencia declarada: {titulo_def}."
+        if nube is False:
+            mensaje += " No se pudo publicar en Firebase. Conecta Firebase Admin para publicar desde la web."
+        elif push is False:
+            mensaje += " Publicada en Firebase. El envío push falló."
+        return responder(True, mensaje, nube=nube, push=push)
 
 
 @app.post("/api/emergencia/finalizar")
 def api_finalizar_emergencia():
     with lock:
-        incidente = cuerpo_json().get("incidente")
+        d = cuerpo_json()
+        incidente = d.get("incidente")
         if not DB.finalizar_emergencia(incidente):
             return responder(False, "La emergencia activa cambió. Actualiza e inténtalo de nuevo.")
         S["ultimaAlerta"] = None
-        return responder(True, "Emergencia finalizada. El campus vuelve a estar en calma.")
+        nube, _ = (None, None) if d.get("publicarDesdeWeb") is True else publicar_emergencia_campus(None)
+        mensaje = "Emergencia finalizada."
+        if nube is False:
+            mensaje += " No se pudo publicar el cierre en Firebase."
+        return responder(True, mensaje, nube=nube)
 
 
 # --- Capa 1: red Mesh --------------------------------------------------------

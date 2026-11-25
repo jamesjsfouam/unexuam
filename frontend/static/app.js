@@ -61,6 +61,25 @@ function marcarConexion(ok) {
   else if (txt && ok && txt.textContent === "Sin conexión") txt.textContent = "Sin internet";
 }
 
+async function cambiarEmergencia(ruta, datos) {
+  const nube = window.UNEXO_NUBE;
+  const publicarDesdeWeb = !window.__UNEXUAM_OFFLINE__ && nube?.tieneAuthAdmin();
+  const resultado = await api(ruta, { ...datos, publicarDesdeWeb: Boolean(publicarDesdeWeb) });
+  if (!resultado.ok || !publicarDesdeWeb) return resultado;
+
+  const estado = resultado.estado;
+  resultado.nube = await nube.guardarCampusEstado({
+    bloqueados: estado.campus.bloqueados,
+    congestion: estado.campus.congestion,
+    emergencia: estado.emergencia,
+  });
+  aviso(resultado.nube
+    ? "Estado de emergencia publicado en Firebase."
+    : "El estado cambió en la web, pero Firebase rechazó la publicación. Verifica la sesión Firebase Admin.",
+  resultado.nube);
+  return resultado;
+}
+
 async function api(ruta, cuerpo) {
   try {
     const r = await fetch(ruta, cuerpo === undefined ? {} : {
@@ -450,7 +469,13 @@ function llenar(sel, opciones, vacio) {
 
 /* ------------------------------------------------------------- estado */
 
+let emergenciaNubeInvitado;
+
 function aplicarEstado(est) {
+  if (!window.__UNEXUAM_OFFLINE__ && document.body.classList.contains("modo-invitado") &&
+      emergenciaNubeInvitado !== undefined) {
+    est = { ...est, emergencia: emergenciaNubeInvitado };
+  }
   E = est;
   window.__UNEXUAM_ESTADO__ = est;
   firma = JSON.stringify(est);
@@ -1686,8 +1711,13 @@ function mostrarModalEmergencia(opts = {}) {
   focoPrevioModal = document.activeElement;
   capa.hidden = false;
   if (history.pushState) history.pushState({ modalEm: true }, "");
-  if (window.iniciarAlarmaEmergencia) window.iniciarAlarmaEmergencia();
-  else if (window.sonarAlerta) window.sonarAlerta();
+  if (opts.oficial && document.body.classList.contains("modo-invitado") && window.UnexuamNativo?.lanzarAlarmaEmergencia) {
+    window.UnexuamNativo.lanzarAlarmaEmergencia(tipo, $("#modal-em-titulo").textContent, $("#modal-em-desc").textContent);
+  } else if (window.iniciarAlarmaEmergencia) {
+    window.iniciarAlarmaEmergencia();
+  } else if (window.sonarAlerta) {
+    window.sonarAlerta();
+  }
   requestAnimationFrame(() => $("#modal-em-ir")?.focus());
 }
 window.mostrarModalEmergencia = mostrarModalEmergencia;
@@ -1717,6 +1747,7 @@ function evaluarEmergenciaAutomatica() {
   }
   mostrarModalEmergencia({
     clave: claveNueva,
+    oficial: E.emergenciaOficial,
     tipo: em.tipo,
     titulo: em.titulo,
     texto: em.texto,
@@ -2143,7 +2174,7 @@ function eventos() {
       const tipo = dec.dataset.declararEm;
       const nombres = { incendio: "Incendio", sismo: "Sismo / Temblor", inundacion: "Inundación" };
       hoja(`Declarar ${nombres[tipo] || "Emergencia"}`, "Se abrirá una ventana de alerta automática en todos los teléfonos conectados.", [
-        { txt: `Sí, declarar ${nombres[tipo] || "emergencia"}`, cls: "peligro", fn: () => api("/api/emergencia/declarar", { tipo }) },
+        { txt: `Sí, declarar ${nombres[tipo] || "emergencia"}`, cls: "peligro", fn: () => cambiarEmergencia("/api/emergencia/declarar", { tipo }) },
       ]);
       return;
     }
@@ -2628,8 +2659,8 @@ async function accion(a) {
           textoEmergenciaExtra = "";
           claveModalEmergencia = "";
           rutaAnterior = null;
-          await api("/api/emergencia/finalizar", { incidente });
-          cerrarModalEmergencia();
+          const resultado = await cambiarEmergencia("/api/emergencia/finalizar", { incidente });
+          if (resultado.ok) cerrarModalEmergencia();
         },
       },
     ]);
@@ -2702,7 +2733,14 @@ eventos();
 // La app arranca cuando hay sesión iniciada (ver cuenta.js).
 let appIniciada = false;
 window.refrescarEstado = function () {
-  return api("/api/estado");
+  if (document.body.classList.contains("modo-invitado")) return api("/api/campus/publico");
+  if (!document.body.classList.contains("sin-sesion")) return api("/api/estado");
+};
+window.aplicarEmergenciaInvitado = function (emergencia) {
+  emergenciaNubeInvitado = emergencia;
+  if (E && emergencia !== undefined && document.body.classList.contains("modo-invitado")) {
+    aplicarEstado({ ...E, emergencia });
+  }
 };
 window.iniciarUnexuam = function () {
   document.body.classList.remove("modo-invitado");
@@ -2736,8 +2774,8 @@ window.iniciarUnexuam = function () {
 window.entrarModoEvacuacionInvitado = async function () {
   const j = await api("/api/campus/publico");
   if (j.ok) {
-    if (location.hash === "#campus") irA("campus");
-    else location.hash = "#campus";
+    if (location.hash !== "#campus") history.replaceState(history.state, "", "#campus");
+    irA("campus");
     aviso(j.offline
       ? "Mapa descargado. Los bloqueos recientes pueden faltar."
       : "Modo evacuación rápido: elige tu aula o usa GPS.", !j.offline);

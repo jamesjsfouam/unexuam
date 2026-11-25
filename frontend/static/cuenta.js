@@ -206,6 +206,9 @@
   }
 
   function mostrarSesion() {
+    cancelarCampusInvitado?.();
+    cancelarCampusInvitado = null;
+    window.aplicarEmergenciaInvitado?.(undefined);
     $("#v-login").hidden = true;
     document.body.classList.remove("sin-sesion");
     aplicarRol();
@@ -261,8 +264,15 @@
     actualizarWizard(false);
   }
 
+  let cancelarCampusInvitado;
+
   function mostrarLogin() {
     YO = null;
+    if (!window.__UNEXUAM_OFFLINE__ && !cancelarCampusInvitado) {
+      cancelarCampusInvitado = window.UNEXO_NUBE?.observarCampusEstado((doc) => {
+        if (!YO) window.aplicarEmergenciaInvitado?.(doc.emergencia);
+      });
+    }
     pausar();
     detenerSondeoMensajes();
     detenerSeguimientoGPS();
@@ -1726,6 +1736,7 @@
     $("#login-form").addEventListener("submit", entrar);
     const btnInv = $("#btn-evacuar-invitado");
     if (btnInv) btnInv.addEventListener("click", async () => {
+      desbloquearAudioUsuario();
       $("#v-login").hidden = true;
       document.body.classList.remove("sin-sesion");
       document.body.classList.add("modo-invitado");
@@ -1733,6 +1744,7 @@
         document.body.classList.remove("modo-invitado");
         mostrarLogin();
         $('#login-error').textContent = "Conéctate para descargar el mapa del campus.";
+        return;
       }
     });
     const btnIrLoginMsj = $("#btn-ir-login-mensajes");
