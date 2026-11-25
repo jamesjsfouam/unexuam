@@ -62,6 +62,7 @@ public class MainActivity extends BridgeActivity {
         crearCanalesNotificacion();
         meshNativa = new MeshNativa(this, this::enviarEventoAWeb);
         if (this.bridge != null && this.bridge.getWebView() != null) {
+            this.bridge.getWebView().setBackgroundColor(0xFF0080FF);
             this.bridge.getWebView().addJavascriptInterface(new PuenteNativo(), "UnexuamNativo");
             this.bridge.getWebView().reload();
         }
