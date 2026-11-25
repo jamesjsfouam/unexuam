@@ -1321,15 +1321,45 @@ function conectarPanZoomCampus() {
   cont.dataset.pz = "1";
   const ptrs = new Map();
   let estado = null;
+  let rafId = 0;
+  let vbPendiente = null;
 
   const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
   const mid = (a, b) => ({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 });
 
+  const commit = () => {
+    if (rafId) { cancelAnimationFrame(rafId); rafId = 0; }
+    const svg = cont.querySelector("svg.c3d");
+    if (svg) svg.style.transform = "";
+    if (vbPendiente) {
+      aplicarCamaraCampus(vbPendiente);
+      vbPendiente = null;
+    }
+  };
+
   const iniciar = () => {
+    commit();
     if (!camCampus) return;
+    const svg = cont.querySelector("svg.c3d");
+    const rect = svg ? svg.getBoundingClientRect() : null;
+    if (!rect || !rect.width || !rect.height) return;
     const arr = [...ptrs.values()];
-    if (arr.length === 1) estado = { modo: "pan", p0: { ...arr[0] }, vb0: [...camCampus] };
-    else if (arr.length >= 2) estado = { modo: "pinch", d0: dist(arr[0], arr[1]) || 1, m0: mid(arr[0], arr[1]), vb0: [...camCampus] };
+    if (arr.length === 1) estado = { modo: "pan", p0: { ...arr[0] }, vb0: [...camCampus], rect };
+    else if (arr.length >= 2) estado = { modo: "pinch", d0: dist(arr[0], arr[1]) || 1, m0: mid(arr[0], arr[1]), vb0: [...camCampus], rect };
+  };
+
+  const aplicarTransformGPU = () => {
+    rafId = 0;
+    if (!estado || !vbPendiente) return;
+    const svg = cont.querySelector("svg.c3d");
+    if (!svg) return;
+    const [x0, y0, w0] = estado.vb0;
+    const [nx, ny, nw, nh] = vbPendiente;
+    const scale = w0 / nw;
+    const tx = -(nx - x0) * (estado.rect.width / nw);
+    const ty = -(ny - y0) * (estado.rect.height / nh);
+    svg.style.transformOrigin = "0 0";
+    svg.style.transform = `translate3d(${tx.toFixed(1)}px, ${ty.toFixed(1)}px, 0) scale(${scale.toFixed(4)})`;
   };
 
   cont.addEventListener("pointerdown", ev => {
@@ -1341,32 +1371,33 @@ function conectarPanZoomCampus() {
   cont.addEventListener("pointermove", ev => {
     if (!ptrs.has(ev.pointerId) || !estado) return;
     ptrs.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
-    const svg = cont.querySelector("svg.c3d");
-    if (!svg) return;
-    const rect = svg.getBoundingClientRect();
-    if (!rect.width || !rect.height) return;
+    const { rect, vb0 } = estado;
     if (estado.modo === "pan" && ptrs.size === 1) {
       const p = ptrs.get(ev.pointerId);
-      const dx = (p.x - estado.p0.x) * (estado.vb0[2] / rect.width);
-      const dy = (p.y - estado.p0.y) * (estado.vb0[3] / rect.height);
-      aplicarCamaraCampus([estado.vb0[0] - dx, estado.vb0[1] - dy, estado.vb0[2], estado.vb0[3]]);
+      const dx = (p.x - estado.p0.x) * (vb0[2] / rect.width);
+      const dy = (p.y - estado.p0.y) * (vb0[3] / rect.height);
+      vbPendiente = acotarCamara([vb0[0] - dx, vb0[1] - dy, vb0[2], vb0[3]]);
     } else if (ptrs.size >= 2) {
       const [a, b] = [...ptrs.values()];
       const d = dist(a, b) || 1;
       const m = mid(a, b);
       const esc = estado.d0 / d;
-      const nw = estado.vb0[2] * esc, nh = estado.vb0[3] * esc;
+      const nw = vb0[2] * esc, nh = vb0[3] * esc;
       const fx = (estado.m0.x - rect.left) / rect.width;
       const fy = (estado.m0.y - rect.top) / rect.height;
-      const sx = estado.vb0[0] + fx * estado.vb0[2];
-      const sy = estado.vb0[1] + fy * estado.vb0[3];
+      const sx = vb0[0] + fx * vb0[2];
+      const sy = vb0[1] + fy * vb0[3];
       const f2x = (m.x - rect.left) / rect.width;
       const f2y = (m.y - rect.top) / rect.height;
-      aplicarCamaraCampus([sx - f2x * nw, sy - f2y * nh, nw, nh]);
+      vbPendiente = acotarCamara([sx - f2x * nw, sy - f2y * nh, nw, nh]);
+    } else {
+      return;
     }
+    if (!rafId) rafId = requestAnimationFrame(aplicarTransformGPU);
   });
   const soltar = ev => {
     ptrs.delete(ev.pointerId);
+    commit();
     if (ptrs.size === 0) estado = null;
     else iniciar();
   };
@@ -1610,9 +1641,7 @@ let ubCam = [380, 180, 860, 640];
 let ubEdificioActual = null;
 let ubPisoFiltro = 0;
 
-function aplicarCamUb(vb) {
-  const svg = $("#ub-mapa-wrap svg.ub-mapa-svg");
-  if (!svg || !vb) return;
+function acotarCamUb(vb) {
   let [x, y, w, h] = vb;
   const ratio = h / (w || 1);
   w = Math.min(MAPA_W, Math.max(320, w));
@@ -1620,7 +1649,13 @@ function aplicarCamUb(vb) {
   if (h > MAPA_H) { h = MAPA_H; w = h / ratio; }
   x = Math.min(Math.max(x, 0), MAPA_W - w);
   y = Math.min(Math.max(y, 60), MAPA_H - h);
-  ubCam = [x, y, w, h];
+  return [x, y, w, h];
+}
+
+function aplicarCamUb(vb) {
+  const svg = $("#ub-mapa-wrap svg.ub-mapa-svg");
+  if (!svg || !vb) return;
+  ubCam = acotarCamUb(vb);
   svg.setAttribute("viewBox", ubCam.map(n => n.toFixed(1)).join(" "));
 }
 
@@ -1628,13 +1663,36 @@ function conectarPanZoomUb() {
   const wrap = $("#ub-mapa-wrap");
   if (!wrap || wrap.dataset.pzUb) return;
   wrap.dataset.pzUb = "1";
-  let ptrs = new Map(), st = null;
+  let ptrs = new Map(), st = null, rafId = 0, vbPendiente = null;
   const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
   const mid = (a, b) => ({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 });
+  const commit = () => {
+    if (rafId) { cancelAnimationFrame(rafId); rafId = 0; }
+    const svg = wrap.querySelector("svg.ub-mapa-svg");
+    if (svg) svg.style.transform = "";
+    if (vbPendiente) { aplicarCamUb(vbPendiente); vbPendiente = null; }
+  };
   const ini = () => {
+    commit();
+    const svg = wrap.querySelector("svg.ub-mapa-svg");
+    const r = svg ? svg.getBoundingClientRect() : null;
+    if (!r || !r.width || !r.height) return;
     const arr = [...ptrs.values()];
-    if (arr.length === 1) st = { m: "pan", p0: { ...arr[0] }, vb0: [...ubCam], mov: false };
-    else if (arr.length >= 2) st = { m: "pinch", d0: dist(arr[0], arr[1]) || 1, m0: mid(arr[0], arr[1]), vb0: [...ubCam], mov: true };
+    if (arr.length === 1) st = { m: "pan", p0: { ...arr[0] }, vb0: [...ubCam], r, mov: false };
+    else if (arr.length >= 2) st = { m: "pinch", d0: dist(arr[0], arr[1]) || 1, m0: mid(arr[0], arr[1]), vb0: [...ubCam], r, mov: true };
+  };
+  const pintarGPU = () => {
+    rafId = 0;
+    if (!st || !vbPendiente) return;
+    const svg = wrap.querySelector("svg.ub-mapa-svg");
+    if (!svg) return;
+    const [x0, y0, w0] = st.vb0;
+    const [nx, ny, nw, nh] = vbPendiente;
+    const scale = w0 / nw;
+    const tx = -(nx - x0) * (st.r.width / nw);
+    const ty = -(ny - y0) * (st.r.height / nh);
+    svg.style.transformOrigin = "0 0";
+    svg.style.transform = `translate3d(${tx.toFixed(1)}px, ${ty.toFixed(1)}px, 0) scale(${scale.toFixed(4)})`;
   };
   wrap.addEventListener("pointerdown", ev => {
     if (ev.target.closest(".ub-zoom-bar")) return;
@@ -1644,30 +1702,31 @@ function conectarPanZoomUb() {
   wrap.addEventListener("pointermove", ev => {
     if (!ptrs.has(ev.pointerId) || !st) return;
     ptrs.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
-    const svg = wrap.querySelector("svg.ub-mapa-svg");
-    if (!svg) return;
-    const r = svg.getBoundingClientRect();
-    if (!r.width || !r.height) return;
+    const { r, vb0 } = st;
     if (st.m === "pan" && ptrs.size === 1) {
       const p = ptrs.get(ev.pointerId);
       if (Math.hypot(p.x - st.p0.x, p.y - st.p0.y) > 8) st.mov = true;
       if (!st.mov) return;
-      const dx = (p.x - st.p0.x) * (st.vb0[2] / r.width);
-      const dy = (p.y - st.p0.y) * (st.vb0[3] / r.height);
-      aplicarCamUb([st.vb0[0] - dx, st.vb0[1] - dy, st.vb0[2], st.vb0[3]]);
+      const dx = (p.x - st.p0.x) * (vb0[2] / r.width);
+      const dy = (p.y - st.p0.y) * (vb0[3] / r.height);
+      vbPendiente = acotarCamUb([vb0[0] - dx, vb0[1] - dy, vb0[2], vb0[3]]);
     } else if (ptrs.size >= 2) {
       const [a, b] = [...ptrs.values()];
       const escF = st.d0 / (dist(a, b) || 1);
-      const nw = st.vb0[2] * escF, nh = st.vb0[3] * escF;
+      const nw = vb0[2] * escF, nh = vb0[3] * escF;
       const m = mid(a, b);
       const fx = (st.m0.x - r.left) / r.width, fy = (st.m0.y - r.top) / r.height;
-      const sx = st.vb0[0] + fx * st.vb0[2], sy = st.vb0[1] + fy * st.vb0[3];
+      const sx = vb0[0] + fx * vb0[2], sy = vb0[1] + fy * vb0[3];
       const f2x = (m.x - r.left) / r.width, f2y = (m.y - r.top) / r.height;
-      aplicarCamUb([sx - f2x * nw, sy - f2y * nh, nw, nh]);
+      vbPendiente = acotarCamUb([sx - f2x * nw, sy - f2y * nh, nw, nh]);
+    } else {
+      return;
     }
+    if (!rafId) rafId = requestAnimationFrame(pintarGPU);
   });
   const fin = ev => {
     ptrs.delete(ev.pointerId);
+    commit();
     if (ptrs.size === 0) st = null;
     else ini();
   };
