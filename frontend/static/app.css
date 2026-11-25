@@ -3039,3 +3039,113 @@ body {
 .cuello-barra.zona i {
   background: linear-gradient(90deg, #00A843, #00D656);
 }
+
+/* ---------- Selector dinámico en Evacuar y Guías mejoradas ---------- */
+.selector-dinamico {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sel-cats, .sel-pisos, .sel-lista {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.sel-cat {
+  border: 1.5px solid #c5d6ea;
+  background: var(--blanco);
+  color: var(--texto);
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 800;
+  padding: 7px 12px;
+  border-radius: 99px;
+  cursor: pointer;
+}
+
+.sel-cat[aria-selected="true"] {
+  background: var(--azul-btn);
+  color: #ffffff;
+  border-color: var(--azul-btn);
+}
+
+.sel-piso-btn {
+  border: 1.5px solid #d5e2f2;
+  background: var(--azul-claro);
+  color: var(--texto);
+  font: inherit;
+  font-size: 0.74rem;
+  font-weight: 800;
+  padding: 6px 11px;
+  border-radius: 99px;
+  cursor: pointer;
+}
+
+.sel-piso-btn[aria-pressed="true"] {
+  background: var(--texto);
+  color: #ffffff;
+  border-color: var(--texto);
+}
+
+.sel-lista button {
+  border: 1.5px solid #cfe0f4;
+  background: var(--blanco);
+  color: var(--texto);
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 7px 12px;
+  border-radius: 99px;
+  cursor: pointer;
+}
+
+.sel-lista button:active {
+  background: var(--azul-btn);
+  color: #ffffff;
+}
+
+.guia-banner {
+  border-radius: 18px;
+  padding: 12px 14px;
+  margin-bottom: 10px;
+  color: #ffffff;
+  text-align: left;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.guia-banner.rojo { background: linear-gradient(135deg, #b80000, #e23000); }
+.guia-banner.amarillo { background: linear-gradient(135deg, #c98a00, #f5b400); color: #1d232b; }
+.guia-banner.azul { background: linear-gradient(135deg, #0058b8, #0080ff); }
+.guia-banner.verde { background: linear-gradient(135deg, #00702e, #00a843); }
+.guia-banner-tag {
+  font-size: 0.7rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  opacity: 0.92;
+}
+.guia-banner b {
+  display: block;
+  font-size: 0.98rem;
+  font-weight: 900;
+}
+
+.guia-evitar {
+  margin: 10px 0 6px;
+  padding: 10px 12px;
+  border-radius: 16px;
+  background: #fdebe6;
+  border: 1.5px solid rgba(217, 43, 0, 0.25);
+  color: #8f0000;
+  font-size: 0.8rem;
+  line-height: 1.35;
+  text-align: left;
+}
+html[data-tema="oscuro"] .guia-evitar {
+  background: #3b1915;
+  color: #ffb8a8;
+}

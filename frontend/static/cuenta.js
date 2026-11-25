@@ -410,24 +410,26 @@
     }
   }
 
-  function iniciarSeguimientoGPS() {
+  function iniciarSeguimientoGPS(urgente = false) {
     detenerSeguimientoGPS();
     const lblGps = $("#btn-gps-txt");
+    const maxAge = urgente ? 2000 : 10000;
+    const intervalo = urgente ? 4000 : 15000;
     if (navigator.geolocation) {
       try {
         watchGpsId = navigator.geolocation.watchPosition(
           pos => {
             if (lblGps) lblGps.textContent = "GPS en vivo";
-            if (!document.hidden) procesarCoordsContinuas({ lat: pos.coords.latitude, lon: pos.coords.longitude, acc: pos.coords.accuracy });
+            if (!document.hidden || urgente) procesarCoordsContinuas({ lat: pos.coords.latitude, lon: pos.coords.longitude, acc: pos.coords.accuracy });
           },
           () => { if (lblGps) lblGps.textContent = "Usar mi GPS"; },
-          { enableHighAccuracy: true, maximumAge: 10000, timeout: 15000 }
+          { enableHighAccuracy: true, maximumAge: maxAge, timeout: 15000 }
         );
       } catch (_) {}
     }
     if (window.UnexuamNativo && typeof window.UnexuamNativo.ubicacionNativa === "function") {
       timerGpsNativo = setInterval(() => {
-        if (document.hidden) return;
+        if (document.hidden && !urgente) return;
         try {
           const raw = window.UnexuamNativo.ubicacionNativa();
           if (raw) {
@@ -438,9 +440,13 @@
             }
           }
         } catch (_) {}
-      }, 15000);
+      }, intervalo);
     }
   }
+  window.activarGpsEmergencia = function () {
+    aproximarEdificioPorGPS(false);
+    iniciarSeguimientoGPS(true);
+  };
 
   function detenerSeguimientoGPS() {
     if (watchGpsId !== null && navigator.geolocation) {
@@ -1315,56 +1321,76 @@
   const GUIAS = {
     sismo: {
       titulo: "Sismo o temblor",
-      sub: "Actúa en 4 pasos",
+      sub: "Protégete primero y evacúa al terminar",
+      color: "amarillo",
+      badge: "Respuesta inmediata",
+      tel: { num: "100", nom: "SINAPRED" },
+      evitar: "Evita correr durante el movimiento, usar escaleras en tropel o pararte junto a vidrios.",
       pasos: [
-        "Agáchate, cúbrete cabeza y cuello bajo un pupitre firme.",
-        "Aléjate de ventanas, estantes y cables. No uses elevadores.",
-        "Al terminar, sal caminando al Punto Seguro en Evacuar.",
-        "Avisa tu estado o bloqueos en Mensajes → Canal General.",
+        "Agáchate y cúbrete cabeza y cuello bajo un pupitre firme.",
+        "Aléjate de ventanas, estantes altos y cables eléctricos.",
+        "Cuando cese el sismo, sal caminando al Punto Seguro en Evacuar.",
+        "Reporta daños o bloqueos en Mensajes → Canal General.",
       ],
       btn: { txt: "Ir a Evacuar", hash: "#campus" },
     },
     inundacion: {
       titulo: "Inundación o tormenta",
-      sub: "Busca zonas altas",
+      sub: "Busca zonas altas y aléjate de corrientes",
+      color: "azul",
+      badge: "Alerta climática",
+      tel: { num: "100", nom: "SINAPRED" },
+      evitar: "No cruces agua que supere los tobillos ni toques postes o interruptores mojados.",
       pasos: [
-        "Aléjate de parqueos bajos, drenajes y corrientes de agua.",
-        "No cruces agua en movimiento ni toques cables húmedos.",
-        "Si el agua sube, resguárdate en piso 2 o 3 (B, C o P).",
-        "Reporta personas atrapadas en Mensajes → Canal General.",
+        "Sal de parqueos bajos, cauces y drenajes abiertos.",
+        "Sube al piso 2 o 3 de los edificios B, C o P si el nivel sube.",
+        "Aléjate de ventanales y tableros eléctricos húmedos.",
+        "Avisa si hay personas aisladas en Mensajes → Canal General.",
       ],
       btn: { txt: "Ver rutas seguras", hash: "#campus" },
     },
     incendio: {
       titulo: "Incendio o humo",
-      sub: "Sal rápido y agachado",
+      sub: "Evacúa agachado sin regresar por objetos",
+      color: "rojo",
+      badge: "Evacuación urgente",
+      tel: { num: "115", nom: "Bomberos" },
+      evitar: "No abras puertas calientes de golpe, no regreses por mochilas ni inhales humo denso.",
       pasos: [
-        "Activa la alarma y avisa en Mensajes → Canal General.",
-        "Si hay humo, avanza agachado cubriendo nariz y boca.",
-        "Toca las puertas antes de abrir; si quema, toma otra salida.",
-        "Ve a Plazoleta o Canchas y no regreses por objetos.",
+        "Toca la puerta con el dorso de la mano; si quema usa otra salida.",
+        "Avanza agachado cerca del suelo cubriendo nariz y boca con tela.",
+        "Ve a Plazoleta o Canchas y reporta pasillos con humo.",
+        "Llama al 115 o avisa tu ubicación en Mensajes → Canal General.",
       ],
       btn: { txt: "Ir a Evacuar", hash: "#campus" },
     },
     auxilios: {
       titulo: "Primeros auxilios",
-      sub: "Estabiliza y pide ayuda",
+      sub: "Asegura el área, estabiliza y pide apoyo",
+      color: "verde",
+      badge: "Atención médica",
+      tel: { num: "128", nom: "Cruz Blanca" },
+      evitar: "No muevas a alguien con posible lesión de cuello o espalda ni des líquidos si está inconsciente.",
       pasos: [
-        "Verifica que la zona sea segura antes de acercarte.",
-        "No muevas al herido si hay golpe en cuello o cabeza.",
-        "Si sangra, haz presión firme y constante con tela limpia.",
-        "Envía tu edificio y aula en Mensajes → Canal General.",
+        "Comprueba que la zona sea segura antes de acercarte.",
+        "Llama al 128 indicando edificio, piso y estado de la persona.",
+        "Si sangra, haz presión firme y continua con tela o gasa limpia.",
+        "Pide apoyo o camilla cercana en Mensajes → Canal General.",
       ],
       btn: { txt: "Pedir ayuda en Mensajes", hash: "#mensajes" },
     },
     mesh: {
       titulo: "Sin internet ni señal",
-      sub: "Red Mesh por Bluetooth",
+      sub: "Red Mesh por Bluetooth y Wi-Fi Direct",
+      color: "azul",
+      badge: "Modo Off-Grid",
+      tel: { num: "100", nom: "SINAPRED" },
+      evitar: "No apagues Bluetooth ni Ubicación durante la emergencia: cortas los relevos.",
       pasos: [
-        "Deja Bluetooth y Ubicación encendidos (aún en Modo Avión).",
-        "Abre Mensajes: teléfonos cercanos aparecen automáticamente.",
-        "Escribe en Canal General: salta de teléfono en teléfono.",
-        "Si nadie está cerca, tu mensaje espera y sale al acercarte.",
+        "Mantén Bluetooth y Ubicación encendidos incluso en Modo Avión.",
+        "En Mensajes, los teléfonos cercanos se enlazan automáticamente.",
+        "Envía SOS o mensajes al Canal General para saltar entre teléfonos.",
+        "Si no hay nadie cerca, la cola DTN entrega al reconectar.",
       ],
       btn: { txt: "Abrir Mensajes", hash: "#mensajes" },
     },
@@ -1373,12 +1399,14 @@
   function abrirGuia(clave) {
     const g = GUIAS[clave];
     if (!g || !window.abrirHoja) return;
-    window.abrirHoja(
-      g.titulo,
-      g.sub,
-      [{ txt: g.btn.txt, cls: "primario", fn: () => { location.hash = g.btn.hash; } }],
-      { extraHtml: `<ol class="guia-pasos">${g.pasos.map((p, i) => `<li><b>${i + 1}</b><span>${esc(p)}</span></li>`).join("")}</ol>` }
-    );
+    const banner = `<div class="guia-banner ${g.color}"><div><span class="guia-banner-tag">${esc(g.badge)}</span><b>${esc(g.titulo)}</b></div><span class="guia-banner-tag">${esc(g.sub)}</span></div>`;
+    const pasos = `<ol class="guia-pasos">${g.pasos.map((p, i) => `<li><b>${i + 1}</b><span>${esc(p)}</span></li>`).join("")}</ol>`;
+    const evitar = `<div class="guia-evitar"><b>Qué evitar:</b> ${esc(g.evitar)}</div>`;
+    const botones = [{ txt: g.btn.txt, cls: "primario", fn: () => { location.hash = g.btn.hash; } }];
+    if (g.tel) {
+      botones.push({ txt: `Llamar ${g.tel.num} (${g.tel.nom})`, cls: "peligro", fn: () => { location.href = `tel:${g.tel.num}`; } });
+    }
+    window.abrirHoja(g.titulo, g.sub, botones, { extraHtml: banner + pasos + evitar });
   }
 
   async function pedirPermisoNotificaciones() {
@@ -1721,8 +1749,8 @@
         if (!activo) return;
         const mx = ev.clientX - sx, my = ev.clientY - sy;
         if (!bloqueoHoriz) {
-          if (Math.abs(my) > 12 && Math.abs(my) > Math.abs(mx)) { reset(); return; }
-          if (mx > 8) bloqueoHoriz = true;
+          if (Math.abs(my) > 22 && Math.abs(my) > Math.abs(mx) * 1.3) { reset(); return; }
+          if (mx > 6) bloqueoHoriz = true;
         }
         if (bloqueoHoriz) {
           dx = Math.max(0, Math.min(maxDx, mx));
@@ -1732,9 +1760,14 @@
           const listo = dx >= maxDx * 0.55;
           el.classList.toggle("listo", listo);
           if (txtB) txtB.textContent = listo ? "Suelta para enviar SOS" : "Sigue deslizando →";
+          if (dx >= maxDx * 0.88) {
+            reset();
+            if (navigator.vibrate && window.__UNEXUAM_PREFS__?.vibrar !== false) navigator.vibrate(25);
+            onActivar();
+          }
         }
       });
-      const fin = () => {
+      const fin = (ev) => {
         if (!activo) return;
         const disparo = bloqueoHoriz && dx >= maxDx * 0.55;
         const fueToque = !bloqueoHoriz && dx < 12;
@@ -1742,7 +1775,7 @@
         if (disparo) {
           if (navigator.vibrate && window.__UNEXUAM_PREFS__?.vibrar !== false) navigator.vibrate(25);
           onActivar();
-        } else if (fueToque) {
+        } else if (fueToque && ev?.type !== "pointercancel") {
           el.classList.remove("nudge");
           void el.offsetWidth;
           el.classList.add("nudge");
@@ -1751,7 +1784,7 @@
         }
       };
       el.addEventListener("pointerup", fin);
-      el.addEventListener("pointercancel", reset);
+      el.addEventListener("pointercancel", fin);
       el.addEventListener("click", ev => {
         // Solo permitir activación por teclado (detail === 0); los toques táctiles/ratón deben deslizar
         if (ev.detail !== 0) { ev.preventDefault(); ev.stopPropagation(); return; }

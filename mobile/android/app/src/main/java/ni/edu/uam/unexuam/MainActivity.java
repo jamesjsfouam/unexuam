@@ -20,6 +20,8 @@ import android.os.Handler;
 import android.os.Looper;
 import android.os.VibrationEffect;
 import android.os.Vibrator;
+import android.speech.tts.TextToSpeech;
+import android.speech.tts.UtteranceProgressListener;
 import android.util.Log;
 import android.view.ViewGroup;
 import android.webkit.JavascriptInterface;
@@ -47,6 +49,8 @@ public class MainActivity extends BridgeActivity {
     private volatile boolean enPrimerPlano = false;
     private MeshNativa meshNativa;
     private String ultimoPerfilMesh = null;
+    private TextToSpeech tts;
+    private volatile boolean ttsListo = false;
 
     private final BroadcastReceiver btReceiver = new BroadcastReceiver() {
         @Override
@@ -73,6 +77,7 @@ public class MainActivity extends BridgeActivity {
             splash.iniciar();
         }
         crearCanalesNotificacion();
+        iniciarTts();
         meshNativa = new MeshNativa(this, this::enviarEventoAWeb);
         if (this.bridge != null && this.bridge.getWebView() != null) {
             this.bridge.getWebView().setBackgroundColor(0xFF0080FF);
@@ -244,8 +249,52 @@ public class MainActivity extends BridgeActivity {
             btReceiverRegistrado = false;
         }
         if (meshNativa != null) meshNativa.detener();
+        if (tts != null) {
+            try {
+                tts.stop();
+                tts.shutdown();
+            } catch (Exception ignored) {}
+            tts = null;
+            ttsListo = false;
+        }
         detenerServicioForeground();
         super.onDestroy();
+    }
+
+    private void iniciarTts() {
+        try {
+            tts = new TextToSpeech(this, status -> {
+                if (status != TextToSpeech.SUCCESS || tts == null) {
+                    ttsListo = false;
+                    return;
+                }
+                int r = tts.setLanguage(new Locale("es", "NI"));
+                if (r == TextToSpeech.LANG_MISSING_DATA || r == TextToSpeech.LANG_NOT_SUPPORTED) {
+                    r = tts.setLanguage(new Locale("es"));
+                }
+                if (r == TextToSpeech.LANG_MISSING_DATA || r == TextToSpeech.LANG_NOT_SUPPORTED) {
+                    tts.setLanguage(Locale.US);
+                }
+                tts.setSpeechRate(1.02f);
+                tts.setOnUtteranceProgressListener(new UtteranceProgressListener() {
+                    @Override public void onStart(String utteranceId) {}
+                    @Override public void onDone(String utteranceId) { notificarFinVoz(); }
+                    @Override public void onError(String utteranceId) { notificarFinVoz(); }
+                });
+                ttsListo = true;
+            });
+        } catch (Exception e) {
+            ttsListo = false;
+        }
+    }
+
+    private void notificarFinVoz() {
+        runOnUiThread(() -> {
+            if (this.bridge != null && this.bridge.getWebView() != null) {
+                this.bridge.getWebView().evaluateJavascript(
+                        "window.__unexuamVozFin && window.__unexuamVozFin();", null);
+            }
+        });
     }
 
     private void enviarEventoAWeb(String eventoJson) {
@@ -386,6 +435,32 @@ public class MainActivity extends BridgeActivity {
                 btPromptLanzado = false;
                 solicitarPermisosEntrada();
             });
+        }
+
+        @JavascriptInterface
+        public boolean hablar(String texto, String idioma) {
+            if (tts == null || !ttsListo || texto == null || texto.trim().isEmpty()) return false;
+            try {
+                if (idioma != null && idioma.toLowerCase(Locale.ROOT).startsWith("en")) {
+                    tts.setLanguage(Locale.US);
+                } else {
+                    int r = tts.setLanguage(new Locale("es", "NI"));
+                    if (r == TextToSpeech.LANG_MISSING_DATA || r == TextToSpeech.LANG_NOT_SUPPORTED) {
+                        tts.setLanguage(new Locale("es"));
+                    }
+                }
+                int res = tts.speak(texto, TextToSpeech.QUEUE_FLUSH, null, "unexuam_ruta");
+                return res == TextToSpeech.SUCCESS;
+            } catch (Exception e) {
+                return false;
+            }
+        }
+
+        @JavascriptInterface
+        public void detenerVoz() {
+            if (tts != null) {
+                try { tts.stop(); } catch (Exception ignored) {}
+            }
         }
 
         @JavascriptInterface

@@ -1350,28 +1350,28 @@ def rotulos(eds):
         return (*e["c"], e["alto"])   # la línea termina debajo de la insignia (se dibuja antes)
 
     R = []
-    R.append(rotulo(*ancla("Jaguar Center"), -230, -150, "Jaguar Center", punto=False, sub="Gimnasio techado"))
-    R.append(rotulo(*ancla("Edificio I"), -40, -175, "Edificio I", punto=False, sub="Biblioteca Pablo Antonio Cuadra"))
+    R.append(rotulo(*ancla("Jaguar Center"), -230, -150, "Jaguar Center", punto=False))
+    R.append(rotulo(*ancla("Edificio I"), -40, -175, "Edificio I", punto=False, sub="Biblioteca"))
     R.append(rotulo(*ancla("Edificio E"), 60, -200, "Edificio E", punto=False))
     R.append(rotulo(*ancla("Edificio A"), 205, -95, "Edificio A", punto=False))
-    R.append(rotulo(*ancla("Edificio P"), 190, 95, "Edificio P", fondo=AMARILLO, color=AZUL_OSC, borde=AZUL_OSC, tam=16, punto=False, sub="Copérnico · celdas solares"))
+    R.append(rotulo(*ancla("Edificio P"), 190, 95, "Edificio P", fondo=AMARILLO, color=AZUL_OSC, borde=AZUL_OSC, tam=16, punto=False))
     pz = centro_varios(poligonos_punto("plaza"))
     R.append(rotulo(pz[0], pz[1], 0, 110, -190, "Plazoleta", fondo=VERDE, color=BLANCO, borde=VERDE, tam=15, sub="Punto seguro", punto=False))
     pe = centro_varios(poligonos_punto(["241348792"]))
-    R.append(rotulo(pe[0], pe[1], 6, 0, -235, "Celdas solares", fondo=VERDE, color=BLANCO, borde=VERDE, tam=14, sub="Parqueo · punto seguro", punto=False))
+    R.append(rotulo(pe[0], pe[1], 6, 0, -235, "Parqueo Este", fondo=VERDE, color=BLANCO, borde=VERDE, tam=14, sub="Punto seguro", punto=False))
     f = centro([tuple(q) for q in cancha("soccer")["pol"]])
     b = centro([tuple(q) for q in cancha("baseball")["pol"]])
-    R.append(rotulo(f[0], f[1], 0, -215, -60, "Zona segura", fondo="#2f9e48", color=BLANCO, borde="#2f9e48", tam=16, sub="Cancha de fútbol"))
-    R.append(rotulo(b[0], b[1], 0, -210, 70, "Zona segura", fondo="#2f9e48", color=BLANCO, borde="#2f9e48", tam=16, sub="Jaguar Stadium (béisbol)"))
+    R.append(rotulo(f[0], f[1], 0, -215, -60, "Cancha Fútbol", fondo="#2f9e48", color=BLANCO, borde="#2f9e48", tam=15, sub="Zona segura"))
+    R.append(rotulo(b[0], b[1], 0, -210, 70, "Estadio Béisbol", fondo="#2f9e48", color=BLANCO, borde="#2f9e48", tam=15, sub="Zona segura"))
     vx, vy = centro(caja_r(10, 57, 41, 83))
-    R.append(rotulo(vx, vy, 0, -190, -70, "Canchas de voleibol", sub="arena · normal"))
+    R.append(rotulo(vx, vy, 0, -190, -70, "Voleibol"))
     jx, jy = centro(JUNGLA)
     R.append(rotulo(jx, jy, 6, -20, 165, "Jungla Jaguar", fondo="#2f8f48", color=BLANCO, borde="#2f8f48", tam=14))
-    R.append(rotulo(198.5, 119.5, PISO + 1.1, -120, -235, "Pasillo B–E", sub="2.º piso", tam=13))
-    R.append(rotulo(223.0, 118.5, PASARELA_Z + 2.9, -110, -150, "Pasarela B", sub="elevada · escalera a Plazoleta", tam=13))
+    R.append(rotulo(198.5, 119.5, PISO + 1.1, -120, -235, "Pasillo B–E", tam=13))
+    R.append(rotulo(223.0, 118.5, PASARELA_Z + 2.9, -110, -150, "Pasarela B", tam=13))
     uam = max((c for c in DATOS["calles"] if c["nombre"] == "Universidad UAM"), key=lambda c: len(c["linea"]))
     mx, my = sorted((tuple(q) for q in uam["linea"] if dentro(tuple(q), CAMPUS)), key=lambda q: q[1])[0]
-    R.append(rotulo(mx, my, 0, 190, 200, "Universidad UAM", sub="Vía de acceso"))
+    R.append(rotulo(mx, my, 0, 190, 200, "Acceso UAM"))
     return R
 
 
@@ -1456,11 +1456,11 @@ def documento():
 <text x="40" y="46" font-size="40" font-weight="900" fill="{BLANCO}" dominant-baseline="central">Campus UAM</text>
 <text x="330" y="48" font-size="20" font-weight="700" fill="{BLANCO}" opacity=".9" dominant-baseline="central">Mapa 3D · evacuación Off-Grid</text>
 <text x="{W - 40}" y="46" font-size="30" font-weight="900" fill="{BLANCO}" text-anchor="end" dominant-baseline="central" letter-spacing="1">UNEXUAM</text>'''
-    items = [("#f7fbff", AZUL_OSC, "Edificio")] + ([("#fbfcfd", "#8a97a6", f"Sin nombre (1–{n_sin})")] if n_sin else []) + [
+    items = [("#f7fbff", AZUL_OSC, "Edificio")] + ([("#fbfcfd", "#8a97a6", f"Anexo (1–{n_sin})")] if n_sin else []) + [
              ("#4f7fbf", "#2f5f9f", "Canchas"),
              ("#47b660", AMARILLO, "Zona segura"), (VERDE, VERDE, "Punto seguro (PS)"),
-             ("url(#solar)", "#4b5f78", "Celdas solares"), ("#9ba4af", "#fcd222", "Vía Universidad UAM"),
-             ("#c9cfd6", AZUL, "Pasarela B (elevada)")]
+             ("#9ba4af", "#fcd222", "Acceso vial"),
+             ("#c9cfd6", AZUL, "Pasarela B")]
     ley = [f'<g transform="translate(40,{H - 64})"><rect x="0" y="0" width="{W - 80}" height="44" rx="22" fill="{BLANCO}" stroke="{AZUL}" stroke-width="2.5"/>']
     x = 26
     for relleno, borde, txt in items:
@@ -1469,12 +1469,12 @@ def documento():
         x += 26 + len(txt) * 8.9 + 30
     ley.append(f'<text x="{W - 100}" y="23" font-size="12" font-weight="600" fill="{AZUL}" opacity=".8" text-anchor="end" dominant-baseline="central">Plano © OpenStreetMap contributors</text></g>')
 
-    sombras = (f'<g fill="#16304d" opacity=".26" filter="url(#difuso)">{"".join(SOMBRAS)}</g>'
-               f'<g fill="#0e2238" opacity=".28" filter="url(#contacto)">{"".join(CONTACTO)}</g>')
+    sombras = (f'<g fill="#16304d" opacity=".22" filter="url(#difuso)">{"".join(SOMBRAS)}</g>'
+               f'<g fill="#0e2238" opacity=".24" filter="url(#contacto)">{"".join(CONTACTO)}</g>')
     cuerpo = "\n".join([f'<g filter="url(#sombra)">{"".join(suelo_)}</g>', "".join(planos), sombras, "".join(objetos),
                         f'<rect width="{W}" height="{H}" fill="url(#vineta)"/>',
                         rosa(1490, 190), "".join(rotulos(eds)), "".join(insignias), lista_codigos()])
-    svg = f'''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {W} {H}" width="{W}" height="{H}" font-family="{FUENTE}">
+    svg = f'''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {W} {H}" width="{W}" height="{H}" font-family="{FUENTE}" shape-rendering="geometricPrecision">
 {defs}
 <rect width="{W}" height="{H}" fill="url(#cielo)"/>
 <rect width="{W}" height="{H}" fill="url(#resplandor)"/>

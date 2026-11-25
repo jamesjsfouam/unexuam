@@ -1070,10 +1070,11 @@ html[data-tema="oscuro"] .login-carta .campo select {
    ===================================================================== */
 .banner-app {
   position: relative;
-  margin: 4px 0 0;
+  width: calc(100% + 32px);
+  margin: 0 -16px;
   min-height: 118px;
   padding: 16px 18px;
-  border-radius: 26px;
+  border-radius: 0;
   overflow: hidden;
   display: flex;
   align-items: center;
@@ -1081,7 +1082,7 @@ html[data-tema="oscuro"] .login-carta .campo select {
   gap: 14px;
   color: #ffffff;
   background: linear-gradient(135deg, #003e94 0%, #0062cc 55%, #0080ff 100%);
-  box-shadow: 0 10px 26px rgba(0, 62, 148, .22);
+  box-shadow: 0 8px 20px rgba(0, 62, 148, .18);
 }
 .banner-app-evacuar {
   background: linear-gradient(135deg, #0052b8 0%, #0073e6 55%, #00997a 100%);
@@ -1417,7 +1418,7 @@ html[data-filtro-color="acromatopsia"] body { filter: grayscale(1); }
 /* ---------- Botones deslizables reales (SOS) ---------- */
 .fila-deslizable {
   position: relative;
-  touch-action: pan-y;
+  touch-action: none;
   user-select: none;
   -webkit-user-select: none;
   background: var(--rojo) !important;
@@ -1918,10 +1919,26 @@ html[data-filtro-color="acromatopsia"] body { filter: grayscale(1); }
   cursor: pointer;
   box-shadow: 0 4px 12px rgba(0, 40, 100, .2);
 }
-.ub-pin { cursor: pointer; filter: drop-shadow(0 6px 10px rgba(0, 20, 60, .35)); }
-.ub-pin rect { fill: var(--azul-btn); stroke: #ffffff; stroke-width: 4; }
-.ub-pin.multinivel rect { fill: var(--rojo); }
-.ub-pin text { fill: #ffffff; font-weight: 900; text-anchor: middle; dominant-baseline: central; pointer-events: none; }
+.ub-hit-area {
+  cursor: pointer;
+  fill: rgba(0, 128, 255, 0.01);
+  stroke: rgba(0, 128, 255, 0.28);
+  stroke-width: 2;
+  stroke-dasharray: 6 4;
+  transition: fill .15s ease, stroke .15s ease;
+}
+.ub-hit-area.multinivel {
+  fill: rgba(204, 0, 0, 0.04);
+  stroke: rgba(204, 0, 0, 0.35);
+}
+.ub-hit-area:active,
+.ub-hit-area:focus-visible {
+  fill: rgba(0, 128, 255, 0.22);
+  stroke: #0080ff;
+  stroke-width: 4;
+  stroke-dasharray: none;
+  outline: none;
+}
 .ub-edificios-chips {
   display: flex;
   flex-wrap: nowrap;
@@ -2069,17 +2086,18 @@ html[data-filtro-color="acromatopsia"] body { filter: grayscale(1); }
 /* ---------- Números de emergencia Nicaragua (3 botones pequeños debajo de SOS) ---------- */
 .emergencias-ni-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 6px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
 }
 .em-ni-card {
-  display: inline-flex;
+  display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 5px;
-  min-height: 44px;
-  padding: 6px 6px;
-  border-radius: 999px;
+  gap: 3px;
+  min-height: 54px;
+  padding: 8px 4px;
+  border-radius: 18px;
   border: 1.5px solid #cfe0f4;
   background: var(--blanco);
   color: var(--texto);
@@ -2087,18 +2105,24 @@ html[data-filtro-color="acromatopsia"] body { filter: grayscale(1); }
   box-shadow: 0 2px 6px rgba(11, 42, 74, .06);
   transition: transform .12s ease;
   min-width: 0;
+  text-align: center;
 }
 .em-ni-card:active { transform: scale(.96); }
-.em-ni-ico { width: 15px; height: 15px; flex: none; fill: currentColor; }
-.em-ni-lbl {
-  font-size: 0.7rem;
-  font-weight: 800;
-  line-height: 1.1;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+.em-ni-top {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  line-height: 1;
 }
-.em-ni-lbl b { font-weight: 900; }
+.em-ni-top b { font-size: 0.96rem; font-weight: 900; }
+.em-ni-ico { width: 16px; height: 16px; flex: none; fill: currentColor; }
+.em-ni-nom {
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 1.15;
+  white-space: normal;
+}
 .em-ni-card.rojo { border-color: rgba(217, 43, 0, .35); color: var(--rojo); }
 .em-ni-card.verde { border-color: rgba(0, 112, 46, .35); color: var(--verde-btn); }
 .em-ni-card.azul { border-color: rgba(0, 98, 204, .35); color: var(--azul-btn); }
