@@ -88,7 +88,7 @@ class TestEvacuacion(unittest.TestCase):
         ruta, tiempo = rutaEvacuacion(campus, "P-309", zonas)
         self.assertEqual(ruta, ["P-309", "P Pabellón Oeste P3", "P Escalera Oeste P3", "P Escalera Oeste P2",
                                 "P Escalera Oeste P1", "P Salida Oeste", "Punto Seguro Parqueo Sur"])
-        self.assertEqual(tiempo, 60)   # hasta el borde del Parqueo Sur, el más cercano
+        self.assertEqual(tiempo, 63)   # hasta el borde del Parqueo Sur, el más cercano (por la red de andenes)
 
     def test_alerta_cambia_la_ruta(self):
         campus, zonas = crearCampus()
@@ -143,7 +143,7 @@ class TestCampusUAM(unittest.TestCase):
         for pab in ["B Pabellón Este P1", "B Pabellón Oeste P1"]:
             ruta, tiempo = rutaMasCorta(campus, pab, "Punto Seguro Plazoleta")
             self.assertEqual(ruta, [pab, "B Salida Central", "Pasarela Edificio B", "Punto Seguro Plazoleta"])
-            self.assertEqual(tiempo, 26)
+            self.assertEqual(tiempo, 25)
         # La escalera en medio de la pasarela es dirigida (bajar 12 s, subir 18 s).
         _, bajar = rutaMasCorta(campus, "Pasarela Edificio B", "Punto Seguro Plazoleta")
         _, subir = rutaMasCorta(campus, "Punto Seguro Plazoleta", "Pasarela Edificio B")

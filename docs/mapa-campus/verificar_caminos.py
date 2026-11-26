@@ -280,7 +280,11 @@ def _buscar(a, b):
 
 
 def a_pie(a, b):
-    """Metros a pie de a hasta b por la ruta real (hasta el borde de la zona segura si b lo es)."""
+    """Metros a pie de a hasta b por la ruta real (hasta el borde de la zona segura si b lo es).
+    Primero por la red de andenes; si un lugar no llega a ella, por la rejilla."""
+    r = ruta_red(a, b)
+    if r:
+        return r[0]
     m, celdas = _buscar(a, b)
     if not celdas:
         return m
@@ -305,6 +309,9 @@ def _simplificar(puntos, tol, libres=frozenset()):
 def trazado(a, b):
     """Recorrido real a pie de a hasta b como polilínea en metros. Si b (o a) es zona segura,
     la línea termina (o empieza) en el borde de su área, en el punto más conveniente."""
+    r = ruta_red(a, b)
+    if r:
+        return [[round(x, 1), round(y, 1)] for x, y in _simplificar(r[1], 0.3, propios(a) | propios(b))]
     _, celdas = _buscar(a, b)
     if not celdas:
         return [list(POS[a]), list(POS[b])]
@@ -592,8 +599,11 @@ def _referencia(p, excluir=(), radio=18):
 
 
 def _superficie(p, q):
-    """Por dónde va el tramo p→q: calle, parqueo, plaza, cancha, pasarela o zona verde."""
+    """Por dónde va el tramo p→q: según la red de andenes, o calle, parqueo, plaza, cancha o pasarela."""
     m = ((p[0] + q[0]) / 2, (p[1] + q[1]) / 2)
+    t = tipo_red_en(m)
+    if t:
+        return TIPO_TXT[t]
     if PASARELA[0] <= m[0] <= PASARELA[1] and PASARELA[2] - .5 <= m[1] <= PASARELA[3] + .5:
         return "por la pasarela"
     for pol in [q_["pol"] for q_ in OSM["plazas"]]:
@@ -726,6 +736,186 @@ def aplicar_pesos(filas):
                 cambios += n
     ruta.write_text(s, encoding="utf-8")
     print(f"\nPesos: {cambios} caminos de backend/datos.py actualizados con el recorrido real.")
+
+
+# ---------------------------------------------------------------- red de andenes (andenes.json)
+# Las rutas exteriores van por la red de andenes, calles y senderos trazada sobre la imagen satelital,
+# como un navegador que solo circula por calles. Cada lugar se conecta a la red por el tramo más corto
+# que no cruce edificios ("acceso"); una zona segura se alcanza al entrar a su área por la red.
+ANDENES = json.loads((AQUI / "andenes.json").read_text(encoding="utf-8"))["andenes"] if (AQUI / "andenes.json").exists() else []
+PASO_RED = 2.0        # m entre vértices de la red al densificarla
+UNIR_RED = 4.0        # m: un extremo de un tramo a menos de esto de otro tramo se une a él
+ACCESO_MAX = 45.0     # m: distancia máxima de un lugar a la red para entrar a ella en línea recta
+ZONA_ACERCA = 15.0    # m: desde la red se puede entrar a una zona segura que esté a menos de esto
+
+
+def _borde_mas_cercano(p, pol):
+    """Punto del contorno de pol más cercano a p."""
+    mejor, dm = None, math.inf
+    for k in range(len(pol)):
+        a, b = pol[k], pol[(k + 1) % len(pol)]
+        dx, dy = b[0] - a[0], b[1] - a[1]
+        l2 = dx * dx + dy * dy or 1.0
+        t = max(0.0, min(1.0, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / l2))
+        q = (a[0] + t * dx, a[1] + t * dy)
+        d = math.dist(p, q)
+        if d < dm:
+            mejor, dm = q, d
+    return mejor
+ELEVADOS = {"Pasarela Edificio B", "B Salida Central"}          # solo se conectan a la pasarela
+EXTREMOS_PASARELA = {"Pasarela B Oeste", "Pasarela B Este"}     # se conectan a la pasarela y al suelo
+TIPO_TXT = {"calle": "por la orilla de la calle", "anden": "por el andén", "sendero": "por el sendero", "pasarela": "por la pasarela"}
+
+RED_P = []            # índice -> (x, y)
+RED_T = []            # índice -> tipo del tramo
+RED_A = []            # índice -> id del tramo de andenes.json
+RED_ADJ = {}          # índice -> [(vecino, metros)]
+
+
+def _red_vertice(p, tipo, ident=""):
+    RED_P.append((float(p[0]), float(p[1])))
+    RED_T.append(tipo)
+    RED_A.append(ident)
+    RED_ADJ[len(RED_P) - 1] = []
+    return len(RED_P) - 1
+
+
+def _red_unir(i, j):
+    d = math.dist(RED_P[i], RED_P[j])
+    if i != j and all(k != j for k, _ in RED_ADJ[i]):
+        RED_ADJ[i].append((j, d))
+        RED_ADJ[j].append((i, d))
+
+
+def _construir_red():
+    tramos = []                               # [(tipo, [índices])]
+    for a in ANDENES:
+        pts = a["p"]
+        idx = []
+        for p, q in zip(pts, pts[1:]):
+            n = max(1, int(math.ceil(math.dist(p, q) / PASO_RED)))
+            for k in range(n):
+                t = k / n
+                idx.append(_red_vertice((p[0] + (q[0] - p[0]) * t, p[1] + (q[1] - p[1]) * t), a["tipo"], a["id"]))
+        idx.append(_red_vertice(pts[-1], a["tipo"], a["id"]))
+        for i, j in zip(idx, idx[1:]):
+            _red_unir(i, j)
+        tramos.append((a["tipo"], idx))
+    # uniones: cada vértice de un tramo se une al vértice más cercano de OTRO tramo a menos de UNIR_RED
+    # (la pasarela solo se une a la pasarela: pasa por encima de los andenes del suelo)
+    for n, (tipo, idx) in enumerate(tramos):
+        for i in idx:
+            for m, (tipo2, idx2) in enumerate(tramos):
+                if m == n or (tipo == "pasarela") != (tipo2 == "pasarela"):
+                    continue
+                j = min(idx2, key=lambda k: math.dist(RED_P[i], RED_P[k]))
+                if math.dist(RED_P[i], RED_P[j]) <= UNIR_RED:
+                    _red_unir(i, j)
+
+
+_construir_red()
+
+
+def _red_permitido(nombre, i):
+    if nombre in ELEVADOS:
+        return RED_T[i] == "pasarela"
+    if nombre in EXTREMOS_PASARELA:
+        return True
+    return RED_T[i] != "pasarela"
+
+
+_ACCESOS = {}
+
+
+def _accesos(nombre):
+    """Vértices de la red por donde entra/sale el lugar: [(vértice, metros, polilínea de acceso)].
+    Zona segura: los vértices de la red dentro de su área (0 m). Otro lugar: los vértices visibles
+    en línea recta sin cruzar edificios ajenos, a menos de ACCESO_MAX (los 6 más cercanos)."""
+    if nombre in _ACCESOS:
+        return _ACCESOS[nombre]
+    areas = areas_zona(nombre)
+    if areas:
+        # zona segura: se llega al pisar su área. Los vértices de la red dentro (0 m) y los que están a
+        # menos de ZONA_ACERCA de su borde, con el tramo recto hasta el borde si no cruza edificios.
+        res = []
+        for i in range(len(RED_P)):
+            if RED_T[i] == "pasarela":
+                continue
+            for pol in areas:
+                if dentro(RED_P[i], pol):
+                    res.append((i, 0.0, []))
+                    break
+                b = _borde_mas_cercano(RED_P[i], pol)
+                d = math.dist(RED_P[i], b)
+                if d <= ZONA_ACERCA and _a_la_vista(RED_P[i], b, propios(nombre)):
+                    res.append((i, d, [b, RED_P[i]]))
+                    break
+    else:
+        libres = propios(nombre)
+        p = POS[nombre]
+        cand = sorted((math.dist(p, RED_P[i]), i) for i in range(len(RED_P)) if _red_permitido(nombre, i))
+        res, tramos = [], set()
+        for d, i in cand:
+            if d > ACCESO_MAX or len(tramos) >= 6:
+                break
+            if RED_A[i] in tramos:            # un solo acceso (el más cercano) por tramo de andén
+                continue
+            if _a_la_vista(p, RED_P[i], libres):
+                res.append((i, d, [p, RED_P[i]]))
+                tramos.add(RED_A[i])
+    _ACCESOS[nombre] = res
+    return res
+
+
+_CACHE_RED = {}
+
+
+def ruta_red(a, b):
+    """Recorrido de a hasta b por la red: (metros, polilínea) o None si no hay forma por la red."""
+    if (a, b) in _CACHE_RED:
+        return _CACHE_RED[(a, b)]
+    ini, fin = _accesos(a), _accesos(b)
+    if not ini or not fin:
+        _CACHE_RED[(a, b)] = None
+        return None
+    meta = {i: (d, pl) for i, d, pl in fin}
+    dist, prev, cola = {}, {}, []
+    for i, d, _ in ini:
+        if d < dist.get(i, math.inf):
+            dist[i], prev[i] = d, None
+            heapq.heappush(cola, (d, i))
+    mejor, fin_i = math.inf, None
+    while cola:
+        d, i = heapq.heappop(cola)
+        if d > dist.get(i, math.inf) or d >= mejor:
+            continue
+        if i in meta and d + meta[i][0] < mejor:
+            mejor, fin_i = d + meta[i][0], i
+        for j, w in RED_ADJ[i]:
+            if d + w < dist.get(j, math.inf):
+                dist[j], prev[j] = d + w, i
+                heapq.heappush(cola, (d + w, j))
+    if fin_i is None:
+        _CACHE_RED[(a, b)] = None
+        return None
+    indices, i = [], fin_i
+    while i is not None:
+        indices.append(i)
+        i = prev[i]
+    indices.reverse()
+    camino = [RED_P[k] for k in indices]
+    acc_ini = next((pl for k, _, pl in ini if k == indices[0]), [])
+    acc_fin = meta[fin_i][1][::-1]
+    linea = (acc_ini[:-1] if acc_ini else []) + camino + (acc_fin[1:] if acc_fin else [])
+    res = (mejor, linea)
+    _CACHE_RED[(a, b)] = res
+    return res
+
+
+def tipo_red_en(p):
+    """Tipo de tramo de la red que pasa por p (a menos de 1.5 m), o None."""
+    mejor = min(((math.dist(p, q), t) for q, t in zip(RED_P, RED_T)), default=(math.inf, None))
+    return mejor[1] if mejor[0] <= 1.5 else None
 
 
 if __name__ == "__main__":
