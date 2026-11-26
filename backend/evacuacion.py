@@ -1,6 +1,13 @@
 
 
+from backend.datos import EDIFICIOS_SIN_PASO
+
 INF = float("inf")
+
+
+def sinPaso(nombre):
+    # Edificio cerrado: se puede salir de el, pero una ruta no lo atraviesa.
+    return nombre in EDIFICIOS_SIN_PASO
 
 
 def dijkstra(campus, origen, terminal=None):
@@ -69,7 +76,7 @@ def rutaEvacuacion(campus, origen, zonasSeguras):
     # Calcula Dijkstra una sola vez y elige la zona segura con menor tiempo.
     if campus.buscarVertice(origen) is None:
         return [], INF
-    distancias, anteriores = dijkstra(campus, origen)
+    distancias, anteriores = dijkstra(campus, origen, terminal=sinPaso)
     zonas = []
     for zona in zonasSeguras:
         vZona = campus.buscarVertice(zona)
@@ -136,6 +143,10 @@ def dijkstraPasos(campus, origen, zonasSeguras):
         visitados.add(actual)
 
         paso = {"actual": actual.nombre, "distancia": distancias[actual.nombre], "vecinos": []}
+        if actual is not inicio and sinPaso(actual.nombre) and actual.nombre.lower() not in zonasLower:
+            paso["sinPaso"] = True          # edificio cerrado: no se sigue a traves de el
+            pasos.append(paso)
+            continue
         if actual.nombre.lower() in zonasLower:
             pasos.append(paso)
             zonaAlcanzada = actual.nombre

@@ -165,10 +165,13 @@
     return [ruta, dist];
   }
 
+  // Edificios cerrados (backend/datos.py EDIFICIOS_SIN_PASO, vía datos-iniciales.json): una ruta
+  // puede salir de ellos pero no atravesarlos.
+  const sinPaso = n => !!(SEED && Array.isArray(SEED.sinPaso) && SEED.sinPaso.includes(n));
   function rutaEvacuacion(campus, origen, zonasSeguras) {
     const inicio = campus.buscarVertice(origen);
     if (!inicio) return [[], INF];
-    const { distancias, anteriores } = dijkstra(campus, origen);
+    const { distancias, anteriores } = dijkstra(campus, origen, sinPaso);
     let mejorZona = null;
     let mejorTiempo = INF;
     for (const zona of zonasSeguras) {
@@ -644,6 +647,7 @@
       visitados.add(actual);
       const paso = { actual: actual.nombre, distancia: distancias[actual.nombre], vecinos: [] };
       if (zonasSeguras.includes(actual.nombre)) { pasos.push(paso); zona = actual.nombre; break; }
+      if (actual !== inicio && sinPaso(actual.nombre)) { paso.sinPaso = true; pasos.push(paso); continue; }
       for (const [destino, peso] of actual.neig) {
         const antes = distancias[destino.nombre];
         const nueva = distancias[actual.nombre] + peso;

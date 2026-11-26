@@ -91,6 +91,11 @@ def propios(nombre):
     for e in OBSTACULOS:
         if e["nombre"] and (e["nombre"] == nombre or (letra and e["nombre"] == f"Edificio {letra}")):
             ids.add(e["id"])
+    # y el edificio que ocupa la celda del propio punto (p. ej. la salida este del C, pegada al A)
+    if "BLOQUEO" in globals():
+        ocup = BLOQUEO.get(celda(POS[nombre]))
+        if ocup and ocup != "fuera":
+            ids.add(ocup)
     return ids
 
 
@@ -111,8 +116,11 @@ for e in OBSTACULOS:
     bx1, by1 = celda((max(q[0] for q in e["pol"]), max(q[1] for q in e["pol"])))
     for i in range(bx0, bx1 + 1):
         for j in range(by0, by1 + 1):
-            if dentro((X0 + (i + .5) * CELDA, Y0 + (j + .5) * CELDA), e["pol"]):
-                BLOQUEO[(i, j)] = e["id"]
+            # conservador: la celda se bloquea si el edificio cubre su centro o cualquiera de sus esquinas
+            # (dos edificios pegados, como el A y el B, no dejan una rendija de 0 m entre ellos)
+            if any(dentro((X0 + (i + fx) * CELDA, Y0 + (j + fy) * CELDA), e["pol"])
+                   for fx, fy in ((.5, .5), (.05, .05), (.95, .05), (.05, .95), (.95, .95))):
+                BLOQUEO.setdefault((i, j), e["id"])
 
 # Fuera del campus tampoco se camina (la ruta no puede salir a las calles vecinas).
 for i in range(NX):
@@ -216,6 +224,12 @@ def _libre(c, libres):
     return ocup is None or ocup in libres
 
 
+def _a_la_vista(p, q, libres):
+    """True si el tramo recto p→q (en metros) no pisa celdas bloqueadas (edificios ajenos o fuera del campus)."""
+    n = max(2, int(math.dist(p, q) / (CELDA * .4)))
+    return all(_libre(celda((p[0] + (q[0] - p[0]) * i / n, p[1] + (q[1] - p[1]) * i / n)), libres) for i in range(n + 1))
+
+
 _CACHE = {}
 
 
@@ -276,15 +290,16 @@ def a_pie(a, b):
     return m + math.dist(ini, _centro_celda(celdas[0])) + math.dist(fin, _centro_celda(celdas[-1]))
 
 
-def _simplificar(puntos, tol):
-    """Douglas-Peucker: quita los escalones de la rejilla sin cambiar la forma del recorrido."""
+def _simplificar(puntos, tol, libres=frozenset()):
+    """Douglas-Peucker: quita los escalones de la rejilla sin cambiar la forma del recorrido.
+    Un atajo solo se acepta si no pisa ningún edificio (si no, recortaría esquinas)."""
     if len(puntos) < 3:
         return puntos
     a, b = puntos[0], puntos[-1]
     i, dmax = max(((k, _dseg(puntos[k], a, b)) for k in range(1, len(puntos) - 1)), key=lambda t: t[1])
-    if dmax <= tol:
+    if dmax <= tol and _a_la_vista(a, b, libres):
         return [a, b]
-    return _simplificar(puntos[:i + 1], tol)[:-1] + _simplificar(puntos[i:], tol)
+    return _simplificar(puntos[:i + 1], tol, libres)[:-1] + _simplificar(puntos[i:], tol, libres)
 
 
 def trazado(a, b):
@@ -298,24 +313,34 @@ def trazado(a, b):
         puntos = [POS[a]] + puntos
     if not areas_zona(b):
         puntos = puntos + [POS[b]]
-    return [[round(x, 1), round(y, 1)] for x, y in _simplificar(puntos, 2.0)]
+    return [[round(x, 1), round(y, 1)] for x, y in _simplificar(puntos, 2.0, propios(a) | propios(b))]
+
+
+def _cruces_linea(a, b, linea):
+    libres = propios(a) | propios(b)
+    out = {}
+    for pa, pb in zip(linea, linea[1:]):
+        d = math.dist(pa, pb)
+        n = max(2, int(d / .5))
+        for i in range(1, n):
+            t = i / n
+            q = (pa[0] + (pb[0] - pa[0]) * t, pa[1] + (pb[1] - pa[1]) * t)
+            for e in OBSTACULOS:
+                if e["id"] not in libres and dentro(q, e["pol"]):
+                    k = e["nombre"] or f"edificio {e['id']}"
+                    out[k] = out.get(k, 0) + d / n
+    return {k: round(v, 1) for k, v in out.items() if v >= 2}
 
 
 def cruces(a, b):
     """Metros de la línea recta a→b que caen dentro de edificios cerrados ajenos."""
-    libres = propios(a) | propios(b)
-    pa, pb = POS[a], POS[b]
-    d = math.dist(pa, pb)
-    n = max(2, int(d / .5))
-    out = {}
-    for i in range(1, n):
-        t = i / n
-        q = (pa[0] + (pb[0] - pa[0]) * t, pa[1] + (pb[1] - pa[1]) * t)
-        for e in OBSTACULOS:
-            if e["id"] not in libres and dentro(q, e["pol"]):
-                k = e["nombre"] or f"edificio {e['id']}"
-                out[k] = out.get(k, 0) + d / n
-    return {k: round(v, 1) for k, v in out.items() if v >= 2}
+    return _cruces_linea(a, b, [POS[a], POS[b]])
+
+
+def cruces_recorrido(a, b):
+    """Metros del recorrido real a→b (el que dibuja la app) dentro de edificios cerrados ajenos.
+    Debe ser {} en todos los caminos: si no, el motor de rutas está fallando."""
+    return _cruces_linea(a, b, trazado(a, b))
 
 
 def caminos_exteriores():
@@ -341,7 +366,7 @@ def verificar():
         filas.append({
             "a": a, "b": b, "peso": peso, "recta_m": round(recta, 1), "a_pie_m": round(real, 1),
             "seg_a_pie": round(seg), "rodeo": round(real / recta, 2) if recta else 1.0,
-            "cruza": cruces(a, b),
+            "cruza": cruces_recorrido(a, b), "cruza_recta": cruces(a, b),
             "peso_ok": abs(peso - seg) <= max(8, TOLERANCIA * seg),
         })
     unidos = set(caminos)

@@ -11,7 +11,7 @@ RAIZ = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(RAIZ))
 
 import math
-from backend.datos import crearCampus, crearRedMesh, ubicacionesTelefonos
+from backend.datos import EDIFICIOS_SIN_PASO, crearCampus, crearRedMesh, ubicacionesTelefonos
 from backend.evacuacion import rutaEvacuacion
 
 
@@ -115,6 +115,7 @@ def main():
     datos = {
         "campus": serializar(campus),
         "zonas": list(zonas),
+        "sinPaso": sorted(EDIFICIOS_SIN_PASO),
         "mesh": serializar(red),
         "ubicaciones": ubicacionesTelefonos(),
         "rutasBase": rutas_base,

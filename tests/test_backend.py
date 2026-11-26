@@ -129,6 +129,15 @@ class TestCampusUAM(unittest.TestCase):
         self.assertEqual(rutaMasCorta(campus, "B-210", "Edificio E"),
                          (["B-210", "B Pabellón Oeste P2", "Edificio E"], 23))
 
+    def test_ninguna_ruta_atraviesa_un_edificio_cerrado(self):
+        # Un edificio cerrado puede ser el origen, nunca un punto intermedio (su vértice es su centro).
+        from backend.datos import EDIFICIOS_SIN_PASO
+        campus, zonas = crearCampus()
+        for v in campus.vertexs:
+            ruta, tiempo = rutaEvacuacion(campus, v.nombre, zonas)
+            self.assertNotEqual(tiempo, float("inf"), f"{v.nombre} no tiene salida")
+            self.assertFalse(set(ruta[1:-1]) & EDIFICIOS_SIN_PASO, f"{v.nombre}: {ruta}")
+
     def test_pasarela_b_y_plazoleta(self):
         campus, zonas = crearCampus()
         for pab in ["B Pabellón Este P1", "B Pabellón Oeste P1"]:

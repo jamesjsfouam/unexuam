@@ -46,7 +46,7 @@ class TestApiYParidad(unittest.TestCase):
         data = r.get_json()
         self.assertTrue(data["ok"])
         self.assertEqual(len(data["estado"]["campus"]["vertices"]), 157)
-        self.assertEqual(len(data["estado"]["campus"]["aristas"]), 442)
+        self.assertEqual(len(data["estado"]["campus"]["aristas"]), 586)
         self.assertEqual(len(data["estado"]["mesh"]["vertices"]), 8)
 
     def test_validacion_payloads_invalidos(self):
@@ -101,7 +101,7 @@ class TestApiYParidad(unittest.TestCase):
         with self.client.get("/sw.js") as r:
             self.assertEqual(r.status_code, 200)
             self.assertEqual(r.headers.get("Service-Worker-Allowed"), "/")
-            self.assertIn(b"unexuam-v31", r.data)
+            self.assertIn(b"unexuam-v32", r.data)
 
     def test_operador_real_puede_iniciar_sesion(self):
         resultado = servidor.app.test_cli_runner().invoke(

@@ -89,6 +89,17 @@ def agregarEdificioConAulas(campus, letra, aulasPorPiso, segundosEntreAulas):
     unirDosSentidos(campus, letra + " Escalera Oeste P1", letra + " Salida Oeste", ESCALERA_A_SALIDA)
 
 
+# Edificios cerrados: una ruta puede salir de ellos, pero no atravesarlos para ir a otro lugar
+# (su vértice es el centro del edificio, no un pasillo). El Edificio E no está: el pasillo elevado
+# del 2.o piso del B entra al E y se sale por él. Los comedores, kioskos y el Food Court son abiertos.
+EDIFICIOS_SIN_PASO = frozenset({
+    "Salón de Contenedores", "Salón Multiusos", "Salón de Danza", "Salón de Música", "Vestidores",
+    "Jaguar Center", "Edificio I", "Edificio F", "Auditorio Central", "Edificio M", "Banco Banpro",
+    "Edificio A", "Laboratorios", "Edificio D", "Edificio J", "El Ranchito", "Clínicas Odontológicas",
+    "Edificio O", "Baño del Comedor",
+})
+
+
 def crearCampus():
     campus = Graph()
 
@@ -211,7 +222,7 @@ def crearCampus():
         ("Edificio J", "Kioskos del Chilamate", 19),
         ("Edificio J", "Punto Seguro Parqueo Central", 24),
         ("Edificio M", "Laboratorios", 21),
-        ("Edificio O", "El Ranchito", 34),
+        ("Edificio O", "El Ranchito", 35),
         ("Edificio O", "P Salida Oeste", 30),
         ("Edificio O", "Punto Seguro Parqueo Oeste", 18),
         ("El Chilamate", "Kioskos del Chilamate", 32),
@@ -249,6 +260,81 @@ def crearCampus():
         ("Clínicas Odontológicas", "Edificio J", 34),
         ("Clínicas Odontológicas", "Punto Seguro Parqueo Central", 35),
         ("Edificio A", "Kioskos del Chilamate", 33),
+        # Salidas directas de cada lugar a sus 3 zonas seguras más cercanas, por el recorrido real a pie
+        # (verificar_caminos.py): así ninguna ruta tiene que pasar por dentro de otro edificio. Desde la
+        # pasarela (un piso arriba de la Plazoleta) no hay salidas directas: se baja por su escalera o sus extremos.
+        ("Auditorio Central", "Punto Seguro Plazoleta", 30),
+        ("Auditorio Central", "Zona Segura Cancha de Fútbol", 41),
+        ("Banco Banpro", "Punto Seguro Parqueo Norte", 31),
+        ("Banco Banpro", "Punto Seguro Plazoleta", 45),
+        ("Baño del Comedor", "Zona Segura Campo de Béisbol", 24),
+        ("Baño del Comedor", "Punto Seguro Parqueo Oeste", 83),
+        ("Clínicas Odontológicas", "Punto Seguro Parqueo Oeste", 66),
+        ("Comedor del Jaguarcito", "Zona Segura Campo de Béisbol", 20),
+        ("Comedor del Jaguarcito", "Punto Seguro Parqueo Oeste", 57),
+        ("Edificio A", "Punto Seguro Parqueo Central", 34),
+        ("Edificio A", "Punto Seguro Plazoleta", 48),
+        ("Edificio D", "Punto Seguro Parqueo Sur", 40),
+        ("Edificio D", "Punto Seguro Parqueo Este", 59),
+        ("Edificio E", "Punto Seguro Parqueo 20 Av", 20),
+        ("Edificio F", "Punto Seguro Plazoleta", 47),
+        ("Edificio F", "Zona Segura Cancha de Fútbol", 47),
+        ("Edificio I", "Punto Seguro Parqueo 47 Calle", 36),
+        ("Edificio I", "Zona Segura Cancha de Fútbol", 42),
+        ("Edificio J", "Punto Seguro Parqueo Sur", 36),
+        ("Edificio J", "Punto Seguro Parqueo Este", 46),
+        ("Edificio M", "Punto Seguro Parqueo 20 Av", 16),
+        ("Edificio M", "Zona Segura Cancha de Fútbol", 35),
+        ("Edificio M", "Punto Seguro Parqueo Central", 38),
+        ("Edificio O", "Punto Seguro Parqueo Sur", 17),
+        ("Edificio O", "Zona Segura Campo de Béisbol", 41),
+        ("El Chilamate", "Punto Seguro Parqueo Sur", 19),
+        ("El Chilamate", "Punto Seguro Parqueo Este", 47),
+        ("El Chilamate", "Punto Seguro Parqueo Edificio P", 49),
+        ("El Ranchito", "Punto Seguro Parqueo Sur", 24),
+        ("El Ranchito", "Punto Seguro Parqueo Central", 33),
+        ("El Ranchito", "Punto Seguro Parqueo Oeste", 42),
+        ("Food Court", "Punto Seguro Parqueo Este", 38),
+        ("Jaguar Center", "Zona Segura Cancha de Fútbol", 30),
+        ("Jaguar Center", "Punto Seguro Parqueo 20 Av", 53),
+        ("Jaguar Center", "Punto Seguro Parqueo 47 Calle", 70),
+        ("Kiosko del Jaguarcito", "Punto Seguro Parqueo Oeste", 16),
+        ("Kiosko del Jaguarcito", "Zona Segura Campo de Béisbol", 34),
+        ("Kioskos del Chilamate", "Punto Seguro Parqueo Este", 29),
+        ("Kioskos del Chilamate", "Punto Seguro Parqueo Central", 30),
+        ("Kioskos del Chilamate", "Punto Seguro Parqueo Sur", 43),
+        ("Laboratorios", "Zona Segura Cancha de Fútbol", 27),
+        ("Laboratorios", "Punto Seguro Parqueo 20 Av", 33),
+        ("Laboratorios", "Punto Seguro Parqueo Oeste", 33),
+        ("Salón Multiusos", "Zona Segura Cancha de Fútbol", 45),
+        ("Salón Multiusos", "Punto Seguro Parqueo 47 Calle", 103),
+        ("Salón Multiusos", "Punto Seguro Parqueo 20 Av", 112),
+        ("Salón de Contenedores", "Zona Segura Cancha de Fútbol", 56),
+        ("Salón de Contenedores", "Punto Seguro Parqueo 47 Calle", 107),
+        ("Salón de Contenedores", "Punto Seguro Parqueo 20 Av", 117),
+        ("Salón de Danza", "Zona Segura Cancha de Fútbol", 35),
+        ("Salón de Danza", "Punto Seguro Parqueo 47 Calle", 92),
+        ("Salón de Danza", "Punto Seguro Parqueo 20 Av", 93),
+        ("Salón de Música", "Zona Segura Cancha de Fútbol", 35),
+        ("Salón de Música", "Punto Seguro Parqueo 47 Calle", 88),
+        ("Salón de Música", "Punto Seguro Parqueo 20 Av", 91),
+        ("Vestidores", "Punto Seguro Parqueo 20 Av", 86),
+        ("Vestidores", "Zona Segura Campo de Béisbol", 101),
+        ("B Salida Este", "Punto Seguro Parqueo Este", 36),
+        ("B Salida Este", "Punto Seguro Plazoleta", 37),
+        ("B Salida Este", "Punto Seguro Parqueo Central", 82),
+        ("B Salida Oeste", "Punto Seguro Plazoleta", 20),
+        ("B Salida Oeste", "Punto Seguro Parqueo 20 Av", 21),
+        ("B Salida Oeste", "Punto Seguro Parqueo Central", 38),
+        ("C Salida Este", "Punto Seguro Parqueo Este", 30),
+        ("C Salida Este", "Punto Seguro Plazoleta", 56),
+        ("C Salida Oeste", "Punto Seguro Parqueo 20 Av", 35),
+        ("C Salida Oeste", "Punto Seguro Plazoleta", 39),
+        ("P Salida Este", "Punto Seguro Parqueo Este", 91),
+        ("Pasarela B Oeste", "Punto Seguro Plazoleta", 32),
+        ("Pasarela B Oeste", "Zona Segura Cancha de Fútbol", 35),
+        ("Pasarela B Este", "Punto Seguro Plazoleta", 38),
+        ("Pasarela B Este", "Punto Seguro Parqueo Norte", 47),
     ]
     for camino in caminos:
         unirDosSentidos(campus, camino[0], camino[1], camino[2])
