@@ -2386,6 +2386,24 @@ html[data-tema="oscuro"] .em-ni-card {
     max-width: none;
     width: 100%;
   }
+  #v-ajustes .aj-grid {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 14px !important;
+  }
+  .hoja {
+    align-items: flex-end !important;
+    padding: 0 !important;
+  }
+  .hoja-carta {
+    max-width: none !important;
+    width: 100% !important;
+    border-radius: 26px 26px 0 0 !important;
+    border-bottom: 0 !important;
+  }
+  .hoja-asa {
+    display: block !important;
+  }
   .navbar a {
     font-size: 11px;
   }

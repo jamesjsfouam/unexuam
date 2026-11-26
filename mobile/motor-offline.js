@@ -1703,6 +1703,40 @@
   window.addEventListener("online", () => {
     vaciarColaNube();
   });
+  let ultSyncCampusLocalMs = 0;
+  async function sincronizarCampusLocal() {
+    const ahora = Date.now();
+    if (ahora - ultSyncCampusLocalMs < 2000) return;
+    ultSyncCampusLocalMs = ahora;
+    const endpoints = ["http://127.0.0.1:5000/api/campus/publico", "/api/campus/publico"];
+    for (const ep of endpoints) {
+      try {
+        const ctrl = typeof AbortController !== "undefined" ? new AbortController() : null;
+        const tid = ctrl ? setTimeout(() => ctrl.abort(), 1400) : null;
+        const r = await fetchOriginal(ep, { signal: ctrl?.signal, cache: "no-store" });
+        if (tid) clearTimeout(tid);
+        if (r && r.ok) {
+          const j = await r.json();
+          if (j && j.estado) {
+            const emServidor = j.estado.emergencia || null;
+            const emActual = S.emergencia || null;
+            if (JSON.stringify(emServidor) !== JSON.stringify(emActual)) {
+              S.emergencia = emServidor;
+              S.emergenciaOficial = Boolean(emServidor);
+              guardarEstadoLocal();
+              if (window.refrescarEstado) window.refrescarEstado();
+              window.dispatchEvent(new CustomEvent("unexuam-mesh-update", {
+                detail: { tipo: "estado", recalcularRuta: true },
+              }));
+            }
+            break;
+          }
+        }
+      } catch (_) {}
+    }
+  }
+  setInterval(sincronizarCampusLocal, 2500);
+
   setTimeout(() => {
     asegurarMeshActivo();
     if (navigator.onLine !== false) {

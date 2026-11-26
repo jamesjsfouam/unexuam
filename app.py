@@ -528,6 +528,7 @@ def campus_publico():
             "congestion": S["congestion"],
         },
         "ultimaAlerta": None,
+        "emergencia": DB.emergencia_actual(),
         "historial": [],
     }
 

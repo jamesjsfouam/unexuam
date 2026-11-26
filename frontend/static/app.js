@@ -65,18 +65,20 @@ async function cambiarEmergencia(ruta, datos) {
   const nube = window.UNEXO_NUBE;
   const publicarDesdeWeb = !window.__UNEXUAM_OFFLINE__ && nube?.tieneAuthAdmin();
   const resultado = await api(ruta, { ...datos, publicarDesdeWeb: Boolean(publicarDesdeWeb) });
-  if (!resultado.ok || !publicarDesdeWeb) return resultado;
+  if (!resultado.ok) return resultado;
 
-  const estado = resultado.estado;
-  resultado.nube = await nube.guardarCampusEstado({
-    bloqueados: estado.campus.bloqueados,
-    congestion: estado.campus.congestion,
-    emergencia: estado.emergencia,
-  });
-  aviso(resultado.nube
-    ? "Estado de emergencia publicado en Firebase."
-    : "El estado cambió en la web, pero Firebase rechazó la publicación. Verifica la sesión Firebase Admin.",
-  resultado.nube);
+  if (nube && typeof nube.guardarCampusEstado === "function") {
+    const estado = resultado.estado || E;
+    if (estado && estado.campus) {
+      try {
+        resultado.nube = await nube.guardarCampusEstado({
+          bloqueados: estado.campus.bloqueados || [],
+          congestion: estado.campus.congestion || {},
+          emergencia: estado.emergencia || null,
+        });
+      } catch (_) {}
+    }
+  }
   return resultado;
 }
 
@@ -2685,18 +2687,34 @@ let sondeoTimer = 0;
 let sondeoDelay = 4000;
 async function sondeo() {
   if (window.__UNEXUAM_OFFLINE__) return;
-  if (!document.hidden && !document.body.classList.contains("sin-sesion") && !document.body.classList.contains("modo-invitado") && !animando) {
-    try {
-      const r = await fetch("/api/estado");
-      if (r.status === 401) { if (window.mostrarLogin) window.mostrarLogin(); sondeoDelay = 4000; sondeoTimer = setTimeout(sondeo, sondeoDelay); return; }
-      if (!r.ok) throw new Error(`HTTP ${r.status}`);
-      const j = await r.json();
-      marcarConexion(true);
-      sondeoDelay = 4000;
-      if (j.estado && JSON.stringify(j.estado) !== firma) aplicarEstado(j.estado);
-    } catch (e) {
-      marcarConexion(false);
-      sondeoDelay = Math.min(30000, sondeoDelay * 2);
+  if (!document.hidden && !animando) {
+    const esInvitado = document.body.classList.contains("modo-invitado");
+    const esSinSesion = document.body.classList.contains("sin-sesion");
+    if (esInvitado) {
+      try {
+        const r = await fetch("/api/campus/publico");
+        if (r.ok) {
+          const j = await r.json();
+          marcarConexion(true);
+          sondeoDelay = 4000;
+          if (j.estado && JSON.stringify(j.estado) !== firma) aplicarEstado(j.estado);
+        }
+      } catch (e) {
+        sondeoDelay = Math.min(30000, sondeoDelay * 2);
+      }
+    } else if (!esSinSesion) {
+      try {
+        const r = await fetch("/api/estado");
+        if (r.status === 401) { if (window.mostrarLogin) window.mostrarLogin(); sondeoDelay = 4000; sondeoTimer = setTimeout(sondeo, sondeoDelay); return; }
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        const j = await r.json();
+        marcarConexion(true);
+        sondeoDelay = 4000;
+        if (j.estado && JSON.stringify(j.estado) !== firma) aplicarEstado(j.estado);
+      } catch (e) {
+        marcarConexion(false);
+        sondeoDelay = Math.min(30000, sondeoDelay * 2);
+      }
     }
   }
   sondeoTimer = setTimeout(sondeo, sondeoDelay);
