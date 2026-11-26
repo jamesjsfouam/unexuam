@@ -1,5 +1,5 @@
 /* Service Worker de Unexuam: caché de assets estáticos para operar offline. */
-const CACHE = "unexuam-v33";
+const CACHE = "unexuam-v34";
 const CAMPUS_OFFLINE = "/campus-offline.json";
 const ASSETS = [
   "/",

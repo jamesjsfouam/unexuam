@@ -4,7 +4,10 @@
   "calle": "vía de carros (se camina por su orilla)",
   "anden": "acera o pasillo pavimentado",
   "sendero": "camino de tierra o trazado con duda (bajo árboles)",
-  "pasarela": "pasarela elevada del B: solo conecta en sus extremos y en su escalera"
+  "pasarela": "pasarela elevada del B: solo conecta en sus extremos y en su escalera",
+  "escalera": "escalera exterior",
+  "parqueo": "se cruza por un parqueo",
+  "cruce": "paso peatonal"
  },
  "andenes": [
   {
@@ -13,32 +16,36 @@
    "nombre": "Vía Universidad UAM (entrada este)",
    "p": [
     [
-     282,
-     2
+     282.0,
+     2.0
     ],
     [
-     282,
-     30
+     275.6,
+     4.8
     ],
     [
-     282,
-     60
+     275.4,
+     7.6
     ],
     [
-     282,
-     100
+     275.6,
+     18.8
     ],
     [
-     282,
-     106
+     277.4,
+     21.6
     ],
     [
-     282,
-     132
+     280.2,
+     51.0
     ],
     [
-     281,
-     150
+     282.6,
+     132.0
+    ],
+    [
+     281.5,
+     150.0
     ]
    ]
   },
@@ -48,32 +55,28 @@
    "nombre": "Vía UAM hacia el sur (Chilamate)",
    "p": [
     [
-     281,
-     150
+     281.0,
+     150.0
     ],
     [
-     285,
-     165
+     285.6,
+     167.9
     ],
     [
-     289,
-     185
+     285.3,
+     182.8
     ],
     [
-     291,
-     200
+     287.6,
+     187.7
     ],
     [
-     290,
-     214
+     289.0,
+     200.0
     ],
     [
-     280,
-     228
-    ],
-    [
-     262,
-     236
+     288.4,
+     204.5
     ]
    ]
   },
@@ -83,32 +86,32 @@
    "nombre": "Andén del Food Court (oeste de la vía)",
    "p": [
     [
-     265,
-     12
+     265.0,
+     12.0
     ],
     [
-     264,
-     40
+     264.0,
+     40.0
     ],
     [
-     264,
-     60
+     264.0,
+     60.0
     ],
     [
-     267,
-     70
+     267.0,
+     70.0
     ],
     [
-     264,
-     85
+     264.0,
+     85.0
     ],
     [
-     264,
-     100
+     264.0,
+     100.0
     ],
     [
-     266,
-     116
+     266.0,
+     116.0
     ]
    ]
   },
@@ -118,16 +121,16 @@
    "nombre": "Paso peatonal hacia el Banpro",
    "p": [
     [
-     264,
-     100
+     264.0,
+     100.0
     ],
     [
-     282,
-     100
+     282.0,
+     100.0
     ],
     [
-     286,
-     99
+     281.6,
+     99.1
     ]
    ]
   },
@@ -137,20 +140,20 @@
    "nombre": "Andén este del Edificio A",
    "p": [
     [
-     266,
-     116
+     266.0,
+     116.0
     ],
     [
-     274,
-     118
+     274.0,
+     118.0
     ],
     [
-     274,
-     131
+     274.0,
+     131.0
     ],
     [
-     274,
-     150
+     274.0,
+     150.0
     ]
    ]
   },
@@ -160,16 +163,16 @@
    "nombre": "Paso peatonal frente al A (hacia Parqueo Este)",
    "p": [
     [
-     274,
-     131
+     274.0,
+     131.0
     ],
     [
-     282,
-     132
+     282.0,
+     132.0
     ],
     [
-     296,
-     131
+     296.0,
+     131.0
     ]
    ]
   },
@@ -179,20 +182,20 @@
    "nombre": "Pasillo vehicular norte del Parqueo Este",
    "p": [
     [
-     282,
-     106
+     282.0,
+     106.0
     ],
     [
-     300,
-     106
+     300.0,
+     106.0
     ],
     [
-     325,
-     106
+     325.0,
+     106.0
     ],
     [
-     350,
-     106
+     350.0,
+     106.0
     ]
    ]
   },
@@ -202,16 +205,16 @@
    "nombre": "Pasillo central del Parqueo Este",
    "p": [
     [
-     296,
-     131
+     296.0,
+     131.0
     ],
     [
-     320,
-     129
+     320.0,
+     129.0
     ],
     [
-     355,
-     129
+     355.0,
+     129.0
     ]
    ]
   },
@@ -221,28 +224,28 @@
    "nombre": "Pasillo sur del Parqueo Este",
    "p": [
     [
-     262,
-     150
+     262.0,
+     150.0
     ],
     [
-     274,
-     150
+     274.0,
+     150.0
     ],
     [
-     281,
-     150
+     281.0,
+     150.0
     ],
     [
-     300,
-     150
+     300.0,
+     150.0
     ],
     [
-     330,
-     151
+     330.0,
+     151.0
     ],
     [
-     360,
-     151
+     360.0,
+     151.0
     ]
    ]
   },
@@ -252,40 +255,32 @@
    "nombre": "Andén este (de C Salida Este a P Salida Este)",
    "p": [
     [
-     261,
+     261.0,
      148.5
     ],
     [
-     262,
-     150
+     262.0,
+     150.0
     ],
     [
-     262,
-     160
+     262.0,
+     160.0
     ],
     [
-     262,
-     172
+     262.0,
+     172.0
     ],
     [
-     262,
-     185
+     262.0,
+     185.0
     ],
     [
-     259,
-     205
+     259.0,
+     205.0
     ],
     [
-     258,
-     220
-    ],
-    [
-     262,
-     236
-    ],
-    [
-     260,
-     250
+     258.0,
+     220.0
     ]
    ]
   },
@@ -295,24 +290,20 @@
    "nombre": "Pasillo del Parqueo Central",
    "p": [
     [
-     186,
-     156
+     186.0,
+     156.0
     ],
     [
-     196,
-     155
+     204.1,
+     155.0
     ],
     [
-     215,
-     155
+     206.9,
+     159.2
     ],
     [
-     235,
-     155
-    ],
-    [
-     262,
-     155
+     262.0,
+     158.0
     ]
    ]
   },
@@ -322,75 +313,47 @@
    "nombre": "Pasillo oeste entre el M y el B/C",
    "p": [
     [
-     182,
-     116
+     182.0,
+     116.0
     ],
     [
-     182,
-     127
+     182.0,
+     127.0
     ],
     [
-     182,
-     136
+     182.0,
+     136.0
     ],
     [
-     183,
-     145
+     183.0,
+     145.0
     ],
     [
-     186,
-     156
+     186.0,
+     156.0
     ]
    ]
   },
   {
    "id": "A13",
-   "tipo": "sendero",
-   "nombre": "Paso entre Laboratorios, El Ranchito y Clínicas",
+   "tipo": "anden",
+   "nombre": "Andén entre Laboratorios, El Ranchito y Clínicas (tramo norte)",
    "p": [
     [
-     186,
-     156
+     186.0,
+     156.0
     ],
     [
-     187,
-     165
+     187.0,
+     165.0
     ],
     [
-     190,
-     178
+     190.0,
+     178.0
     ],
     [
-     194,
-     192
-    ],
-    [
-     195,
-     200
-    ],
-    [
-     186,
-     205
-    ],
-    [
-     183,
-     215
-    ],
-    [
-     183,
-     224
-    ],
-    [
-     183,
-     236
-    ],
-    [
-     176,
-     244
-    ],
-    [
-     175,
-     252
+     192.0,
+     185.0
     ]
    ]
   },
@@ -400,24 +363,24 @@
    "nombre": "Pasillo del Parqueo Sur",
    "p": [
     [
-     183,
-     224
+     183.0,
+     224.0
     ],
     [
-     200,
-     224
+     200.0,
+     224.0
     ],
     [
-     220,
-     225
+     220.0,
+     225.0
     ],
     [
-     240,
-     225
+     240.0,
+     225.0
     ],
     [
-     258,
-     222
+     258.0,
+     222.0
     ]
    ]
   },
@@ -427,52 +390,54 @@
    "nombre": "Camino del Parqueo Edificio P (desde P Salida Oeste)",
    "p": [
     [
-     175,
-     252
+     176.6,
+     264.0
     ],
     [
-     176,
-     260
+     190.0,
+     261.0
     ],
     [
-     190,
-     261
+     205.0,
+     267.0
     ],
     [
-     205,
-     267
+     222.0,
+     275.0
     ],
     [
-     222,
-     275
-    ],
-    [
-     231,
-     279
+     231.0,
+     279.0
     ]
    ]
   },
   {
    "id": "A16",
    "tipo": "sendero",
-   "nombre": "Camino del Parqueo Edificio P (desde P Salida Este)",
+   "nombre": "Camino del Parqueo Edificio P (desde atrás del P, lado este)",
    "p": [
     [
-     260,
-     252
+     258.5,
+     264.0
     ],
     [
-     258,
-     266
+     258.0,
+     266.0
     ],
     [
-     242,
-     276
+     242.0,
+     276.0
     ],
     [
-     231,
-     279
+     231.0,
+     279.0
     ]
+   ],
+   "no_une": [
+    "A19",
+    "A73",
+    "A17",
+    "A78"
    ]
   },
   {
@@ -481,151 +446,231 @@
    "nombre": "Salida sur del campus",
    "p": [
     [
-     260,
-     252
+     262.0,
+     254.0
     ],
     [
-     268,
-     261
+     268.0,
+     261.0
     ],
     [
-     284,
-     266
+     277.0,
+     266.0
     ],
     [
-     298,
-     266
+     282.0,
+     270.3
+    ],
+    [
+     298.0,
+     270.0
     ]
+   ],
+   "no_une": [
+    "A19",
+    "A73"
    ]
   },
   {
    "id": "A18",
-   "tipo": "sendero",
-   "nombre": "Camino de tierra oeste (Parqueo Oeste)",
+   "tipo": "calle",
+   "nombre": "Calle sur (detrás del P) hasta la vía del Chilamate",
    "p": [
     [
-     148,
-     170
+     196.8,
+     291.5
     ],
     [
-     148,
-     190
+     202.1,
+     297.2
     ],
     [
-     147,
-     215
+     217.8,
+     298.8
     ],
     [
-     148,
-     244
+     241.3,
+     298.8
     ],
     [
-     150,
-     252
+     254.4,
+     292.8
+    ],
+    [
+     262.3,
+     283.7
+    ],
+    [
+     267.5,
+     273.3
+    ],
+    [
+     272.0,
+     270.0
+    ],
+    [
+     277.0,
+     266.0
+    ],
+    [
+     277.5,
+     257.0
+    ],
+    [
+     279.0,
+     247.0
+    ],
+    [
+     278.0,
+     240.0
+    ],
+    [
+     278.5,
+     236.0
+    ],
+    [
+     286.8,
+     207.8
+    ],
+    [
+     288.4,
+     204.5
+    ],
+    [
+     290.5,
+     204.0
     ]
    ]
   },
   {
    "id": "A19",
-   "tipo": "sendero",
-   "nombre": "Del camino oeste al P (por detrás)",
+   "tipo": "anden",
+   "nombre": "Pasillo de planta baja del P (de la calle oeste a P Salida Este)",
    "p": [
     [
-     150,
-     252
+     148.0,
+     251.6
     ],
     [
-     165,
-     252
+     160.0,
+     251.6
     ],
     [
-     175,
-     252
+     177.2,
+     251.6
+    ],
+    [
+     220.0,
+     251.6
+    ],
+    [
+     258.5,
+     251.6
+    ],
+    [
+     260.0,
+     250.0
     ]
    ]
   },
   {
    "id": "A20",
-   "tipo": "sendero",
-   "nombre": "Sur de Laboratorios hacia el pasillo oeste",
+   "tipo": "anden",
+   "nombre": "Del andén sur del M a El Ranchito (por el este de Laboratorios)",
    "p": [
     [
-     148,
-     170
+     176.3,
+     151.5
     ],
     [
-     160,
-     168
+     178.2,
+     164.0
     ],
     [
-     172,
-     167
-    ],
-    [
-     186,
-     162
+     185.0,
+     163.5
     ]
    ]
   },
   {
    "id": "A21",
    "tipo": "sendero",
-   "nombre": "Camino de tierra de los comedores (norte del béisbol)",
+   "nombre": "Camino de tierra de los comedores (tramo oeste)",
    "p": [
     [
-     22,
-     196
+     22.0,
+     196.0
     ],
     [
-     40,
-     195
+     40.0,
+     195.0
     ],
     [
-     60,
-     195
-    ],
-    [
-     80,
-     194
-    ],
-    [
-     100,
-     194
-    ],
-    [
-     118,
-     196
-    ],
-    [
-     132,
-     196
-    ],
-    [
-     148,
-     190
+     45.0,
+     195.0
     ]
    ]
   },
   {
    "id": "A22",
-   "tipo": "sendero",
-   "nombre": "Bajada de la calle oeste hacia Laboratorios",
+   "tipo": "calle",
+   "nombre": "Calle oeste: bajada hacia Laboratorios y el camino del Parqueo Oeste",
    "p": [
     [
-     131,
-     140
+     135.0,
+     139.8
     ],
     [
-     136,
-     152
+     135.3,
+     152.0
     ],
     [
-     139,
-     165
+     137.0,
+     165.0
     ],
     [
-     148,
-     170
+     139.0,
+     180.0
+    ],
+    [
+     140.5,
+     190.0
+    ],
+    [
+     143.0,
+     204.0
+    ],
+    [
+     149.0,
+     218.0
+    ],
+    [
+     151.0,
+     225.0
+    ],
+    [
+     152.0,
+     243.0
+    ],
+    [
+     147.3,
+     247.7
+    ],
+    [
+     152.3,
+     262.9
+    ],
+    [
+     157.5,
+     273.3
+    ],
+    [
+     164.1,
+     280.6
+    ],
+    [
+     196.8,
+     291.5
     ]
    ]
   },
@@ -635,63 +680,87 @@
    "nombre": "Calle oeste (este del Edificio I)",
    "p": [
     [
-     132,
-     30
+     135.5,
+     22.5
     ],
     [
-     132,
-     50
+     135.4,
+     30.0
     ],
     [
-     131,
-     78
+     135.1,
+     47.1
     ],
     [
-     130,
-     92
+     136.0,
+     58.6
     ],
     [
-     130,
-     115
-    ],
-    [
-     131,
-     140
+     135.0,
+     139.8
     ]
    ]
   },
   {
    "id": "A24",
-   "tipo": "sendero",
-   "nombre": "Borde norte de la cancha de fútbol",
+   "tipo": "anden",
+   "nombre": "Andén norte de la cancha de fútbol (pavimentado, sin carros; trazado de Google Maps)",
    "p": [
     [
-     16,
-     92
+     14,
+     54.2
     ],
     [
-     35,
-     92
+     14,
+     58
+    ],
+    [
+     15.7,
+     65
+    ],
+    [
+     17.5,
+     70
+    ],
+    [
+     19.5,
+     75
+    ],
+    [
+     21.7,
+     80
+    ],
+    [
+     26,
+     83.5
+    ],
+    [
+     30,
+     85.5
+    ],
+    [
+     36,
+     87
     ],
     [
      48,
-     92
+     86.4
     ],
     [
-     70,
-     90
+     60,
+     86.2
     ],
     [
-     100,
-     89
+     90,
+     84
     ],
     [
-     118,
-     90
+     120,
+     82.3
     ],
     [
-     130,
-     92
+     135.5,
+     82
     ]
    ]
   },
@@ -701,19 +770,23 @@
    "nombre": "Andén de la cancha techada y los vestidores",
    "p": [
     [
-     20,
+     14,
      54.2
     ],
     [
-     44,
+     20.0,
      54.2
     ],
     [
-     56,
+     44.0,
      54.2
     ],
     [
-     60,
+     56.0,
+     54.2
+    ],
+    [
+     60.0,
      54.2
     ]
    ]
@@ -724,147 +797,179 @@
    "nombre": "Andén entre la cancha techada y el Jaguar Center",
    "p": [
     [
-     56,
+     56.0,
      54.2
     ],
     [
-     57,
-     70
+     57.0,
+     70.0
     ],
     [
-     57,
-     84
+     57.0,
+     84.0
     ],
     [
      48,
-     92
+     86.4
     ]
    ]
   },
   {
    "id": "A27",
-   "tipo": "sendero",
-   "nombre": "Sur del Jaguar Center",
+   "tipo": "anden",
+   "nombre": "Pasillo entre el Auditorio/F y el E (tramo norte)",
    "p": [
     [
-     57,
-     84
+     186.0,
+     44.0
     ],
     [
-     65,
-     85
-    ],
-    [
-     85,
-     85
-    ],
-    [
-     102,
-     85
-    ],
-    [
-     118,
-     90
+     186.0,
+     50.0
     ]
    ]
   },
   {
    "id": "A28",
-   "tipo": "sendero",
-   "nombre": "Entre el Jaguar Center y el Edificio I",
+   "tipo": "anden",
+   "nombre": "Del norte del E al Parqueo 20 Av (rodea por el oeste)",
    "p": [
     [
-     102,
-     42
+     186.0,
+     50.0
     ],
     [
-     102,
-     60
+     184.7,
+     50.0
     ],
     [
-     102,
-     85
+     179.6,
+     51.1
+    ],
+    [
+     178.6,
+     66.2
+    ],
+    [
+     159.3,
+     67.6
     ]
    ]
   },
   {
    "id": "A29",
    "tipo": "sendero",
-   "nombre": "Calle norte (detrás de los salones y el I)",
+   "nombre": "Calle norte (detrás de los salones) hasta la calle que rodea el I",
    "p": [
     [
-     40,
-     15
+     40.0,
+     15.0
     ],
     [
-     70,
-     18
+     70.0,
+     18.0
     ],
     [
-     100,
-     18
-    ],
-    [
-     102,
-     42
+     92.9,
+     17.2
     ]
    ]
   },
   {
    "id": "A30",
-   "tipo": "sendero",
-   "nombre": "Calle norte hacia el Parqueo 47 Calle",
+   "tipo": "calle",
+   "nombre": "Calle norte (rodea el Edificio I por el norte) hacia el Parqueo 47 Calle",
    "p": [
     [
-     100,
-     18
+     59.4,
+     29.7
     ],
     [
-     132,
-     22
+     71.1,
+     28.9
     ],
     [
-     132,
-     30
+     91.6,
+     25.8
     ],
     [
-     160,
-     28
+     92.9,
+     17.2
     ],
     [
-     190,
-     28
+     97.3,
+     14.6
     ],
     [
-     220,
-     28
+     102.9,
+     13.1
     ],
     [
-     262,
-     26
+     123.7,
+     13.1
+    ],
+    [
+     132.5,
+     14.5
+    ],
+    [
+     135.5,
+     18.5
+    ],
+    [
+     135.5,
+     22.5
+    ],
+    [
+     139.0,
+     21.8
+    ],
+    [
+     150.6,
+     21.5
+    ],
+    [
+     210.6,
+     21.2
+    ],
+    [
+     264.3,
+     19.7
+    ],
+    [
+     273.0,
+     19.0
+    ],
+    [
+     277.5,
+     22.4
     ]
    ]
   },
   {
    "id": "A31",
    "tipo": "anden",
-   "nombre": "Pasillo entre el Auditorio/F y el E",
+   "nombre": "Pasillo entre el Auditorio/F y el E (tramo sur, unido al A28)",
    "p": [
     [
-     186,
-     44
+     178.6,
+     66.2
     ],
     [
-     186,
-     70
+     186.0,
+     66.0
     ],
     [
-     186,
-     95
+     186.0,
+     70.0
     ],
     [
-     186,
-     116
+     186.0,
+     95.0
+    ],
+    [
+     186.0,
+     116.0
     ]
    ]
   },
@@ -874,20 +979,20 @@
    "nombre": "Andén este del Edificio E (borde de la Plazoleta)",
    "p": [
     [
-     201,
-     44
+     201.0,
+     44.0
     ],
     [
-     201,
-     72
+     201.0,
+     72.0
     ],
     [
-     201,
-     95
+     201.0,
+     95.0
     ],
     [
-     201,
-     116
+     201.0,
+     116.0
     ]
    ]
   },
@@ -897,16 +1002,16 @@
    "nombre": "Norte del Edificio E",
    "p": [
     [
-     186,
-     44
+     186.0,
+     44.0
     ],
     [
-     194,
-     42
+     194.0,
+     42.0
     ],
     [
-     201,
-     44
+     201.0,
+     44.0
     ]
    ]
   },
@@ -916,39 +1021,47 @@
    "nombre": "Borde norte de la Plazoleta",
    "p": [
     [
-     201,
-     72
+     201.0,
+     72.0
     ],
     [
-     225,
-     72
+     225.0,
+     72.0
     ],
     [
-     250,
-     72
+     250.0,
+     72.0
     ],
     [
-     264,
-     72
+     264.0,
+     72.0
+    ],
+    [
+     266.6,
+     72.0
     ]
    ]
   },
   {
    "id": "A35",
    "tipo": "anden",
-   "nombre": "Rampa de la Plazoleta al Food Court",
+   "nombre": "Paso por el Food Court (de la Plazoleta al andén del Food Court)",
    "p": [
     [
-     230,
-     113
+     236.0,
+     95.0
     ],
     [
-     245,
-     101
+     241.0,
+     95.5
     ],
     [
-     264,
-     100
+     244.0,
+     97.0
+    ],
+    [
+     264.0,
+     100.0
     ]
    ]
   },
@@ -958,20 +1071,20 @@
    "nombre": "Del pasillo oeste al estacionamiento 20 Av (bajo la pasarela, sur del Auditorio)",
    "p": [
     [
-     182,
+     182.0,
      117.5
     ],
     [
-     163,
+     163.0,
      117.5
     ],
     [
-     162,
-     110
+     162.0,
+     110.0
     ],
     [
-     160,
-     100
+     160.0,
+     100.0
     ]
    ]
   },
@@ -981,42 +1094,42 @@
    "nombre": "Pasillo del Parqueo 20 Av",
    "p": [
     [
-     160,
-     100
+     160.0,
+     100.0
     ],
     [
-     158,
-     80
+     158.0,
+     80.0
     ],
     [
-     160,
-     60
+     160.0,
+     60.0
     ],
     [
-     165,
-     40
+     165.0,
+     40.0
     ],
     [
-     160,
-     28
+     160.0,
+     21.5
     ]
    ]
   },
   {
    "id": "A38",
-   "tipo": "pasarela",
-   "nombre": "Pasarela B (elevada)",
+   "tipo": "anden",
+   "nombre": "Pasarela del B (corredor techado en planta baja, pegado al frente del B)",
    "p": [
     [
      163.5,
      118.5
     ],
     [
-     182,
+     182.0,
      118.5
     ],
     [
-     200,
+     200.0,
      118.5
     ],
     [
@@ -1024,11 +1137,11 @@
      118.5
     ],
     [
-     250,
+     250.0,
      118.5
     ],
     [
-     277,
+     277.0,
      118.5
     ]
    ]
@@ -1039,16 +1152,1076 @@
    "nombre": "Claro bajo los árboles: del camino de los comedores a la cancha (dudoso)",
    "p": [
     [
-     45,
-     195
+     45.0,
+     195.0
     ],
     [
-     45,
-     175
+     45.0,
+     175.0
     ],
     [
-     45,
-     160
+     45.0,
+     160.0
+    ]
+   ]
+  },
+  {
+   "id": "A40",
+   "tipo": "sendero",
+   "nombre": "Salida oeste del Edificio M (vestíbulo con escalera) hacia la calle oeste",
+   "p": [
+    [
+     157.0,
+     141.5
+    ],
+    [
+     149.1,
+     141.9
+    ],
+    [
+     143.0,
+     145.9
+    ],
+    [
+     137.9,
+     151.0
+    ],
+    [
+     135.3,
+     153.7
+    ]
+   ]
+  },
+  {
+   "id": "A41",
+   "tipo": "calle",
+   "nombre": "51 Calle Sureste (trazado de Google Maps): de la vía del Chilamate hacia el suroeste",
+   "p": [
+    [
+     277.5,
+     268
+    ],
+    [
+     277,
+     276
+    ],
+    [
+     274.5,
+     284
+    ],
+    [
+     267,
+     299.8
+    ],
+    [
+     259,
+     304.8
+    ],
+    [
+     251,
+     308.1
+    ],
+    [
+     235,
+     313.4
+    ],
+    [
+     219,
+     318
+    ],
+    [
+     203,
+     321.5
+    ],
+    [
+     187,
+     323.6
+    ],
+    [
+     171,
+     326.2
+    ],
+    [
+     155,
+     331.4
+    ],
+    [
+     139,
+     335.7
+    ],
+    [
+     123,
+     339.8
+    ],
+    [
+     107,
+     344.4
+    ],
+    [
+     91,
+     348.7
+    ],
+    [
+     75,
+     350.5
+    ],
+    [
+     67,
+     352.3
+    ],
+    [
+     40,
+     358.5
+    ],
+    [
+     5.7,
+     366
+    ]
+   ]
+  },
+  {
+   "id": "A42",
+   "tipo": "anden",
+   "nombre": "Entrada a la cancha de fútbol desde el andén norte",
+   "p": [
+    [
+     46.3,
+     86.5
+    ],
+    [
+     45.7,
+     99.1
+    ]
+   ]
+  },
+  {
+   "id": "A43",
+   "tipo": "anden",
+   "nombre": "Andén oeste de los salones (del norte al andén de la cancha techada)",
+   "p": [
+    [
+     41.6,
+     15.2
+    ],
+    [
+     41.8,
+     19.8
+    ],
+    [
+     41.0,
+     26.3
+    ],
+    [
+     40.5,
+     39.3
+    ],
+    [
+     40.2,
+     54.2
+    ]
+   ]
+  },
+  {
+   "id": "A44",
+   "tipo": "anden",
+   "nombre": "Andén de los comedores (norte del béisbol) hasta la calle oeste",
+   "p": [
+    [
+     45.0,
+     195.0
+    ],
+    [
+     71.1,
+     194.8
+    ],
+    [
+     97.3,
+     194.3
+    ],
+    [
+     123.5,
+     192.7
+    ],
+    [
+     141.1,
+     194.1
+    ]
+   ]
+  },
+  {
+   "id": "A45",
+   "tipo": "anden",
+   "nombre": "Acceso a la Plazoleta desde el andén norte (1)",
+   "p": [
+    [
+     212.0,
+     72.0
+    ],
+    [
+     212.0,
+     77.8
+    ]
+   ]
+  },
+  {
+   "id": "A46",
+   "tipo": "anden",
+   "nombre": "Acceso a la Plazoleta desde el andén norte (2)",
+   "p": [
+    [
+     226.9,
+     72.0
+    ],
+    [
+     226.9,
+     79.6
+    ]
+   ]
+  },
+  {
+   "id": "A47",
+   "tipo": "anden",
+   "nombre": "Acceso a la Plazoleta desde el andén norte (3)",
+   "p": [
+    [
+     242.6,
+     72.0
+    ],
+    [
+     243.9,
+     78.3
+    ]
+   ]
+  },
+  {
+   "id": "A48",
+   "tipo": "anden",
+   "nombre": "Del andén norte de la Plazoleta al andén del Food Court",
+   "p": [
+    [
+     249.2,
+     72.0
+    ],
+    [
+     251.8,
+     77.0
+    ],
+    [
+     264.5,
+     76.2
+    ]
+   ]
+  },
+  {
+   "id": "A50",
+   "tipo": "anden",
+   "nombre": "Paso central B/C (salida central del B, escalera y pasillo al C) hasta el Parqueo Central y el andén este",
+   "p": [
+    [
+     223.2,
+     118.0
+    ],
+    [
+     223.2,
+     121.3
+    ],
+    [
+     223.5,
+     126.9
+    ],
+    [
+     223.8,
+     134.5
+    ],
+    [
+     223.8,
+     144.5
+    ],
+    [
+     223.8,
+     148.5
+    ],
+    [
+     221.9,
+     155.0
+    ],
+    [
+     222.5,
+     162.0
+    ],
+    [
+     221.7,
+     171.9
+    ],
+    [
+     224.3,
+     175.8
+    ],
+    [
+     225.6,
+     184.9
+    ],
+    [
+     236.1,
+     185.4
+    ],
+    [
+     237.4,
+     188.8
+    ],
+    [
+     242.6,
+     190.1
+    ],
+    [
+     242.6,
+     197.9
+    ],
+    [
+     254.4,
+     198.4
+    ],
+    [
+     259.5,
+     199.0
+    ]
+   ]
+  },
+  {
+   "id": "A51",
+   "tipo": "anden",
+   "nombre": "Explanada al sur del Parqueo Central",
+   "p": [
+    [
+     212.0,
+     166.2
+    ],
+    [
+     212.0,
+     162.0
+    ],
+    [
+     222.5,
+     162.0
+    ],
+    [
+     229.5,
+     164.6
+    ],
+    [
+     229.5,
+     168.3
+    ]
+   ]
+  },
+  {
+   "id": "A52",
+   "tipo": "anden",
+   "nombre": "Pasillo de planta baja del B (de B Salida Oeste a B Salida Este)",
+   "p": [
+    [
+     184.9,
+     126.9
+    ],
+    [
+     223.5,
+     126.9
+    ],
+    [
+     261.5,
+     126.9
+    ]
+   ]
+  },
+  {
+   "id": "A53",
+   "tipo": "anden",
+   "nombre": "Pasillo de planta baja del C (de C Salida Oeste a C Salida Este)",
+   "p": [
+    [
+     183.0,
+     144.5
+    ],
+    [
+     187.6,
+     144.5
+    ],
+    [
+     223.8,
+     144.5
+    ],
+    [
+     261.3,
+     144.5
+    ]
+   ]
+  },
+  {
+   "id": "A54",
+   "tipo": "anden",
+   "nombre": "Andén este del Edificio O (de Clínicas a P Salida Oeste y al sur)",
+   "p": [
+    [
+     184.1,
+     210.5
+    ],
+    [
+     181.7,
+     216.6
+    ],
+    [
+     183.0,
+     224.0
+    ],
+    [
+     182.1,
+     232.8
+    ],
+    [
+     179.6,
+     240.8
+    ],
+    [
+     177.2,
+     251.6
+    ],
+    [
+     176.6,
+     264.0
+    ]
+   ]
+  },
+  {
+   "id": "A55",
+   "tipo": "anden",
+   "nombre": "Andén entre el Edificio O y el parqueo del P",
+   "p": [
+    [
+     151.2,
+     233.8
+    ],
+    [
+     159.3,
+     235.4
+    ],
+    [
+     175.6,
+     234.8
+    ],
+    [
+     182.1,
+     232.8
+    ]
+   ]
+  },
+  {
+   "id": "A56",
+   "tipo": "anden",
+   "nombre": "Andén oeste del Edificio M",
+   "p": [
+    [
+     150.8,
+     107.2
+    ],
+    [
+     150.8,
+     113.6
+    ],
+    [
+     149.5,
+     125.8
+    ],
+    [
+     148.7,
+     137.9
+    ],
+    [
+     148.3,
+     151.6
+    ]
+   ]
+  },
+  {
+   "id": "A57",
+   "tipo": "anden",
+   "nombre": "Del andén oeste del M al andén del Auditorio",
+   "p": [
+    [
+     150.8,
+     113.6
+    ],
+    [
+     162.3,
+     114.2
+    ]
+   ]
+  },
+  {
+   "id": "A58",
+   "tipo": "anden",
+   "nombre": "De la calle oeste a la entrada oeste del M",
+   "p": [
+    [
+     133.4,
+     139.2
+    ],
+    [
+     148.7,
+     137.9
+    ],
+    [
+     157.1,
+     137.9
+    ]
+   ]
+  },
+  {
+   "id": "A59",
+   "tipo": "anden",
+   "nombre": "Andén junto a la fachada oeste del M",
+   "p": [
+    [
+     155.2,
+     137.9
+    ],
+    [
+     155.2,
+     151.8
+    ]
+   ]
+  },
+  {
+   "id": "A60",
+   "tipo": "anden",
+   "nombre": "Andén sur del M (entre el M y Laboratorios)",
+   "p": [
+    [
+     134.9,
+     151.0
+    ],
+    [
+     148.3,
+     151.6
+    ],
+    [
+     155.2,
+     151.8
+    ],
+    [
+     170.0,
+     151.0
+    ],
+    [
+     182.7,
+     150.0
+    ]
+   ]
+  },
+  {
+   "id": "A61",
+   "tipo": "anden",
+   "nombre": "Entre el F y el Auditorio (del Parqueo 20 Av al pasillo del E)",
+   "p": [
+    [
+     158.5,
+     93.5
+    ],
+    [
+     184.7,
+     91.4
+    ],
+    [
+     186.0,
+     91.4
+    ]
+   ]
+  },
+  {
+   "id": "A62",
+   "tipo": "anden",
+   "nombre": "De la calle norte al norte del E",
+   "p": [
+    [
+     200.4,
+     21.3
+    ],
+    [
+     199.5,
+     42.8
+    ]
+   ]
+  },
+  {
+   "id": "A63",
+   "tipo": "anden",
+   "nombre": "Pasillo este del B al C (junto al A)",
+   "p": [
+    [
+     257.9,
+     126.9
+    ],
+    [
+     257.9,
+     133.8
+    ],
+    [
+     257.9,
+     144.5
+    ]
+   ]
+  },
+  {
+   "id": "A64",
+   "tipo": "anden",
+   "nombre": "Paso por el Edificio A (2 puertas dobles tipo oficina a cada lado) hasta su andén este",
+   "p": [
+    [
+     257.9,
+     133.8
+    ],
+    [
+     274.0,
+     133.8
+    ]
+   ]
+  },
+  {
+   "id": "A65",
+   "tipo": "anden",
+   "nombre": "Vestíbulo del M (planta baja, de la puerta oeste a la este) y salida al pasillo oeste B/C",
+   "p": [
+    [
+     157.1,
+     137.9
+    ],
+    [
+     166.5,
+     137.0
+    ],
+    [
+     172.5,
+     136.3
+    ],
+    [
+     175.9,
+     136.3
+    ],
+    [
+     173.5,
+     142.9
+    ],
+    [
+     182.7,
+     142.9
+    ]
+   ]
+  },
+  {
+   "id": "A66",
+   "tipo": "anden",
+   "nombre": "Del andén este a los Kioskos del Chilamate",
+   "p": [
+    [
+     262.0,
+     161.1
+    ],
+    [
+     271.1,
+     163.1
+    ],
+    [
+     274.1,
+     170.2
+    ],
+    [
+     275.2,
+     177.2
+    ],
+    [
+     283.8,
+     177.2
+    ]
+   ]
+  },
+  {
+   "id": "A67",
+   "tipo": "anden",
+   "nombre": "Entrada a los Kioskos del Chilamate",
+   "p": [
+    [
+     276.2,
+     177.2
+    ],
+    [
+     276.2,
+     180.3
+    ]
+   ]
+  },
+  {
+   "id": "A68",
+   "tipo": "anden",
+   "nombre": "Andén oeste de El Ranchito",
+   "p": [
+    [
+     183.7,
+     164.0
+    ],
+    [
+     184.1,
+     185.5
+    ]
+   ]
+  },
+  {
+   "id": "A69",
+   "tipo": "sendero",
+   "nombre": "Sendero de la calle oeste a El Ranchito",
+   "p": [
+    [
+     140.4,
+     186.0
+    ],
+    [
+     158.9,
+     185.9
+    ],
+    [
+     168.1,
+     185.9
+    ],
+    [
+     184.1,
+     185.5
+    ]
+   ]
+  },
+  {
+   "id": "A70",
+   "tipo": "anden",
+   "nombre": "Andén del sendero de El Ranchito a la entrada norte del Edificio O",
+   "p": [
+    [
+     158.9,
+     185.9
+    ],
+    [
+     157.0,
+     204.4
+    ],
+    [
+     156.3,
+     206.5
+    ]
+   ]
+  },
+  {
+   "id": "A71",
+   "tipo": "anden",
+   "nombre": "De la calle oeste al andén del Edificio O",
+   "p": [
+    [
+     146.0,
+     204.4
+    ],
+    [
+     157.0,
+     204.4
+    ],
+    [
+     162.9,
+     204.4
+    ]
+   ]
+  },
+  {
+   "id": "A72",
+   "tipo": "sendero",
+   "nombre": "Paso entre El Ranchito y Clínicas (tramo sur)",
+   "p": [
+    [
+     192.0,
+     185.0
+    ],
+    [
+     194.0,
+     192.0
+    ],
+    [
+     195.0,
+     200.0
+    ],
+    [
+     186.0,
+     205.0
+    ],
+    [
+     184.1,
+     210.5
+    ]
+   ]
+  },
+  {
+   "id": "A73",
+   "tipo": "escalera",
+   "nombre": "Escalera del P (baja de P Salida Este al paso peatonal)",
+   "p": [
+    [
+     256.0,
+     228.0
+    ],
+    [
+     255.3,
+     234.0
+    ],
+    [
+     256.0,
+     240.0
+    ],
+    [
+     257.0,
+     245.0
+    ],
+    [
+     258.5,
+     251.6
+    ]
+   ]
+  },
+  {
+   "id": "A75",
+   "tipo": "sendero",
+   "nombre": "Entrada al campo de béisbol desde el Parqueo Suroeste (junto a las gradas)",
+   "p": [
+    [
+     79,
+     349.9
+    ],
+    [
+     80.0,
+     325.0
+    ],
+    [
+     78.0,
+     312.0
+    ],
+    [
+     72.0,
+     301.0
+    ],
+    [
+     70.0,
+     296.0
+    ]
+   ]
+  },
+  {
+   "id": "A76",
+   "tipo": "cruce",
+   "nombre": "Paso peatonal sobre la calle del Parqueo Sur (hacia la escalera del P)",
+   "p": [
+    [
+     258.0,
+     220.0
+    ],
+    [
+     256.0,
+     228.0
+    ]
+   ]
+  },
+  {
+   "id": "A77",
+   "tipo": "calle",
+   "nombre": "Calle del Parqueo Sur hasta la vía del Chilamate",
+   "p": [
+    [
+     258.0,
+     222.0
+    ],
+    [
+     270.0,
+     224.2
+    ],
+    [
+     281.0,
+     224.2
+    ],
+    [
+     282.6,
+     222.8
+    ]
+   ],
+   "no_une": [
+    "A19",
+    "A73"
+   ]
+  },
+  {
+   "id": "A78",
+   "tipo": "calle",
+   "nombre": "Bajada de carros al este del P (hacia la salida sur y el Parqueo Edificio P)",
+   "p": [
+    [
+     259.5,
+     226.0
+    ],
+    [
+     260.5,
+     240.0
+    ],
+    [
+     262.0,
+     254.0
+    ]
+   ],
+   "no_une": [
+    "A19",
+    "A73"
+   ]
+  },
+  {
+   "id": "A79",
+   "tipo": "anden",
+   "nombre": "Frente del Food Court hacia la Plazoleta (hasta la laguna)",
+   "p": [
+    [
+     241.0,
+     84.0
+    ],
+    [
+     241.0,
+     90.0
+    ],
+    [
+     241.0,
+     95.5
+    ],
+    [
+     241.0,
+     98.0
+    ]
+   ]
+  },
+  {
+   "id": "A80",
+   "tipo": "anden",
+   "nombre": "Pasillo este del P (de P Salida Este hacia atrás del P)",
+   "p": [
+    [
+     258.5,
+     251.6
+    ],
+    [
+     260.0,
+     256.0
+    ],
+    [
+     259.5,
+     260.0
+    ],
+    [
+     258.5,
+     264.0
+    ]
+   ],
+   "no_une": [
+    "A17",
+    "A78"
+   ]
+  },
+  {
+   "id": "A81",
+   "tipo": "anden",
+   "nombre": "Caminito del Parqueo Edificio P (no llega a la 51 Calle Sureste)",
+   "p": [
+    [
+     192.7,
+     280.2
+    ],
+    [
+     218.9,
+     287.3
+    ],
+    [
+     230.9,
+     294.5
+    ],
+    [
+     234.5,
+     299
+    ]
+   ],
+   "no_une": [
+    "A41"
+   ]
+  },
+  {
+   "id": "A82",
+   "tipo": "parqueo",
+   "nombre": "Parqueo al este de la vía del Chilamate (norte, trazado de Google Maps)",
+   "p": [
+    [
+     286.5,
+     186
+    ],
+    [
+     298,
+     185.1
+    ],
+    [
+     322,
+     182.3
+    ],
+    [
+     354,
+     178.7
+    ]
+   ]
+  },
+  {
+   "id": "A83",
+   "tipo": "parqueo",
+   "nombre": "Parqueo al este de la vía del Chilamate (sur, trazado de Google Maps)",
+   "p": [
+    [
+     288.6,
+     204
+    ],
+    [
+     298,
+     210.6
+    ],
+    [
+     322,
+     215.1
+    ],
+    [
+     346,
+     219.3
+    ]
+   ]
+  },
+  {
+   "id": "A84",
+   "tipo": "sendero",
+   "nombre": "Conexión entre los árboles: de la calle oeste (junto al béisbol) a la 51 Calle Sureste",
+   "p": [
+    [
+     152.3,
+     262.9
+    ],
+    [
+     150.5,
+     285
+    ],
+    [
+     147.5,
+     305
+    ],
+    [
+     145.5,
+     334.4
     ]
    ]
   }

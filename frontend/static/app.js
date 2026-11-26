@@ -684,7 +684,7 @@ function pasosDeRuta(ruta) {
       texto = `Sal del edificio ${b.ed} por la salida ${b.lado}.`;
     } else if (tipo === "zona") {
       if (a.n === "Pasarela Edificio B" && b.n === "Punto Seguro Plazoleta") {
-        texto = "Baja por la escalera de la pasarela hasta Punto Seguro Plazoleta.";
+        texto = "Sal de la pasarela a la plaza: ya estás en Punto Seguro Plazoleta.";
       } else {
         texto = idx === 0 && a.t === "aula" ? `Sal del aula ${a.n} y ve directo a ${b.n}.` : `Camina hasta ${b.n}.`;
       }

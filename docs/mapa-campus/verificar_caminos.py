@@ -80,6 +80,11 @@ def cerrado(e):
 
 
 OBSTACULOS = [e for e in OSM["edificios"] if cerrado(e)]
+# Obstáculos que no están en OSM (señalados por James sobre la foto satelital, 26/11/2026)
+OBSTACULOS += [
+    {"id": "laguna-food", "nombre": "Laguna junto al Food Court",
+     "pol": [[228, 110], [240, 98.5], [244, 101], [244, 116.5], [226, 116.5]]},
+]
 
 
 def propios(nombre):
@@ -128,6 +133,30 @@ for i in range(NX):
         if (i, j) not in BLOQUEO and not dentro((X0 + (i + .5) * CELDA, Y0 + (j + .5) * CELDA), PLANO["campus"]):
             BLOQUEO[(i, j)] = "fuera"
 
+# Lo trazado a mano en andenes.json (corregido por James sobre la foto satelital) se camina siempre,
+# aunque OSM ponga ahí un edificio o el borde del campus: los pasillos de planta baja que cruzan
+# el B, el C y el P, el paso central B/C, la escalera entre el D y Clínicas y las calles de afuera.
+# La pasarela no cuenta: va por encima.
+ANCHO_TRAZADO = 0.8   # m a cada lado del eje del tramo
+_TRAZADOS = []
+if (AQUI / "andenes.json").exists():
+    for _t in json.loads((AQUI / "andenes.json").read_text(encoding="utf-8"))["andenes"]:
+        if _t["tipo"] == "pasarela":
+            continue
+        for _a, _b in zip(_t["p"], _t["p"][1:]):
+            (_i0, _j0) = celda((min(_a[0], _b[0]) - 1, min(_a[1], _b[1]) - 1))
+            (_i1, _j1) = celda((max(_a[0], _b[0]) + 1, max(_a[1], _b[1]) + 1))
+            for _i in range(_i0, _i1 + 1):
+                for _j in range(_j0, _j1 + 1):
+                    _q = (X0 + (_i + .5) * CELDA, Y0 + (_j + .5) * CELDA)
+                    _dx, _dy = _b[0] - _a[0], _b[1] - _a[1]
+                    _t2 = max(0.0, min(1.0, ((_q[0] - _a[0]) * _dx + (_q[1] - _a[1]) * _dy) / ((_dx * _dx + _dy * _dy) or 1.0)))
+                    if math.dist(_q, (_a[0] + _t2 * _dx, _a[1] + _t2 * _dy)) <= ANCHO_TRAZADO + CELDA * .5:
+                        BLOQUEO.pop((_i, _j), None)
+                        _TRAZADOS.append((_i, _j))
+
+TRAZADOS = frozenset(_TRAZADOS)
+
 PASOS = [(1, 0, 1), (-1, 0, 1), (0, 1, 1), (0, -1, 1),
          (1, 1, math.sqrt(2)), (1, -1, math.sqrt(2)), (-1, 1, math.sqrt(2)), (-1, -1, math.sqrt(2))]
 
@@ -171,6 +200,7 @@ for _pol in ([q["pol"] for q in OSM["parqueos"]] + [q["pol"] for q in OSM["plaza
              + [e["pol"] for e in OSM["edificios"] if e["id"] in TRANSITABLES]
              + [[(PASARELA[0], PASARELA[2]), (PASARELA[1], PASARELA[2]), (PASARELA[1], PASARELA[3]), (PASARELA[0], PASARELA[3])]]):
     FIRME.update(_celdas_de(_pol))
+FIRME.update(_TRAZADOS)
 
 
 def costo(c):
@@ -332,6 +362,8 @@ def _cruces_linea(a, b, linea):
         for i in range(1, n):
             t = i / n
             q = (pa[0] + (pb[0] - pa[0]) * t, pa[1] + (pb[1] - pa[1]) * t)
+            if celda(q) in TRAZADOS:      # pasillo de planta baja trazado a mano: se camina
+                continue
             for e in OBSTACULOS:
                 if e["id"] not in libres and dentro(q, e["pol"]):
                     k = e["nombre"] or f"edificio {e['id']}"
@@ -762,9 +794,11 @@ def _borde_mas_cercano(p, pol):
         if d < dm:
             mejor, dm = q, d
     return mejor
-ELEVADOS = {"Pasarela Edificio B", "B Salida Central"}          # solo se conectan a la pasarela
+ELEVADOS = set()   # nada es elevado: la pasarela del B está en planta baja, pegada al frente del B (James, 26/11/2026)
 EXTREMOS_PASARELA = {"Pasarela B Oeste", "Pasarela B Este"}     # se conectan a la pasarela y al suelo
-TIPO_TXT = {"calle": "por la orilla de la calle", "anden": "por el andén", "sendero": "por el sendero", "pasarela": "por la pasarela"}
+TIPO_TXT = {"calle": "por la orilla de la calle", "anden": "por el andén", "sendero": "por el sendero", "pasarela": "por la pasarela",
+            "escalera": "por la escalera", "parqueo": "cruzando el parqueo",
+            "cruce": "por el paso peatonal"}
 
 RED_P = []            # índice -> (x, y)
 RED_T = []            # índice -> tipo del tramo
@@ -789,6 +823,8 @@ def _red_unir(i, j):
 
 def _construir_red():
     tramos = []                               # [(tipo, [índices])]
+    sin_union = {(a["id"], b) for a in ANDENES for b in a.get("no_une", [])}
+    sin_union |= {(b, a) for a, b in sin_union}
     for a in ANDENES:
         pts = a["p"]
         idx = []
@@ -808,6 +844,8 @@ def _construir_red():
             for m, (tipo2, idx2) in enumerate(tramos):
                 if m == n or (tipo == "pasarela") != (tipo2 == "pasarela"):
                     continue
+                if (ANDENES[n]["id"], ANDENES[m]["id"]) in sin_union:   # p. ej. a distinto nivel
+                    continue
                 j = min(idx2, key=lambda k: math.dist(RED_P[i], RED_P[k]))
                 if math.dist(RED_P[i], RED_P[j]) <= UNIR_RED:
                     _red_unir(i, j)
@@ -816,7 +854,18 @@ def _construir_red():
 _construir_red()
 
 
+SIN_ACCESO = {a["id"]: set(a.get("sin_acceso", [])) for a in ANDENES}
+# Lugares que solo entran a la red por ciertos tramos: P Salida Este está arriba de la calle y del
+# parqueo; se sale por el pasillo del P, por su pasillo este hacia atrás o bajando la escalera
+# hasta el paso peatonal (James).
+SOLO_ACCESO = {"P Salida Este": {"A19", "A73", "A80"}}
+
+
 def _red_permitido(nombre, i):
+    if nombre in SIN_ACCESO.get(RED_A[i], ()):
+        return False
+    if nombre in SOLO_ACCESO and RED_A[i] not in SOLO_ACCESO[nombre]:
+        return False
     if nombre in ELEVADOS:
         return RED_T[i] == "pasarela"
     if nombre in EXTREMOS_PASARELA:
