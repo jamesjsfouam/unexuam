@@ -574,7 +574,7 @@ function renderInicio() {
 const RX = {
   aula: /^([A-Z])-(\d)(\d{2})$/,                         // "C-305": edificio C, piso 3, aula 05
   escalera: /^([A-Z]) Escalera (Este|Oeste|Central) P(\d+)$/,    // "C Escalera Oeste P3"
-  salida: /^([A-Z]) Salida (Este|Oeste)$/,               // "C Salida Oeste"
+  salida: /^([A-Z]) Salida (Este|Oeste|Central)$/,               // "C Salida Oeste"
   pabellon: /^([A-Z]) Pabell[oó]n (Este|Oeste) P(\d+)$/,  // "C Pabellón Oeste P3": mitad del pasillo de un piso
 };
 
@@ -919,14 +919,37 @@ const zPiso = p => (p - 1) * SEP_PISO;
 // +1 si el pasillo da al sur (hacia quien mira el dibujo), -1 si da al norte (Edificio P)
 const ladoPasillo = L => (FACHADA[L] && FACHADA[L].pasillo === "norte" ? -1 : 1);
 
+/* B y C tienen en el centro la escalera compartida y, en cada piso, el paso al otro edificio
+ * (en el 2.º piso, después de B-205 / C-205; en la planta baja del B, la salida central).
+ * Ahí no hay aula: las de la mitad este van de u 0.10 a 0.47 y las de la mitad oeste de 0.53 a 0.90. */
+const CENTRO_BC = [0.47, 0.53];
+const conCentro = L => L === "B" || L === "C";
+function uAula(L, n, a) {
+  if (!conCentro(L)) return 0.1 + 0.8 * (a - 0.5) / n;
+  const mitad = Math.ceil(n / 2);
+  return a <= mitad
+    ? 0.1 + (CENTRO_BC[0] - 0.1) * (a - 0.5) / mitad
+    : CENTRO_BC[1] + (0.9 - CENTRO_BC[1]) * (a - mitad - 0.5) / (n - mitad);
+}
+/* Tabique entre el aula a y la a+1 (null donde está el paso central). */
+function uTabique(L, n, a) {
+  if (!conCentro(L)) return 0.1 + 0.8 * a / n;
+  const mitad = Math.ceil(n / 2);
+  if (a === mitad) return null;
+  return a < mitad ? 0.1 + (CENTRO_BC[0] - 0.1) * a / mitad : CENTRO_BC[1] + (0.9 - CENTRO_BC[1]) * (a - mitad) / (n - mitad);
+}
+/* Tramos del bloque de aulas a lo largo del edificio (B y C se parten en el centro). */
+const tramosAulas = L => (conCentro(L) ? [[0.06, CENTRO_BC[0]], [CENTRO_BC[1], 0.94]] : [[0.06, 0.94]]);
+
 function nodoEnEdificio(G, n) {
   const i = lugarInfo(n);
   const centralBC = i.t === "escalera" && i.lado === "central" && (i.ed === "B" || i.ed === "C") && (G.L === "B" || G.L === "C");
   if (i.ed !== G.L && !centralBC) return null;
   const W = ANCHO_ED, sg = ladoPasillo(G.L);
-  if (i.t === "aula") return enEdificio(G, 0.1 + 0.8 * (i.num - 0.5) / (G.aulas[i.piso] || 1), -sg * W / 4, zPiso(i.piso) + 0.4);
+  if (i.t === "aula") return enEdificio(G, uAula(G.L, G.aulas[i.piso] || 1, i.num), -sg * W / 4, zPiso(i.piso) + 0.4);
   if (i.t === "pabellon") return enEdificio(G, i.lado === "este" ? 0.3 : 0.7, sg * W / 4, zPiso(i.piso) + 0.4);
   if (i.t === "escalera") return enEdificio(G, i.lado === "este" ? 0.03 : i.lado === "central" ? 0.5 : 0.97, sg * W / 4, zPiso(i.piso) + 0.4);
+  if (i.t === "salida" && i.lado === "central") return enEdificio(G, 0.5, -sg * (W / 2 + 2.5), 0.4);   // al otro lado de las aulas
   if (i.t === "salida") return enEdificio(G, i.lado === "este" ? -0.11 : 1.11, sg * W / 4, 0.4);
   return null;
 }
@@ -1045,23 +1068,32 @@ function edificio3D(L, o) {
       const uL = uLado ? 0.94 : 0.06;
       svg += poli([P(uL, vAtras, z), P(uL, vMuro, z), P(uL, vMuro, z + h), P(uL, vAtras, z + h)], "e3-muro-lado", `fill="url(#${gid}l)"`);
     }
-    svg += poli([P(0.06, vMuro, z), P(0.94, vMuro, z), P(0.94, vMuro, z + h), P(0.06, vMuro, z + h)], "e3-muro", `fill="url(#${gid}m)"`);
-    // zócalo oscuro al pie del muro: asienta el volumen sobre la losa
-    svg += poli([P(0.06, vMuro, z), P(0.94, vMuro, z), P(0.94, vMuro, z + 0.35), P(0.06, vMuro, z + 0.35)], "e3-zocalo");
-    svg += poli([P(0.06, vMuro, z + 1.3), P(0.94, vMuro, z + 1.3), P(0.94, vMuro, z + 3.3), P(0.06, vMuro, z + 3.3)], "e3-ventanas", `fill="${F.ventana}"`);
-    // reflejo del vidrio en la mitad alta de la franja
-    svg += poli([P(0.06, vMuro, z + 2.6), P(0.94, vMuro, z + 2.6), P(0.94, vMuro, z + 3.3), P(0.06, vMuro, z + 3.3)], "e3-brillo");
-    svg += poli([P(0.06, vAtras, z + h), P(0.94, vAtras, z + h), P(0.94, vMuro, z + h), P(0.06, vMuro, z + h)], "e3-techo-aulas", `fill="url(#${gid}t)"`);
-    {
-      const r0 = P(0.06, vMuro, z + h), r1 = P(0.94, vMuro, z + h);   // pretil: canto superior del muro
+    if (conCentro(L)) {
+      // paso central a través del bloque de aulas (piso abierto, sin muro)
+      const [c0, c1] = CENTRO_BC;
+      svg += poli([P(c0, vAtras, z + 0.05), P(c1, vAtras, z + 0.05), P(c1, vMuro, z + 0.05), P(c0, vMuro, z + 0.05)], "e3-paso" + cls);
+      // caras interiores del paso (las paredes de las aulas vecinas), en sombra
+      for (const uc of [c0, c1]) {
+        svg += poli([P(uc, vAtras, z), P(uc, vMuro, z), P(uc, vMuro, z + h), P(uc, vAtras, z + h)], "e3-muro-lado", `fill="url(#${gid}l)"`);
+      }
+    }
+    for (const [t0, t1] of tramosAulas(L)) {
+      svg += poli([P(t0, vMuro, z), P(t1, vMuro, z), P(t1, vMuro, z + h), P(t0, vMuro, z + h)], "e3-muro", `fill="url(#${gid}m)"`);
+      // zócalo oscuro al pie del muro: asienta el volumen sobre la losa
+      svg += poli([P(t0, vMuro, z), P(t1, vMuro, z), P(t1, vMuro, z + 0.35), P(t0, vMuro, z + 0.35)], "e3-zocalo");
+      svg += poli([P(t0, vMuro, z + 1.3), P(t1, vMuro, z + 1.3), P(t1, vMuro, z + 3.3), P(t0, vMuro, z + 3.3)], "e3-ventanas", `fill="${F.ventana}"`);
+      // reflejo del vidrio en la mitad alta de la franja
+      svg += poli([P(t0, vMuro, z + 2.6), P(t1, vMuro, z + 2.6), P(t1, vMuro, z + 3.3), P(t0, vMuro, z + 3.3)], "e3-brillo");
+      svg += poli([P(t0, vAtras, z + h), P(t1, vAtras, z + h), P(t1, vMuro, z + h), P(t0, vMuro, z + h)], "e3-techo-aulas", `fill="url(#${gid}t)"`);
+      const r0 = P(t0, vMuro, z + h), r1 = P(t1, vMuro, z + h);   // pretil: canto superior del muro
       svg += `<line class="e3-pretil" x1="${r0.x}" y1="${r0.y}" x2="${r1.x}" y2="${r1.y}" stroke-width="${1.1 * k}"/>`;
     }
     for (let a = 1; a <= n; a++) {
-      const u = 0.1 + 0.8 * (a - 0.5) / n;
+      const u = uAula(L, n, a), anchoAula = conCentro(L) ? 0.37 / Math.ceil(n / 2) : 0.8 / n;
       if (!o.mini) {
         // marcos de las ventanas del aula (dos parteluces)
         for (const f of [-0.33, 0.33]) {
-          const uf = u + f * 0.8 / n, m0 = P(uf, vMuro, z + 1.3), m1 = P(uf, vMuro, z + 3.3);
+          const uf = u + f * anchoAula, m0 = P(uf, vMuro, z + 1.3), m1 = P(uf, vMuro, z + 3.3);
           svg += `<line class="e3-marco" x1="${m0.x}" y1="${m0.y}" x2="${m1.x}" y2="${m1.y}" stroke-width="${0.45 * k}"/>`;
         }
       }
@@ -1082,8 +1114,9 @@ function edificio3D(L, o) {
         const t = P(u, vMuro, z + h + 0.35);
         svg += `<text class="e3-num" x="${t.x}" y="${t.y}" font-size="${5.6 * k}">${p}${String(a).padStart(2, "0")}</text>`;
       }
-      if (a < n && !o.mini) {
-        const m = 0.1 + 0.8 * a / n, s0 = P(m, -sg * W / 2, z + h), s1 = P(m, vMuro === 0 ? 0 : W / 2, z + h), s2 = P(m, vMuro, z);
+      const m = a < n && !o.mini ? uTabique(L, n, a) : null;
+      if (m !== null) {
+        const s0 = P(m, -sg * W / 2, z + h), s1 = P(m, vMuro === 0 ? 0 : W / 2, z + h), s2 = P(m, vMuro, z);
         svg += `<polyline class="e3-tabique" points="${s0.x},${s0.y} ${s1.x},${s1.y} ${s2.x},${s2.y}" stroke-width="${(F.columnas ? 1.1 : 0.6) * k}"${F.columnas ? ` stroke="${F.columnas}"` : ""}/>`;
       }
     }
@@ -1139,17 +1172,24 @@ function edificio3D(L, o) {
     const c = P((u0 + u1) / 2, vf - 2, zt2 + 1.2);
     svg += `<ellipse class="e3-cupula" cx="${c.x}" cy="${c.y}" rx="${(3.6 * k).toFixed(2)}" ry="${(2.8 * k).toFixed(2)}"/>`;
   }
-  // salidas de la planta baja
-  for (const [u, txt] of [[-0.11, "Salida Este"], [1.11, "Salida Oeste"]]) {
-    const pnt = P(u, sg * W / 4, 0);
+  // salidas de la planta baja (el B tiene además la salida central, al norte, hacia la pasarela)
+  const salidas = [[-0.11, sg * W / 4, "Salida Este"], [1.11, sg * W / 4, "Salida Oeste"]];
+  if (L === "B") salidas.push([0.5, -sg * (W / 2 + 2.5), "Salida Central"]);
+  const cajasSalida = [];   // las etiquetas de tiempo de la ruta las esquivan
+  for (const [u, vS, txt] of salidas) {
+    const pnt = P(u, vS, 0);
+    if (!o.mini) {
+      const ty = vS === sg * W / 4 ? pnt.y + 7 * k : pnt.y - 12 * k, fs = (vS === sg * W / 4 ? 6.5 : 5.6) * k;
+      cajasSalida.push({ x: pnt.x, y: ty, w: txt.length * fs * 0.62, h: fs * 1.4 }, { x: pnt.x, y: pnt.y - 3.5 * k, w: 9 * k, h: 8 * k });
+    }
     svg += `<g class="e3-salida"><rect x="${pnt.x - 4 * k}" y="${pnt.y - 7 * k}" width="${8 * k}" height="${7 * k}" rx="${1.5 * k}"/>
-      ${o.mini ? "" : `<text x="${pnt.x}" y="${pnt.y + 7 * k}" font-size="${6.5 * k}">${txt}</text>`}</g>`;
+      ${o.mini ? "" : `<text x="${pnt.x}" y="${vS === sg * W / 4 ? pnt.y + 7 * k : pnt.y - 12 * k}" font-size="${(vS === sg * W / 4 ? 6.5 : 5.6) * k}" stroke-width="${2.2 * k}">${txt}</text>`}</g>`;
   }
 
   // la ruta como grafo (solo los vértices de este edificio)
   const pos = ruta.map(n => nodoEnEdificio(G, n));
   const peso = new Map(E.campus.aristas.map(a => [clave(a.origen, a.destino), a.peso]));
-  const cajas = [];
+  const cajas = [...cajasSalida];
   const choca = (x, y, w, h) => cajas.some(c => Math.abs(x - c.x) < (w + c.w) / 2 && Math.abs(y - c.y) < (h + c.h) / 2);
   // reservar espacio de los nodos resaltados para que las etiquetas de peso no los tapen
   ruta.forEach((n, i) => {

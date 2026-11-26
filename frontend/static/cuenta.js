@@ -1134,6 +1134,10 @@
       }
       pos[`${L} Salida Oeste`] = { x: 22, y: y + 12 };
       pos[`${L} Salida Este`] = { x: pos[`${L} Escalera Este P1`] ? pos[`${L} Escalera Este P1`].x : 380, y: y + 12 };
+      if (grafo.vertices.includes(`${L} Salida Central`)) {
+        const c1 = pos[`${L} Escalera Central P1`] || pos[`${L} Pabellón Este P1`];
+        pos[`${L} Salida Central`] = { x: c1 ? c1.x : 200, y: y + 12 };
+      }
       y += 26;
       caja.h = y - caja.y;
       cajas.push(caja);

@@ -105,6 +105,7 @@ def crearCampus():
         "Laboratorios", "Edificio D", "Edificio J", "Kioskos del Chilamate", "El Ranchito",
         "Clínicas Odontológicas", "El Chilamate", "Edificio O", "Comedor del Jaguarcito",
         "Baño del Comedor", "Kiosko del Jaguarcito", "Pasarela Edificio B",
+        "Pasarela B Oeste", "Pasarela B Este",
     ]
     zonasSeguras = [
         "Zona Segura Cancha de Fútbol", "Zona Segura Campo de Béisbol",
@@ -120,20 +121,32 @@ def crearCampus():
     # Pasillo elevado del 2.o piso: del pabellon oeste del B al Edificio E.
     unirDosSentidos(campus, "B Pabellón Oeste P2", "Edificio E", 15)
 
-    # Pasarela frente al Edificio B (desde la entrada de la carretera hasta el parqueo
-    # al lado del Auditorio) y escalera en medio que baja a la Plazoleta.
-    unirDosSentidos(campus, "B Pabellón Este P1", "Pasarela Edificio B", 12)
-    unirDosSentidos(campus, "B Pabellón Oeste P1", "Pasarela Edificio B", 12)
-    unirDosSentidos(campus, "Pasarela Edificio B", "B Salida Este", 18)
-    unirDosSentidos(campus, "Pasarela Edificio B", "B Salida Oeste", 18)
-    unirDosSentidos(campus, "Pasarela Edificio B", "Punto Seguro Parqueo Este", 45)
-    unirDosSentidos(campus, "Pasarela Edificio B", "Auditorio Central", 26)
-    unirDosSentidos(campus, "Pasarela Edificio B", "Punto Seguro Parqueo 20 Av", 42)
+    # Pasarela frente al Edificio B: corredor recto de 113 m por el lado norte del B, desde el
+    # parqueo junto al Auditorio (extremo oeste) hasta la entrada de la vía Universidad UAM
+    # (extremo este), con una escalera en medio que baja a la Plazoleta. Se modela con sus dos
+    # extremos y el punto medio para que cada camino siga la pasarela y no atraviese edificios
+    # (verificado con docs/mapa-campus/verificar_caminos.py sobre el plano de OpenStreetMap).
+    # Salida central del B en la planta baja (entre B-105 y B-106): da al norte, a la pasarela.
+    campus.insertarVertice("B Salida Central")
+    unirDosSentidos(campus, "B Pabellón Este P1", "B Salida Central", 9)
+    unirDosSentidos(campus, "B Pabellón Oeste P1", "B Salida Central", 9)
+    unirDosSentidos(campus, "B Salida Central", "Pasarela Edificio B", 3)
+    unirDosSentidos(campus, "Pasarela Edificio B", "Pasarela B Oeste", 48)    # 57 m por la pasarela
+    unirDosSentidos(campus, "Pasarela Edificio B", "Pasarela B Este", 42)     # 51 m por la pasarela
+    unirDosSentidos(campus, "Pasarela B Oeste", "Auditorio Central", 15)
+    unirDosSentidos(campus, "Pasarela B Oeste", "B Salida Oeste", 22)
+    unirDosSentidos(campus, "Pasarela B Oeste", "Punto Seguro Parqueo 20 Av", 54)
+    unirDosSentidos(campus, "Pasarela B Oeste", "Edificio M", 19)
+    unirDosSentidos(campus, "Pasarela B Este", "Food Court", 31)
+    unirDosSentidos(campus, "Pasarela B Este", "Edificio A", 18)          # el A está pegado al B: se sale por su lado norte
+    unirDosSentidos(campus, "Pasarela B Este", "Banco Banpro", 29)
+    unirDosSentidos(campus, "Pasarela B Este", "Punto Seguro Parqueo Este", 64)
     campus.insertarArista("Pasarela Edificio B", "Punto Seguro Plazoleta", BAJAR_UN_PISO)
     campus.insertarArista("Punto Seguro Plazoleta", "Pasarela Edificio B", SUBIR_UN_PISO)
 
     # Unión central entre los edificios B y C (después de B-205):
     # escalera en el centro que une planta baja, el 2.º piso de B y C, y sube al centro del 3.er piso de C.
+    # En el 2.º piso, después de B-205, un pasillo cruza al pasillo del C justo en el centro.
     campus.insertarVertice("C Escalera Central P3")
     campus.insertarVertice("B Escalera Central P2")
     campus.insertarVertice("B Escalera Central P1")
@@ -151,9 +164,10 @@ def crearCampus():
     unirDosSentidos(campus, "B Escalera Central P1", "B Pabellón Oeste P1", PABELLON_A_ESCALERA)
     unirDosSentidos(campus, "B Escalera Central P1", "C Pabellón Este P1", PABELLON_A_ESCALERA)
     unirDosSentidos(campus, "B Escalera Central P1", "C Pabellón Oeste P1", PABELLON_A_ESCALERA)
-    unirDosSentidos(campus, "B Escalera Central P1", "Pasarela Edificio B", 8)
+    unirDosSentidos(campus, "B Escalera Central P1", "B Salida Central", 5)   # y de ahí 3 s a la pasarela
 
-    # Caminos a pie entre lugares vecinos (calculados con docs/mapa-campus/generar_grafo.py).
+    # Caminos a pie entre lugares vecinos (calculados con docs/mapa-campus/generar_grafo.py y
+    # depurados con docs/mapa-campus/verificar_caminos.py: ninguno atraviesa un edificio cerrado).
     # (lugar, lugar, segundos): cada camino se recorre en los dos sentidos.
     caminos = [
         ("Auditorio Central", "B Salida Oeste", 25),
@@ -161,15 +175,11 @@ def crearCampus():
         ("Auditorio Central", "Edificio F", 26),
         ("Auditorio Central", "Edificio M", 33),
         ("Auditorio Central", "Punto Seguro Parqueo 20 Av", 45),
-        ("B Salida Este", "Banco Banpro", 45),
         ("B Salida Este", "C Salida Este", 19),
         ("B Salida Este", "Edificio A", 10),
         ("B Salida Este", "Food Court", 32),
-        ("B Salida Este", "Punto Seguro Parqueo Este", 77),
         ("B Salida Oeste", "C Salida Oeste", 20),
         ("B Salida Oeste", "Edificio M", 22),
-        ("B Salida Oeste", "Laboratorios", 43),
-        ("B Salida Oeste", "Punto Seguro Plazoleta", 49),
         ("Banco Banpro", "Edificio A", 47),
         ("Banco Banpro", "Food Court", 41),
         ("Banco Banpro", "Punto Seguro Parqueo Este", 56),
@@ -189,18 +199,14 @@ def crearCampus():
         ("Edificio A", "Punto Seguro Parqueo Este", 71),
         ("Edificio D", "Edificio J", 17),
         ("Edificio D", "El Chilamate", 50),
-        ("Edificio D", "Kioskos del Chilamate", 37),
         ("Edificio D", "Punto Seguro Parqueo Central", 31),
-        ("Edificio D", "Punto Seguro Parqueo Sur", 53),
         ("Edificio E", "Edificio F", 23),
-        ("Edificio E", "Punto Seguro Parqueo 20 Av", 44),
         ("Edificio E", "Punto Seguro Parqueo 47 Calle", 77),
         ("Edificio E", "Punto Seguro Parqueo Norte", 58),
         ("Edificio E", "Punto Seguro Plazoleta", 32),
         ("Edificio F", "Punto Seguro Parqueo 20 Av", 24),
         ("Edificio I", "Jaguar Center", 41),
         ("Edificio I", "Punto Seguro Parqueo 20 Av", 47),
-        ("Edificio I", "Salón de Música", 65),
         ("Edificio J", "El Chilamate", 37),
         ("Edificio J", "Kioskos del Chilamate", 21),
         ("Edificio J", "Punto Seguro Parqueo Central", 43),
@@ -211,7 +217,6 @@ def crearCampus():
         ("El Chilamate", "Kioskos del Chilamate", 38),
         ("El Chilamate", "P Salida Este", 51),
         ("El Ranchito", "Laboratorios", 46),
-        ("El Ranchito", "Punto Seguro Parqueo Oeste", 71),
         ("Food Court", "Punto Seguro Parqueo Norte", 55),
         ("Food Court", "Punto Seguro Plazoleta", 36),
         ("Jaguar Center", "Salón de Danza", 35),
@@ -226,20 +231,24 @@ def crearCampus():
         ("P Salida Oeste", "Punto Seguro Parqueo Sur", 54),
         ("Punto Seguro Parqueo 20 Av", "Punto Seguro Parqueo 47 Calle", 75),
         ("Punto Seguro Parqueo 47 Calle", "Punto Seguro Parqueo Norte", 66),
-        ("Punto Seguro Parqueo Edificio P", "Punto Seguro Parqueo Sur", 57),
         ("Punto Seguro Parqueo Norte", "Punto Seguro Plazoleta", 55),
         ("Punto Seguro Parqueo Oeste", "Zona Segura Campo de Béisbol", 81),
         ("Punto Seguro Parqueo Suroeste", "Zona Segura Campo de Béisbol", 77),
         ("Salón Multiusos", "Salón de Contenedores", 17),
         ("Salón Multiusos", "Salón de Danza", 27),
-        ("Salón Multiusos", "Salón de Música", 34),
         ("Salón Multiusos", "Vestidores", 39),
-        ("Salón de Contenedores", "Salón de Danza", 43),
-        ("Salón de Contenedores", "Salón de Música", 50),
         ("Salón de Danza", "Salón de Música", 9),
         ("Salón de Danza", "Vestidores", 19),
         ("Salón de Música", "Vestidores", 23),
         ("Vestidores", "Zona Segura Cancha de Fútbol", 62),
+        # Vecinos a la vista sin edificios de por medio (agregados con verificar_caminos.py, 25/11/2026)
+        ("Auditorio Central", "C Salida Oeste", 44),
+        ("C Salida Este", "Edificio D", 47),
+        ("C Salida Este", "Edificio J", 40),
+        ("C Salida Este", "Punto Seguro Parqueo Central", 44),
+        ("Clínicas Odontológicas", "Edificio J", 41),
+        ("Clínicas Odontológicas", "Punto Seguro Parqueo Central", 47),
+        ("Edificio A", "Kioskos del Chilamate", 41),
     ]
     for camino in caminos:
         unirDosSentidos(campus, camino[0], camino[1], camino[2])

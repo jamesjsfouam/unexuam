@@ -3204,3 +3204,8 @@ html[data-tema="oscuro"] .sugerencias button { border-top-color: #1d2a3d; }
 /* Edificio 3D: baranda de vidrio del pasillo */
 .e3-vidrio { fill: rgba(190, 225, 255, .28); stroke: none; }
 .e3-pasamanos { stroke: #8fa6bf; stroke-linecap: round; }
+
+/* Edificio 3D: paso central entre las dos mitades de B y C */
+.e3-paso { fill: #f6f1df; stroke: #e0b400; stroke-width: .25; }
+.e3-paso.activo { fill: #fff3c4; }
+.e3-salida text { stroke: #ffffff; paint-order: stroke; stroke-linejoin: round; }

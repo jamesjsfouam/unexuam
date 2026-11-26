@@ -114,7 +114,7 @@ class TestCampusUAM(unittest.TestCase):
             self.assertIsNotNone(campus.buscarVertice(aula))
         for aula in ["B-110", "B-211", "B-301", "C-311", "P-210", "P-310"]:
             self.assertIsNone(campus.buscarVertice(aula))
-        self.assertEqual(len(campus.vertexs), 154)
+        self.assertEqual(len(campus.vertexs), 157)   # + extremos de la Pasarela B y salida central del B
 
     def test_escalera_dirigida(self):
         # Bajar un piso cuesta 12 s y subirlo 18 s: dos aristas distintas.
@@ -133,7 +133,7 @@ class TestCampusUAM(unittest.TestCase):
         campus, zonas = crearCampus()
         for pab in ["B Pabellón Este P1", "B Pabellón Oeste P1"]:
             ruta, tiempo = rutaMasCorta(campus, pab, "Punto Seguro Plazoleta")
-            self.assertEqual(ruta, [pab, "Pasarela Edificio B", "Punto Seguro Plazoleta"])
+            self.assertEqual(ruta, [pab, "B Salida Central", "Pasarela Edificio B", "Punto Seguro Plazoleta"])
             self.assertEqual(tiempo, 24)
         # La escalera en medio de la pasarela es dirigida (bajar 12 s, subir 18 s).
         _, bajar = rutaMasCorta(campus, "Pasarela Edificio B", "Punto Seguro Plazoleta")
