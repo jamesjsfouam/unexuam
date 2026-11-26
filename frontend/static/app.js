@@ -691,7 +691,15 @@ function pasosDeRuta(ruta) {
     } else {
       texto = idx === 0 && a.t === "aula" ? `Sal del aula ${a.n} y ve hacia ${b.n}.` : `Ve hacia ${b.n}.`;
     }
-    return { tipo, texto, segundos, de: ruta[g.desde], a: ruta[g.desde + 1], llega: b.n, desde: g.desde, hasta: g.hasta };
+    // indicaciones giro a giro (tipo Waze) de los tramos por fuera de los edificios
+    const giros = [];
+    for (let i = g.desde; i < g.hasta; i++) {
+      const rr = rutaReal(ruta[i], ruta[i + 1]);
+      if (!rr) continue;
+      const ult = i === g.hasta - 1;
+      rr.i.forEach((x, k) => { if (ult || k < rr.i.length - 1) giros.push(x.t); });
+    }
+    return { tipo, texto, segundos, giros, de: ruta[g.desde], a: ruta[g.desde + 1], llega: b.n, desde: g.desde, hasta: g.hasta };
   });
 }
 
@@ -796,6 +804,7 @@ function renderCampus() {
     <ol class="guia">${pasos.map((p, i) => `
       <li class="paso t-${p.tipo}${i === pasoActivo ? " activa" : ""}" data-paso="${i}" role="button" tabindex="0" aria-pressed="${i === pasoActivo}">
         <div class="paso-cab"><span class="paso-n">${i + 1}</span><p class="paso-texto">${esc(p.texto)}</p></div>
+        ${p.giros && p.giros.length ? `<ol class="paso-giros" aria-label="Indicaciones giro a giro">${p.giros.map(t => `<li>${esc(t)}</li>`).join("")}</ol>` : ""}
         <div class="paso-3d">${vistaPaso(r, p)}</div>
         <p class="paso-meta"><span>${ICONO_PASO[p.tipo] || "→"} ${minutos(p.segundos)}</span>
           ${document.body.classList.contains("es-admin") ? `<button type="button" class="paso-bloq" data-bloq='${esc(JSON.stringify([p.de, p.a]))}'>Simular bloqueo</button>` : ""}</p>
@@ -821,6 +830,8 @@ function bloquear(o, d, ambos) {
 
 let PLANO = null;            // frontend/static/campus-plano.json (OpenStreetMap, en metros)
 let AREAS_UBIC = null;       // frontend/static/ubicacion-campus.json (polígonos exactos)
+let RUTAS = null;            // frontend/static/campus-rutas.json: trazado real e indicaciones giro a giro de cada camino
+const rutaReal = (a, b) => (RUTAS && RUTAS[`${a}|${b}`]) || null;
 let planoEstado = "cargando";
 let PROY = null;             // { esc, ox, oy } de la proyección del mapa 3D
 let mapaCompleto = false;    // false: acercado a la ruta · true: todo el campus
@@ -867,9 +878,11 @@ function cargarPlanoCampus() {
   return Promise.all([
     fetch("/static/campus-plano.json").then(r => { if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); }),
     fetch("/static/ubicacion-campus.json").then(r => (r.ok ? r.json() : null)).catch(() => null),
-  ]).then(([j, u]) => {
+    fetch("/static/campus-rutas.json").then(r => (r.ok ? r.json() : null)).catch(() => null),
+  ]).then(([j, u, rr]) => {
     PLANO = j;
     if (u) AREAS_UBIC = u;
+    if (rr && rr.rutas) RUTAS = rr.rutas;
     prepararProyeccion();
     planoEstado = "listo";
     if (E && vista === "campus") renderCampus();
@@ -1138,7 +1151,9 @@ function edificio3D(L, o) {
     svg += `<text class="e3-piso${cls}" style="text-anchor:${alOeste ? "end" : "start"}" x="${rp.x}" y="${rp.y}" font-size="${(o.mini ? 7.6 : 8.2) * k}">${p === 1 ? "Planta baja" : "Piso " + p}</text>`;
     if (!o.mini) {
       for (const [u, txt, ladoNom] of [[0.28, "Pab. Este", "Este"], [0.72, "Pab. Oeste", "Oeste"]]) {
-        const t = P(u, sg * (W / 2 - 0.5), z);
+        // pasillo al sur: el rótulo va sobre el pasillo. Pasillo al norte (Edificio P): el pasillo queda
+        // detrás de las aulas, así que el rótulo va bajo el canto frontal del piso para no tapar los números.
+        const t = sg > 0 ? P(u, W / 2 - 0.5, z) : P(u, W / 2, z - GROSOR - 2.4);
         if (o.interactivo && (!o.pisoFiltro || o.pisoFiltro === p)) {
           const bw = 34 * k, bh = 10.5 * k;
           const pabNom = `${L} Pabellón ${ladoNom} P${p}`;
@@ -1268,6 +1283,13 @@ const CAPAS_MAPA = { bloqueos: true, congestion: true, zonas: true, sinSenal: fa
 function campusSvg(ruta, o) {
   // dentro de un edificio la ruta se ve en su vista propia: aquí se une con un marcador «Tú»
   const pos = ruta.map(posCampus);
+  // la meta es una zona segura (un área): el marcador va donde la ruta pisa su borde, no en su centro
+  const nFin = ruta.length - 1;
+  const rFin = nFin > 0 ? rutaReal(ruta[nFin - 1], ruta[nFin]) : null;
+  if (rFin && pos[nFin] && E?.campus?.zonasSeguras?.includes(ruta[nFin])) {
+    const q = rFin.p[rFin.p.length - 1];
+    pos[nFin] = proyectar(q[0], q[1], 0);
+  }
   const L = edificioDe(ruta[0]);
   let pinTu = null;
   if (L && PLANO) {
@@ -1321,14 +1343,29 @@ function campusSvg(ruta, o) {
     if (!A || !B) continue;
     const res = !o.resaltar || o.resaltar.has(i);
     const cls = o.resaltar ? (res ? "r3-arista resaltada" : "r3-arista tenue") : "r3-arista";
-    aristas += flecha(A, B, s * 1.85, cls, 5.5);
+    // trazado real del tramo (rodea edificios, sigue calles y parqueos); sin él, línea recta
+    const rr = rutaReal(ruta[i], ruta[i + 1]);
+    const tr = rr && rr.p.length > 1 ? rr.p.map(q => proyectar(q[0], q[1], 0)) : [A, B];
+    tr[0] = A; tr[tr.length - 1] = B;
+    if (tr.length > 2) {
+      aristas += `<polyline class="${cls}" points="${tr.slice(0, -1).map(q => `${q.x.toFixed(1)},${q.y.toFixed(1)}`).join(" ")}" fill="none" stroke-width="${1.8 * s * 1.85}" stroke-linejoin="round" stroke-linecap="round"/>`;
+    }
+    aristas += flecha(tr[tr.length - 2], B, s * 1.85, cls, 5.5);
     const p = peso.get(clave(ruta[i], ruta[i + 1]));
-    const Lr = Math.hypot(B.x - A.x, B.y - A.y);
+    // punto medio del recorrido (por distancia) para la etiqueta de tiempo
+    let largo = 0;
+    for (let k = 1; k < tr.length; k++) largo += Math.hypot(tr[k].x - tr[k - 1].x, tr[k].y - tr[k - 1].y);
+    let mx = (A.x + B.x) / 2, my = (A.y + B.y) / 2, resto = largo / 2;
+    for (let k = 1; k < tr.length; k++) {
+      const d = Math.hypot(tr[k].x - tr[k - 1].x, tr[k].y - tr[k - 1].y);
+      if (resto <= d) { const f = d ? resto / d : 0; mx = tr[k - 1].x + (tr[k].x - tr[k - 1].x) * f; my = tr[k - 1].y + (tr[k].y - tr[k - 1].y) * f; break; }
+      resto -= d;
+    }
+    const Lr = largo;
     if (p !== undefined && res && Lr > 20 * s) {
       const lbl = `${fmt(p)} s`;
       const pw = Math.max(24, lbl.length * 5.6 + 7) * s, ph = 14 * s;
-      const mx = (A.x + B.x) / 2, my = (A.y + B.y) / 2;
-      const nx = -(B.y - A.y) / (Lr || 1), ny = (B.x - A.x) / (Lr || 1);
+      const Lab = Math.hypot(B.x - A.x, B.y - A.y) || 1, nx = -(B.y - A.y) / Lab, ny = (B.x - A.x) / Lab;
       const candidatos = [
         [mx, my],
         [mx + nx * 14 * s, my + ny * 14 * s],
@@ -2577,7 +2614,7 @@ function leerRutaVoz() {
   const destino = miRuta.ruta[miRuta.ruta.length - 1];
   const textoCompleto = [
     `Ruta de evacuación hacia ${destino}, tiempo estimado ${minutos(miRuta.tiempo)}.`,
-    ...pasosActuales.map((p, i) => `Paso ${i + 1}: ${p.texto}`),
+    ...pasosActuales.map((p, i) => `Paso ${i + 1}: ${p.texto}${p.giros && p.giros.length ? " " + p.giros.join(" ") : ""}`),
   ].join(" ");
   const lang = window.UNEXO_I18N?.idioma?.() === "en" ? "en-US" : "es-NI";
   const btn = $("#btn-voz");

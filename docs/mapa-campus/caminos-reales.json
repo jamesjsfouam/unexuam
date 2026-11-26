@@ -1,0 +1,919 @@
+{
+ "fuente": "© OpenStreetMap contributors (ODbL) · docs/mapa-campus/verificar_caminos.py",
+ "unidades": "metros; x hacia el este, y hacia el sur (igual que campus-osm.json)",
+ "nota": "Recorrido real a pie de cada camino exterior del grafo (polilínea en metros), rodeando edificios.",
+ "caminos": {
+  "Auditorio Central|B Salida Oeste": [
+   [
+    173.8,
+    106.6
+   ],
+   [
+    184.9,
+    126.9
+   ]
+  ],
+  "Auditorio Central|C Salida Oeste": [
+   [
+    173.8,
+    106.6
+   ],
+   [
+    187.6,
+    144.8
+   ]
+  ],
+  "Auditorio Central|Edificio E": [
+   [
+    173.8,
+    106.6
+   ],
+   [
+    194.7,
+    81.4
+   ]
+  ],
+  "Auditorio Central|Edificio F": [
+   [
+    173.8,
+    106.6
+   ],
+   [
+    173.2,
+    82.4
+   ]
+  ],
+  "Auditorio Central|Edificio M": [
+   [
+    173.8,
+    106.6
+   ],
+   [
+    166.5,
+    136.2
+   ]
+  ],
+  "Auditorio Central|Pasarela B Oeste": [
+   [
+    173.8,
+    106.6
+   ],
+   [
+    166.0,
+    118.5
+   ]
+  ],
+  "Auditorio Central|Punto Seguro Parqueo 20 Av": [
+   [
+    173.8,
+    106.6
+   ],
+   [
+    163.5,
+    87.5
+   ],
+   [
+    155.4,
+    69.6
+   ]
+  ],
+  "B Salida Central|Pasarela Edificio B": [
+   [
+    223.2,
+    121.3
+   ],
+   [
+    223.2,
+    116.5
+   ]
+  ],
+  "B Salida Este|C Salida Este": [
+   [
+    261.5,
+    126.9
+   ],
+   [
+    261.3,
+    144.8
+   ]
+  ],
+  "B Salida Este|Edificio A": [
+   [
+    261.5,
+    126.9
+   ],
+   [
+    267.0,
+    133.8
+   ]
+  ],
+  "B Salida Este|Food Court": [
+   [
+    261.5,
+    126.9
+   ],
+   [
+    252.9,
+    98.5
+   ]
+  ],
+  "B Salida Oeste|C Salida Oeste": [
+   [
+    184.9,
+    126.9
+   ],
+   [
+    187.6,
+    144.8
+   ]
+  ],
+  "B Salida Oeste|Edificio M": [
+   [
+    184.9,
+    126.9
+   ],
+   [
+    166.5,
+    136.2
+   ]
+  ],
+  "B Salida Oeste|Pasarela B Oeste": [
+   [
+    184.9,
+    126.9
+   ],
+   [
+    166.0,
+    118.5
+   ]
+  ],
+  "Banco Banpro|Edificio A": [
+   [
+    290.9,
+    97.9
+   ],
+   [
+    267.0,
+    133.8
+   ]
+  ],
+  "Banco Banpro|Food Court": [
+   [
+    290.9,
+    97.9
+   ],
+   [
+    252.9,
+    98.5
+   ]
+  ],
+  "Banco Banpro|Pasarela B Este": [
+   [
+    290.9,
+    97.9
+   ],
+   [
+    274.0,
+    118.5
+   ]
+  ],
+  "Banco Banpro|Punto Seguro Parqueo Este": [
+   [
+    290.9,
+    97.9
+   ],
+   [
+    332.4,
+    128.7
+   ]
+  ],
+  "Baño del Comedor|Comedor del Jaguarcito": [
+   [
+    23.0,
+    175.5
+   ],
+   [
+    54.9,
+    176.1
+   ]
+  ],
+  "Baño del Comedor|Zona Segura Cancha de Fútbol": [
+   [
+    23.0,
+    175.5
+   ],
+   [
+    74.7,
+    129.6
+   ]
+  ],
+  "C Salida Este|Edificio A": [
+   [
+    261.3,
+    144.8
+   ],
+   [
+    267.0,
+    133.8
+   ]
+  ],
+  "C Salida Este|Edificio D": [
+   [
+    261.3,
+    144.8
+   ],
+   [
+    235.9,
+    180.1
+   ]
+  ],
+  "C Salida Este|Edificio J": [
+   [
+    261.3,
+    144.8
+   ],
+   [
+    251.8,
+    180.4
+   ]
+  ],
+  "C Salida Este|Kioskos del Chilamate": [
+   [
+    261.3,
+    144.8
+   ],
+   [
+    269.5,
+    171.8
+   ]
+  ],
+  "C Salida Este|Punto Seguro Parqueo Central": [
+   [
+    261.3,
+    144.8
+   ],
+   [
+    222.3,
+    154.5
+   ]
+  ],
+  "C Salida Oeste|Edificio M": [
+   [
+    187.6,
+    144.8
+   ],
+   [
+    166.5,
+    136.2
+   ]
+  ],
+  "C Salida Oeste|Laboratorios": [
+   [
+    187.6,
+    144.8
+   ],
+   [
+    158.7,
+    157.1
+   ]
+  ],
+  "C Salida Oeste|Punto Seguro Parqueo Central": [
+   [
+    187.6,
+    144.8
+   ],
+   [
+    222.3,
+    154.5
+   ]
+  ],
+  "Clínicas Odontológicas|Edificio D": [
+   [
+    218.6,
+    198.1
+   ],
+   [
+    235.9,
+    180.1
+   ]
+  ],
+  "Clínicas Odontológicas|Edificio J": [
+   [
+    218.6,
+    198.1
+   ],
+   [
+    251.8,
+    180.4
+   ]
+  ],
+  "Clínicas Odontológicas|El Ranchito": [
+   [
+    218.6,
+    198.1
+   ],
+   [
+    186.1,
+    189.8
+   ]
+  ],
+  "Clínicas Odontológicas|Punto Seguro Parqueo Central": [
+   [
+    218.6,
+    198.1
+   ],
+   [
+    222.3,
+    154.5
+   ]
+  ],
+  "Clínicas Odontológicas|Punto Seguro Parqueo Sur": [
+   [
+    218.6,
+    198.1
+   ],
+   [
+    221.0,
+    226.9
+   ]
+  ],
+  "Comedor del Jaguarcito|Kiosko del Jaguarcito": [
+   [
+    54.9,
+    176.1
+   ],
+   [
+    107.1,
+    174.0
+   ]
+  ],
+  "Comedor del Jaguarcito|Zona Segura Cancha de Fútbol": [
+   [
+    54.9,
+    176.1
+   ],
+   [
+    74.7,
+    129.6
+   ]
+  ],
+  "Edificio A|Food Court": [
+   [
+    267.0,
+    133.8
+   ],
+   [
+    252.9,
+    98.5
+   ]
+  ],
+  "Edificio A|Kioskos del Chilamate": [
+   [
+    267.0,
+    133.8
+   ],
+   [
+    269.5,
+    171.8
+   ]
+  ],
+  "Edificio A|Pasarela B Este": [
+   [
+    267.0,
+    133.8
+   ],
+   [
+    274.0,
+    118.5
+   ]
+  ],
+  "Edificio A|Punto Seguro Parqueo Este": [
+   [
+    267.0,
+    133.8
+   ],
+   [
+    332.4,
+    128.7
+   ]
+  ],
+  "Edificio D|Edificio J": [
+   [
+    235.9,
+    180.1
+   ],
+   [
+    251.8,
+    180.4
+   ]
+  ],
+  "Edificio D|El Chilamate": [
+   [
+    235.9,
+    180.1
+   ],
+   [
+    273.2,
+    207.1
+   ]
+  ],
+  "Edificio D|Punto Seguro Parqueo Central": [
+   [
+    235.9,
+    180.1
+   ],
+   [
+    222.3,
+    154.5
+   ]
+  ],
+  "Edificio E|Edificio F": [
+   [
+    194.7,
+    81.4
+   ],
+   [
+    173.2,
+    82.4
+   ]
+  ],
+  "Edificio E|Punto Seguro Parqueo 47 Calle": [
+   [
+    194.7,
+    81.4
+   ],
+   [
+    192.1,
+    10.5
+   ]
+  ],
+  "Edificio E|Punto Seguro Parqueo Norte": [
+   [
+    194.7,
+    81.4
+   ],
+   [
+    238.3,
+    49.9
+   ]
+  ],
+  "Edificio E|Punto Seguro Plazoleta": [
+   [
+    194.7,
+    81.4
+   ],
+   [
+    219.4,
+    97.3
+   ]
+  ],
+  "Edificio F|Punto Seguro Parqueo 20 Av": [
+   [
+    173.2,
+    82.4
+   ],
+   [
+    155.4,
+    69.6
+   ]
+  ],
+  "Edificio I|Jaguar Center": [
+   [
+    117.4,
+    49.2
+   ],
+   [
+    82.5,
+    64.1
+   ]
+  ],
+  "Edificio I|Punto Seguro Parqueo 20 Av": [
+   [
+    117.4,
+    49.2
+   ],
+   [
+    155.4,
+    69.6
+   ]
+  ],
+  "Edificio J|El Chilamate": [
+   [
+    251.8,
+    180.4
+   ],
+   [
+    273.2,
+    207.1
+   ]
+  ],
+  "Edificio J|Kioskos del Chilamate": [
+   [
+    251.8,
+    180.4
+   ],
+   [
+    269.5,
+    171.8
+   ]
+  ],
+  "Edificio J|Punto Seguro Parqueo Central": [
+   [
+    251.8,
+    180.4
+   ],
+   [
+    222.3,
+    154.5
+   ]
+  ],
+  "Edificio M|Laboratorios": [
+   [
+    166.5,
+    136.2
+   ],
+   [
+    158.7,
+    157.1
+   ]
+  ],
+  "Edificio M|Pasarela B Oeste": [
+   [
+    166.5,
+    136.2
+   ],
+   [
+    166.0,
+    118.5
+   ]
+  ],
+  "Edificio O|El Ranchito": [
+   [
+    166.2,
+    221.0
+   ],
+   [
+    172.5,
+    203.5
+   ],
+   [
+    186.1,
+    189.8
+   ]
+  ],
+  "Edificio O|P Salida Oeste": [
+   [
+    166.2,
+    221.0
+   ],
+   [
+    177.2,
+    251.6
+   ]
+  ],
+  "Edificio O|Punto Seguro Parqueo Oeste": [
+   [
+    166.2,
+    221.0
+   ],
+   [
+    148.8,
+    243.9
+   ]
+  ],
+  "El Chilamate|Kioskos del Chilamate": [
+   [
+    273.2,
+    207.1
+   ],
+   [
+    269.5,
+    171.8
+   ]
+  ],
+  "El Chilamate|P Salida Este": [
+   [
+    273.2,
+    207.1
+   ],
+   [
+    258.5,
+    251.6
+   ]
+  ],
+  "El Ranchito|Laboratorios": [
+   [
+    186.1,
+    189.8
+   ],
+   [
+    158.7,
+    157.1
+   ]
+  ],
+  "Food Court|Pasarela B Este": [
+   [
+    252.9,
+    98.5
+   ],
+   [
+    274.0,
+    118.5
+   ]
+  ],
+  "Food Court|Punto Seguro Parqueo Norte": [
+   [
+    252.9,
+    98.5
+   ],
+   [
+    238.3,
+    49.9
+   ]
+  ],
+  "Food Court|Punto Seguro Plazoleta": [
+   [
+    252.9,
+    98.5
+   ],
+   [
+    219.4,
+    97.3
+   ]
+  ],
+  "Jaguar Center|Salón de Danza": [
+   [
+    82.5,
+    64.1
+   ],
+   [
+    50.3,
+    61.2
+   ]
+  ],
+  "Jaguar Center|Salón de Música": [
+   [
+    82.5,
+    64.1
+   ],
+   [
+    58.5,
+    60.0
+   ]
+  ],
+  "Jaguar Center|Vestidores": [
+   [
+    82.5,
+    64.1
+   ],
+   [
+    47.9,
+    78.7
+   ]
+  ],
+  "Kiosko del Jaguarcito|Laboratorios": [
+   [
+    107.1,
+    174.0
+   ],
+   [
+    158.7,
+    157.1
+   ]
+  ],
+  "Kiosko del Jaguarcito|Zona Segura Cancha de Fútbol": [
+   [
+    107.1,
+    174.0
+   ],
+   [
+    74.7,
+    129.6
+   ]
+  ],
+  "P Salida Este|Punto Seguro Parqueo Edificio P": [
+   [
+    258.5,
+    251.6
+   ],
+   [
+    231.6,
+    278.7
+   ]
+  ],
+  "P Salida Este|Punto Seguro Parqueo Sur": [
+   [
+    258.5,
+    251.6
+   ],
+   [
+    221.0,
+    226.9
+   ]
+  ],
+  "P Salida Oeste|Punto Seguro Parqueo Edificio P": [
+   [
+    177.2,
+    251.6
+   ],
+   [
+    231.6,
+    278.7
+   ]
+  ],
+  "P Salida Oeste|Punto Seguro Parqueo Oeste": [
+   [
+    177.2,
+    251.6
+   ],
+   [
+    148.8,
+    243.9
+   ]
+  ],
+  "P Salida Oeste|Punto Seguro Parqueo Sur": [
+   [
+    177.2,
+    251.6
+   ],
+   [
+    221.0,
+    226.9
+   ]
+  ],
+  "Pasarela B Este|Pasarela Edificio B": [
+   [
+    274.0,
+    118.5
+   ],
+   [
+    223.2,
+    116.5
+   ]
+  ],
+  "Pasarela B Este|Punto Seguro Parqueo Este": [
+   [
+    274.0,
+    118.5
+   ],
+   [
+    332.4,
+    128.7
+   ]
+  ],
+  "Pasarela B Oeste|Pasarela Edificio B": [
+   [
+    166.0,
+    118.5
+   ],
+   [
+    223.2,
+    116.5
+   ]
+  ],
+  "Pasarela B Oeste|Punto Seguro Parqueo 20 Av": [
+   [
+    166.0,
+    118.5
+   ],
+   [
+    163.5,
+    110.5
+   ],
+   [
+    155.4,
+    69.6
+   ]
+  ],
+  "Pasarela Edificio B|Punto Seguro Plazoleta": [
+   [
+    223.2,
+    116.5
+   ],
+   [
+    219.4,
+    97.3
+   ]
+  ],
+  "Punto Seguro Parqueo 20 Av|Punto Seguro Parqueo 47 Calle": [
+   [
+    155.4,
+    69.6
+   ],
+   [
+    192.1,
+    10.5
+   ]
+  ],
+  "Punto Seguro Parqueo 47 Calle|Punto Seguro Parqueo Norte": [
+   [
+    192.1,
+    10.5
+   ],
+   [
+    238.3,
+    49.9
+   ]
+  ],
+  "Punto Seguro Parqueo Norte|Punto Seguro Plazoleta": [
+   [
+    238.3,
+    49.9
+   ],
+   [
+    219.4,
+    97.3
+   ]
+  ],
+  "Punto Seguro Parqueo Oeste|Zona Segura Campo de Béisbol": [
+   [
+    148.8,
+    243.9
+   ],
+   [
+    75.3,
+    256.0
+   ]
+  ],
+  "Punto Seguro Parqueo Suroeste|Zona Segura Campo de Béisbol": [
+   [
+    88.1,
+    325.5
+   ],
+   [
+    75.3,
+    256.0
+   ]
+  ],
+  "Salón Multiusos|Salón de Contenedores": [
+   [
+    29.1,
+    48.4
+   ],
+   [
+    19.6,
+    36.0
+   ]
+  ],
+  "Salón Multiusos|Salón de Danza": [
+   [
+    29.1,
+    48.4
+   ],
+   [
+    50.3,
+    61.2
+   ]
+  ],
+  "Salón Multiusos|Vestidores": [
+   [
+    29.1,
+    48.4
+   ],
+   [
+    47.9,
+    78.7
+   ]
+  ],
+  "Salón de Danza|Salón de Música": [
+   [
+    50.3,
+    61.2
+   ],
+   [
+    58.5,
+    60.0
+   ]
+  ],
+  "Salón de Danza|Vestidores": [
+   [
+    50.3,
+    61.2
+   ],
+   [
+    47.9,
+    78.7
+   ]
+  ],
+  "Salón de Música|Vestidores": [
+   [
+    58.5,
+    60.0
+   ],
+   [
+    47.9,
+    78.7
+   ]
+  ],
+  "Vestidores|Zona Segura Cancha de Fútbol": [
+   [
+    47.9,
+    78.7
+   ],
+   [
+    74.7,
+    129.6
+   ]
+  ]
+ }
+}

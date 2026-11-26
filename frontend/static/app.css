@@ -3209,3 +3209,8 @@ html[data-tema="oscuro"] .sugerencias button { border-top-color: #1d2a3d; }
 .e3-paso { fill: #f6f1df; stroke: #e0b400; stroke-width: .25; }
 .e3-paso.activo { fill: #fff3c4; }
 .e3-salida text { stroke: #ffffff; paint-order: stroke; stroke-linejoin: round; }
+
+/* Indicaciones giro a giro (tipo Waze) dentro de cada paso exterior de la guía */
+.paso-giros { margin: .35rem 0 .2rem; padding: .5rem .7rem .5rem 1.9rem; border-radius: 12px; background: var(--azul-claro); color: var(--texto); font-size: .86rem; line-height: 1.4; display: grid; gap: .3rem; }
+.paso-giros li::marker { color: var(--azul); font-weight: 800; }
+.paso-giros li:last-child { font-weight: 700; }

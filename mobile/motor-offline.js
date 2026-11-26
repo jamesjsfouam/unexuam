@@ -109,7 +109,8 @@
 
   // --- Capa 2: Evacuación (Dijkstra hecho a mano) ---
 
-  function dijkstra(campus, origen) {
+  // terminal(nombre) -> true: se llega a ese vértice pero no se pasa a través de él (zonas seguras = áreas)
+  function dijkstra(campus, origen, terminal = null) {
     const distancias = new Map();
     const anteriores = new Map();
     for (const v of campus.vertexs) {
@@ -135,6 +136,7 @@
       }
       if (!actual || mejorDist === INF) break;
       visitados.add(actual);
+      if (terminal && actual !== inicio && terminal(actual.nombre)) continue;
 
       for (const [destino, peso] of actual.neig) {
         const nueva = mejorDist + peso;
@@ -575,7 +577,8 @@
   function conectarTelefono(red, campus, telefono, lugar, ubicaciones) {
     if (!campus.buscarVertice(lugar)) return [];
     red.insertarVertice(telefono);
-    const distancias = dijkstra(campus, lugar).distancias;
+    // alcance de radio: sin atravesar zonas seguras (cruzar un área cuesta 0 s en el grafo)
+    const distancias = dijkstra(campus, lugar, n => /^(Punto Seguro|Zona Segura) /.test(n)).distancias;
     const vecinos = [];
     for (const otro of Object.keys(ubicaciones)) {
       if (otro === telefono || !red.buscarVertice(otro)) continue;

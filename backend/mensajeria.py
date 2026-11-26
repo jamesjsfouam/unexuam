@@ -14,6 +14,10 @@ INF = float("inf")
 ALCANCE = 120       # segundos caminando: alcance aproximado de Bluetooth / Wi-Fi Direct
 
 
+def esZonaSegura(nombre):
+    return nombre.startswith(("Punto Seguro", "Zona Segura"))
+
+
 def retardoEnlace(segundosCaminando):
     # Mas lejos = senal mas debil = mas retardo.
     return round(0.5 + segundosCaminando / 30, 1)
@@ -30,7 +34,9 @@ def conectarTelefono(red, campus, telefono, lugar, ubicaciones):
         desconectarTelefono(red, telefono)
     red.insertarVertice(telefono)
 
-    distancias, _ = dijkstra(campus, lugar)
+    # Alcance de radio: distancia a pie real, sin "atravesar" una zona segura (cruzar un area en el
+    # grafo cuesta 0 s, y una cancha grande no acerca dos telefonos que estan en lados opuestos).
+    distancias, _ = dijkstra(campus, lugar, terminal=esZonaSegura)
     vecinos = []
     telLower = telefono.lower()
     for otro in ubicaciones:

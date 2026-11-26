@@ -600,7 +600,14 @@ def api_registro():
 
 HASH_FICTICIO = generate_password_hash("unexuam-sin-cuenta")
 RATE_LOCK = threading.Lock()
-INTENTOS = {}          # cif -> [marcas de tiempo de intentos recientes]
+# Límites de inicio de sesión (fallos por minuto). Se cuentan por cuenta Y red juntas, para que
+# nadie bloquee la cuenta de otro desde su propia red, y con topes altos por cuenta y por red:
+# en el campus cientos de personas comparten la misma IP del Wi-Fi.
+FALLOS_CUENTA_RED = 8      # misma cuenta desde la misma red
+FALLOS_CUENTA = 50         # misma cuenta desde cualquier red (ataque repartido)
+FALLOS_RED = 100           # toda una red (p. ej. el Wi-Fi del campus)
+INTENTOS = {}          # (cif, ip) -> [marcas de tiempo de fallos recientes]
+INTENTOS_CIF = {}      # cif -> [marcas de tiempo de fallos recientes, desde cualquier red]
 INTENTOS_IP = {}       # ip -> [marcas de tiempo de fallos recientes]
 REGISTROS_IP = {}      # ip -> [marcas de tiempo de registros recientes]
 SOS_INV_IP = {}        # ip -> [marcas de tiempo de SOS de invitados]
@@ -609,8 +616,13 @@ MAX_ENTRADAS_RATE = 2000
 
 
 def ip_cliente():
-    xff = request.headers.get("X-Forwarded-For", "").split(",")[0].strip()
-    return (xff or request.remote_addr or "local")[:64]
+    # X-Forwarded-For solo vale detrás de un proxy propio (UNEXUAM_PROXY=1); si no, cualquiera
+    # podría inventarse una IP nueva en cada intento y saltarse los límites.
+    if os.environ.get("UNEXUAM_PROXY") == "1":
+        xff = request.headers.get("X-Forwarded-For", "").split(",")[0].strip()
+        if xff:
+            return xff[:64]
+    return (request.remote_addr or "local")[:64]
 
 
 def _purgar_rate(mapa, ahora_s, ventana=60):
@@ -638,36 +650,33 @@ def registrar_evento_ip(mapa, ip, limite=20):
         return False
 
 
-def ip_bloqueada(ip, limite=20):
+def _recientes(mapa, clave, ahora_s):
+    recientes = [t for t in mapa.get(clave, []) if ahora_s - t < 60]
+    if recientes:
+        mapa[clave] = recientes
+    else:
+        mapa.pop(clave, None)
+    return len(recientes)
+
+
+def ip_bloqueada(ip, limite=FALLOS_RED):
+    with RATE_LOCK:
+        return _recientes(INTENTOS_IP, ip, time.time()) >= limite
+
+
+def bloqueado_por_intentos(cif, ip="local"):
     ahora_s = time.time()
     with RATE_LOCK:
-        recientes = [t for t in INTENTOS_IP.get(ip, []) if ahora_s - t < 60]
-        if recientes:
-            INTENTOS_IP[ip] = recientes
-        else:
-            INTENTOS_IP.pop(ip, None)
-        return len(recientes) >= limite
+        return (_recientes(INTENTOS, (cif, ip), ahora_s) >= FALLOS_CUENTA_RED
+                or _recientes(INTENTOS_CIF, cif, ahora_s) >= FALLOS_CUENTA)
 
 
-def bloqueado_por_intentos(cif):
+def registrar_fallo(cif, ip="local"):
     ahora_s = time.time()
     with RATE_LOCK:
-        recientes = [t for t in INTENTOS.get(cif, []) if ahora_s - t < 60]
-        if recientes:
-            INTENTOS[cif] = recientes
-        else:
-            INTENTOS.pop(cif, None)
-        return len(recientes) >= 8          # 8 fallos en un minuto: espera
-
-
-def registrar_fallo(cif, ip=None):
-    ahora_s = time.time()
-    with RATE_LOCK:
-        _purgar_rate(INTENTOS, ahora_s)
-        INTENTOS.setdefault(cif, []).append(ahora_s)
-        if ip:
-            _purgar_rate(INTENTOS_IP, ahora_s)
-            INTENTOS_IP.setdefault(ip, []).append(ahora_s)
+        for mapa, clave in ((INTENTOS, (cif, ip)), (INTENTOS_CIF, cif), (INTENTOS_IP, ip)):
+            _purgar_rate(mapa, ahora_s)
+            mapa.setdefault(clave, []).append(ahora_s)
 
 
 def limite_busquedas_excedido(cif):
@@ -689,7 +698,7 @@ def api_login():
     cif = leer_cif(d)
     ip = ip_cliente()
     clave = str(d.get("contrasena", ""))[:64]
-    if bloqueado_por_intentos(cif) or ip_bloqueada(ip):
+    if bloqueado_por_intentos(cif, ip) or ip_bloqueada(ip):
         return jsonify({"ok": False, "mensaje": "Demasiados intentos. Espera un minuto."})
     u = DB.usuario(cif)
     acceso_real = u is not None and cif != CIF_RESERVADO
@@ -699,8 +708,7 @@ def api_login():
         registrar_fallo(cif, ip)
         return jsonify({"ok": False, "mensaje": "CIF o contraseña incorrectos."})
     with RATE_LOCK:
-        INTENTOS.pop(cif, None)
-        INTENTOS_IP.pop(ip, None)
+        INTENTOS.pop((cif, ip), None)     # el éxito limpia solo lo suyo, no los fallos de otros en la red
     with lock:
         return abrir_sesion(cif, d.get("lugar"))
 

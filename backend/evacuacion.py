@@ -3,7 +3,9 @@
 INF = float("inf")
 
 
-def dijkstra(campus, origen):
+def dijkstra(campus, origen, terminal=None):
+    # terminal(nombre) -> True: se puede llegar a ese vertice pero no pasar a traves de el
+    # (las zonas seguras son areas: cruzarlas no cuesta nada en el grafo, asi que no sirven de atajo).
     distancias = {}     # nombre -> menor tiempo conocido desde el origen
     anteriores = {}     # nombre -> lugar por el que se llega (para armar la ruta)
     for v in campus.vertexs:
@@ -27,6 +29,8 @@ def dijkstra(campus, origen):
         if actual is None or distancias[actual.nombre] == INF:
             break
         visitados.add(actual)
+        if terminal is not None and actual is not inicio and terminal(actual.nombre):
+            continue
 
         # 2. Relajar: probar si pasando por "actual" se llega mas rapido a cada vecino.
         for vecino in actual.neig:

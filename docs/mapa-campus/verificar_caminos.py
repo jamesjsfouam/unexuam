@@ -13,7 +13,11 @@ frontend/static/campus-plano.json):
 
 Uso:  python verificar_caminos.py            (informe en consola)
       python verificar_caminos.py --json     (además escribe verificacion-caminos.json)
-      python verificar_caminos.py --diagrama (dibuja zonas-caminables.svg y la forma en zonas-caminables.json)
+      python verificar_caminos.py --app      (escribe frontend/static/campus-rutas.json: trazado e indicaciones
+                                              giro a giro de cada camino, para dibujar las rutas en la app)
+      python verificar_caminos.py --aplicar-pesos (pone en backend/datos.py el tiempo real de cada camino)
+      python verificar_caminos.py --diagrama (dibuja zonas-caminables.svg con los caminos por su trazado
+                                              real y guarda zonas-caminables.json y caminos-reales.json)
 
 Datos del plano © OpenStreetMap contributors (ODbL).
 """
@@ -29,6 +33,8 @@ AQUI = Path(__file__).parent
 RAIZ = AQUI.parent.parent
 sys.path.insert(0, str(RAIZ))
 from backend.datos import crearCampus  # noqa: E402
+
+PASARELA = (163.5, 277.0, 116.9, 120.1)   # x0, x1, y0, y1 (m): igual que PASARELA en generar_mapa.py
 
 VELOCIDAD = 1.2        # m/s caminando rápido en una evacuación (igual que generar_grafo.py)
 CELDA = 1.0            # m por celda de la rejilla
@@ -118,31 +124,181 @@ PASOS = [(1, 0, 1), (-1, 0, 1), (0, 1, 1), (0, -1, 1),
          (1, 1, math.sqrt(2)), (1, -1, math.sqrt(2)), (-1, 1, math.sqrt(2)), (-1, -1, math.sqrt(2))]
 
 
-def a_pie(a, b):
-    """Metros a pie de a hasta b rodeando los edificios cerrados (Dijkstra en la rejilla)."""
+# ---------------------------------------------------------------- superficie: por dónde se camina
+# Calles, aceras, parqueos, plazas, canchas y techos transitables son piso firme (costo 1).
+# El césped y los patios sin pavimentar se pueden cruzar, pero se evitan (costo PASTO): así las
+# rutas siguen la forma en que la gente camina de verdad y no cortan en línea recta por cualquier lado.
+PASTO = 1.6
+ANCHO_CALLE = {"residential": 3.5, "service": 3.0, "footway": 1.5}   # medio ancho (m) de cada vía
+
+
+def _dseg(p, a, b):
+    dx, dy = b[0] - a[0], b[1] - a[1]
+    l2 = dx * dx + dy * dy or 1.0
+    t = max(0.0, min(1.0, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / l2))
+    return math.dist(p, (a[0] + t * dx, a[1] + t * dy))
+
+
+def _centro_celda(c):
+    return (X0 + (c[0] + .5) * CELDA, Y0 + (c[1] + .5) * CELDA)
+
+
+def _celdas_de(pol):
+    xs, ys = [p[0] for p in pol], [p[1] for p in pol]
+    (i0, j0), (i1, j1) = celda((min(xs), min(ys))), celda((max(xs), max(ys)))
+    return [(i, j) for i in range(i0, i1 + 1) for j in range(j0, j1 + 1) if dentro(_centro_celda((i, j)), pol)]
+
+
+FIRME = set()
+for _c in OSM["calles"]:
+    _w = ANCHO_CALLE.get(_c["tipo"], 3.0)
+    for _a, _b in zip(_c["linea"], _c["linea"][1:]):
+        (_i0, _j0) = celda((min(_a[0], _b[0]) - _w, min(_a[1], _b[1]) - _w))
+        (_i1, _j1) = celda((max(_a[0], _b[0]) + _w, max(_a[1], _b[1]) + _w))
+        for _i in range(_i0, _i1 + 1):
+            for _j in range(_j0, _j1 + 1):
+                if _dseg(_centro_celda((_i, _j)), _a, _b) <= _w:
+                    FIRME.add((_i, _j))
+for _pol in ([q["pol"] for q in OSM["parqueos"]] + [q["pol"] for q in OSM["plazas"]] + [q["pol"] for q in OSM["canchas"]]
+             + [e["pol"] for e in OSM["edificios"] if e["id"] in TRANSITABLES]
+             + [[(PASARELA[0], PASARELA[2]), (PASARELA[1], PASARELA[2]), (PASARELA[1], PASARELA[3]), (PASARELA[0], PASARELA[3])]]):
+    FIRME.update(_celdas_de(_pol))
+
+
+def costo(c):
+    return 1.0 if c in FIRME else PASTO
+
+
+# ---------------------------------------------------------------- zonas seguras como áreas
+# Una zona segura no es un punto: es toda la cancha o todo el parqueo. Se llega a ella al pisar su
+# borde más cercano, no su centro. (Parqueo Sur queda en el pasillo entre los dos parqueos techados.)
+ZONA_AREA = {
+    "Zona Segura Cancha de Fútbol": ["cancha:soccer"],
+    "Zona Segura Campo de Béisbol": ["cancha:baseball"],
+    "Punto Seguro Plazoleta": ["plaza:0"],
+    "Punto Seguro Parqueo Sur": ["parqueo:1553720160", "parqueo:1553720161"],
+    "Punto Seguro Parqueo Oeste": ["parqueo:1553720166"],
+}
+
+
+def _poligono(ref):
+    tipo, clave = ref.split(":", 1)
+    if tipo == "cancha":
+        return next(c["pol"] for c in OSM["canchas"] if c.get("deporte") == clave)
+    if tipo == "plaza":
+        return OSM["plazas"][int(clave)]["pol"]
+    return next(q["pol"] for q in OSM["parqueos"] if q["id"] == clave)
+
+
+def areas_zona(nombre):
+    """Polígonos del área de una zona segura (o [] si el lugar no es zona segura)."""
+    if not nombre.startswith(("Punto Seguro", "Zona Segura")):
+        return []
+    if nombre in ZONA_AREA:
+        return [_poligono(r) for r in ZONA_AREA[nombre]]
+    return [q["pol"] for q in OSM["parqueos"] if dentro(POS[nombre], q["pol"])]   # el parqueo que la contiene
+
+
+_CELDAS_LUGAR = {}
+
+
+def celdas_lugar(nombre):
+    """Celdas donde 'está' un lugar: toda su área si es zona segura, si no la celda de su punto."""
+    if nombre not in _CELDAS_LUGAR:
+        area = [c for pol in areas_zona(nombre) for c in _celdas_de(pol) if BLOQUEO.get(c) is None]
+        _CELDAS_LUGAR[nombre] = area or [celda(POS[nombre])]
+    return _CELDAS_LUGAR[nombre]
+
+
+# ---------------------------------------------------------------- búsqueda
+def _libre(c, libres):
+    ocup = BLOQUEO.get(c)
+    return ocup is None or ocup in libres
+
+
+_CACHE = {}
+
+
+def _buscar(a, b):
+    """Ruta a pie más conveniente de a hasta b (A* con costo de superficie), rodeando edificios.
+    Sale desde cualquier punto del área de a y termina al tocar cualquier punto del área de b.
+    Devuelve (metros reales recorridos, celdas)."""
+    if (a, b) in _CACHE:
+        return _CACHE[(a, b)]
+    if (b, a) in _CACHE:
+        m, cs = _CACHE[(b, a)]
+        return m, cs[::-1]
     libres = propios(a) | propios(b)
-    ini, fin = celda(POS[a]), celda(POS[b])
-    dist = {ini: 0.0}
-    cola = [(math.dist(POS[a], POS[b]), 0.0, ini)]
+    metas = set(celdas_lugar(b))
+    cb = (sum(c[0] for c in metas) / len(metas), sum(c[1] for c in metas) / len(metas))
+    radio = max(math.dist(c, cb) for c in metas)
+    h = lambda c: max(0.0, math.dist(c, cb) - radio)          # admisible: nunca sobreestima
+    dist, geo, prev, cola = {}, {}, {}, []
+    for c in celdas_lugar(a):
+        dist[c], geo[c], prev[c] = 0.0, 0.0, None
+        heapq.heappush(cola, (h(c), 0.0, c))
+    fin = None
     while cola:
         _, d, c = heapq.heappop(cola)
-        if c == fin:
-            return d * CELDA
         if d > dist.get(c, math.inf):
             continue
+        if c in metas:
+            fin = c
+            break
         for dx, dy, w in PASOS:
             n = (c[0] + dx, c[1] + dy)
-            if not (0 <= n[0] < NX and 0 <= n[1] < NY):
+            if not (0 <= n[0] < NX and 0 <= n[1] < NY) or not _libre(n, libres):
                 continue
-            ocup = BLOQUEO.get(n)
-            if ocup is not None and ocup not in libres:
-                continue
-            nd = d + w
+            nd = d + w * (costo(c) + costo(n)) / 2
             if nd < dist.get(n, math.inf):
-                dist[n] = nd
-                h = math.dist(n, fin)
-                heapq.heappush(cola, (nd + h, nd, n))
-    return math.inf
+                dist[n], geo[n], prev[n] = nd, geo[c] + w, c
+                heapq.heappush(cola, (nd + h(n), nd, n))
+    if fin is None:
+        res = (math.inf, [])
+    else:
+        camino, c = [], fin
+        while c is not None:
+            camino.append(c)
+            c = prev[c]
+        res = (geo[fin] * CELDA, camino[::-1])
+    _CACHE[(a, b)] = res
+    return res
+
+
+def a_pie(a, b):
+    """Metros a pie de a hasta b por la ruta real (hasta el borde de la zona segura si b lo es)."""
+    m, celdas = _buscar(a, b)
+    if not celdas:
+        return m
+    # tramos fuera de la rejilla: del punto del lugar a su primera/última celda
+    ini = POS[a] if not areas_zona(a) else _centro_celda(celdas[0])
+    fin = POS[b] if not areas_zona(b) else _centro_celda(celdas[-1])
+    return m + math.dist(ini, _centro_celda(celdas[0])) + math.dist(fin, _centro_celda(celdas[-1]))
+
+
+def _simplificar(puntos, tol):
+    """Douglas-Peucker: quita los escalones de la rejilla sin cambiar la forma del recorrido."""
+    if len(puntos) < 3:
+        return puntos
+    a, b = puntos[0], puntos[-1]
+    i, dmax = max(((k, _dseg(puntos[k], a, b)) for k in range(1, len(puntos) - 1)), key=lambda t: t[1])
+    if dmax <= tol:
+        return [a, b]
+    return _simplificar(puntos[:i + 1], tol)[:-1] + _simplificar(puntos[i:], tol)
+
+
+def trazado(a, b):
+    """Recorrido real a pie de a hasta b como polilínea en metros. Si b (o a) es zona segura,
+    la línea termina (o empieza) en el borde de su área, en el punto más conveniente."""
+    _, celdas = _buscar(a, b)
+    if not celdas:
+        return [list(POS[a]), list(POS[b])]
+    puntos = [_centro_celda(c) for c in celdas]
+    if not areas_zona(a):
+        puntos = [POS[a]] + puntos
+    if not areas_zona(b):
+        puntos = puntos + [POS[b]]
+    return [[round(x, 1), round(y, 1)] for x, y in _simplificar(puntos, 2.0)]
 
 
 def cruces(a, b):
@@ -226,6 +382,10 @@ def main():
             encoding="utf-8")
     if "--diagrama" in sys.argv:
         diagrama(filas)
+    if "--app" in sys.argv:
+        exportar_app(filas)
+    if "--aplicar-pesos" in sys.argv:
+        aplicar_pesos(filas)
 
 
 # ---------------------------------------------------------------- diagrama de zonas caminables
@@ -241,65 +401,306 @@ def zonas_caminables():
         "obstaculos": [{"id": e["id"], "nombre": e["nombre"], "pol": [r1(p) for p in e["pol"]]} for e in OBSTACULOS],
         "transitables": [{"id": e["id"], "nombre": e["nombre"], "motivo": TRANSITABLES[e["id"]], "pol": [r1(p) for p in e["pol"]]}
                          for e in OSM["edificios"] if e["id"] in TRANSITABLES],
+        "elevados": [{"nombre": "Pasarela B (elevada, un piso sobre la Plazoleta)",
+                      "pol": [[x0, y0], [x1, y0], [x1, y1], [x0, y1]]}
+                     for x0, x1, y0, y1 in [PASARELA]],
         "abiertos": {"canchas": [[r1(p) for p in c["pol"]] for c in OSM["canchas"]],
                      "parqueos": [[r1(p) for p in q["pol"]] for q in OSM["parqueos"]]},
     }
 
 
+def numerar():
+    """Número fijo para cada obstáculo (O1, O2...) y zona transitable (T1, T2...), de norte a sur
+    y de oeste a este, para poder corregirlos por número."""
+    def orden(e):
+        xs, ys = [p[0] for p in e["pol"]], [p[1] for p in e["pol"]]
+        return (round((min(ys) + max(ys)) / 2 / 25), (min(xs) + max(xs)) / 2)
+    obst = sorted(OBSTACULOS, key=orden)
+    trans = sorted((e for e in OSM["edificios"] if e["id"] in TRANSITABLES), key=orden)
+    return {e["id"]: f"O{i + 1}" for i, e in enumerate(obst)} | {e["id"]: f"T{i + 1}" for i, e in enumerate(trans)}
+
+
+def trazados(filas):
+    return {f"{f['a']}|{f['b']}": trazado(f["a"], f["b"]) for f in filas}
+
+
 def diagrama(filas):
     zonas = zonas_caminables()
+    nums = numerar()
+    for grupo in ("obstaculos", "transitables"):
+        for e in zonas[grupo]:
+            e["numero"] = nums[e["id"]]
+    rutas = trazados(filas)
     (AQUI / "zonas-caminables.json").write_text(json.dumps(zonas, ensure_ascii=False, indent=1), encoding="utf-8")
-    W, M, CAB = 1200, 40, 110
+    (AQUI / "caminos-reales.json").write_text(json.dumps(
+        {"fuente": zonas["fuente"], "unidades": zonas["unidades"],
+         "nota": "Recorrido real a pie de cada camino exterior del grafo (polilínea en metros), rodeando edificios.",
+         "caminos": rutas}, ensure_ascii=False, indent=1), encoding="utf-8")
+
+    W, M, CAB, LISTA = 1500, 40, 110, 300
     xs = [p[0] for p in zonas["campus"]]
     ys = [p[1] for p in zonas["campus"]]
-    esc = (W - 2 * M) / (max(xs) - min(xs))
+    esc = (W - LISTA - 2 * M) / (max(xs) - min(xs))
     H = int(CAB + (max(ys) - min(ys)) * esc + 2 * M + 70)
 
     def T(p):
         return (M + (p[0] - min(xs)) * esc, CAB + M + (p[1] - min(ys)) * esc)
 
-    def poly(pts, extra):
-        return f'<polygon points="{" ".join(f"{a:.1f},{b:.1f}" for a, b in map(T, pts))}" {extra}/>'
+    def pts(lista):
+        return " ".join(f"{a:.1f},{b:.1f}" for a, b in map(T, lista))
 
-    corto = lambda n: (n.replace("Punto Seguro ", "PS ").replace("Zona Segura ", "ZS ")
-                       .replace("Clínicas Odontológicas", "Clínicas").replace("Pasarela Edificio B", "Pasarela B"))
+    def centro(pol):
+        return T((sum(p[0] for p in pol) / len(pol), sum(p[1] for p in pol) / len(pol)))
+
+    def corto(n):
+        return (n.replace("Punto Seguro ", "PS ").replace("Zona Segura ", "ZS ")
+                .replace("Clínicas Odontológicas", "Clínicas").replace("Pasarela Edificio B", "Pasarela B"))
+
     g = [f'<rect width="{W}" height="{H}" fill="#eef3f8"/>',
-         f'<text x="{W / 2}" y="44" text-anchor="middle" font-size="28" font-weight="900" fill="#0058b8">Zonas caminables del campus UAM</text>',
-         f'<text x="{W / 2}" y="74" text-anchor="middle" font-size="15" font-weight="600" fill="#0b2a4a">'
-         f'Vista superior · cada camino del grafo debe ir por zona caminable · {len(filas)} caminos exteriores</text>',
-         poly(zonas["campus"], 'fill="#d9efcf" stroke="#6aa84f" stroke-width="3"')]
+         f'<text x="{(W - LISTA) / 2}" y="44" text-anchor="middle" font-size="28" font-weight="900" fill="#0058b8">Zonas caminables del campus UAM</text>',
+         f'<text x="{(W - LISTA) / 2}" y="74" text-anchor="middle" font-size="15" font-weight="600" fill="#0b2a4a">'
+         f'Vista superior · {len(filas)} caminos dibujados por donde se camina · corrige por número (O = obstáculo, T = transitable)</text>',
+         f'<polygon points="{pts(zonas["campus"])}" fill="#d9efcf" stroke="#6aa84f" stroke-width="3"/>']
     for q in zonas["abiertos"]["parqueos"]:
-        g.append(poly(q, 'fill="#cfd8e1" stroke="#aab6c2" stroke-width="1"'))
+        g.append(f'<polygon points="{pts(q)}" fill="#cfd8e1" stroke="#aab6c2"/>')
     for c in zonas["abiertos"]["canchas"]:
-        g.append(poly(c, 'fill="#9fd89a" stroke="#5aa857" stroke-width="1"'))
+        g.append(f'<polygon points="{pts(c)}" fill="#9fd89a" stroke="#5aa857"/>')
     for e in zonas["transitables"]:
-        g.append(poly(e["pol"], 'fill="#9fd3ff" fill-opacity=".75" stroke="#2d8bd8" stroke-width="1.5" stroke-dasharray="5 3"'))
+        g.append(f'<polygon points="{pts(e["pol"])}" fill="#9fd3ff" fill-opacity=".8" stroke="#2d8bd8" stroke-width="1.5" stroke-dasharray="5 3"/>')
     for e in zonas["obstaculos"]:
-        g.append(poly(e["pol"], 'fill="#e8a39b" stroke="#a23b2f" stroke-width="1.5"'))
-    for f in filas:
-        (x1, y1), (x2, y2) = T(POS[f["a"]]), T(POS[f["b"]])
-        mal = bool(f["cruza"])
-        g.append(f'<line x1="{x1:.1f}" y1="{y1:.1f}" x2="{x2:.1f}" y2="{y2:.1f}" stroke="{"#d00000" if mal else "#1f7a3a"}" '
-                 f'stroke-width="{4 if mal else 2.4}" stroke-linecap="round"/>')
+        g.append(f'<polygon points="{pts(e["pol"])}" fill="#e8a39b" stroke="#a23b2f" stroke-width="1.5"/>')
+    for e in zonas["elevados"]:
+        g.append(f'<polygon points="{pts(e["pol"])}" fill="#ffe08a" stroke="#d99a00" stroke-width="1.5"/>')
+    # caminos con su trazado real (la pasarela y la salida central del B en ámbar)
+    for clave, linea in rutas.items():
+        pasarela = "Pasarela" in clave or "B Salida Central" in clave
+        color = "#d99a00" if pasarela else "#1f7a3a"
+        g.append(f'<polyline points="{pts(linea)}" fill="none" stroke="#ffffff" stroke-width="5.5" stroke-linejoin="round" stroke-linecap="round" opacity=".85"/>'
+                 f'<polyline points="{pts(linea)}" fill="none" stroke="{color}" stroke-width="2.6" stroke-linejoin="round" stroke-linecap="round"/>')
+    for e in zonas["obstaculos"] + zonas["transitables"]:
+        x, y = centro(e["pol"])
+        col = "#a23b2f" if e["numero"].startswith("O") else "#1f6fb8"
+        g.append(f'<text x="{x:.1f}" y="{y + 4:.1f}" text-anchor="middle" font-size="11" font-weight="900" fill="{col}" '
+                 f'stroke="#ffffff" stroke-width="3" paint-order="stroke">{e["numero"]}</text>')
     for n, p in POS.items():
         x, y = T(p)
         seguro = n.startswith(("Punto Seguro", "Zona Segura"))
-        g.append(f'<circle cx="{x:.1f}" cy="{y:.1f}" r="6.5" fill="{"#1e9e4a" if seguro else "#0080ff"}" stroke="#fff" stroke-width="2"/>')
-        g.append(f'<text x="{x + 9:.1f}" y="{y + 4:.1f}" font-size="12" font-weight="800" fill="#0b2a4a" stroke="#ffffff" '
+        g.append(f'<circle cx="{x:.1f}" cy="{y:.1f}" r="6" fill="{"#1e9e4a" if seguro else "#0080ff"}" stroke="#fff" stroke-width="2"/>')
+        g.append(f'<text x="{x + 8:.1f}" y="{y - 6:.1f}" font-size="11" font-weight="800" fill="#0b2a4a" stroke="#ffffff" '
                  f'stroke-width="3" paint-order="stroke">{corto(n)}</text>')
-    items = [("#d9efcf", "#6aa84f", "Caminable (campus)"), ("#cfd8e1", "#aab6c2", "Parqueo"), ("#9fd89a", "#5aa857", "Cancha"),
-             ("#9fd3ff", "#2d8bd8", "Techo transitable"), ("#e8a39b", "#a23b2f", "Obstáculo (edificio)")]
-    x, yl = 40, H - 40
+    # lista de números a la derecha
+    lx, ly = W - LISTA + 10, CAB + 10
+    g.append(f'<rect x="{lx - 10}" y="{ly - 24}" width="{LISTA - 10}" height="{H - CAB - 60}" rx="14" fill="#ffffff" stroke="#c5d6ea"/>')
+    g.append(f'<text x="{lx}" y="{ly}" font-size="15" font-weight="900" fill="#a23b2f">Obstáculos (no se cruzan)</text>')
+    ly += 6
+    num = lambda e: int(e["numero"][1:])
+    for e in sorted(zonas["obstaculos"], key=num):
+        ly += 17
+        nombre = e["nombre"] or f"sin nombre (OSM {e['id']})"
+        g.append(f'<text x="{lx}" y="{ly}" font-size="12" font-weight="700" fill="#0b2a4a">'
+                 f'<tspan font-weight="900" fill="#a23b2f">{e["numero"]}</tspan>  {nombre[:30]}</text>')
+    ly += 30
+    g.append(f'<text x="{lx}" y="{ly}" font-size="15" font-weight="900" fill="#1f6fb8">Transitables (se cruzan)</text>')
+    ly += 6
+    for e in sorted(zonas["transitables"], key=num):
+        ly += 17
+        g.append(f'<text x="{lx}" y="{ly}" font-size="12" font-weight="700" fill="#0b2a4a">'
+                 f'<tspan font-weight="900" fill="#1f6fb8">{e["numero"]}</tspan>  {(e["nombre"] or e["motivo"])[:30]}</text>')
+    items = [("#d9efcf", "#6aa84f", "Caminable"), ("#cfd8e1", "#aab6c2", "Parqueo"), ("#9fd89a", "#5aa857", "Cancha"),
+             ("#9fd3ff", "#2d8bd8", "Transitable (T)"), ("#ffe08a", "#d99a00", "Pasarela"), ("#e8a39b", "#a23b2f", "Obstáculo (O)")]
+    x, yl = 40, H - 36
     for relleno, borde, txt in items:
         g.append(f'<rect x="{x}" y="{yl - 9}" width="18" height="18" rx="4" fill="{relleno}" stroke="{borde}" stroke-width="2"/>'
                  f'<text x="{x + 26}" y="{yl + 5}" font-size="14" font-weight="700" fill="#0b2a4a">{txt}</text>')
-        x += 40 + len(txt) * 8.2
-    g.append(f'<line x1="{x}" y1="{yl}" x2="{x + 26}" y2="{yl}" stroke="#1f7a3a" stroke-width="3"/>'
-             f'<text x="{x + 34}" y="{yl + 5}" font-size="14" font-weight="700" fill="#0b2a4a">Camino del grafo</text>')
+        x += 44 + len(txt) * 8.2
+    for col, txt in (("#1f7a3a", "Camino (trazado real)"), ("#d99a00", "Por la pasarela")):
+        g.append(f'<line x1="{x}" y1="{yl}" x2="{x + 26}" y2="{yl}" stroke="{col}" stroke-width="3"/>'
+                 f'<text x="{x + 34}" y="{yl + 5}" font-size="14" font-weight="700" fill="#0b2a4a">{txt}</text>')
+        x += 60 + len(txt) * 8.2
     svg = (f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {W} {H}" width="{W}" height="{H}" '
            f'font-family="Montserrat, Segoe UI, Arial, sans-serif">{"".join(g)}</svg>')
     (AQUI / "zonas-caminables.svg").write_text(svg, encoding="utf-8")
-    print("\nDiagrama: zonas-caminables.svg y zonas-caminables.json")
+    print("\nDiagrama: zonas-caminables.svg, zonas-caminables.json y caminos-reales.json")
+
+
+# ---------------------------------------------------------------- navegación giro a giro (tipo Waze)
+RUMBOS = ["el este", "el sureste", "el sur", "el suroeste", "el oeste", "el noroeste", "el norte", "el noreste"]
+
+
+def _rumbo(a, b):
+    """Rumbo de a hacia b (x este, y sur) como texto: «el norte», «el sureste»..."""
+    ang = math.degrees(math.atan2(b[1] - a[1], b[0] - a[0])) % 360   # 0 = este, 90 = sur
+    return RUMBOS[int((ang + 22.5) // 45) % 8]
+
+
+def _articulo(nombre):
+    """«al Edificio M», «a la Plazoleta», «a los Laboratorios», «al Chilamate»."""
+    if nombre.startswith("El "):
+        return "al " + nombre[3:]
+    if nombre.split()[0] in ("Laboratorios", "Vestidores", "Kioskos"):
+        return "a los " + nombre
+    if nombre.split()[0] in ("Clínicas",):
+        return "a las " + nombre
+    if nombre.split()[0] in ("Zona", "Plazoleta", "Cancha", "Pasarela"):
+        return "a la " + nombre
+    return "al " + nombre
+
+
+NOMBRE_ZONA_POL = {}   # id(polígono) -> nombre de la zona segura que lo contiene
+for _z in POS:
+    for _pol in areas_zona(_z):
+        NOMBRE_ZONA_POL[id(_pol)] = _z
+REFERENCIAS = ([(e["nombre"], e["pol"]) for e in OSM["edificios"] if e["nombre"]]
+               + [(n, pol) for n in POS for pol in areas_zona(n)])
+
+
+def _dpol(p, pol):
+    if dentro(p, pol):
+        return 0.0
+    return min(_dseg(p, pol[i], pol[(i + 1) % len(pol)]) for i in range(len(pol)))
+
+
+def _referencia(p, excluir=(), radio=18):
+    """El lugar con nombre más cercano a p (a menos de `radio` m), para «junto al Edificio M»."""
+    mejor = min(((_dpol(p, pol), n) for n, pol in REFERENCIAS if n not in excluir), default=(math.inf, None))
+    return mejor[1] if mejor[0] <= radio else None
+
+
+def _superficie(p, q):
+    """Por dónde va el tramo p→q: calle, parqueo, plaza, cancha, pasarela o zona verde."""
+    m = ((p[0] + q[0]) / 2, (p[1] + q[1]) / 2)
+    if PASARELA[0] <= m[0] <= PASARELA[1] and PASARELA[2] - .5 <= m[1] <= PASARELA[3] + .5:
+        return "por la pasarela"
+    for pol in [q_["pol"] for q_ in OSM["plazas"]]:
+        if dentro(m, pol):
+            return "por la Plazoleta"
+    for c in OSM["canchas"]:
+        if dentro(m, c["pol"]):
+            return "por la cancha"
+    for q_ in OSM["parqueos"]:
+        if dentro(m, q_["pol"]):
+            return "por el parqueo"
+    if celda(m) in FIRME:
+        return "por la calle interna"
+    return ""          # andén o sendero que no está en el mapa: no se nombra la superficie
+
+
+def _redondeo(m):
+    return max(5, int(round(m / 5.0)) * 5)
+
+
+def _giro(h0, h1):
+    """Diferencia de rumbo (grados, + = derecha con el norte arriba)."""
+    d = (math.degrees(math.atan2(h1[1], h1[0]) - math.atan2(h0[1], h0[0])) + 180) % 360 - 180
+    return d
+
+
+def indicaciones(a, b, linea):
+    """Lista de maniobras para ir de a a b por la polilínea: [{"t": texto, "m": metros, "k": índice}]."""
+    pts = [tuple(p) for p in linea]
+    if len(pts) < 2:
+        return [], 0
+    # 1. tramos rectos: se juntan los segmentos que siguen casi el mismo rumbo (< 30°)
+    tramos = []                     # [(índice inicial, índice final)]
+    i = 0
+    while i < len(pts) - 1:
+        j = i + 1
+        h = (pts[j][0] - pts[i][0], pts[j][1] - pts[i][1])
+        while j < len(pts) - 1:
+            h2 = (pts[j + 1][0] - pts[j][0], pts[j + 1][1] - pts[j][1])
+            if abs(_giro(h, h2)) >= 40:
+                break
+            j += 1
+        tramos.append((i, j))
+        i = j
+    # 2. tramos muy cortos (< 10 m) se suman al anterior: son zigzags de la rejilla, no giros reales
+    largo = lambda t: sum(math.dist(pts[k], pts[k + 1]) for k in range(t[0], t[1]))
+    limpios = []
+    for t in tramos:
+        if limpios and largo(t) < 10:
+            limpios[-1] = (limpios[-1][0], t[1])
+        else:
+            limpios.append(t)
+    if len(limpios) > 1 and largo(limpios[0]) < 10:          # arranque corto: se une al primer tramo largo
+        limpios[:2] = [(limpios[0][0], limpios[1][1])]
+    total = sum(largo(t) for t in limpios)
+    # no se usa de referencia el lugar del que se sale ni al que se llega (ni su edificio en OSM)
+    excluir = {a, b} | {e["nombre"] for e in OSM["edificios"] if e["id"] in propios(a) | propios(b)}
+    out, ultima = [], None
+    for n, (i0, i1) in enumerate(limpios):
+        m = largo((i0, i1))
+        sobre = _superficie(pts[i0], pts[min(i0 + 1, i1)])
+        sobre = f" {sobre}" if sobre else ""
+        if n == 0:
+            txt = f"Sal hacia {_rumbo(pts[i0], pts[i1])}{sobre}"
+        else:
+            hp = (pts[i0][0] - pts[limpios[n - 1][0]][0], pts[i0][1] - pts[limpios[n - 1][0]][1])
+            hn = (pts[i1][0] - pts[i0][0], pts[i1][1] - pts[i0][1])
+            g = _giro(hp, hn)
+            lado = "derecha" if g > 0 else "izquierda"
+            if abs(g) >= 135:
+                verbo = "Da media vuelta"
+            elif abs(g) >= 60:
+                verbo = f"Gira a la {lado}"
+            else:
+                verbo = f"Toma ligeramente a la {lado}"
+            ref = _referencia(pts[i0], excluir)
+            txt = f"{verbo}{' junto ' + _articulo(ref) if ref else ''}{sobre}"
+            if ultima == (verbo, ref, sobre) and verbo.startswith("Toma ligeramente"):
+                # dos desvíos suaves iguales seguidos: una sola indicación
+                out[-1]["m"] = round(out[-1]["m"] + m, 1)
+                out[-1]["t"] = f"{txt} y camina {_redondeo(out[-1]['m'])} m."
+                continue
+            ultima = (verbo, ref, sobre)
+        out.append({"t": f"{txt} y camina {_redondeo(m)} m.", "m": round(m, 1), "k": i0})
+    if b.startswith(("Punto Seguro", "Zona Segura")):
+        out.append({"t": f"Entras {_articulo(b)}: ya estás en zona segura.", "m": 0, "k": len(pts) - 1})
+    else:
+        out.append({"t": f"Llegas {_articulo(b)}.", "m": 0, "k": len(pts) - 1})
+    return out, total
+
+
+def rutas_app(filas):
+    """Trazado e indicaciones de cada camino exterior, en los dos sentidos, para la app."""
+    rutas = {}
+    campus, _ = crearCampus()
+    peso = {(v.nombre, w.nombre): p for v in campus.vertexs for w, p in v.neig}
+    for f in filas:
+        if peso.get((f["a"], f["b"])) != peso.get((f["b"], f["a"])):
+            continue          # escalera dirigida (p. ej. pasarela → Plazoleta): no es un recorrido a pie
+
+        for a, b in ((f["a"], f["b"]), (f["b"], f["a"])):
+            linea = trazado(a, b)
+            pasos, total = indicaciones(a, b, linea)
+            rutas[f"{a}|{b}"] = {"p": linea, "i": pasos, "m": round(total, 1)}
+    return rutas
+
+
+def exportar_app(filas):
+    destino = RAIZ / "frontend" / "static" / "campus-rutas.json"
+    datos = {"fuente": "© OpenStreetMap contributors (ODbL) · docs/mapa-campus/verificar_caminos.py --app",
+             "unidades": "metros; x hacia el este, y hacia el sur",
+             "rutas": rutas_app(filas)}
+    destino.write_text(json.dumps(datos, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
+    print(f"\nApp: {destino.relative_to(RAIZ)} ({len(datos['rutas'])} recorridos, {destino.stat().st_size // 1024} KB)")
+
+
+def aplicar_pesos(filas):
+    """Escribe en backend/datos.py el peso de cada camino exterior = metros reales / VELOCIDAD.
+    Las escaleras dirigidas (bajar/subir distinto) no se tocan."""
+    ruta = RAIZ / "backend" / "datos.py"
+    s = ruta.read_text(encoding="utf-8")
+    cambios = 0
+    for f in filas:
+        a, b = f["a"], f["b"]
+        nuevo = max(3, round(a_pie(a, b) / VELOCIDAD))
+        for x, y in ((a, b), (b, a)):
+            for patron in (rf'(\("{re.escape(x)}", "{re.escape(y)}", )(\d+)(\))',
+                           rf'(unirDosSentidos\(campus, "{re.escape(x)}", "{re.escape(y)}", )(\d+)(\))'):
+                s, n = re.subn(patron, lambda m: f"{m.group(1)}{nuevo}{m.group(3)}", s)
+                cambios += n
+    ruta.write_text(s, encoding="utf-8")
+    print(f"\nPesos: {cambios} caminos de backend/datos.py actualizados con el recorrido real.")
 
 
 if __name__ == "__main__":
