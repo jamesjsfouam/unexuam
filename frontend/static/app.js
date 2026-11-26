@@ -76,7 +76,21 @@ async function cambiarEmergencia(ruta, datos) {
           congestion: estado.campus.congestion || {},
           emergencia: estado.emergencia || null,
         });
-      } catch (_) {}
+      } catch (_) {
+        resultado.nube = false;
+      }
+    }
+  }
+  // El servidor no publicó porque lo iba a hacer este navegador. Si no pudo (token de Firebase vencido o
+  // revocado), el servidor publica con su cuenta de servicio para que la emergencia llegue a todos.
+  if (publicarDesdeWeb && resultado.nube !== true) {
+    try {
+      const r = await fetch("/api/emergencia/publicar", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
+      const j = await r.json().catch(() => ({ ok: false }));
+      resultado.nube = Boolean(j.ok);
+      aviso(j.ok ? `${resultado.mensaje || "Listo."} ${j.mensaje}` : (j.mensaje || "No se pudo publicar en Firebase."), Boolean(j.ok));
+    } catch (_) {
+      aviso("La emergencia quedó guardada aquí, pero no se pudo publicar en Firebase.", false);
     }
   }
   return resultado;
