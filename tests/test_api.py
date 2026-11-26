@@ -446,5 +446,48 @@ class TestSesionYMensajes(unittest.TestCase):
         self.assertEqual(limpieza[1]["fields"]["emergencia"], {"nullValue": None})
 
 
+class TestCorreccionesRevision(unittest.TestCase):
+    def setUp(self):
+        self.client = servidor.app.test_client()
+        _login_admin(self.client)
+        self.client.post("/api/reiniciar", json={"grafo": "ambos"})
+
+    def _peso(self, origen, destino):
+        v = servidor.S["campus"].buscarVertice(origen)
+        return next(p for w, p in v.neig if w.nombre == destino)
+
+    def test_no_hay_admin_con_clave_escrita_en_el_codigo(self):
+        c = servidor.app.test_client()
+        r = c.post("/api/login", json={"cif": "25012005", "contrasena": "Jamesfer.4"}).get_json()
+        self.assertFalse(r["ok"])
+
+    def test_admin_inicial_por_entorno_no_se_reescribe_en_cada_arranque(self):
+        entorno = {"UNEXUAM_ADMIN_CIF": "ENV0001", "UNEXUAM_ADMIN_CLAVE": "ClaveLarga-2026!"}
+        with patch.dict(os.environ, entorno):
+            servidor.asegurar_admin_principal()
+        u = servidor.DB.usuario("ENV0001")
+        self.assertTrue(u and u["admin"])
+        with patch.dict(os.environ, {**entorno, "UNEXUAM_ADMIN_CLAVE": "OtraClave-Distinta-1"}):
+            servidor.asegurar_admin_principal()
+        self.assertEqual(servidor.DB.usuario("ENV0001")["hash"], u["hash"])
+        with patch.dict(os.environ, {"UNEXUAM_ADMIN_CIF": "ENV0002", "UNEXUAM_ADMIN_CLAVE": "corta"}):
+            servidor.asegurar_admin_principal()
+        self.assertIsNone(servidor.DB.usuario("ENV0002"))
+
+    def test_desbloquear_aplica_la_congestion_una_sola_vez(self):
+        origen, destino = "B Pabellón Este P1", "B-101"
+        base = self._peso(origen, destino)
+        # congestión ANTES del bloqueo
+        self.client.post("/api/campus/congestionar", json={"lugar": destino, "factor": 3})
+        self.client.post("/api/campus/bloquear", json={"origen": origen, "destino": destino, "ambos": False})
+        self.client.post("/api/campus/desbloquear", json={})
+        self.assertAlmostEqual(self._peso(origen, destino), base * 3)
+        # congestión DESPUÉS del bloqueo
+        self.client.post("/api/campus/bloquear", json={"origen": origen, "destino": destino, "ambos": False})
+        self.client.post("/api/campus/congestionar", json={"lugar": destino, "factor": 2})
+        self.client.post("/api/campus/desbloquear", json={})
+        self.assertAlmostEqual(self._peso(origen, destino), base * 6)
+
+
 if __name__ == "__main__":
     unittest.main()

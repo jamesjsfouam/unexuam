@@ -188,21 +188,54 @@ async function main() {
   assert.equal(jSos.ok, true, "SOS de invitado debe permitirse offline");
   assert.match(jSos.enviado.de, /^INV-[0-9A-F]{4}$/, "El remitente invitado debe usar INV-<4HEX>");
 
-  // 6) Cuenta Admin principal (25012005 / Jamesfer.4) disponible y verificada offline
-  const resAdmBad = await sandbox.fetch("/api/login", {
-    method: "POST",
-    body: JSON.stringify({ cif: "25012005", contrasena: "incorrecta" }),
-  });
-  assert.equal((await resAdmBad.json()).ok, false, "Admin no debe iniciar sesión con clave errónea");
-  const resAdmOk = await sandbox.fetch("/api/login", {
+  // 6) Ya no existe un administrador sembrado con contraseña fija en el código
+  const resAdmSemilla = await sandbox.fetch("/api/login", {
     method: "POST",
     body: JSON.stringify({ cif: "25012005", contrasena: "Jamesfer.4" }),
   });
-  const jAdmOk = await resAdmOk.json();
-  assert.equal(jAdmOk.ok, true, "Admin 25012005 debe iniciar sesión offline");
-  assert.equal(jAdmOk.usuario.admin, true, "Usuario 25012005 debe tener rol admin");
+  assert.equal((await resAdmSemilla.json()).ok, false, "No debe existir un admin sembrado offline");
+  const cuentasGuardadas = JSON.parse(localStorage.getItem("unexuam-cuentas-v1") || "{}");
+  assert.ok(!Object.values(cuentasGuardadas.usuarios || {}).some((u) => u && u.admin), "No debe quedar ninguna cuenta admin local sembrada");
 
-  console.log("PASS tests/test_motor_offline.js (6/6 escenarios OK)");
+  // 7) Invitado: confirma SIEMPRE la bandeja nativa y no reactiva una emergencia ya finalizada
+  //    aunque la bandeja reproduzca "finalizar" antes que "emergencia".
+  const confirmadosAntes = meshCalls.confirmados.length;
+  await sandbox.__unexuamMeshEvento({
+    tipo: "paquete",
+    paquete: { id: "pkt-fin-1", tipo: "incidente", accion: "finalizar", incidente: "EMG-1", deAdmin: true,
+               de: "OP000001", para: "TODOS", texto: "Emergencia finalizada" },
+  });
+  await sandbox.__unexuamMeshEvento({
+    tipo: "paquete",
+    paquete: { id: "EMG-1", tipo: "incidente", accion: "emergencia", emergenciaTipo: "sismo", deAdmin: true,
+               de: "OP000001", para: "TODOS", texto: "SOS · Sismo", titulo: "Sismo" },
+  });
+  let jPub7 = await (await sandbox.fetch("/api/campus/publico")).json();
+  assert.equal(jPub7.estado.emergencia, null, "Una emergencia ya finalizada no debe reactivarse al reproducir la bandeja");
+  assert.ok(meshCalls.confirmados.includes("pkt-fin-1") && meshCalls.confirmados.includes("EMG-1"),
+    "El invitado debe confirmar las entradas de la bandeja nativa");
+
+  // 8) Emergencias por Mesh de remitentes sin rol admin se ignoran (y se confirman)
+  await sandbox.__unexuamMeshEvento({
+    tipo: "paquete",
+    paquete: { id: "EMG-FALSA", tipo: "incidente", accion: "emergencia", deAdmin: false,
+               de: "UAM9999", para: "TODOS", texto: "SOS · falsa" },
+  });
+  jPub7 = await (await sandbox.fetch("/api/campus/publico")).json();
+  assert.equal(jPub7.estado.emergencia, null, "Emergencia Mesh sin rol admin no debe aplicarse");
+  assert.ok(meshCalls.confirmados.includes("EMG-FALSA"));
+
+  // Una emergencia legítima nueva sí se activa
+  await sandbox.__unexuamMeshEvento({
+    tipo: "paquete",
+    paquete: { id: "EMG-2", tipo: "incidente", accion: "emergencia", deAdmin: true,
+               de: "OP000001", para: "TODOS", texto: "SOS · Incendio", titulo: "Incendio" },
+  });
+  jPub7 = await (await sandbox.fetch("/api/campus/publico")).json();
+  assert.equal(jPub7.estado.emergencia && jPub7.estado.emergencia.id, "EMG-2", "Una emergencia nueva de admin debe activarse");
+  assert.ok(meshCalls.confirmados.length >= confirmadosAntes + 4);
+
+  console.log("PASS tests/test_motor_offline.js (8/8 escenarios OK)");
 }
 
 main().catch((err) => {

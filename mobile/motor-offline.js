@@ -257,6 +257,13 @@
     return Math.round(Number(x) * 100) / 100;
   }
 
+  // Peso de un tramo sin la congestión aplicada a su destino. Se guarda así al
+  // bloquear para que, al reabrir, la congestión vigente se aplique una sola vez.
+  function pesoBase(destino, peso) {
+    const f = S.congestion[destino] || 1;
+    return Math.round((Number(peso) / f) * 1e6) / 1e6;
+  }
+
   function construirGrafo(data) {
     const g = new Graph();
     for (const nombre of data.vertices) g.insertarVertice(nombre);
@@ -479,20 +486,18 @@
       if (parsed && parsed.usuarios && Array.isArray(parsed.mensajes)) c = parsed;
     } catch (_) {}
     if (!c) c = { usuarios: {}, mensajes: [], sesion: null };
-    const cifAdm = "25012005";
-    const uAdm = c.usuarios[cifAdm];
-    if (!uAdm || !uAdm.admin || !uAdm.hash) {
-      const sal = "uam-admin-25012005";
-      c.usuarios[cifAdm] = {
-        nombre: "James Fernandez",
-        sal,
-        hash: resumen(sal + "Jamesfer.4"),
-        telefono: "Tel-Admin-005",
-        lugar: "Edificio E",
-        admin: true,
-      };
-      try { guardarCuentas(c); } catch (_) {}
+    // Versiones anteriores sembraban un administrador con contraseña fija en el
+    // código. Se elimina esa cuenta sembrada: el rol admin solo llega desde la nube
+    // (obtenerUsuario) tras un inicio de sesión real.
+    let purgado = false;
+    for (const [cif, u] of Object.entries(c.usuarios)) {
+      if (u && u.admin && typeof u.sal === "string" && u.sal.startsWith("uam-admin-")) {
+        delete c.usuarios[cif];
+        if (c.sesion === cif) c.sesion = null;
+        purgado = true;
+      }
     }
+    if (purgado) { try { guardarCuentas(c); } catch (_) {} }
     return c;
   }
   function guardarCuentas(c) {
@@ -739,6 +744,7 @@
     if (ruta === "/api/emergencia/finalizar") {
       const incidente = S.emergencia?.id;
       if (!incidente) return responder(false, "No hay una emergencia activa.");
+      marcarIncidenteFinalizado(String(incidente));
       S.ultimaAlerta = null;
       S.emergencia = null;
       const yoFin = cuentaActual();
@@ -800,7 +806,7 @@
         const va = S.campus.vertexs.find((v) => v.nombre === a);
         const arista = va ? va.neig.find(([w]) => w.nombre === b) : null;
         if (arista && S.campus.eliminarArista(a, b)) {
-          S.bloqueados.push({ origen: a, destino: b, peso: num(arista[1]) });
+          S.bloqueados.push({ origen: a, destino: b, peso: pesoBase(b, arista[1]) });
           quitadas.push(`${a} → ${b}`);
         }
       }
@@ -1394,6 +1400,23 @@
     }
   }
 
+  // Incidentes que el administrador ya finalizó. La bandeja nativa se reproduce sin
+  // orden garantizado, así que una "emergencia" que llega después de su "finalizar"
+  // no debe volver a activarse.
+  const FINALIZADOS_KEY = "unexuam-incidentes-finalizados";
+  function incidentesFinalizados() {
+    try {
+      const l = JSON.parse(window.localStorage.getItem(FINALIZADOS_KEY) || "[]");
+      return Array.isArray(l) ? l.filter((x) => typeof x === "string") : [];
+    } catch (_) { return []; }
+  }
+  function marcarIncidenteFinalizado(id) {
+    if (!id) return;
+    const l = incidentesFinalizados().filter((x) => x !== id);
+    l.push(id);
+    try { window.localStorage.setItem(FINALIZADOS_KEY, JSON.stringify(l.slice(-100))); } catch (_) {}
+  }
+
   window.__unexuamMeshEvento = async function (raw) {
     try {
       await asegurarInicializado();
@@ -1468,6 +1491,10 @@
 
       if (ev.tipo === "paquete" && ev.paquete) {
         const pq = ev.paquete;
+        // La entrada de la bandeja nativa se confirma SIEMPRE al terminar (también para
+        // invitados y paquetes descartados): si no, la bandeja se llena (200) y deja de
+        // entregar alertas, y se reproduce entera en cada arranque.
+        try {
         const de = String(pq.de || "").trim().toUpperCase().slice(0, 15);
         const para = String(pq.para || "").trim().toUpperCase().slice(0, 15);
         if (!de || !pq.texto) return;
@@ -1483,7 +1510,7 @@
               const va = S.campus.vertexs.find((v) => v.nombre === a);
               const arista = va ? va.neig.find(([w]) => w.nombre === b) : null;
               if (arista && S.campus.eliminarArista(a, b)) {
-                S.bloqueados.push({ origen: a, destino: b, peso: num(arista[1]) });
+                S.bloqueados.push({ origen: a, destino: b, peso: pesoBase(b, arista[1]) });
                 recalcularRuta = true;
               }
             }
@@ -1493,7 +1520,11 @@
               guardarEstadoLocal();
             }
           }
+        } else if (pq.tipo === "incidente" && (pq.accion === "emergencia" || pq.accion === "finalizar") &&
+                   !(pq.deAdmin === true || Boolean(C.usuarios[de]?.admin))) {
+          registrar(`Incidente Mesh ignorado (remitente sin rol admin: ${de}).`, "error");
         } else if (pq.tipo === "incidente" && pq.accion === "emergencia" && !S.emergenciaOficial) {
+          if (pq.id && incidentesFinalizados().includes(String(pq.id))) return;   // ya se finalizó: no reactivar
           S.emergencia = {
             id: pq.id || generarId(),
             tipo: String(pq.emergenciaTipo || "general"),
@@ -1504,6 +1535,7 @@
           recalcularRuta = true;
           guardarEstadoLocal();
         } else if (pq.tipo === "incidente" && pq.accion === "finalizar") {
+          if (pq.incidente) marcarIncidenteFinalizado(String(pq.incidente));   // aunque llegue antes que la emergencia
           if (S.emergenciaOficial || !pq.incidente || pq.incidente !== S.emergencia?.id) return;
           S.ultimaAlerta = null;
           S.emergencia = null;
@@ -1538,10 +1570,15 @@
             registrar(`Mensaje real recibido de ${C.usuarios[de].nombre} por Mesh.`, "ok");
             guardarEstadoLocal();
           }
-          if ((para === yo.cif || para === "TODOS") && pq.id && window.UnexuamNativo?.confirmarEntradaMesh) {
-            window.UnexuamNativo.confirmarEntradaMesh(pq.id);
-          }
           window.dispatchEvent(new CustomEvent("unexuam-mesh-update", { detail: { ...ev, recalcularRuta } }));
+        } else if (!yo && (para === "TODOS" || recalcularRuta)) {
+          // Invitado: no guarda mensajes, pero la interfaz debe enterarse de SOS y emergencias.
+          window.dispatchEvent(new CustomEvent("unexuam-mesh-update", { detail: { ...ev, recalcularRuta } }));
+        }
+        } finally {
+          if (pq.id) {
+            try { window.UnexuamNativo?.confirmarEntradaMesh?.(pq.id); } catch (_) {}
+          }
         }
       }
     } catch (err) {
