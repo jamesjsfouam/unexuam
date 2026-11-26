@@ -370,7 +370,7 @@ LIBRES = {"/api/capacidades", "/api/yo", "/api/login", "/api/registro", "/api/re
 SOLO_ADMIN = ("/api/reiniciar", "/api/mesh/vertice", "/api/mesh/arista", "/api/mesh/alerta",
               "/api/campus/vertice", "/api/campus/arista", "/api/campus/ubicacion",
               "/api/campus/desbloquear", "/api/campus/congestionar", "/api/campus/reportes/resolver", "/api/algoritmo",
-              "/api/campus/cuellos", "/api/emergencia/declarar", "/api/emergencia/finalizar")
+              "/api/campus/cuellos", "/api/emergencia/declarar", "/api/emergencia/finalizar", "/api/emergencia/publicar")
 LUGAR_INICIAL = "Edificio E"      # lugar por defecto al entrar (luego el GPS o la persona lo cambia)
 CIF_RESERVADO = "ADMIN"
 CIF_TODOS = "TODOS"     # Canal General: un "usuario" especial que representa a todo el campus
@@ -794,6 +794,12 @@ def api_mensajes_general():
             lista = DB.mensajes_generales(limite=200 if u_actual else 50)
             for m in lista:
                 m["deNombre"] = todos[m["de"]]["nombre"] if m["de"] in todos else m["de"]
+                if u_actual is None and m["de"] not in ("INVITADO", CIF_TODOS):
+                    # Sin sesión no se muestra el CIF (es el número de estudiante) ni la ruta, cuyos
+                    # nombres de teléfono llevan dígitos del CIF: un alias estable por autor basta para
+                    # agrupar y dar color a sus mensajes.
+                    m["de"] = "anon-" + hashlib.sha256(f"{app.secret_key}:{m['de']}".encode()).hexdigest()[:10]
+                    m["ruta"] = []
             return jsonify({"ok": True, "mensajes": lista})
     d = cuerpo_json()
     valor = d.get("texto")
@@ -1008,7 +1014,15 @@ def valor_firestore(valor):
     return {"mapValue": {"fields": {clave: valor_firestore(item) for clave, item in valor.items()}}}
 
 
-def publicar_emergencia_campus(emergencia):
+def estado_para_nube(emergencia):
+    """Foto del estado que se publica en Firebase. Tomarla CON el candado puesto."""
+    return {"bloqueados": list(S["bloqueados"][:100]), "congestion": dict(list(S["congestion"].items())[:100]),
+            "emergencia": emergencia, "actualizado": int(time.time() * 1000)}
+
+
+def publicar_emergencia_campus(emergencia, datos=None):
+    """Publica el estado en Firebase (y el push de la emergencia). Hace llamadas de red de hasta
+    varios segundos: llamarla SIN el candado global, con `datos` tomados antes con estado_para_nube."""
     ruta_sa = os.environ.get("FIREBASE_SERVICE_ACCOUNT_FILE") or os.environ.get("GOOGLE_APPLICATION_CREDENTIALS")
     if not ruta_sa:
         return False, False
@@ -1026,8 +1040,8 @@ def publicar_emergencia_campus(emergencia):
         if not proyecto or not re.fullmatch(r"[a-z0-9-]+", proyecto):
             return False, False
         creds.refresh(GoogleAuthRequest())
-        datos = {"bloqueados": S["bloqueados"][:100], "congestion": dict(list(S["congestion"].items())[:100]),
-                 "emergencia": emergencia, "actualizado": int(time.time() * 1000)}
+        if datos is None:
+            datos = estado_para_nube(emergencia)
         publicado = firebase_rest(
             f"https://firestore.googleapis.com/v1/projects/{proyecto}/databases/(default)/documents/campus/estado",
             valor_firestore(datos)["mapValue"], creds.token, "PATCH",
@@ -1064,31 +1078,53 @@ def api_declarar_emergencia():
         "texto": texto_em,
         "hora": time.strftime("%H:%M:%S"),
     }
+    publicar_desde_web = d.get("publicarDesdeWeb") is True
     with lock:
         DB.guardar_emergencia(em)
-        publicar_desde_web = d.get("publicarDesdeWeb") is True
-        nube, push = (None, None) if publicar_desde_web else publicar_emergencia_campus(em)
-        mensaje = f"Emergencia declarada: {titulo_def}."
-        if nube is False:
-            mensaje += " No se pudo publicar en Firebase. Conecta Firebase Admin para publicar desde la web."
-        elif push is False:
-            mensaje += " Publicada en Firebase. El envío push falló."
+        datos = estado_para_nube(em)
+    # La publicación en Firebase va SIN el candado: puede tardar segundos y, mientras tanto, el resto
+    # del campus tiene que poder pedir su ruta (justo en una emergencia).
+    nube, push = (None, None) if publicar_desde_web else publicar_emergencia_campus(em, datos)
+    mensaje = f"Emergencia declarada: {titulo_def}."
+    if nube is False:
+        mensaje += " No se pudo publicar en Firebase. Conecta Firebase Admin para publicar desde la web."
+    elif push is False:
+        mensaje += " Publicada en Firebase. El envío push falló."
+    with lock:
         return responder(True, mensaje, nube=nube, push=push)
 
 
 @app.post("/api/emergencia/finalizar")
 def api_finalizar_emergencia():
+    d = cuerpo_json()
+    incidente = d.get("incidente")
     with lock:
-        d = cuerpo_json()
-        incidente = d.get("incidente")
         if not DB.finalizar_emergencia(incidente):
             return responder(False, "La emergencia activa cambió. Actualiza e inténtalo de nuevo.")
         S["ultimaAlerta"] = None
-        nube, _ = (None, None) if d.get("publicarDesdeWeb") is True else publicar_emergencia_campus(None)
-        mensaje = "Emergencia finalizada."
-        if nube is False:
-            mensaje += " No se pudo publicar el cierre en Firebase."
+        datos = estado_para_nube(None)
+    nube, _ = (None, None) if d.get("publicarDesdeWeb") is True else publicar_emergencia_campus(None, datos)
+    mensaje = "Emergencia finalizada."
+    if nube is False:
+        mensaje += " No se pudo publicar el cierre en Firebase."
+    with lock:
         return responder(True, mensaje, nube=nube)
+
+
+@app.post("/api/emergencia/publicar")
+def api_publicar_emergencia():
+    """Respaldo: el navegador del admin no pudo publicar en Firebase (token vencido o revocado), así
+    que el servidor publica el estado actual con su propia cuenta de servicio."""
+    with lock:
+        em = DB.emergencia_actual()
+        datos = estado_para_nube(em)
+    nube, push = publicar_emergencia_campus(em, datos)
+    if nube is None or nube is False:
+        return jsonify({"ok": False, "nube": nube, "push": push,
+                        "mensaje": "No se pudo publicar en Firebase: vuelve a iniciar sesión en Firebase Admin "
+                                   "o configura la cuenta de servicio del servidor."})
+    msj = "Publicado en Firebase desde el servidor." + (" El envío push falló." if push is False else "")
+    return jsonify({"ok": True, "nube": nube, "push": push, "mensaje": msj})
 
 
 # --- Capa 1: red Mesh --------------------------------------------------------
