@@ -279,7 +279,7 @@ body.sin-sesion main, body.sin-sesion .barra { visibility: hidden; }
 .login:not([hidden]) .login-carta { animation: loginSheetEntra .46s .06s cubic-bezier(.22, 1, .36, 1) both; }
 /* Relieve de rayos: el mismo fondo de la pantalla de carga, a pantalla completa
    detrás de la marca y la tarjeta (antes quedaba como una franja de 77 px). */
-.login-rayos {
+.login .login-rayos {   /* más específico que .splash-rayos (z-index 1), que se define después */
   position: absolute;
   z-index: 0;
 }
@@ -309,7 +309,7 @@ body.sin-sesion main, body.sin-sesion .barra { visibility: hidden; }
   z-index: 1;
   width: 100%;
   max-width: 440px;
-  background: rgba(255, 255, 255, .9);
+  background: rgba(255, 255, 255, .97);   /* casi opaca: la X del fondo no debe verse a través del formulario */
   -webkit-backdrop-filter: blur(14px) saturate(1.55);
   backdrop-filter: blur(14px) saturate(1.55);
   transform: translateZ(0);
@@ -320,7 +320,7 @@ body.sin-sesion main, body.sin-sesion .barra { visibility: hidden; }
   box-shadow: 0 -10px 38px rgba(0, 24, 70, .28), inset 0 1.5px 0 rgba(255, 255, 255, .95);
 }
 html[data-tema="oscuro"] .login-carta {
-  background: rgba(19, 28, 41, .84);
+  background: rgba(19, 28, 41, .96);
   border-color: rgba(255, 255, 255, .16);
   box-shadow: 0 -12px 38px rgba(0, 0, 0, .48), inset 0 1px 0 rgba(255, 255, 255, .15);
 }

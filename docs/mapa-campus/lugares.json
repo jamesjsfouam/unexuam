@@ -1,5 +1,23 @@
 [
   {
+    "nombre": "Anexo norte del Food Court",
+    "tipo": "edificio",
+    "area_m2": 49,
+    "centro_m": [
+      250.8,
+      82.2
+    ]
+  },
+  {
+    "nombre": "Anexo sur del Food Court",
+    "tipo": "edificio",
+    "area_m2": 58,
+    "centro_m": [
+      250.0,
+      113.7
+    ]
+  },
+  {
     "nombre": "Auditorio Central",
     "tipo": "edificio",
     "area_m2": 297,

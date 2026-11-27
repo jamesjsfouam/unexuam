@@ -2093,6 +2093,24 @@
     101.7
    ]
   ],
+  "Jaguar Center|Zona Segura Canchas de Vóley": [
+   [
+    82.5,
+    64.1
+   ],
+   [
+    60.0,
+    54.2
+   ],
+   [
+    54.0,
+    54.2
+   ],
+   [
+    41.5,
+    57.0
+   ]
+  ],
   "Kiosko del Jaguarcito|Laboratorios": [
    [
     107.1,
@@ -2999,6 +3017,16 @@
     101.7
    ]
   ],
+  "Salón Multiusos|Zona Segura Canchas de Vóley": [
+   [
+    29.1,
+    48.4
+   ],
+   [
+    30.0,
+    57.0
+   ]
+  ],
   "Salón de Contenedores|Zona Segura Cancha de Fútbol": [
    [
     19.6,
@@ -3045,6 +3073,24 @@
     101.7
    ]
   ],
+  "Salón de Contenedores|Zona Segura Canchas de Vóley": [
+   [
+    19.6,
+    36.0
+   ],
+   [
+    20.0,
+    54.2
+   ],
+   [
+    30.0,
+    54.2
+   ],
+   [
+    30.0,
+    57.0
+   ]
+  ],
   "Salón de Danza|Salón de Música": [
    [
     50.3,
@@ -3089,6 +3135,20 @@
    [
     46.7,
     101.7
+   ]
+  ],
+  "Salón de Danza|Zona Segura Canchas de Vóley": [
+   [
+    50.3,
+    61.2
+   ],
+   [
+    40.2,
+    54.2
+   ],
+   [
+    40.2,
+    57.0
    ]
   ],
   "Salón de Música|Vestidores": [
@@ -3145,6 +3205,24 @@
    [
     46.7,
     101.7
+   ]
+  ],
+  "Salón de Música|Zona Segura Canchas de Vóley": [
+   [
+    58.5,
+    60.0
+   ],
+   [
+    58.0,
+    54.2
+   ],
+   [
+    54.0,
+    54.2
+   ],
+   [
+    41.5,
+    57.0
    ]
   ],
   "Vestidores|Zona Segura Campo de Béisbol": [
@@ -3213,6 +3291,34 @@
    [
     46.7,
     101.7
+   ]
+  ],
+  "Vestidores|Zona Segura Canchas de Vóley": [
+   [
+    47.9,
+    78.7
+   ],
+   [
+    46.3,
+    86.5
+   ],
+   [
+    41.5,
+    86.5
+   ]
+  ],
+  "Zona Segura Cancha de Fútbol|Zona Segura Canchas de Vóley": [
+   [
+    45.8,
+    101.7
+   ],
+   [
+    45.7,
+    99.1
+   ],
+   [
+    41.5,
+    87.5
    ]
   ]
  }

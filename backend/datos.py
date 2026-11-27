@@ -120,7 +120,7 @@ def crearCampus():
         "Pasarela B Oeste", "Pasarela B Este",
     ]
     zonasSeguras = [
-        "Zona Segura Cancha de Fútbol", "Zona Segura Campo de Béisbol",
+        "Zona Segura Cancha de Fútbol", "Zona Segura Campo de Béisbol", "Zona Segura Canchas de Vóley",
         "Punto Seguro Parqueo Norte", "Punto Seguro Parqueo 47 Calle",
         "Punto Seguro Parqueo 20 Av", "Punto Seguro Plazoleta",
         "Punto Seguro Parqueo Este", "Punto Seguro Parqueo Central",
@@ -263,6 +263,14 @@ def crearCampus():
         ("Clínicas Odontológicas", "Edificio J", 40),
         ("Clínicas Odontológicas", "Punto Seguro Parqueo Central", 35),
         ("Edificio A", "Kioskos del Chilamate", 41),
+        # Canchas de vóley (zona segura, confirmada por James 26/11/2026): de los salones y el Jaguar
+        ("Salón de Contenedores", "Zona Segura Canchas de Vóley", 26),
+        ("Salón Multiusos", "Zona Segura Canchas de Vóley", 7),
+        ("Salón de Danza", "Zona Segura Canchas de Vóley", 13),
+        ("Salón de Música", "Zona Segura Canchas de Vóley", 19),
+        ("Vestidores", "Zona Segura Canchas de Vóley", 11),
+        ("Jaguar Center", "Zona Segura Canchas de Vóley", 36),
+        ("Zona Segura Canchas de Vóley", "Zona Segura Cancha de Fútbol", 12),
         # Salidas directas de cada lugar a sus 3 zonas seguras más cercanas, por el recorrido real a pie
         # (verificar_caminos.py): así ninguna ruta tiene que pasar por dentro de otro edificio. Desde la
         # pasarela (un piso arriba de la Plazoleta) no hay salidas directas: se baja por su escalera o sus extremos.

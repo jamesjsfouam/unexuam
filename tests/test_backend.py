@@ -114,7 +114,7 @@ class TestCampusUAM(unittest.TestCase):
             self.assertIsNotNone(campus.buscarVertice(aula))
         for aula in ["B-110", "B-211", "B-301", "C-311", "P-210", "P-310"]:
             self.assertIsNone(campus.buscarVertice(aula))
-        self.assertEqual(len(campus.vertexs), 157)   # + extremos de la Pasarela B y salida central del B
+        self.assertEqual(len(campus.vertexs), 158)   # + extremos de la Pasarela B, salida central del B y canchas de vóley
 
     def test_escalera_dirigida(self):
         # Bajar un piso cuesta 12 s y subirlo 18 s: dos aristas distintas.

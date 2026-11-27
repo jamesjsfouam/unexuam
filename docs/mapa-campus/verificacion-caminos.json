@@ -1165,7 +1165,7 @@
   {
    "a": "Edificio O",
    "b": "Zona Segura Campo de Béisbol",
-   "peso": 84,
+   "peso": 69,
    "recta_m": 97.4,
    "a_pie_m": 82.4,
    "seg_a_pie": 69,
@@ -1414,6 +1414,18 @@
    "cruza": {},
    "cruza_recta": {},
    "peso_ok": true
+  },
+  {
+   "a": "Jaguar Center",
+   "b": "Zona Segura Canchas de Vóley",
+   "peso": 20,
+   "recta_m": 50.1,
+   "a_pie_m": 43.4,
+   "seg_a_pie": 36,
+   "rodeo": 0.87,
+   "cruza": {},
+   "cruza_recta": {},
+   "peso_ok": false
   },
   {
    "a": "Kiosko del Jaguarcito",
@@ -1967,6 +1979,18 @@
    "peso_ok": true
   },
   {
+   "a": "Salón Multiusos",
+   "b": "Zona Segura Canchas de Vóley",
+   "peso": 20,
+   "recta_m": 23.9,
+   "a_pie_m": 8.7,
+   "seg_a_pie": 7,
+   "rodeo": 0.36,
+   "cruza": {},
+   "cruza_recta": {},
+   "peso_ok": false
+  },
+  {
    "a": "Salón de Contenedores",
    "b": "Zona Segura Cancha de Fútbol",
    "peso": 73,
@@ -1978,6 +2002,20 @@
    "cruza_recta": {
     "Salón Multiusos": 11.0,
     "Vestidores": 7.5
+   },
+   "peso_ok": true
+  },
+  {
+   "a": "Salón de Contenedores",
+   "b": "Zona Segura Canchas de Vóley",
+   "peso": 20,
+   "recta_m": 38.4,
+   "a_pie_m": 31.0,
+   "seg_a_pie": 26,
+   "rodeo": 0.81,
+   "cruza": {},
+   "cruza_recta": {
+    "Salón Multiusos": 10.1
    },
    "peso_ok": true
   },
@@ -2018,6 +2056,18 @@
    "peso_ok": true
   },
   {
+   "a": "Salón de Danza",
+   "b": "Zona Segura Canchas de Vóley",
+   "peso": 20,
+   "recta_m": 20.4,
+   "a_pie_m": 15.1,
+   "seg_a_pie": 13,
+   "rodeo": 0.74,
+   "cruza": {},
+   "cruza_recta": {},
+   "peso_ok": true
+  },
+  {
    "a": "Salón de Música",
    "b": "Vestidores",
    "peso": 34,
@@ -2039,6 +2089,20 @@
    "rodeo": 0.72,
    "cruza": {},
    "cruza_recta": {},
+   "peso_ok": true
+  },
+  {
+   "a": "Salón de Música",
+   "b": "Zona Segura Canchas de Vóley",
+   "peso": 20,
+   "recta_m": 28.2,
+   "a_pie_m": 22.6,
+   "seg_a_pie": 19,
+   "rodeo": 0.8,
+   "cruza": {},
+   "cruza_recta": {
+    "Salón de Danza": 8.6
+   },
    "peso_ok": true
   },
   {
@@ -2064,6 +2128,30 @@
    "cruza": {},
    "cruza_recta": {},
    "peso_ok": true
+  },
+  {
+   "a": "Vestidores",
+   "b": "Zona Segura Canchas de Vóley",
+   "peso": 20,
+   "recta_m": 16.3,
+   "a_pie_m": 12.8,
+   "seg_a_pie": 11,
+   "rodeo": 0.78,
+   "cruza": {},
+   "cruza_recta": {},
+   "peso_ok": false
+  },
+  {
+   "a": "Zona Segura Cancha de Fútbol",
+   "b": "Zona Segura Canchas de Vóley",
+   "peso": 10,
+   "recta_m": 71.1,
+   "a_pie_m": 14.9,
+   "seg_a_pie": 12,
+   "rodeo": 0.21,
+   "cruza": {},
+   "cruza_recta": {},
+   "peso_ok": true
   }
  ],
  "grado": {
@@ -2083,16 +2171,16 @@
   "El Chilamate": 7,
   "El Ranchito": 6,
   "Food Court": 7,
-  "Jaguar Center": 7,
+  "Jaguar Center": 8,
   "Kiosko del Jaguarcito": 5,
   "Kioskos del Chilamate": 7,
   "Laboratorios": 7,
-  "Salón Multiusos": 6,
-  "Salón de Contenedores": 4,
-  "Salón de Danza": 7,
-  "Salón de Música": 6,
-  "Vestidores": 7,
-  "Zona Segura Cancha de Fútbol": 15,
+  "Salón Multiusos": 7,
+  "Salón de Contenedores": 5,
+  "Salón de Danza": 8,
+  "Salón de Música": 7,
+  "Vestidores": 8,
+  "Zona Segura Cancha de Fútbol": 16,
   "Zona Segura Campo de Béisbol": 7,
   "Punto Seguro Parqueo Norte": 6,
   "Punto Seguro Parqueo 47 Calle": 9,
@@ -2113,7 +2201,8 @@
   "P Salida Oeste": 4,
   "Pasarela B Oeste": 7,
   "Pasarela B Este": 7,
-  "B Salida Central": 3
+  "B Salida Central": 3,
+  "Zona Segura Canchas de Vóley": 7
  },
  "candidatos": [
   {

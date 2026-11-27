@@ -216,10 +216,15 @@ ZONA_AREA = {
     "Punto Seguro Plazoleta": ["plaza:0"],
     "Punto Seguro Parqueo Sur": ["parqueo:1553720160", "parqueo:1553720161"],
     "Punto Seguro Parqueo Oeste": ["parqueo:1553720166"],
+    # las dos canchas de vóley (arena y la de líneas); el toldo azul de al lado no cuenta
+    "Zona Segura Canchas de Vóley": [[[7.5, 68.5], [23.5, 68.5], [23.5, 88], [7.5, 88]],
+                                     [[24.5, 57], [41.5, 57], [41.5, 87.5], [24.5, 87.5]]],
 }
 
 
 def _poligono(ref):
+    if isinstance(ref, list):
+        return ref
     tipo, clave = ref.split(":", 1)
     if tipo == "cancha":
         return next(c["pol"] for c in OSM["canchas"] if c.get("deporte") == clave)
