@@ -12,6 +12,7 @@ sys.path.insert(0, str(RAIZ))
 
 import math
 from backend.datos import EDIFICIOS_SIN_PASO, crearCampus, crearRedMesh, ubicacionesTelefonos
+from backend.grafo import Graph
 from backend.evacuacion import rutaEvacuacion
 
 
@@ -106,7 +107,9 @@ def main():
 
     # Exportar los grafos reales desde backend/datos.py (fuente única de verdad)
     campus, zonas = crearCampus()
-    red = crearRedMesh()
+    # Teléfonos simulados solo en modo demostración (UNEXUAM_DEMO=1); en el campus la red empieza vacía
+    demo = os.environ.get("UNEXUAM_DEMO") == "1"
+    red = crearRedMesh() if demo else Graph()
     rutas_base = {}
     for v in campus.vertexs:
         ruta, tiempo = rutaEvacuacion(campus, v.nombre, zonas)
@@ -117,7 +120,7 @@ def main():
         "zonas": list(zonas),
         "sinPaso": sorted(EDIFICIOS_SIN_PASO),
         "mesh": serializar(red),
-        "ubicaciones": ubicacionesTelefonos(),
+        "ubicaciones": ubicacionesTelefonos() if demo else {},
         "rutasBase": rutas_base,
     }
     (static_dst / "datos-iniciales.json").write_text(

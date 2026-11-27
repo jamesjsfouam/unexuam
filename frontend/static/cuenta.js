@@ -833,7 +833,8 @@
     $("#contactos").innerHTML = lista.length ? lista.map(c => {
       const u = ultimo[c.cif];
       const n = noLeidos(c.cif);
-      let vista = c.enLinea ? (c.lugar ? `En ${c.lugar}` : "En la red") : "Sin conexión";
+      let vista = c.cif === "TODOS" ? (c.lugar || "Canal de todo el campus")
+        : c.enLinea ? (c.lugar ? `En ${c.lugar}` : "En la red") : "Sin conexión";
       if (u) vista = (u.de === YO.cif ? (u.estado === "entregado" ? "Entregado · " : "En cola · ") : "") + u.texto;
       return `<li><button type="button" data-contacto="${esc(c.cif)}">
         <span class="avatar-c" style="background:${colorDe(c.cif)}">${esc(iniciales(c.nombre))}${c.enLinea ? '<i class="en-linea"></i>' : ""}</span>
@@ -961,7 +962,8 @@
     av.textContent = iniciales(c.nombre);
     av.style.background = colorDe(c.cif);
     $("#chat-titulo").textContent = c.nombre;
-    $("#chat-estado").textContent = c.enLinea ? (c.lugar ? `en la red · ${c.lugar}` : "en la red") : "sin conexión";
+    $("#chat-estado").textContent = c.cif === "TODOS" ? (c.lugar || "canal de todo el campus")
+      : c.enLinea ? (c.lugar ? `en la red · ${c.lugar}` : "en la red") : "sin conexión";
     const esGrupo = c.cif === "TODOS";
     const miCif = YO ? YO.cif : "INVITADO";
     const lista = esGrupo
@@ -1615,11 +1617,20 @@
         try { enviados = Number(window.UnexuamNativo?.enviarPaqueteMesh?.(JSON.stringify(pkt)) || 0); } catch (_) {}
         let okLocal = false;
         try {
-          const r = await fetch("/api/mensajes/enviar", {
+          let r = await fetch("/api/mensajes/enviar", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ para: "TODOS", texto, guestId: invId }),
           });
+          if (r.status === 401) {
+            // En el servidor web /api/mensajes/enviar exige sesión; el SOS de invitado
+            // se acepta en el Canal General (textos que empiezan por "SOS").
+            r = await fetch("/api/mensajes/general", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ texto }),
+            });
+          }
           const jInv = await r.json().catch(() => ({}));
           okLocal = Boolean(jInv && jInv.ok);
         } catch (_) {}
@@ -1646,12 +1657,25 @@
 
   function abrirReportarBloqueo() {
     if (!window.abrirHoja) return;
-    const pasos = [
+    // Primero los caminos que salen del lugar donde está la persona, después los pasillos críticos fijos
+    const cerca = [];
+    const lugarYo = (YO && YO.lugar) || "";
+    try {
+      const aristas = (typeof E !== "undefined" && E && E.campus && E.campus.aristas) || [];
+      const vistos = new Set();
+      for (const a of aristas) {
+        if (a.origen !== lugarYo || vistos.has(a.destino)) continue;
+        vistos.add(a.destino);
+        cerca.push({ txt: `Camino de ${a.origen} a ${a.destino}`, o: a.origen, d: a.destino });
+        if (cerca.length >= 6) break;
+      }
+    } catch (_) { /* sin estado del campus todavía */ }
+    const pasos = cerca.concat([
       { txt: "Escalera Oeste del Edificio P (piso 3 a 2)", o: "P Escalera Oeste P3", d: "P Escalera Oeste P2" },
       { txt: "Escalera central B–C (piso 3 a 2)", o: "C Escalera Central P3", d: "B Escalera Central P2" },
       { txt: "Pasarela del B hacia la Plazoleta", o: "Pasarela Edificio B", d: "Punto Seguro Plazoleta" },
       { txt: "Salida oeste del B hacia el Auditorio", o: "B Salida Oeste", d: "Auditorio Central" },
-    ];
+    ].filter(p => !cerca.some(c => c.o === p.o && c.d === p.d)));
     window.abrirHoja(
       "Reportar pasillo bloqueado",
       window.UnexuamNativo

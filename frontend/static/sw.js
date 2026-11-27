@@ -1,5 +1,5 @@
 /* Service Worker de Unexuam: caché de assets estáticos para operar offline. */
-const CACHE = "unexuam-v34";
+const CACHE = "unexuam-v43";
 const CAMPUS_OFFLINE = "/campus-offline.json";
 const ASSETS = [
   "/",
@@ -26,6 +26,10 @@ const ASSETS = [
   "/static/img/ico-fuego.png",
   "/static/img/ico-sin-senal.png",
   "/static/img/mapa-campus-3d.svg",
+  "/static/img/mapa-campus-3d-detalle.svg",
+  "/static/img/mapa-campus-3d-g106.svg",
+  "/static/img/mapa-campus-3d-g196.svg",
+  "/static/img/mapa-campus-3d-g286.svg",
   "/static/img/fondo-marca.svg",
   "/static/img/figma/tarjeta-inundacion.jpg",
   "/static/img/figma/tarjeta-incendio.jpg",
@@ -93,7 +97,7 @@ self.addEventListener("fetch", (ev) => {
     ev.respondWith(responderCampus(ev.request, url.pathname));
     return;
   }
-  if (ev.request.method !== "GET" || url.pathname.startsWith("/api/")) return;
+  if (ev.request.method !== "GET" || url.pathname.startsWith("/api/") || url.pathname.startsWith("/descargar")) return;
   ev.respondWith(
     fetch(ev.request)
       .then((res) => {
