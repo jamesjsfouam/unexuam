@@ -45,8 +45,8 @@ class TestApiYParidad(unittest.TestCase):
         self.assertEqual(r.headers.get("X-Content-Type-Options"), "nosniff")
         data = r.get_json()
         self.assertTrue(data["ok"])
-        self.assertEqual(len(data["estado"]["campus"]["vertices"]), 154)
-        self.assertEqual(len(data["estado"]["campus"]["aristas"]), 442)
+        self.assertEqual(len(data["estado"]["campus"]["vertices"]), 158)
+        self.assertEqual(len(data["estado"]["campus"]["aristas"]), 604)
         self.assertEqual(len(data["estado"]["mesh"]["vertices"]), 8)
 
     def test_validacion_payloads_invalidos(self):
@@ -59,7 +59,7 @@ class TestApiYParidad(unittest.TestCase):
         r1 = self.client.post("/api/campus/ruta", json={"lugar": "C-305"}).get_json()
         self.assertTrue(r1["ok"])
         self.assertTrue(r1["precalculada"])
-        self.assertEqual(r1["ruta"]["tiempo"], 58)
+        self.assertEqual(r1["ruta"]["tiempo"], 46)   # salida central del B en planta baja
         self.assertEqual(r1["ruta"]["ruta"][-1], "Punto Seguro Plazoleta")
 
         b = self.client.post("/api/campus/bloquear", json={
@@ -71,18 +71,19 @@ class TestApiYParidad(unittest.TestCase):
 
         r2 = self.client.post("/api/campus/ruta", json={"lugar": "C-305"}).get_json()
         self.assertFalse(r2["precalculada"])
-        self.assertEqual(r2["ruta"]["tiempo"], 70)
+        self.assertEqual(r2["ruta"]["tiempo"], 58)
         self.assertNotIn("C Escalera Central P3", r2["ruta"]["ruta"])
 
     def test_flujo_usuario_p309_bloqueo_y_congestion(self):
-        self.assertEqual(self.client.post("/api/campus/ruta", json={"lugar": "P-309"}).get_json()["ruta"]["tiempo"], 77)
+        # Tiempos hasta el borde más cercano de cada zona segura (zonas = áreas, verificar_caminos.py)
+        self.assertEqual(self.client.post("/api/campus/ruta", json={"lugar": "P-309"}).get_json()["ruta"]["tiempo"], 59)
         self.client.post("/api/campus/bloquear", json={"origen": "P Escalera Oeste P3", "destino": "P Escalera Oeste P2", "ambos": True})
-        self.assertEqual(self.client.post("/api/campus/ruta", json={"lugar": "P-309"}).get_json()["ruta"]["tiempo"], 136)
+        self.assertEqual(self.client.post("/api/campus/ruta", json={"lugar": "P-309"}).get_json()["ruta"]["tiempo"], 102)
         self.client.post("/api/campus/desbloquear", json={})
-        self.client.post("/api/campus/congestionar", json={"lugar": "Punto Seguro Parqueo Oeste", "factor": 5})
+        self.client.post("/api/campus/congestionar", json={"lugar": "Punto Seguro Parqueo Sur", "factor": 5})
         r = self.client.post("/api/campus/ruta", json={"lugar": "P-309"}).get_json()
-        self.assertEqual(r["ruta"]["tiempo"], 99)
-        self.assertEqual(r["ruta"]["ruta"][-1], "Punto Seguro Parqueo Sur")
+        self.assertEqual(r["ruta"]["tiempo"], 71)
+        self.assertEqual(r["ruta"]["ruta"][-1], "Punto Seguro Parqueo Oeste")
 
     def test_flujo_red_mesh_ttl(self):
         self.assertEqual(len(self.client.post("/api/mesh/alerta", json={"origen": "Tel-Ana", "ttl": 0}).get_json()["alcanzados"]), 1)
@@ -93,14 +94,14 @@ class TestApiYParidad(unittest.TestCase):
         self.assertTrue(self.client.post("/api/campus/vertice", json={"accion": "insertar", "nombre": "Aula 203"}).get_json()["ok"])
         self.assertTrue(self.client.post("/api/campus/arista", json={"accion": "insertar", "origen": "Aula 203", "destino": "B Pabellón Este P2", "peso": 12}).get_json()["ok"])
         self.assertTrue(self.client.post("/api/campus/arista", json={"accion": "actualizar", "origen": "Aula 203", "destino": "B Pabellón Este P2", "peso": 20}).get_json()["ok"])
-        self.assertEqual(self.client.post("/api/campus/ruta", json={"lugar": "Aula 203"}).get_json()["ruta"]["tiempo"], 58)
+        self.assertEqual(self.client.post("/api/campus/ruta", json={"lugar": "Aula 203"}).get_json()["ruta"]["tiempo"], 46)
         self.assertTrue(self.client.post("/api/campus/vertice", json={"accion": "eliminar", "nombre": "aula 203"}).get_json()["ok"])
 
     def test_service_worker_disponible(self):
         with self.client.get("/sw.js") as r:
             self.assertEqual(r.status_code, 200)
             self.assertEqual(r.headers.get("Service-Worker-Allowed"), "/")
-            self.assertIn(b"unexuam-v28", r.data)
+            self.assertIn(b"unexuam-v43", r.data)
 
     def test_operador_real_puede_iniciar_sesion(self):
         resultado = servidor.app.test_cli_runner().invoke(
@@ -444,6 +445,49 @@ class TestSesionYMensajes(unittest.TestCase):
         self.assertEqual(push[1]["message"]["topic"], "campus_emergencias")
         self.assertEqual(push[1]["message"]["data"]["id"], id_alerta)
         self.assertEqual(limpieza[1]["fields"]["emergencia"], {"nullValue": None})
+
+
+class TestCorreccionesRevision(unittest.TestCase):
+    def setUp(self):
+        self.client = servidor.app.test_client()
+        _login_admin(self.client)
+        self.client.post("/api/reiniciar", json={"grafo": "ambos"})
+
+    def _peso(self, origen, destino):
+        v = servidor.S["campus"].buscarVertice(origen)
+        return next(p for w, p in v.neig if w.nombre == destino)
+
+    def test_no_hay_admin_con_clave_escrita_en_el_codigo(self):
+        c = servidor.app.test_client()
+        r = c.post("/api/login", json={"cif": "25012005", "contrasena": "Jamesfer.4"}).get_json()
+        self.assertFalse(r["ok"])
+
+    def test_admin_inicial_por_entorno_no_se_reescribe_en_cada_arranque(self):
+        entorno = {"UNEXUAM_ADMIN_CIF": "ENV0001", "UNEXUAM_ADMIN_CLAVE": "ClaveLarga-2026!"}
+        with patch.dict(os.environ, entorno):
+            servidor.asegurar_admin_principal()
+        u = servidor.DB.usuario("ENV0001")
+        self.assertTrue(u and u["admin"])
+        with patch.dict(os.environ, {**entorno, "UNEXUAM_ADMIN_CLAVE": "OtraClave-Distinta-1"}):
+            servidor.asegurar_admin_principal()
+        self.assertEqual(servidor.DB.usuario("ENV0001")["hash"], u["hash"])
+        with patch.dict(os.environ, {"UNEXUAM_ADMIN_CIF": "ENV0002", "UNEXUAM_ADMIN_CLAVE": "corta"}):
+            servidor.asegurar_admin_principal()
+        self.assertIsNone(servidor.DB.usuario("ENV0002"))
+
+    def test_desbloquear_aplica_la_congestion_una_sola_vez(self):
+        origen, destino = "B Pabellón Este P1", "B-101"
+        base = self._peso(origen, destino)
+        # congestión ANTES del bloqueo
+        self.client.post("/api/campus/congestionar", json={"lugar": destino, "factor": 3})
+        self.client.post("/api/campus/bloquear", json={"origen": origen, "destino": destino, "ambos": False})
+        self.client.post("/api/campus/desbloquear", json={})
+        self.assertAlmostEqual(self._peso(origen, destino), base * 3)
+        # congestión DESPUÉS del bloqueo
+        self.client.post("/api/campus/bloquear", json={"origen": origen, "destino": destino, "ambos": False})
+        self.client.post("/api/campus/congestionar", json={"lugar": destino, "factor": 2})
+        self.client.post("/api/campus/desbloquear", json={})
+        self.assertAlmostEqual(self._peso(origen, destino), base * 6)
 
 
 if __name__ == "__main__":

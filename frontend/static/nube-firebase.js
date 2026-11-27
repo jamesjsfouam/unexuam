@@ -125,10 +125,10 @@
       return { ok: r.ok, status: r.status, d };
     };
     try {
+      // Registrarse crea la cuenta (la Cloud Function la rechaza si el CIF ya tiene dueño);
+      // iniciar sesión NUNCA crea una cuenta nueva.
       let res = await llamarIdp(esRegistro ? "signUp" : "signInWithPassword");
-      if (!esRegistro && !res.ok && res.d?.error?.message === "EMAIL_NOT_FOUND") {
-        res = await llamarIdp("signUp");
-      } else if (esRegistro && !res.ok && res.d?.error?.message === "EMAIL_EXISTS") {
+      if (esRegistro && !res.ok && res.d?.error?.message === "EMAIL_EXISTS") {
         res = await llamarIdp("signInWithPassword");
       }
       if (!res.ok || !res.d || !res.d.idToken) {

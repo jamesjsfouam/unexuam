@@ -87,8 +87,8 @@ class TestEvacuacion(unittest.TestCase):
         campus, zonas = crearCampus()
         ruta, tiempo = rutaEvacuacion(campus, "P-309", zonas)
         self.assertEqual(ruta, ["P-309", "P Pabellón Oeste P3", "P Escalera Oeste P3", "P Escalera Oeste P2",
-                                "P Escalera Oeste P1", "P Salida Oeste", "Punto Seguro Parqueo Oeste"])
-        self.assertEqual(tiempo, 77)
+                                "P Escalera Oeste P1", "P Salida Oeste", "Punto Seguro Parqueo Sur"])
+        self.assertEqual(tiempo, 59)   # hasta el borde del Parqueo Sur, el más cercano (por el pasillo de planta baja del P)
 
     def test_alerta_cambia_la_ruta(self):
         campus, zonas = crearCampus()
@@ -114,7 +114,7 @@ class TestCampusUAM(unittest.TestCase):
             self.assertIsNotNone(campus.buscarVertice(aula))
         for aula in ["B-110", "B-211", "B-301", "C-311", "P-210", "P-310"]:
             self.assertIsNone(campus.buscarVertice(aula))
-        self.assertEqual(len(campus.vertexs), 154)
+        self.assertEqual(len(campus.vertexs), 158)   # + extremos de la Pasarela B, salida central del B y canchas de vóley
 
     def test_escalera_dirigida(self):
         # Bajar un piso cuesta 12 s y subirlo 18 s: dos aristas distintas.
@@ -129,17 +129,39 @@ class TestCampusUAM(unittest.TestCase):
         self.assertEqual(rutaMasCorta(campus, "B-210", "Edificio E"),
                          (["B-210", "B Pabellón Oeste P2", "Edificio E"], 23))
 
+    def test_pisos_altos_bajan_a_planta_baja(self):
+        # En B, C y P los pasillos de los 3 pisos se caminan, pero para salir hay que bajar al 1.er piso.
+        # Excepciones: el paso central B/C (dentro del grupo B/C) y el pasillo elevado B-E del 2.o piso.
+        import re
+        campus, zonas = crearCampus()
+        for v in campus.vertexs:
+            if re.match(r"^[BCP][ -]", v.nombre) and re.search(r" P[23]$|^[BCP]-[23][0-9][0-9]", v.nombre):
+                for w, _ in v.neig:
+                    if (v.nombre, w.nombre) == ("B Pabellón Oeste P2", "Edificio E"):
+                        continue
+                    self.assertRegex(w.nombre, r"^[BCP][ -]", f"{v.nombre} -> {w.nombre}")
+
+    def test_ninguna_ruta_atraviesa_un_edificio_cerrado(self):
+        # Un edificio cerrado puede ser el origen, nunca un punto intermedio (su vértice es su centro).
+        from backend.datos import EDIFICIOS_SIN_PASO
+        campus, zonas = crearCampus()
+        for v in campus.vertexs:
+            ruta, tiempo = rutaEvacuacion(campus, v.nombre, zonas)
+            self.assertNotEqual(tiempo, float("inf"), f"{v.nombre} no tiene salida")
+            self.assertFalse(set(ruta[1:-1]) & EDIFICIOS_SIN_PASO, f"{v.nombre}: {ruta}")
+
     def test_pasarela_b_y_plazoleta(self):
         campus, zonas = crearCampus()
         for pab in ["B Pabellón Este P1", "B Pabellón Oeste P1"]:
             ruta, tiempo = rutaMasCorta(campus, pab, "Punto Seguro Plazoleta")
-            self.assertEqual(ruta, [pab, "Pasarela Edificio B", "Punto Seguro Plazoleta"])
-            self.assertEqual(tiempo, 24)
-        # La escalera en medio de la pasarela es dirigida (bajar 12 s, subir 18 s).
-        _, bajar = rutaMasCorta(campus, "Pasarela Edificio B", "Punto Seguro Plazoleta")
-        _, subir = rutaMasCorta(campus, "Punto Seguro Plazoleta", "Pasarela Edificio B")
-        self.assertEqual(bajar, 12)
-        self.assertEqual(subir, 18)
+            # la salida central del B está en planta baja y da a la plaza norte (andén A49)
+            self.assertEqual(ruta, [pab, "B Salida Central", "Punto Seguro Plazoleta"])
+            self.assertEqual(tiempo, 12)
+        # La pasarela está en planta baja, pegada al frente del B: da a la plaza al mismo nivel.
+        _, ida = rutaMasCorta(campus, "Pasarela Edificio B", "Punto Seguro Plazoleta")
+        _, vuelta = rutaMasCorta(campus, "Punto Seguro Plazoleta", "Pasarela Edificio B")
+        self.assertEqual(ida, vuelta)
+        self.assertLessEqual(ida, 5)
 
     def test_paso_b205_hacia_c_y_escalera_central(self):
         campus, zonas = crearCampus()

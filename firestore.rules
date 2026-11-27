@@ -10,10 +10,12 @@ service cloud.firestore {
     // Project: unexuam-campus-ni (Standard edition, (default) database)
     // Auth Note (REM-08):
     //   - /usuarios, /mensajes, and /reportes_bloqueo require a non-anonymous
-    //     Firebase Auth session. Student identity is matched against
-    //     request.auth.uid == cif, custom claim request.auth.token.cif == cif,
-    //     or Firebase Auth REST email
-    //     request.auth.token.email == (cif.lower() + '@unexuam.uam.edu.ni').
+    //     Firebase Auth session. Student identity is matched ONLY against
+    //     request.auth.uid == cif or the custom claim request.auth.token.cif == cif.
+    //     The claim is set server-side by the blocking function
+    //     functions/index.js:asignarCifAlCrearCuenta, which also refuses to create
+    //     an account for a CIF that is already taken (Firestore /usuarios or
+    //     /cuentas_web). The e-mail address is NOT trusted (it is unverified).
     //   - Administrators are verified via custom claim admin == true or
     //     /admins/{request.auth.uid}.
     //   - /campus/estado allows unauthenticated public read (required by
@@ -92,9 +94,7 @@ service cloud.firestore {
       return isAuthenticated() &&
              cif is string &&
              (request.auth.uid == cif ||
-              ('cif' in request.auth.token && request.auth.token.cif == cif) ||
-              ('email' in request.auth.token &&
-               request.auth.token.email == (cif.lower() + '@unexuam.uam.edu.ni')));
+              ('cif' in request.auth.token && request.auth.token.cif == cif));
     }
 
     function hasRequiredFields(fields) {
@@ -298,7 +298,7 @@ service cloud.firestore {
     }
 
     match /reportes_bloqueo/{repId} {
-      allow read: if isAuthenticated();
+      allow read: if isAdminAuth() || isSelfUser(resource.data.autor);
 
       allow create: if isAuthenticated() &&
                        isValidReporteBloqueo(request.resource.data) &&
@@ -314,6 +314,11 @@ service cloud.firestore {
                        validStringLength('estado', 1, 30);
 
       allow delete: if false;
+    }
+
+    // CIFs ya registrados en el servidor web: solo los usa la Cloud Function (Admin SDK)
+    match /cuentas_web/{cif} {
+      allow read, write: if false;
     }
 
     // ===============================================================

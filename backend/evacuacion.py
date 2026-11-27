@@ -1,9 +1,18 @@
 
 
+from backend.datos import EDIFICIOS_SIN_PASO
+
 INF = float("inf")
 
 
-def dijkstra(campus, origen):
+def sinPaso(nombre):
+    # Edificio cerrado: se puede salir de el, pero una ruta no lo atraviesa.
+    return nombre in EDIFICIOS_SIN_PASO
+
+
+def dijkstra(campus, origen, terminal=None):
+    # terminal(nombre) -> True: se puede llegar a ese vertice pero no pasar a traves de el
+    # (las zonas seguras son areas: cruzarlas no cuesta nada en el grafo, asi que no sirven de atajo).
     distancias = {}     # nombre -> menor tiempo conocido desde el origen
     anteriores = {}     # nombre -> lugar por el que se llega (para armar la ruta)
     for v in campus.vertexs:
@@ -27,6 +36,8 @@ def dijkstra(campus, origen):
         if actual is None or distancias[actual.nombre] == INF:
             break
         visitados.add(actual)
+        if terminal is not None and actual is not inicio and terminal(actual.nombre):
+            continue
 
         # 2. Relajar: probar si pasando por "actual" se llega mas rapido a cada vecino.
         for vecino in actual.neig:
@@ -65,7 +76,7 @@ def rutaEvacuacion(campus, origen, zonasSeguras):
     # Calcula Dijkstra una sola vez y elige la zona segura con menor tiempo.
     if campus.buscarVertice(origen) is None:
         return [], INF
-    distancias, anteriores = dijkstra(campus, origen)
+    distancias, anteriores = dijkstra(campus, origen, terminal=sinPaso)
     zonas = []
     for zona in zonasSeguras:
         vZona = campus.buscarVertice(zona)
@@ -132,6 +143,10 @@ def dijkstraPasos(campus, origen, zonasSeguras):
         visitados.add(actual)
 
         paso = {"actual": actual.nombre, "distancia": distancias[actual.nombre], "vecinos": []}
+        if actual is not inicio and sinPaso(actual.nombre) and actual.nombre.lower() not in zonasLower:
+            paso["sinPaso"] = True          # edificio cerrado: no se sigue a traves de el
+            pasos.append(paso)
+            continue
         if actual.nombre.lower() in zonasLower:
             pasos.append(paso)
             zonaAlcanzada = actual.nombre

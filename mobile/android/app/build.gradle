@@ -19,7 +19,17 @@ android {
         versionCode 1
         versionName "1.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
-        def meshHmacSeed = keystoreProps['meshHmacKey'] ?: System.getenv('UNEXUAM_MESH_HMAC_KEY') ?: 'UNEXUAM-UAM-MESH-2026-V2'
+        // La clave HMAC de la mesh no debe ser pública: defínela en key.properties
+        // (meshHmacKey) o en UNEXUAM_MESH_HMAC_KEY. Solo las compilaciones debug
+        // usan una clave de desarrollo; una release sin clave falla.
+        def meshHmacSeed = keystoreProps['meshHmacKey'] ?: System.getenv('UNEXUAM_MESH_HMAC_KEY')
+        def esRelease = gradle.startParameter.taskNames.any { it.toLowerCase().contains('release') }
+        if (!meshHmacSeed) {
+            if (esRelease) {
+                throw new GradleException('Falta la clave HMAC de la mesh: define meshHmacKey en key.properties o UNEXUAM_MESH_HMAC_KEY.')
+            }
+            meshHmacSeed = 'UNEXUAM-DEV-SOLO-DEBUG'
+        }
         buildConfigField "String", "MESH_HMAC_KEY", "\"${meshHmacSeed}\""
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.

@@ -13,7 +13,11 @@ Nombres: los que trae OpenStreetMap (Edificio I, E, A, Jaguar Center), el Edific
 James) y, para el resto, «Edificio sin nombre N», numerados de norte a sur y de oeste a este.
 Datos del plano © OpenStreetMap contributors (ODbL).
 
-Uso:  python generar_mapa.py
+Uso:  python generar_mapa.py                 (vista principal, giro 16°: mapa-campus-3d.svg y -detalle.svg)
+      python generar_mapa.py --giro 106     (otra cámara: mapa-campus-3d-g106.svg, sin píldoras de rótulos)
+      python generar_mapa.py --todas        (las 4 cámaras: 16, 106, 196 y 286°)
+Los alrededores de la UAM (casas, calles y parqueos de afuera) salen de alrededores.json
+(OpenStreetMap, ver osm_alrededores.py en el README).
 """
 
 import json
@@ -37,9 +41,12 @@ ANG = math.radians(16)   # giro del plano
 K = 0.58                 # inclinación (achatamiento vertical)
 CA, SA = math.cos(ANG), math.sin(ANG)
 ESC, OX, OY = 1.0, 0.0, 0.0   # se calculan con encajar()
-ALTURA = 1.0                   # exageración de las alturas para que se lea el 3D
+ALTURA = 1.45                  # exageración de las alturas para que se lea el 3D (igual que ALTURA_3D en app.js)
+CONTRASTE = .16                # cuánto se oscurecen las caras a la sombra (más volumen)
 
 CAMPUS = [tuple(p) for p in DATOS["campus"]]
+AFUERA = json.loads((AQUI / "alrededores.json").read_text(encoding="utf-8")) if (AQUI / "alrededores.json").exists() else None
+CAMARAS = (16, 106, 196, 286)   # giros de cámara disponibles en la app (el 16 es la vista principal)
 
 
 def P(x, y, z=0.0):
@@ -219,7 +226,7 @@ def paredes(poligono, z0, z1, claro, oscuro, borde):
         nx, ny = (dy / l, -dx / l) if horario else (-dy / l, dx / l)
         if (nx * SA + ny * CA) <= 0.02:
             continue
-        color = mezclar(oscuro, claro, luz(nx, ny))
+        color = mezclar(mezclar(oscuro, "#13263d", CONTRASTE), claro, luz(nx, ny))
         q = [P(*a, z0), P(*b, z0), P(*b, z1), P(*a, z1)]
         d = " ".join(f"{u:.1f},{v:.1f}" for u, v in q)
         relleno = cara(color) if z1 - z0 > 1.5 else color
@@ -256,7 +263,7 @@ def fachada(poligono, alto, pisos, claro, oscuro, borde, acentos=()):
 
     g = []
     for c in sorted(caras, key=lambda c: c["prof"]):
-        color = mezclar(oscuro, claro, c["t"])
+        color = mezclar(mezclar(oscuro, "#13263d", CONTRASTE), claro, c["t"])
         for ac in acentos:               # una cara con otro color (M: costado este gris azulado, video)
             if ac[0] == "cara_este" and c["nx"] > .7:
                 color = mezclar(mezclar(ac[1], "#33404e", .3), ac[1], c["t"])
@@ -397,40 +404,52 @@ def barril(poligono, pared, flecha, n=14):
     def q(*ps):
         return " ".join(f"{a:.1f},{b:.1f}" for a, b in (P(*pp) for pp in ps))
     TURQ, TURQ_OSC = "#1fb5b8", "#11797c"
-    sombra(poligono, pared + flecha * .8, z0=pared)
-    g = [f'<polygon points="{pts(poligono)}" fill="#c9ced3" stroke="{TURQ_OSC}" stroke-width=".6"/>']
-    # cancha: piso gris con zonas azules y líneas
-    cancha = [punto(.12, .2), punto(.88, .2), punto(.88, .8), punto(.12, .8)]
-    g.append(f'<polygon points="{pts(cancha)}" fill="#d9dde1" stroke="#ffffff" stroke-width="1"/>')
-    for u0, u1 in ((.12, .27), (.73, .88)):
-        g.append(f'<polygon points="{pts([punto(u0, .38), punto(u1, .38), punto(u1, .62), punto(u0, .62)])}" fill="#4f86c6"/>')
-    g.append(f'<polyline points="{pts([punto(.5, .2), punto(.5, .8)])}" fill="none" stroke="#ffffff" stroke-width="1"/>')
-    g.append(f'<polygon points="{pts([punto(.5 + .05 * math.cos(t), .5 + .1 * math.sin(t)) for t in [k * math.pi / 8 for k in range(16)]])}" fill="#4f86c6" stroke="#ffffff" stroke-width=".8"/>')
-    # malla turquesa perimetral (baja) en las caras visibles
-    g.append(paredes(poligono, 0, 2.6, "#5fd3d5", "#1c9a9d", TURQ_OSC).replace('<polygon ', '<polygon fill-opacity=".45" '))
-    # columnas de acero
-    for u in [k / 4 for k in range(5)]:
+    sombra(poligono, pared + flecha * .8)
+    # Gimnasio CERRADO (James): muros de paneles claros, franja de ventanas altas y zócalo turquesa
+    g = [paredes(poligono, 0, pared, "#eef3f5", "#aebdca", TURQ_OSC)]
+    for k in range(len(poligono)):              # franjas verticales turquesa en las caras visibles
+        a, b = poligono[k], poligono[(k + 1) % len(poligono)]
+        horario = sum(poligono[i][0] * poligono[(i + 1) % len(poligono)][1] - poligono[(i + 1) % len(poligono)][0] * poligono[i][1]
+                      for i in range(len(poligono))) > 0
+        dx, dy = b[0] - a[0], b[1] - a[1]
+        l = math.hypot(dx, dy) or 1
+        nx, ny = (dy / l, -dx / l) if horario else (-dy / l, dx / l)
+        if nx * SA + ny * CA <= .02:
+            continue
+        n_fr = max(2, int(l / 3.2))
+        for m in range(0, n_fr, 2):
+            t0, t1 = m / n_fr, (m + 1) / n_fr
+            g.append(cara_plana(a[0] + dx * t0, a[1] + dy * t0, a[0] + dx * t1, a[1] + dy * t1, .3, pared - .4,
+                                mezclar("#2aa8a8", "#ffffff", .12 * luz(nx, ny))))
+    g.append(paredes(poligono, 0, .6, "#1c9a9d", "#11797c", TURQ_OSC))
+    for u in [k / 4 for k in range(5)]:          # columnas de acero marcadas en la fachada
         for v in (0, 1):
             a, b = P(*punto(u, v), 0), P(*punto(u, v), pared)
             g.append(f'<line x1="{a[0]:.1f}" y1="{a[1]:.1f}" x2="{b[0]:.1f}" y2="{b[1]:.1f}" stroke="{TURQ}" stroke-width="1.6"/>')
-    # bóveda de lámina clara: franjas de norte (v=0) a sur (v=1)
+    # bóveda de lámina clara: franjas de norte (v=0) a sur (v=1), de atrás hacia adelante según la cámara
+    franjas = []
     for i in range(n):
         v0, v1 = i / n, (i + 1) / n
         z0 = pared + flecha * math.sin(math.pi * v0)
         z1 = pared + flecha * math.sin(math.pi * v1)
-        pend = math.cos(math.pi * (v0 + v1) / 2)          # >0 mira al norte (al sol)
+        pend = math.cos(math.pi * (v0 + v1) / 2)
         color = mezclar("#b9c3cc", "#fbfcfd", max(0, min(1, .55 + pend * .45)))
-        g.append(f'<polygon points="{q((*punto(0, v0), z0), (*punto(1, v0), z0), (*punto(1, v1), z1), (*punto(0, v1), z1))}" fill="{color}" stroke="{color}" stroke-width=".6"/>')
-    # cerchas turquesa sobre la bóveda y arco del frente este (abierto, con su celosía)
+        franjas.append((prof(*punto(.5, (v0 + v1) / 2)) + (z0 + z1) * .01,
+                        f'<polygon points="{q((*punto(0, v0), z0), (*punto(1, v0), z0), (*punto(1, v1), z1), (*punto(0, v1), z1))}" fill="{color}" stroke="{color}" stroke-width=".6"/>'))
+    g += [t for _, t in sorted(franjas)]
+    # tímpanos (muro bajo el arco) en el extremo que mira a la cámara
+    for u, otro in ((0, 1), (1, 0)):
+        if prof(*punto(u, .5)) > prof(*punto(otro, .5)):
+            arco = [P(*punto(u, k / n), pared + flecha * math.sin(math.pi * k / n)) for k in range(n + 1)]
+            base = [P(*punto(u, 1), pared), P(*punto(u, 0), pared)]
+            g.append(f'<polygon points="{" ".join(f"{a:.1f},{b:.1f}" for a, b in arco + base)}" fill="#d9e2ea" stroke="{TURQ_OSC}" stroke-width=".8"/>')
+            for k in range(1, n, 2):
+                a, b = P(*punto(u, k / n), pared), P(*punto(u, k / n), pared + flecha * math.sin(math.pi * k / n))
+                g.append(f'<line x1="{a[0]:.1f}" y1="{a[1]:.1f}" x2="{b[0]:.1f}" y2="{b[1]:.1f}" stroke="#b7c4d0" stroke-width=".6"/>')
+    # cerchas turquesa sobre la bóveda
     for u in [k / 4 for k in range(5)]:
         arco = [P(*punto(u, k / n), pared + flecha * math.sin(math.pi * k / n)) for k in range(n + 1)]
-        g.append(f'<polyline points="{" ".join(f"{a:.1f},{b:.1f}" for a, b in arco)}" fill="none" stroke="{TURQ}" stroke-width="{1.8 if u == 1 else 1.1}"/>')
-    arco_bajo = [P(*punto(1, k / n), pared - .9 + (flecha - .4) * math.sin(math.pi * k / n)) for k in range(n + 1)]
-    g.append(f'<polyline points="{" ".join(f"{a:.1f},{b:.1f}" for a, b in arco_bajo)}" fill="none" stroke="{TURQ}" stroke-width="1"/>')
-    for k in range(0, n + 1, 2):     # diagonales de la celosía del arco este
-        a = P(*punto(1, k / n), pared + flecha * math.sin(math.pi * k / n))
-        b = P(*punto(1, min(1, (k + 1) / n)), pared - .9 + (flecha - .4) * math.sin(math.pi * min(1, (k + 1) / n)))
-        g.append(f'<line x1="{a[0]:.1f}" y1="{a[1]:.1f}" x2="{b[0]:.1f}" y2="{b[1]:.1f}" stroke="{TURQ}" stroke-width=".6"/>')
+        g.append(f'<polyline points="{" ".join(f"{a:.1f},{b:.1f}" for a, b in arco)}" fill="none" stroke="{TURQ}" stroke-width="{1.8 if u in (0, 1) else 1.1}"/>')
     return "".join(g)
 
 
@@ -444,31 +463,54 @@ def cara_plana(x0, y0, x1, y1, z0, z1, color, extra=""):
     return f'<polygon points="{" ".join(f"{a:.1f},{b:.1f}" for a, b in q)}" fill="{color}" {extra}/>'
 
 
+def cupula(cx, cy, z0, r):
+    """Cúpula del observatorio (video aéreo de la UAM): media esfera blanca sobre un anillo corto,
+    con la rendija de observación. Sin exagerar la altura, para que se vea redonda."""
+    zt = z0 + .6
+    ax, ay = P(cx, cy, z0)
+    bx, by = P(cx, cy, zt)
+    R, ryb = r * ESC, r * K * ESC
+    rz = r * ESC * 1.02                       # media esfera: alto ≈ radio en pantalla
+    g = [f'<path d="M{ax - R:.1f},{ay:.1f} L{bx - R:.1f},{by:.1f} L{bx + R:.1f},{by:.1f} L{ax + R:.1f},{ay:.1f} '
+         f'A{R:.1f},{ryb:.1f} 0 0 1 {ax - R:.1f},{ay:.1f} Z" fill="url(#tambor)" stroke="#9aa6b3" stroke-width=".6"/>',
+         f'<path d="M{bx - R:.1f},{by:.1f} A{R:.1f},{rz:.1f} 0 0 1 {bx + R:.1f},{by:.1f} A{R:.1f},{ryb:.1f} 0 0 1 {bx - R:.1f},{by:.1f} Z" '
+         f'fill="url(#domo)" stroke="#9aa6b3" stroke-width=".7"/>',
+         # rendija: franja oscura angosta del cenit hacia el frente
+         f'<path d="M{bx - R * .07:.1f},{by - rz + .8:.1f} L{bx + R * .07:.1f},{by - rz + .8:.1f} L{bx + R * .1:.1f},{by + ryb * .8:.1f} '
+         f'L{bx - R * .1:.1f},{by + ryb * .8:.1f} Z" fill="#4a5664" opacity=".85"/>',
+         # brillo
+         f'<path d="M{bx - R * .62:.1f},{by - rz * .35:.1f} A{R * .7:.1f},{rz * .7:.1f} 0 0 1 {bx - R * .15:.1f},{by - rz * .9:.1f}" '
+         f'fill="none" stroke="#ffffff" stroke-width="1.6" opacity=".9"/>']
+    return "".join(g)
+
+
 def observatorio(pol_p, alto_p):
-    """Torre del observatorio en el extremo ESTE del Edificio P Copérnico (fotos de la UAM):
-    muro blanco, franja verde arriba, sello dorado y letras UAM, ventanas oscuras y cúpula blanca."""
+    """Torre del observatorio en el extremo ESTE del Edificio P Copérnico (foto de Google Maps):
+    bloque blanco dos pisos más alto que el P, sello dorado y letras UAM sobre las caras visibles,
+    ventanitas rojas, una ventana redonda arriba y la cúpula metálica baja encima."""
     xs = [q[0] for q in pol_p]
     ys = [q[1] for q in pol_p]
     x1 = max(xs) - 1
     cy = (min(ys) + max(ys)) / 2
-    torre = caja_r(x1 - 7, cy - 3.5, x1, cy + 3.5)
-    alto = alto_p + 3.6
-    g = [edificio(torre, alto, "#fbfcfd", "#eef1f4", "#aab4bf", "#7d8a99", pisos=0)]
-    sur, este = cy + 3.5, x1
-    # franja verde en lo alto de las dos caras visibles (sur y este)
-    g.append(cara_plana(x1 - 7, sur, x1, sur, alto - 1.5, alto - .5, "#2e9b57"))
-    g.append(cara_plana(este, sur, este, cy - 3.5, alto - 1.5, alto - .5, "#23824a"))
-    # ventanas oscuras cuadradas
-    for t in (.2, .6):
-        g.append(cara_plana(x1 - 7 + 7 * t, sur, x1 - 7 + 7 * (t + .2), sur, alto - 4.2, alto - 2.8, "#2b3440"))
-        g.append(cara_plana(este, sur - 7 * t, este, sur - 7 * (t + .2), alto - 4.2, alto - 2.8, "#232b35"))
-    # sello dorado en la cara sur
-    sx0, sy0 = P(x1 - 3.5, sur, alto_p - 2.2)
-    g.append(f'<circle cx="{sx0:.1f}" cy="{sy0:.1f}" r="{1.0 * ESC:.1f}" fill="#e6c15a" stroke="#b8902b" stroke-width=".8"/>')
-    sx, sy = P(x1 - 3.5, cy, alto)
-    r = 3.3 * ESC
-    g.append(f'<path d="M{sx - r:.1f},{sy:.1f} A{r:.1f},{r:.1f} 0 0 1 {sx + r:.1f},{sy:.1f} Z" fill="#ffffff" stroke="#7d8a99" stroke-width="1"/>')
-    g.append(f'<line x1="{sx:.1f}" y1="{sy - r:.1f}" x2="{sx + r * .35:.1f}" y2="{sy - r * .55:.1f}" stroke="#5d6873" stroke-width="1.6"/>')
+    norte, sur = min(ys) + .3, max(ys) - .3          # el bloque ocupa todo el ancho del P (foto)
+    este, oeste = x1, x1 - 9
+    torre = caja_r(oeste, norte, este, sur)
+    alto = alto_p + 2 * PISO
+    g = [edificio(torre, alto, "#fbfcfd", "#ffffff", "#e3e8ed", "#9aa6b3", pisos=0)]
+    caras = [(oeste, sur, este, sur), (este, sur, este, norte), (este, norte, oeste, norte), (oeste, norte, oeste, sur)]
+    for xa, ya, xb, yb in caras:      # solo las caras que miran a la cámara
+        nx, ny = (yb - ya), -(xb - xa)
+        if nx * SA + ny * CA <= 0:
+            continue
+        mx, my = (xa + xb) / 2, (ya + yb) / 2
+        cxp, cyp = P(mx, my, alto - 2.0)      # ventana redonda en el último piso
+        g.append(f'<ellipse cx="{cxp:.1f}" cy="{cyp:.1f}" rx="{.95 * ESC:.1f}" ry="{1.1 * ESC:.1f}" fill="#2b3440" stroke="#ffffff" stroke-width="1"/>')
+        # sello dorado y placa «UAM» a media altura
+        sx, sy = P(xa + (xb - xa) * .3, ya + (yb - ya) * .3, alto_p - 1.6)
+        g.append(f'<circle cx="{sx:.1f}" cy="{sy:.1f}" r="{1.0 * ESC:.1f}" fill="#e6c15a" stroke="#b8902b" stroke-width=".7"/>')
+        g.append(cara_plana(xa + (xb - xa) * .42, ya + (yb - ya) * .42, xa + (xb - xa) * .72, ya + (yb - ya) * .72,
+                            alto_p - 2.2, alto_p - 1.0, "#d8b65c"))
+    g.append(cupula(oeste + 3.2, norte + 3.4, alto, 2.6))   # en la esquina de atrás del techo (video)
     return "".join(g)
 
 
@@ -597,6 +639,8 @@ def caja_r(x0, y0, x1, y1):
 EXTRA_EDIFICIOS = [
     ("Salón de Música", caja_r(55.5, 57, 61.5, 63), 1),      # pequeño, delante del Salón de Danza
     ("Baño del Comedor", caja_r(20.5, 171, 25.5, 180), 1),   # a la izquierda del Comedor del Jaguarcito
+    ("Anexo norte del Food Court", caja_r(247.0, 79.0, 254.6, 85.4), 1),   # foto satelital (James, 26/11/2026)
+    ("Anexo sur del Food Court", caja_r(245.0, 110.8, 255.0, 116.6), 1),
 ]
 VOLEY_ARENA = caja_r(10, 60, 24, 80)       # pegada al borde oeste
 VOLEY = caja_r(27, 57, 41, 83)             # a la derecha de la de arena, a la izquierda de 3 y 4
@@ -778,33 +822,17 @@ UNION_ALTO = 3 * PISO + 0.6 + 1.2            # llega al 3.er piso de C y asoma s
 
 
 def pasarela():
-    """Corredor elevado y techado de estructura metálica gris, con barandas (James, foto del Auditorio)."""
+    """Pasarela frente al Edificio B (James): andén en planta baja, SIN techo, pegado al frente del B,
+    con árboles del lado de la Plazoleta."""
     x0, x1, y0, y1 = PASARELA
-    z, zt = PASARELA_Z, PASARELA_Z + 2.7
     out = []
     n = max(1, round((x1 - x0) / 9))
     for i in range(n):
         xa, xb = x0 + (x1 - x0) * i / n, x0 + (x1 - x0) * (i + 1) / n
         seg = caja_r(xa, y0, xb, y1)
-        g = []
-        for yy in (y0, y1):          # columnas metálicas hasta el techo
-            u, v = P(xb, yy, 0), P(xb, yy, zt)
-            g.append(f'<line x1="{u[0]:.1f}" y1="{u[1]:.1f}" x2="{v[0]:.1f}" y2="{v[1]:.1f}" stroke="#5d6873" stroke-width="1.3"/>')
-        g.append(paredes(seg, z - .45, z, "#a9b3bd", "#6f7a86", "#4f5964"))
-        g.append(f'<polygon points="{pts(seg, z)}" fill="#c9cfd6" stroke="#4f5964" stroke-width=".6"/>')
-        for yy in (y0, y1):          # barandas metálicas con pasamanos y travesaño
-            for dz, w in ((1.0, 1.1), (.5, .6)):
-                u, v = P(xa, yy, z + dz), P(xb, yy, z + dz)
-                g.append(f'<line x1="{u[0]:.1f}" y1="{u[1]:.1f}" x2="{v[0]:.1f}" y2="{v[1]:.1f}" stroke="#5d6873" stroke-width="{w}"/>')
-        techo = caja_r(xa, y0 - .5, xb, y1 + .5)
-        g.append(paredes(techo, zt, zt + .25, "#c3cbd3", "#8d98a4", "#5d6873"))
-        g.append(f'<polygon points="{pts(techo, zt + .25)}" fill="url(#laminaN)" stroke="#5d6873" stroke-width=".6"/>')
-        sombra(techo, zt + .25, z0=zt)
-        out.append((max(prof(*q) for q in seg), "".join(g)))
-    # escalera metálica en medio de la pasarela, bajando al norte hacia la Plazoleta
-    out.append(escalera(ESCALERA_PLAZA[0], ESCALERA_PLAZA[1], y0, -1))
-    # escalera metálica gris junto al Auditorio (borde derecho de la foto): sube al sur a la pasarela
-    out.append(escalera(181.8, 184.6, y0, -1))
+        out.append((-1e8, suelo(seg, "#f1eee6", borde="#cfc8b8", ancho=.8)))   # va en el suelo, bajo todo
+    for x in (207, 215, 223, 231, 239, 259):        # árboles entre la pasarela y la Plazoleta
+        out.append((prof(x, y0 - 2.6), arbol(x, y0 - 2.6, r=3.0)))
     return out
 
 
@@ -1055,9 +1083,7 @@ def fantasmas():
     ex0, ex1 = ESCALERA_PLAZA
     k, huella = 12, .55
     linea = f'fill="{AZUL}" fill-opacity=".12" stroke="{AZUL}" stroke-width="1.3" stroke-dasharray="5 3" stroke-linejoin="round"'
-    g = [f'<polygon points="{pts(caja_r(x0, y0, x1, y1), PASARELA_Z)}" {linea}/>',
-         f'<polygon points="{pts(caja_r(ex0, y0 - k * huella, ex1, y0), PASARELA_Z / 2)}" {linea}/>',
-         f'<polygon points="{pts(caja_r(x0, y0 - .5, x1, y1 + .5), PASARELA_Z + 2.95)}" fill="none" stroke="{AZUL}" stroke-width=".9" stroke-dasharray="2 3"/>']
+    g = []   # la pasarela ya no es elevada: solo se marca la unión B–C
     (ux0, uy0), (ux1, _), (_, uy1), _ = UNION_BC
     cara_sur = [P(ux0, uy1, 0), P(ux1, uy1, 0), P(ux1, uy1, UNION_ALTO), P(ux0, uy1, UNION_ALTO)]
     g.append(f'<polygon points="{" ".join(f"{a:.1f},{b:.1f}" for a, b in cara_sur)}" fill="{AMARILLO}" fill-opacity=".18" '
@@ -1112,11 +1138,207 @@ def andador():
     return "".join(g)
 
 
+ANDENES = json.loads((AQUI / "andenes.json").read_text(encoding="utf-8"))["andenes"] if (AQUI / "andenes.json").exists() else []
+
+
+def dseg_red(x, y, linea):
+    m = 1e9
+    for (x1, y1), (x2, y2) in zip(linea, linea[1:]):
+        dx, dy = x2 - x1, y2 - y1
+        l2 = dx * dx + dy * dy or 1
+        t = max(0, min(1, ((x - x1) * dx + (y - y1) * dy) / l2))
+        m = min(m, math.hypot(x - (x1 + t * dx), y - (y1 + t * dy)))
+    return m
+
+
+def red_andenes():
+    """Andenes, senderos, escaleras y pasos peatonales trazados con James (andenes.json), para que el
+    mapa muestre por dónde se camina de verdad (las calles salen de OpenStreetMap)."""
+    g = []
+    medio = {"residential": 4.6, "service": 2.6}
+    vias = [([tuple(p) for p in c["linea"]], medio.get(c["tipo"], 0)) for c in DATOS["calles"] if c["tipo"] in medio]
+
+    def en_calle(x, y):
+        return any(dseg_red(x, y, l) < w for l, w in vias)
+    # cebras que ya están dibujadas (frente al A): ahí no se repite
+    cebras_hechas = [caja_r(276, 130, 288, 137)]
+
+    def trozos(linea):
+        """Parte el andén en tramos fuera de la calle y tramos que la cruzan (esos van como paso de cebra)."""
+        fuera, dentro_, act, modo = [], [], [], None
+        for (x1, y1), (x2, y2) in zip(linea, linea[1:]):
+            n = max(1, int(math.dist((x1, y1), (x2, y2)) / .8))
+            for k in range(n + 1):
+                p = (x1 + (x2 - x1) * k / n, y1 + (y2 - y1) * k / n)
+                m = en_calle(*p)
+                if m != modo and act:
+                    (dentro_ if modo else fuera).append(act)
+                    act = [act[-1]]
+                modo = m
+                act.append(p)
+        if len(act) > 1:
+            (dentro_ if modo else fuera).append(act)
+        return fuera, dentro_
+
+    def cebra(tramo):
+        (x1, y1), (x2, y2) = tramo[0], tramo[-1]
+        l = math.hypot(x2 - x1, y2 - y1) or 1
+        if any(dentro(((x1 + x2) / 2, (y1 + y2) / 2), c) for c in cebras_hechas):
+            return ""
+        ux, uy = (x2 - x1) / l, (y2 - y1) / l
+        out = []
+        for k in range(int(l / 1.1)):
+            x, y = x1 + ux * (k * 1.1 + .3), y1 + uy * (k * 1.1 + .3)
+            out.append(suelo([(x - uy * 1.6, y + ux * 1.6), (x + ux * .55 - uy * 1.6, y + uy * .55 + ux * 1.6),
+                              (x + ux * .55 + uy * 1.6, y + uy * .55 - ux * 1.6), (x + uy * 1.6, y - ux * 1.6)], "#f7f8fa"))
+        return "".join(out)
+    orden = {"sendero": 0, "anden": 1, "escalera": 2, "cruce": 3}
+    for a in sorted((a for a in ANDENES if a["tipo"] in orden), key=lambda a: orden[a["tipo"]]):
+        t = a["tipo"]
+        if t in ("anden", "sendero"):
+            fuera, sobre_calle = trozos([tuple(p) for p in a["p"]])
+            for tr in sobre_calle:
+                g.append(cebra(tr))
+            for tr in fuera:
+                if len(tr) < 2:
+                    continue
+                if t == "anden":
+                    g.append(via(tr, 2.4, "#f3f1eb", borde="#cfcabd", bordes=False))
+                else:
+                    g.append(via(tr, 1.7, "#e2d2a6", borde=None, bordes=False))
+                    g.append(f'<polyline points="{pts(tr)}" fill="none" stroke="#cdb987" stroke-width=".7" stroke-dasharray="2 3"/>')
+            continue
+        linea = [tuple(p) for p in a["p"]]
+        if t == "anden":
+            g.append(via(linea, 2.4, "#f3f1eb", borde="#cfcabd", bordes=False))
+        elif t == "sendero":
+            g.append(via(linea, 1.7, "#e2d2a6", borde=None, bordes=False))
+            g.append(f'<polyline points="{pts(linea)}" fill="none" stroke="#cdb987" stroke-width=".7" stroke-dasharray="2 3"/>')
+        elif t == "escalera":
+            g.append(via(linea, 2.6, "#ebe7de", borde="#a69f90", bordes=False))
+            for (x1, y1), (x2, y2) in zip(linea, linea[1:]):
+                l = math.hypot(x2 - x1, y2 - y1) or 1
+                nx, ny = -(y2 - y1) / l * 1.3, (x2 - x1) / l * 1.3
+                for k in range(1, int(l / .7)):
+                    x, y = x1 + (x2 - x1) * k * .7 / l, y1 + (y2 - y1) * k * .7 / l
+                    g.append(f'<polyline points="{pts([(x + nx, y + ny), (x - nx, y - ny)])}" stroke="#b5ad9c" stroke-width=".5"/>')
+        elif t == "cruce":
+            for (x1, y1), (x2, y2) in zip(linea, linea[1:]):
+                l = math.hypot(x2 - x1, y2 - y1) or 1
+                ux, uy = (x2 - x1) / l, (y2 - y1) / l
+                for k in range(int(l / 1.1)):
+                    x, y = x1 + ux * (k * 1.1 + .3), y1 + uy * (k * 1.1 + .3)
+                    g.append(suelo([(x - uy * 1.6, y + ux * 1.6), (x + ux * .55 - uy * 1.6, y + uy * .55 + ux * 1.6),
+                                    (x + ux * .55 + uy * 1.6, y + uy * .55 - ux * 1.6), (x + uy * 1.6, y - ux * 1.6)], "#ffffff"))
+    return "".join(g)
+
+
+def bahia_entrada():
+    """Entrada de la vía Universidad UAM: una sola calle con su bahía de ascenso y descenso al lado oeste
+    (OSM la trae como dos vías paralelas; en la foto es una calle con isla angosta)."""
+    por = {c.get("id"): [tuple(p) for p in c["linea"]] for c in DATOS["calles"]}
+    oeste, este = por.get("867791741"), por.get("867791743")
+    if not oeste or not este:
+        return ""
+
+    def x_en(linea, y):
+        for (x1, y1), (x2, y2) in zip(linea, linea[1:]):
+            if min(y1, y2) <= y <= max(y1, y2) and y1 != y2:
+                return x1 + (x2 - x1) * (y - y1) / (y2 - y1)
+        return None
+    g = [via(oeste, 4.6, "url(#asfalto)", borde="#eef1f4", bordes=False),
+         via(este, 7.0, "url(#asfalto)", borde="#eef1f4", centro_=AMARILLO, bordes=True)]
+    isla = []
+    for y in range(24, 96, 3):
+        a, b = x_en(oeste, y), x_en(este, y)
+        if a is not None and b is not None and b - a > 4.2:
+            isla.append(((a + b) / 2 + .4, y))
+    if len(isla) > 1:
+        g.append(f'<polyline points="{pts(isla)}" fill="none" stroke="#e9eef2" stroke-width="3.2" stroke-linecap="round"/>')
+        g.append(f'<polyline points="{pts(isla)}" fill="none" stroke="#8fbf74" stroke-width="1.8" stroke-linecap="round"/>')
+    # flechas de la bahía
+    for y in (40, 70):
+        x = x_en(oeste, y)
+        if x is not None:
+            g.append(f'<polyline points="{pts([(x, y + 3), (x, y - 1)])}" stroke="#ffffff" stroke-width="1.2"/>')
+    return "".join(g)
+
+
+def carro(x, y, ang, color):
+    """Carro estacionado: caja baja con techo, orientada con el ángulo del pasillo."""
+    c, sn = math.cos(ang), math.sin(ang)
+    def caja(l, a):
+        return [(x + c * u - sn * v, y + sn * u + c * v) for u, v in ((-l, -a), (l, -a), (l, a), (-l, a))]
+    base = caja(2.1, .9)
+    techo = caja(1.1, .78)
+    return (paredes(base, 0, .8, color, mezclar(color, "#13263d", .35), mezclar(color, "#13263d", .5))
+            + f'<polygon points="{pts(base, .8)}" fill="{color}"/>'
+            + paredes(techo, .8, 1.4, "#cfe3f5", "#6f8fb0", "#4a6585")
+            + f'<polygon points="{pts(techo, 1.4)}" fill="{mezclar(color, "#ffffff", .25)}"/>')
+
+
+def afuera():
+    """Lo que rodea al campus según OpenStreetMap: suelo, parqueos con carros, áreas verdes, calles,
+    casas (prismas bajos en tonos apagados) y árboles donde la foto satelital se ve verde.
+    Devuelve (suelo, objetos): los objetos se ordenan junto con los del campus para que nada se
+    meta dentro de otra cosa desde ninguna cámara."""
+    if not AFUERA:
+        return "", []
+    g = [suelo([(-420, -420), (800, -420), (800, 800), (-420, 800)], "url(#cesped)"),
+         suelo([(-420, -420), (800, -420), (800, 800), (-420, 800)], "#eef0e8").replace("<polygon ", '<polygon opacity=".42" ')]
+    for pol in AFUERA["verdes"]:
+        g.append(suelo([tuple(p) for p in pol], "#cfe2bf", borde="#bcd3a8"))
+    objetos = []
+    colores = ("#f4f6f8", "#c8ced6", "#2f3b4a", "#b23a3a", "#3c6fb6", "#e8e2d4", "#7c8794")
+    for k, pol in enumerate(AFUERA["parqueos"]):
+        pol = [tuple(p) for p in pol]
+        g.append(suelo(pol, "#c9cfd6", borde="#e9edf1", ancho=1.4))
+        g.append(suelo(pol, "url(#estac)"))
+        # carros en fila siguiendo el lado más largo del parqueo
+        lados = [(math.dist(pol[i], pol[(i + 1) % len(pol)]), pol[i], pol[(i + 1) % len(pol)]) for i in range(len(pol))]
+        _, a, b = max(lados)
+        ang = math.atan2(b[1] - a[1], b[0] - a[0]) + math.pi / 2
+        xs, ys = [p[0] for p in pol], [p[1] for p in pol]
+        n = 0
+        for gx in range(int(min(xs)), int(max(xs)), 3):
+            for gy in range(int(min(ys)), int(max(ys)), 6):
+                if dentro((gx, gy), pol) and (gx * 13 + gy * 7 + k) % 5 < 2 and n < 60:
+                    objetos.append((prof(gx, gy), carro(gx, gy, ang, colores[(gx + gy + k) % len(colores)])))
+                    n += 1
+    anchos = {"trunk": 14, "primary": 12, "secondary": 10, "tertiary": 9, "residential": 7, "unclassified": 7,
+              "service": 4.5, "track": 3, "footway": 2, "steps": 2, "path": 2}
+    for c in sorted(AFUERA["calles"], key=lambda c: anchos.get(c["tipo"], 4)):
+        linea = [tuple(q) for q in c["linea"]]
+        w = anchos.get(c["tipo"], 4)
+        if w <= 2:
+            g.append(f'<polyline points="{pts(linea)}" fill="none" stroke="#d9cfb8" stroke-width="1.8" stroke-dasharray="4 3"/>')
+        else:
+            grande = w >= 9
+            g.append(via(linea, w, "url(#asfalto)" if grande else "#c4cbd3", borde="#eef1f4", centro_="#f4f6f8" if grande else None, bordes=grande))
+    for e in AFUERA["edificios"]:
+        pol = [tuple(p) for p in e["pol"]]
+        if len(pol) < 3:
+            continue
+        niv = e.get("niveles") or (1 if e.get("tipo") in ("house", "residential", "detached", "yes", None) else 2)
+        alto = min(niv, 6) * 3.1 + .6
+        cx, cy = centro(pol)
+        tono = (int(cx * 7 + cy * 3) % 3)
+        techo = ("#e2c9ae", "#d9dde2", "#ead9c6")[tono]
+        objetos.append((prof(*max(pol, key=lambda q: prof(*q))),
+                        edificio(pol, alto, techo, "#f5f2ec", "#c9c1b3", "#a59d90", pisos=niv if niv >= 2 else 0)))
+    for x, y, r in AFUERA.get("arboles", []):   # árboles donde la foto satelital se ve verde
+        objetos.append((prof(x, y), arbol(x, y, r)))
+    return "".join(g), objetos
+
+
 def construir(eds):
     S, PL, OB = [], [], []
+    suelo_afuera, objetos_afuera = afuera()
+    S.append(suelo_afuera)
+    OB.extend(objetos_afuera)
 
-    # Terreno: losa con espesor
-    for i in range(len(CAMPUS)):
+    # Terreno: losa con espesor (sin alrededores); con alrededores el campus va al nivel de la calle
+    for i in range(0 if AFUERA else len(CAMPUS)):
         a, b = CAMPUS[i], CAMPUS[(i + 1) % len(CAMPUS)]
         cara = [P(*a, 0), P(*b, 0), P(*b, -6), P(*a, -6)]
         if (cara[0][1] + cara[1][1]) / 2 < P(*centro(CAMPUS))[1]:
@@ -1156,22 +1378,41 @@ def construir(eds):
         PL.append(f'<polygon points="{pts(caja_r(x0 + m, y0 + m, x1 - m, y1 - m))}" fill="none" stroke="{BLANCO}" stroke-width="1.6"/>')
         PL.append(f'<polyline points="{pts([(x0 + m, (y0 + y1) / 2), (x1 - m, (y0 + y1) / 2)])}" fill="none" stroke="{BLANCO}" stroke-width="2.4"/>')
     PL.append(suelo(JUNGLA, "#2f8f48", borde="#23733a"))
+    # Gradas de colores a lo largo de la cancha de vóley de arena (video aéreo del 34 aniversario, seg. 484)
+    (ax0, ay0), _, (ax1, ay1), _ = VOLEY_ARENA
+    colores_grada = ("#e2463c", "#f4c430", "#2f7fd0", "#3cb371", "#f08a24")
+    for k, x in enumerate((ax0 - 1.0, ax0 - 2.0, ax0 - 3.0)):          # tres escalones hacia afuera
+        z = .45 * (k + 1)
+        n = 10
+        for m in range(n):
+            y0 = ay0 + 1 + (ay1 - ay0 - 2) * m / n
+            y1 = ay0 + 1 + (ay1 - ay0 - 2) * (m + 1) / n - .15
+            asiento = caja_r(x, y0, x + .95, y1)
+            col = colores_grada[(m + k) % len(colores_grada)]
+            OB.append((prof(x + .5, (y0 + y1) / 2), paredes(asiento, 0, z, col, mezclar(col, "#13263d", .35), mezclar(col, "#13263d", .5))
+                       + f'<polygon points="{pts(asiento, z)}" fill="{mezclar(col, "#ffffff", .15)}"/>'))
 
     # Calles (recortadas al campus)
     anchos = {"residential": 9, "service": 5, "footway": 2}
     calles = []
     for c in sorted(DATOS["calles"], key=lambda c: anchos.get(c["tipo"], 4)):
         linea = [tuple(q) for q in c["linea"]]
+        if c.get("id") in ("867791741", "867791743"):   # la entrada con su bahía se dibuja aparte
+            continue
         if c["tipo"] == "footway":
             calles.append(f'<polyline points="{pts(linea)}" fill="none" stroke="#e8dcc0" stroke-width="2.4" stroke-dasharray="4 3"/>')
         else:
             principal = c["tipo"] == "residential"
             calles.append(via(linea, anchos.get(c["tipo"], 4), "url(#asfalto)" if principal else "#e6eaef",
                               borde="#eef1f4" if principal else "#cdd5de", centro_=AMARILLO, bordes=principal))
-    PL.append(f'<g clip-path="url(#recorte)">{"".join(calles)}</g>')
+    PL.append(f'<g clip-path="url(#recorte)">{"".join(calles)}{bahia_entrada()}</g>')
     PL.append(frente_a())
     PL.append(parqueo_g())
     PL.append(andador())
+    PL.append(red_andenes())
+    laguna = [(228, 110), (240, 98.5), (244, 101), (244, 116.5), (226, 116.5)]
+    PL.append(suelo(laguna, "#7cc3e6", borde="#4d9bc4", ancho=1.4))
+    PL.append(f'<polygon points="{pts(laguna)}" fill="url(#brillo)" opacity=".6"/>')
 
     # Árboles: arboledas de OSM y bordes libres del campus
     xs = [p[0] for p in CAMPUS]
@@ -1180,8 +1421,25 @@ def construir(eds):
               [[tuple(q) for q in p["pol"]] for p in DATOS["parqueos"]] + [VOLEY, VOLEY_ARENA] + \
               [pol for _, pol, _ in EXTRA_EDIFICIOS]
 
+    construidos = [e["pol"] for e in eds] + [pol for _, pol, _ in EXTRA_EDIFICIOS]
+
+    def cerca_de(x, y, pol, d):
+        for i in range(len(pol)):
+            (x1, y1), (x2, y2) = pol[i], pol[(i + 1) % len(pol)]
+            dx, dy = x2 - x1, y2 - y1
+            l2 = dx * dx + dy * dy or 1
+            t = max(0, min(1, ((x - x1) * dx + (y - y1) * dy) / l2))
+            if math.hypot(x - (x1 + t * dx), y - (y1 + t * dy)) < d:
+                return True
+        return False
+
     def libre(x, y):
         if not dentro((x, y), CAMPUS) or any(dentro((x, y), poli) for poli in ocupado):
+            return False
+        # la copa no debe meterse en un edificio ni salirse del campus, desde ninguna cámara
+        if any(cerca_de(x, y, pol, 4.2) for pol in construidos) or cerca_de(x, y, CAMPUS, 3.0):
+            return False
+        if any(dseg_red(x, y, a["p"]) < 2.6 for a in ANDENES if a["tipo"] in ("anden", "escalera", "sendero")):
             return False
         for c in DATOS["calles"]:
             for (x1, y1), (x2, y2) in zip(c["linea"], c["linea"][1:]):
@@ -1293,11 +1551,13 @@ def construir(eds):
     # Unión central entre B y C (después de B-205): núcleo de escalera que une la planta baja, el
     # 2.º piso de B y C y sube al centro del 3.er piso de C. Va detrás de C y delante de B.
     pb = max(prof(*q) for q in next(e for e in eds if e["nombre"] == "Edificio B")["pol"])
-    OB.append((pb + .5, union_bc()))
+    pc = max(prof(*q) for q in next(e for e in eds if e["nombre"] == "Edificio C")["pol"])
+    entre = min(pb, pc)          # el de atrás según la cámara: la unión y los árboles van entre los dos
+    OB.append((entre + .5, union_bc()))
     # Árboles columnares (tipo falso ashoka) alineados entre el B y el C (foto desde el 3.er piso del C):
     # sus copas asoman sobre el techo del C.
     for x in (191.5, 198.0, 204.5, 211.0, 231.5, 238.0, 244.5, 251.0, 257.5):
-        OB.append((pb + .4, arbol_columnar(x, 134.7)))
+        OB.append((entre + .4, arbol_columnar(x, 134.7)))
     # Palmeras en las jardineras de la entrada del A (foto)
     for y in (126.6, 140.8):
         OB.append((prof(276.6, y + 1), palmera(275.1, y)))
@@ -1307,7 +1567,8 @@ def construir(eds):
     OB.sort(key=lambda t: t[0])
     # Rayos X: la pasarela y la unión B–C quedan casi ocultas tras el B y el C desde este ángulo;
     # se marcan encima con un contorno fantasma para que se lean en el mapa.
-    OB.append((1e9, fantasmas()))
+    if round(math.degrees(ANG)) == 16:     # contorno fantasma pensado para la vista principal
+        OB.append((1e9, fantasmas()))
 
     # Insignias encima de todo (no las tapa ningún edificio)
     INS = []
@@ -1423,6 +1684,8 @@ def documento():
   <linearGradient id="laminaS" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#c3ccd5"/><stop offset=".4" stop-color="#d9e0e7"/><stop offset="1" stop-color="#a7b2bd"/></linearGradient>
   <radialGradient id="copa0" cx=".36" cy=".3" r=".75"><stop offset="0" stop-color="#a6e39a"/><stop offset=".45" stop-color="#4cb25f"/><stop offset="1" stop-color="#22703a"/></radialGradient>
   <radialGradient id="copa1" cx=".36" cy=".3" r=".75"><stop offset="0" stop-color="#bfe58e"/><stop offset=".45" stop-color="#62b44e"/><stop offset="1" stop-color="#2f7232"/></radialGradient>
+  <radialGradient id="domo" cx=".35" cy=".3" r=".85"><stop offset="0" stop-color="#ffffff"/><stop offset=".5" stop-color="#f1f4f7"/><stop offset=".85" stop-color="#cdd5dd"/><stop offset="1" stop-color="#aab5c0"/></radialGradient>
+  <linearGradient id="tambor" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#cfd8e0"/><stop offset=".4" stop-color="#f4f7fa"/><stop offset="1" stop-color="#9fadbb"/></linearGradient>
   <radialGradient id="copa2" cx=".35" cy=".3" r=".8"><stop offset="0" stop-color="#d8ee8c"/><stop offset=".5" stop-color="#8cc63f"/><stop offset="1" stop-color="#4d8a2a"/></radialGradient>
   <pattern id="cesped" width="6" height="6" {plano}><rect width="6" height="6" fill="#d5e8c1"/><circle cx="1" cy="1.5" r=".35" fill="#c4dcac"/><circle cx="4.2" cy="3.6" r=".4" fill="#e2f0d2"/><circle cx="2.6" cy="5" r=".3" fill="#bfd8a6"/><circle cx="5.2" cy=".6" r=".25" fill="#c9e0b2"/></pattern>
   <pattern id="asfalto" width="4" height="4" {plano}><rect width="4" height="4" fill="#9ba4af"/><circle cx="1" cy="1" r=".18" fill="#8a939e"/><circle cx="3" cy="2.6" r=".2" fill="#aab2bc"/></pattern>
@@ -1456,11 +1719,13 @@ def documento():
         x += 26 + len(txt) * 8.9 + 30
     ley.append(f'<text x="{W - 100}" y="23" font-size="12" font-weight="600" fill="{AZUL}" opacity=".8" text-anchor="end" dominant-baseline="central">Plano © OpenStreetMap contributors</text></g>')
 
-    sombras = (f'<g fill="#16304d" opacity=".18">{"".join(SOMBRAS)}</g>'
-               f'<g fill="#0e2238" opacity=".20">{"".join(CONTACTO)}</g>')
+    sombras = (f'<g fill="#16304d" opacity=".26">{"".join(SOMBRAS)}</g>'
+               f'<g fill="#0e2238" opacity=".28">{"".join(CONTACTO)}</g>')
+    principal = round(math.degrees(ANG)) == 16
+    pildoras = "".join(rotulos(eds)) if principal else ""   # las píldoras van acomodadas a mano para la vista principal
     cuerpo = "\n".join([f'<g>{"".join(suelo_)}</g>', "".join(planos), sombras, "".join(objetos),
                         f'<rect width="{W}" height="{H}" fill="url(#vineta)"/>',
-                        rosa(1490, 190), "".join(rotulos(eds)), "".join(insignias), lista_codigos()])
+                        rosa(1490, 190), pildoras, "".join(insignias), lista_codigos()])
     svg = f'''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {W} {H}" width="{W}" height="{H}" font-family="{FUENTE}" shape-rendering="geometricPrecision">
 {defs}
 <rect width="{W}" height="{H}" fill="url(#cielo)"/>
@@ -1469,7 +1734,16 @@ def documento():
 {cuerpo}
 {"".join(ley)}
 </svg>'''
+    if not principal:
+        nombre = f"mapa-campus-3d-g{round(math.degrees(ANG))}.svg"
+        (AQUI / nombre).write_text(svg, encoding="utf-8")
+        print(f"{nombre} generado (cámara a {round(math.degrees(ANG))}°)")
+        return
     (AQUI / "mapa-campus-3d.svg").write_text(svg, encoding="utf-8")
+    # Versión para las vistas acercadas de la app (cada paso de la guía): sin las píldoras de rótulos,
+    # que con el zoom quedarían enormes y taparían la ruta (la app dibuja sus propias etiquetas).
+    sin_rotulos = svg.replace(pildoras, "", 1) if pildoras else svg
+    (AQUI / "mapa-campus-3d-detalle.svg").write_text(sin_rotulos, encoding="utf-8")
     html = f'''<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Mapa 3D del campus UAM · Unexuam</title>
 <style>html,body{{margin:0;background:#cfe5ff}}img{{display:block;width:{W}px;height:{H}px}}</style></head>
 <body><img src="mapa-campus-3d.svg" alt="Mapa 3D del campus UAM"></body></html>'''
@@ -1478,5 +1752,19 @@ def documento():
     print(f"SVG, HTML y lugares.json generados ({len(eds)} edificios, {n_sin} sin nombre numerados)")
 
 
+def usar_camara(grados):
+    global ANG, CA, SA
+    ANG = math.radians(grados)
+    CA, SA = math.cos(ANG), math.sin(ANG)
+
+
 if __name__ == "__main__":
-    documento()
+    import subprocess
+    import sys
+    args = sys.argv[1:]
+    if "--todas" in args:
+        for gr in CAMARAS:   # un proceso por cámara: las capas (sombras, etc.) son globales
+            subprocess.run([sys.executable, __file__, "--giro", str(gr)], check=True)
+    else:
+        usar_camara(int(args[args.index("--giro") + 1]) if "--giro" in args else 16)
+        documento()

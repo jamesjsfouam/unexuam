@@ -44,8 +44,13 @@ def crear_campus():
     return crearCampus()
 
 
+# Teléfonos simulados (Tel-Ana, Tel-Luis...): solo para demostraciones y pruebas. En el campus
+# real la red Mesh empieza vacía y solo aparecen los teléfonos de verdad que se conectan.
+MODO_DEMO = os.environ.get("UNEXUAM_DEMO") == "1"
+
+
 def crear_red_mesh():
-    return crearRedMesh()
+    return crearRedMesh() if MODO_DEMO else Graph()
 
 
 # ----------------------------------------------------------------------------
@@ -74,6 +79,8 @@ def cabeceras_respuesta(resp):
         "connect-src 'self' https://firestore.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com; "
         "frame-ancestors 'none'; base-uri 'self'; form-action 'self'",
     )
+    if request.is_secure or os.environ.get("UNEXUAM_PROXY") == "1" or app.config.get("SESSION_COOKIE_SECURE"):
+        resp.headers.setdefault("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
     if request.path.startswith("/api/"):
         resp.headers["Cache-Control"] = "no-store"
     return resp
@@ -130,6 +137,7 @@ app.secret_key = clave_secreta()
 app.config["SESSION_COOKIE_HTTPONLY"] = True
 app.config["SESSION_COOKIE_SECURE"] = (
     os.environ.get("UNEXUAM_SECURE_COOKIES") == "1"
+    or os.environ.get("UNEXUAM_PROXY") == "1"           # detrás del proxy TLS del campus
     or bool(os.environ.get("UNEXUAM_TLS_CERT") and os.environ.get("UNEXUAM_TLS_KEY"))
 )
 app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
@@ -144,7 +152,7 @@ EN_LINEA = set()                              # CIF con el teléfono conectado a
 
 def reiniciar_mesh():
     S["red"] = crear_red_mesh()
-    S["ubicaciones"] = ubicacionesTelefonos()   # teléfono -> lugar del campus
+    S["ubicaciones"] = ubicacionesTelefonos() if MODO_DEMO else {}   # teléfono -> lugar del campus
     S["ultimaAlerta"] = None
     for cif in list(EN_LINEA):                  # los usuarios conectados vuelven a la red
         conectar_usuario(cif, DB.usuario(cif)["lugar"])
@@ -373,6 +381,7 @@ SOLO_ADMIN = ("/api/reiniciar", "/api/mesh/vertice", "/api/mesh/arista", "/api/m
               "/api/campus/cuellos", "/api/emergencia/declarar", "/api/emergencia/finalizar")
 LUGAR_INICIAL = "Edificio E"      # lugar por defecto al entrar (luego el GPS o la persona lo cambia)
 CIF_RESERVADO = "ADMIN"
+CIFS_RESERVADOS = {"ADMIN", "TODOS", "INVITADO"}   # nombres internos del chat y del SOS de invitados
 CIF_TODOS = "TODOS"     # Canal General: un "usuario" especial que representa a todo el campus
 
 
@@ -401,7 +410,7 @@ def exigir_sesion():
 
 def nombre_telefono(cif, nombre):
     base = "Tel-" + (nombre.split()[0] if nombre.split() else "UAM")
-    usados = {t.lower() for t in DB.telefonos_usados() | set(ubicacionesTelefonos())}
+    usados = {t.lower() for t in DB.telefonos_usados() | set(ubicacionesTelefonos() if MODO_DEMO else ())}
     usados |= {v.nombre.lower() for v in S["red"].vertexs}
     for candidato in (f"{base}-{cif[-3:]}", f"{base}-{cif}", f"Tel-{cif}"):
         if candidato.lower() not in usados:
@@ -410,13 +419,26 @@ def nombre_telefono(cif, nombre):
 
 
 def asegurar_admin_principal():
-    """Garantiza la cuenta administrativa institucional (25012005)."""
-    cif_admin = "25012005"
-    nombre_admin = "James Fernandez"
-    clave_admin = "Jamesfer.4"
-    actual = DB.usuario(cif_admin)
-    if actual and actual["admin"] and check_password_hash(actual["hash"], clave_admin):
+    """Crea o promueve el administrador inicial solo si se configura por entorno.
+
+    Las credenciales nunca van en el código: define UNEXUAM_ADMIN_CIF y
+    UNEXUAM_ADMIN_CLAVE (en .env) o usa `flask --app app crear-admin`.
+    Si la cuenta ya existe, su contraseña NO se sobrescribe en cada arranque.
+    """
+    cif_admin = (os.environ.get("UNEXUAM_ADMIN_CIF") or "").strip().upper()
+    clave_admin = os.environ.get("UNEXUAM_ADMIN_CLAVE") or ""
+    if not cif_admin or not clave_admin:
         return
+    if not re.fullmatch(r"[0-9A-Z-]{4,15}", cif_admin) or cif_admin in {CIF_RESERVADO, CIF_TODOS}:
+        app.logger.warning("UNEXUAM_ADMIN_CIF no es un CIF válido; no se crea el administrador.")
+        return
+    if not 12 <= len(clave_admin) <= 64:
+        app.logger.warning("UNEXUAM_ADMIN_CLAVE debe tener de 12 a 64 caracteres; no se crea el administrador.")
+        return
+    actual = DB.usuario(cif_admin)
+    if actual and actual["admin"]:
+        return
+    nombre_admin = " ".join((os.environ.get("UNEXUAM_ADMIN_NOMBRE") or "Administrador UAM").split())[:40]
     hash_clave = generate_password_hash(clave_admin)
     telefono = actual["telefono"] if actual else nombre_telefono(cif_admin, nombre_admin)
     lugar = actual["lugar"] if actual else LUGAR_INICIAL
@@ -564,7 +586,7 @@ def api_yo():
 def api_registro_disponible():
     d = cuerpo_json()
     cif = leer_cif(d)
-    if not re.fullmatch(r"[0-9A-Z-]{4,15}", cif) or cif == CIF_RESERVADO:
+    if not re.fullmatch(r"[0-9A-Z-]{4,15}", cif) or cif in CIFS_RESERVADOS:
         return jsonify({"ok": False, "disponible": False, "mensaje": "Escribe un CIF válido (4 a 15 letras o números)."})
     with lock:
         if DB.usuario(cif):
@@ -581,7 +603,7 @@ def api_registro():
     cif = leer_cif(d)
     nombre = " ".join(str(d.get("nombre", "")).split())[:40]
     clave = str(d.get("contrasena", ""))[:64]
-    if not re.fullmatch(r"[0-9A-Z-]{4,15}", cif) or cif == CIF_RESERVADO:
+    if not re.fullmatch(r"[0-9A-Z-]{4,15}", cif) or cif in CIFS_RESERVADOS:
         return jsonify({"ok": False, "mensaje": "Escribe un CIF válido (4 a 15 letras o números)."})
     if len(nombre) < 2:
         return jsonify({"ok": False, "mensaje": "Escribe tu nombre."})
@@ -589,19 +611,29 @@ def api_registro():
         return jsonify({"ok": False, "mensaje": "La contraseña debe tener al menos 6 caracteres."})
     hash_clave = generate_password_hash(clave)          # lento a propósito: fuera del candado
     with lock:
-        if DB.total_usuarios() >= 500:
+        if DB.total_usuarios() >= MAX_CUENTAS:
             return jsonify({"ok": False, "mensaje": "Límite de cuentas alcanzado en este servidor."})
         if DB.usuario(cif):
             return jsonify({"ok": False, "mensaje": "Ese CIF ya tiene cuenta. Inicia sesión."})
         telefono = nombre_telefono(cif, nombre)
         DB.crear_usuario(cif, nombre, hash_clave, telefono, LUGAR_INICIAL)
         registrar(f"Nueva cuenta: {nombre} ({telefono}).", "ok", privado=True)
+        marcar_cuenta_web(cif)
         return abrir_sesion(cif, d.get("lugar"))
 
 
 HASH_FICTICIO = generate_password_hash("unexuam-sin-cuenta")
+# Tope de cuentas del servidor: la UAM tiene miles de estudiantes y personal (configurable)
+MAX_CUENTAS = int(os.environ.get("UNEXUAM_MAX_CUENTAS", "20000"))
 RATE_LOCK = threading.Lock()
-INTENTOS = {}          # cif -> [marcas de tiempo de intentos recientes]
+# Límites de inicio de sesión (fallos por minuto). Se cuentan por cuenta Y red juntas, para que
+# nadie bloquee la cuenta de otro desde su propia red, y con topes altos por cuenta y por red:
+# en el campus cientos de personas comparten la misma IP del Wi-Fi.
+FALLOS_CUENTA_RED = 8      # misma cuenta desde la misma red
+FALLOS_CUENTA = 50         # misma cuenta desde cualquier red (ataque repartido)
+FALLOS_RED = 100           # toda una red (p. ej. el Wi-Fi del campus)
+INTENTOS = {}          # (cif, ip) -> [marcas de tiempo de fallos recientes]
+INTENTOS_CIF = {}      # cif -> [marcas de tiempo de fallos recientes, desde cualquier red]
 INTENTOS_IP = {}       # ip -> [marcas de tiempo de fallos recientes]
 REGISTROS_IP = {}      # ip -> [marcas de tiempo de registros recientes]
 SOS_INV_IP = {}        # ip -> [marcas de tiempo de SOS de invitados]
@@ -610,8 +642,13 @@ MAX_ENTRADAS_RATE = 2000
 
 
 def ip_cliente():
-    xff = request.headers.get("X-Forwarded-For", "").split(",")[0].strip()
-    return (xff or request.remote_addr or "local")[:64]
+    # X-Forwarded-For solo vale detrás de un proxy propio (UNEXUAM_PROXY=1); si no, cualquiera
+    # podría inventarse una IP nueva en cada intento y saltarse los límites.
+    if os.environ.get("UNEXUAM_PROXY") == "1":
+        xff = request.headers.get("X-Forwarded-For", "").split(",")[0].strip()
+        if xff:
+            return xff[:64]
+    return (request.remote_addr or "local")[:64]
 
 
 def _purgar_rate(mapa, ahora_s, ventana=60):
@@ -639,36 +676,33 @@ def registrar_evento_ip(mapa, ip, limite=20):
         return False
 
 
-def ip_bloqueada(ip, limite=20):
+def _recientes(mapa, clave, ahora_s):
+    recientes = [t for t in mapa.get(clave, []) if ahora_s - t < 60]
+    if recientes:
+        mapa[clave] = recientes
+    else:
+        mapa.pop(clave, None)
+    return len(recientes)
+
+
+def ip_bloqueada(ip, limite=FALLOS_RED):
+    with RATE_LOCK:
+        return _recientes(INTENTOS_IP, ip, time.time()) >= limite
+
+
+def bloqueado_por_intentos(cif, ip="local"):
     ahora_s = time.time()
     with RATE_LOCK:
-        recientes = [t for t in INTENTOS_IP.get(ip, []) if ahora_s - t < 60]
-        if recientes:
-            INTENTOS_IP[ip] = recientes
-        else:
-            INTENTOS_IP.pop(ip, None)
-        return len(recientes) >= limite
+        return (_recientes(INTENTOS, (cif, ip), ahora_s) >= FALLOS_CUENTA_RED
+                or _recientes(INTENTOS_CIF, cif, ahora_s) >= FALLOS_CUENTA)
 
 
-def bloqueado_por_intentos(cif):
+def registrar_fallo(cif, ip="local"):
     ahora_s = time.time()
     with RATE_LOCK:
-        recientes = [t for t in INTENTOS.get(cif, []) if ahora_s - t < 60]
-        if recientes:
-            INTENTOS[cif] = recientes
-        else:
-            INTENTOS.pop(cif, None)
-        return len(recientes) >= 8          # 8 fallos en un minuto: espera
-
-
-def registrar_fallo(cif, ip=None):
-    ahora_s = time.time()
-    with RATE_LOCK:
-        _purgar_rate(INTENTOS, ahora_s)
-        INTENTOS.setdefault(cif, []).append(ahora_s)
-        if ip:
-            _purgar_rate(INTENTOS_IP, ahora_s)
-            INTENTOS_IP.setdefault(ip, []).append(ahora_s)
+        for mapa, clave in ((INTENTOS, (cif, ip)), (INTENTOS_CIF, cif), (INTENTOS_IP, ip)):
+            _purgar_rate(mapa, ahora_s)
+            mapa.setdefault(clave, []).append(ahora_s)
 
 
 def limite_busquedas_excedido(cif):
@@ -690,7 +724,7 @@ def api_login():
     cif = leer_cif(d)
     ip = ip_cliente()
     clave = str(d.get("contrasena", ""))[:64]
-    if bloqueado_por_intentos(cif) or ip_bloqueada(ip):
+    if bloqueado_por_intentos(cif, ip) or ip_bloqueada(ip):
         return jsonify({"ok": False, "mensaje": "Demasiados intentos. Espera un minuto."})
     u = DB.usuario(cif)
     acceso_real = u is not None and cif != CIF_RESERVADO
@@ -700,8 +734,7 @@ def api_login():
         registrar_fallo(cif, ip)
         return jsonify({"ok": False, "mensaje": "CIF o contraseña incorrectos."})
     with RATE_LOCK:
-        INTENTOS.pop(cif, None)
-        INTENTOS_IP.pop(ip, None)
+        INTENTOS.pop((cif, ip), None)     # el éxito limpia solo lo suyo, no los fallos de otros en la red
     with lock:
         return abrir_sesion(cif, d.get("lugar"))
 
@@ -1008,6 +1041,34 @@ def valor_firestore(valor):
     return {"mapValue": {"fields": {clave: valor_firestore(item) for clave, item in valor.items()}}}
 
 
+def marcar_cuenta_web(cif):
+    """Deja constancia en Firestore (/cuentas_web/{cif}) de que ese CIF ya tiene cuenta en el
+    servidor: la Cloud Function de registro rechaza crear otra cuenta con él desde la app nativa.
+    No hace nada si el servidor no tiene cuenta de servicio de Firebase. Corre en segundo plano."""
+    ruta_sa = os.environ.get("FIREBASE_SERVICE_ACCOUNT_FILE") or os.environ.get("GOOGLE_APPLICATION_CREDENTIALS")
+    if not ruta_sa or not re.fullmatch(r"[0-9A-Z-]{4,15}", cif or ""):
+        return
+
+    def tarea():
+        try:
+            from google.auth.transport.requests import Request as GoogleAuthRequest
+            from google.oauth2 import service_account
+            creds = service_account.Credentials.from_service_account_file(
+                ruta_sa, scopes=["https://www.googleapis.com/auth/datastore"])
+            proyecto = os.environ.get("FIREBASE_PROJECT_ID") or creds.project_id
+            if not proyecto or not re.fullmatch(r"[a-z0-9-]+", proyecto):
+                return
+            creds.refresh(GoogleAuthRequest())
+            firebase_rest(
+                f"https://firestore.googleapis.com/v1/projects/{proyecto}/databases/(default)/documents/cuentas_web/{cif}",
+                valor_firestore({"creado": int(time.time() * 1000)})["mapValue"], creds.token, "PATCH",
+            )
+        except Exception as e:  # sin red o sin permisos: el registro web sigue funcionando
+            app.logger.warning("No se pudo marcar %s en Firestore: %s", cif, e)
+
+    threading.Thread(target=tarea, daemon=True).start()
+
+
 def publicar_emergencia_campus(emergencia):
     ruta_sa = os.environ.get("FIREBASE_SERVICE_ACCOUNT_FILE") or os.environ.get("GOOGLE_APPLICATION_CREDENTIALS")
     if not ruta_sa:
@@ -1155,7 +1216,10 @@ def tramos_bloqueables(origen, destino, ambos):
 def bloquear_tramos(tramos):
     for origen, destino, peso in tramos:
         S["campus"].eliminarArista(origen, destino)
-        S["bloqueados"].append({"origen": origen, "destino": destino, "peso": peso})
+        # Se guarda el peso BASE (sin congestión): al reabrir se vuelve a aplicar la
+        # congestión vigente una sola vez.
+        base = peso / S["congestion"].get(destino, 1)
+        S["bloqueados"].append({"origen": origen, "destino": destino, "peso": round(base, 6)})
     invalidar_rutas()
     guardar_campus_compartido()
     return "Pasillo bloqueado: " + ", ".join(f"{o} → {d}" for o, d, _ in tramos) + "."

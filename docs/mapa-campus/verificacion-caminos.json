@@ -1,0 +1,2245 @@
+{
+ "caminos": [
+  {
+   "a": "Auditorio Central",
+   "b": "B Salida Oeste",
+   "peso": 20,
+   "recta_m": 23.1,
+   "a_pie_m": 23.8,
+   "seg_a_pie": 20,
+   "rodeo": 1.03,
+   "cruza": {},
+   "cruza_recta": {},
+   "peso_ok": true
+  },
+  {
+   "a": "Auditorio Central",
+   "b": "C Salida Oeste",
+   "peso": 37,
+   "recta_m": 40.6,
+   "a_pie_m": 44.7,
+   "seg_a_pie": 37,
+   "rodeo": 1.1,
+   "cruza": {},
+   "cruza_recta": {},
+   "peso_ok": true
+  },
+  {
+   "a": "Auditorio Central",
+   "b": "Edificio E",
+   "peso": 33,
+   "recta_m": 32.7,
+   "a_pie_m": 40.1,
+   "seg_a_pie": 33,
+   "rodeo": 1.23,
+   "cruza": {},
+   "cruza_recta": {},
+   "peso_ok": true
+  },
+  {
+   "a": "Auditorio Central",
+   "b": "Edificio F",
+   "peso": 20,
+   "recta_m": 24.2,
+   "a_pie_m": 24.2,
+   "seg_a_pie": 20,
+   "rodeo": 1.0,
+   "cruza": {},
+   "cruza_recta": {},
+   "peso_ok": true
+  },
+  {
+   "a": "Auditorio Central",
+   "b": "Edificio M",
+   "peso": 40,
+   "recta_m": 30.5,
+   "a_pie_m": 48.0,
+   "seg_a_pie": 40,
+   "rodeo": 1.57,
+   "cruza": {},
+   "cruza_recta": {},
+   "peso_ok": true
+  },
+  {
+   "a": "Auditorio Central",
+   "b": "Pasarela B Oeste",
+   "peso": 16,
+   "recta_m": 14.2,
+   "a_pie_m": 19.5,
+   "seg_a_pie": 16,
+   "rodeo": 1.37,
+   "cruza": {},
+   "cruza_recta": {},
+   "peso_ok": true
+  },
+  {
+   "a": "Auditorio Central",
+   "b": "Punto Seguro Parqueo 20 Av",
+   "peso": 11,
+   "recta_m": 41.3,
+   "a_pie_m": 13.8,
+   "seg_a_pie": 11,
+   "rodeo": 0.33,
+   "cruza": {},
+   "cruza_recta": {},
+   "peso_ok": true
+  },
+  {
+   "a": "Auditorio Central",
+   "b": "Punto Seguro Plazoleta",
+   "peso": 30,
+   "recta_m": 46.5,
+   "a_pie_m": 35.8,
+   "seg_a_pie": 30,
+   "rodeo": 0.77,
+   "cruza": {},
+   "cruza_recta": {
+    "Edificio E": 10.5
+   },
+   "peso_ok": true
+  },
+  {
+   "a": "Auditorio Central",
+   "b": "Zona Segura Cancha de Fútbol",
+   "peso": 60,
+   "recta_m": 101.7,
+   "a_pie_m": 71.9,
+   "seg_a_pie": 60,
+   "rodeo": 0.71,
+   "cruza": {},
+   "cruza_recta": {},
+   "peso_ok": true
+  },
+  {
+   "a": "B Salida Central",
+   "b": "Pasarela Edificio B",
+   "peso": 4,
+   "recta_m": 4.8,
+   "a_pie_m": 4.8,
+   "seg_a_pie": 4,
+   "rodeo": 1.0,
+   "cruza": {},
+   "cruza_recta": {},
+   "peso_ok": true
+  },
+  {
+   "a": "B Salida Central",
+   "b": "Punto Seguro Parqueo Central",
+   "peso": 25,
+   "recta_m": 33.2,
+   "a_pie_m": 29.7,
+   "seg_a_pie": 25,
+   "rodeo": 0.89,
+   "cruza": {},
+   "cruza_recta": {
+    "Edificio C": 7.0
+   },
+   "peso_ok": true
+  },
+  {
+   "a": "B Salida Central",
+   "b": "Punto Seguro Plazoleta",
+   "peso": 3,
+   "recta_m": 24.3,
+   "a_pie_m": 4.2,
+   "seg_a_pie": 3,
+   "rodeo": 0.17,
+   "cruza": {},
+   "cruza_recta": {},
+   "peso_ok": true
+  },
+  {
+   "a": "B Salida Este",
+   "b": "C Salida Este",
+   "peso": 17,
+   "recta_m": 17.9,
+   "a_pie_m": 20.4,
+   "seg_a_pie": 17,
+   "rodeo": 1.14,
+   "cruza": {},
+   "cruza_recta": {},
+   "peso_ok": true
+  },
+  {
+   "a": "B Salida Este",
+   "b": "Edificio A",
+   "peso": 7,
+   "recta_m": 8.8,
+   "a_pie_m": 8.8,
+   "seg_a_pie": 7,
+   "rodeo": 1.0,
+   "cruza": {},
+   "cruza_recta": {},
+   "peso_ok": true
+  },
+  {
+   "a": "B Salida Este",
+   "b": "Food Court",
+   "peso": 28,
+   "recta_m": 29.7,
+   "a_pie_m": 33.6,
+   "seg_a_pie": 28,
+   "rodeo": 1.13,
+   "cruza": {},
+   "cruza_recta": {},
+   "peso_ok": true
+  },
+  {
+   "a": "B Salida Este",
+   "b": "Punto Seguro Parqueo Central",
+   "peso": 50,
+   "recta_m": 47.9,
+   "a_pie_m": 59.7,
+   "seg_a_pie": 50,
+   "rodeo": 1.24,
+   "cruza": {},
+   "cruza_recta": {
+    "Edificio C": 12.6
+   },
+   "peso_ok": true
+  },
+  {
+   "a": "B Salida Este",
+   "b": "Punto Seguro Parqueo Este",
+   "peso": 36,
+   "recta_m": 70.9,
+   "a_pie_m": 43.4,
+   "seg_a_pie": 36,
+   "rodeo": 0.61,
+   "cruza": {},
+   "cruza_recta": {
+    "Edificio A": 9.6
+   },
+   "peso_ok": true
+  },
+  {
+   "a": "B Salida Este",
+   "b": "Punto Seguro Plazoleta",
+   "peso": 34,
+   "recta_m": 51.5,
+   "a_pie_m": 40.2,
+   "seg_a_pie": 34,
+   "rodeo": 0.78,
+   "cruza": {},
+   "cruza_recta": {
+    "Laguna junto al Food Court": 14.6
+   },
+   "peso_ok": true
+  },
+  {
+   "a": "B Salida Oeste",
+   "b": "C Salida Oeste",
+   "peso": 19,
+   "recta_m": 18.1,
+   "a_pie_m": 22.9,
+   "seg_a_pie": 19,
+   "rodeo": 1.26,
+   "cruza": {},
+   "cruza_recta": {},
+   "peso_ok": true
+  },
+  {
+   "a": "B Salida Oeste",
+   "b": "Edificio M",
+   "peso": 19,
+   "recta_m": 20.6,
+   "a_pie_m": 23.3,
+   "seg_a_pie": 19,
+   "rodeo": 1.13,
+   "cruza": {},
+   "cruza_recta": {},
+   "peso_ok": true
+  },
+  {
+   "a": "B Salida Oeste",
+   "b": "Pasarela B Oeste",
+   "peso": 22,
+   "recta_m": 20.7,
+   "a_pie_m": 26.2,
+   "seg_a_pie": 22,
+   "rodeo": 1.27,
+   "cruza": {},
+   "cruza_recta": {},
+   "peso_ok": true
+  },
+  {
+   "a": "B Salida Oeste",
+   "b": "Punto Seguro Parqueo 20 Av",
+   "peso": 24,
+   "recta_m": 64.4,
+   "a_pie_m": 29.1,
+   "seg_a_pie": 24,
+   "rodeo": 0.45,
+   "cruza": {},
+   "cruza_recta": {
+    "Auditorio Central": 21.7
+   },
+   "peso_ok": true
+  },
+  {
+   "a": "B Salida Oeste",
+   "b": "Punto Seguro Parqueo Central",
+   "peso": 41,
+   "recta_m": 46.5,
+   "a_pie_m": 49.1,
+   "seg_a_pie": 41,
+   "rodeo": 1.06,
+   "cruza": {},
+   "cruza_recta": {
+    "Edificio C": 11.1
+   },
+   "peso_ok": true
+  },
+  {
+   "a": "B Salida Oeste",
+   "b": "Punto Seguro Plazoleta",
+   "peso": 24,
+   "recta_m": 45.5,
+   "a_pie_m": 28.6,
+   "seg_a_pie": 24,
+   "rodeo": 0.63,
+   "cruza": {},
+   "cruza_recta": {
+    "Edificio E": 2.5
+   },
+   "peso_ok": true
+  },
+  {
+   "a": "Banco Banpro",
+   "b": "Edificio A",
+   "peso": 39,
+   "recta_m": 43.1,
+   "a_pie_m": 46.8,
+   "seg_a_pie": 39,
+   "rodeo": 1.09,
+   "cruza": {},
+   "cruza_recta": {},
+   "peso_ok": true
+  },
+  {
+   "a": "Banco Banpro",
+   "b": "Food Court",
+   "peso": 32,
+   "recta_m": 38.0,
+   "a_pie_m": 38.0,
+   "seg_a_pie": 32,
+   "rodeo": 1.0,
+   "cruza": {},
+   "cruza_recta": {},
+   "peso_ok": true
+  },
+  {
+   "a": "Banco Banpro",
+   "b": "Pasarela B Este",
+   "peso": 22,
+   "recta_m": 26.6,
+   "a_pie_m": 26.8,
+   "seg_a_pie": 22,
+   "rodeo": 1.0,
+   "cruza": {},
+   "cruza_recta": {},
+   "peso_ok": true
+  },
+  {
+   "a": "Banco Banpro",
+   "b": "Punto Seguro Parqueo Este",
+   "peso": 11,
+   "recta_m": 51.7,
+   "a_pie_m": 13.6,
+   "seg_a_pie": 11,
+   "rodeo": 0.26,
+   "cruza": {},
+   "cruza_recta": {},
+   "peso_ok": true
+  },
+  {
+   "a": "Banco Banpro",
+   "b": "Punto Seguro Parqueo Norte",
+   "peso": 34,
+   "recta_m": 71.2,
+   "a_pie_m": 41.2,
+   "seg_a_pie": 34,
+   "rodeo": 0.58,
+   "cruza": {},
+   "cruza_recta": {},
+   "peso_ok": true
+  },
+  {
+   "a": "Banco Banpro",
+   "b": "Punto Seguro Plazoleta",
+   "peso": 44,
+   "recta_m": 71.5,
+   "a_pie_m": 53.0,
+   "seg_a_pie": 44,
+   "rodeo": 0.74,
+   "cruza": {},
+   "cruza_recta": {},
+   "peso_ok": true
+  },
+  {
+   "a": "Baño del Comedor",
+   "b": "Comedor del Jaguarcito",
+   "peso": 28,
+   "recta_m": 31.9,
+   "a_pie_m": 33.9,
+   "seg_a_pie": 28,
+   "rodeo": 1.06,
+   "cruza": {},
+   "cruza_recta": {},
+   "peso_ok": true
+  },
+  {
+   "a": "Baño del Comedor",
+   "b": "Punto Seguro Parqueo Oeste",
+   "peso": 85,
+   "recta_m": 143.2,
+   "a_pie_m": 102.0,
+   "seg_a_pie": 85,
+   "rodeo": 0.71,
+   "cruza": {},
+   "cruza_recta": {},
+   "peso_ok": true
+  },
+  {
+   "a": "Baño del Comedor",
+   "b": "Zona Segura Campo de Béisbol",
+   "peso": 23,
+   "recta_m": 96.0,
+   "a_pie_m": 27.1,
+   "seg_a_pie": 23,
+   "rodeo": 0.28,
+   "cruza": {},
+   "cruza_recta": {},
+   "peso_ok": true
+  },
+  {
+   "a": "Baño del Comedor",
+   "b": "Zona Segura Cancha de Fútbol",
+   "peso": 31,
+   "recta_m": 69.1,
+   "a_pie_m": 37.5,
+   "seg_a_pie": 31,
+   "rodeo": 0.54,
+   "cruza": {},
+   "cruza_recta": {},
+   "peso_ok": true
+  },
+  {
+   "a": "C Salida Este",
+   "b": "Edificio A",
+   "peso": 10,
+   "recta_m": 12.4,
+   "a_pie_m": 12.4,
+   "seg_a_pie": 10,
+   "rodeo": 1.0,
+   "cruza": {},
+   "cruza_recta": {},
+   "peso_ok": true
+  },
+  {
+   "a": "C Salida Este",
+   "b": "Edificio D",
+   "peso": 43,
+   "recta_m": 43.5,
+   "a_pie_m": 51.6,
+   "seg_a_pie": 43,
+   "rodeo": 1.19,
+   "cruza": {},
+   "cruza_recta": {},
+   "peso_ok": true
+  },
+  {
+   "a": "C Salida Este",
+   "b": "Edificio J",
+   "peso": 34,
+   "recta_m": 36.8,
+   "a_pie_m": 41.1,
+   "seg_a_pie": 34,
+   "rodeo": 1.12,
+   "cruza": {},
+   "cruza_recta": {},
+   "peso_ok": true
+  },
+  {
+   "a": "C Salida Este",
+   "b": "Kioskos del Chilamate",
+   "peso": 28,
+   "recta_m": 28.2,
+   "a_pie_m": 33.3,
+   "seg_a_pie": 28,
+   "rodeo": 1.18,
+   "cruza": {},
+   "cruza_recta": {},
+   "peso_ok": true
+  },
+  {
+   "a": "C Salida Este",
+   "b": "Punto Seguro Parqueo Central",
+   "peso": 25,
+   "recta_m": 40.2,
+   "a_pie_m": 30.4,
+   "seg_a_pie": 25,
+   "rodeo": 0.76,
+   "cruza": {},
+   "cruza_recta": {},
+   "peso_ok": true
+  },
+  {
+   "a": "C Salida Este",
+   "b": "Punto Seguro Parqueo Este",
+   "peso": 41,
+   "recta_m": 72.9,
+   "a_pie_m": 49.6,
+   "seg_a_pie": 41,
+   "rodeo": 0.68,
+   "cruza": {},
+   "cruza_recta": {
+    "Edificio A": 9.6
+   },
+   "peso_ok": true
+  },
+  {
+   "a": "C Salida Este",
+   "b": "Punto Seguro Plazoleta",
+   "peso": 50,
+   "recta_m": 63.3,
+   "a_pie_m": 60.4,
+   "seg_a_pie": 50,
+   "rodeo": 0.95,
+   "cruza": {},
+   "cruza_recta": {
+    "Edificio B": 10.1,
+    "Laguna junto al Food Court": 10.1
+   },
+   "peso_ok": true
+  },
+  {
+   "a": "C Salida Oeste",
+   "b": "Edificio M",
+   "peso": 23,
+   "recta_m": 22.8,
+   "a_pie_m": 27.7,
+   "seg_a_pie": 23,
+   "rodeo": 1.22,
+   "cruza": {},
+   "cruza_recta": {},
+   "peso_ok": true
+  },
+  {
+   "a": "C Salida Oeste",
+   "b": "Laboratorios",
+   "peso": 30,
+   "recta_m": 31.4,
+   "a_pie_m": 35.6,
+   "seg_a_pie": 30,
+   "rodeo": 1.13,
+   "cruza": {},
+   "cruza_recta": {},
+   "peso_ok": true
+  },
+  {
+   "a": "C Salida Oeste",
+   "b": "Punto Seguro Parqueo 20 Av",
+   "peso": 41,
+   "recta_m": 81.8,
+   "a_pie_m": 49.0,
+   "seg_a_pie": 41,
+   "rodeo": 0.6,
+   "cruza": {},
+   "cruza_recta": {
+    "Auditorio Central": 20.6
+   },
+   "peso_ok": true
+  },
+  {
+   "a": "C Salida Oeste",
+   "b": "Punto Seguro Parqueo Central",
+   "peso": 23,
+   "recta_m": 36.0,
+   "a_pie_m": 27.3,
+   "seg_a_pie": 23,
+   "rodeo": 0.76,
+   "cruza": {},
+   "cruza_recta": {},
+   "peso_ok": true
+  },
+  {
+   "a": "C Salida Oeste",
+   "b": "Punto Seguro Plazoleta",
+   "peso": 43,
+   "recta_m": 57.2,
+   "a_pie_m": 51.8,
+   "seg_a_pie": 43,
+   "rodeo": 0.91,
+   "cruza": {},
+   "cruza_recta": {
+    "Edificio B": 9.0
+   },
+   "peso_ok": true
+  },
+  {
+   "a": "Clínicas Odontológicas",
+   "b": "Edificio D",
+   "peso": 26,
+   "recta_m": 25.0,
+   "a_pie_m": 30.8,
+   "seg_a_pie": 26,
+   "rodeo": 1.23,
+   "cruza": {},
+   "cruza_recta": {},
+   "peso_ok": true
+  },
+  {
+   "a": "Clínicas Odontológicas",
+   "b": "Edificio J",
+   "peso": 40,
+   "recta_m": 37.6,
+   "a_pie_m": 47.8,
+   "seg_a_pie": 40,
+   "rodeo": 1.27,
+   "cruza": {},
+   "cruza_recta": {},
+   "peso_ok": true
+  },
+  {
+   "a": "Clínicas Odontológicas",
+   "b": "El Ranchito",
+   "peso": 31,
+   "recta_m": 33.5,
+   "a_pie_m": 37.3,
+   "seg_a_pie": 31,
+   "rodeo": 1.11,
+   "cruza": {},
+   "cruza_recta": {},
+   "peso_ok": true
+  },
+  {
+   "a": "Clínicas Odontológicas",
+   "b": "Punto Seguro Parqueo Central",
+   "peso": 35,
+   "recta_m": 43.8,
+   "a_pie_m": 42.3,
+   "seg_a_pie": 35,
+   "rodeo": 0.97,
+   "cruza": {},
+   "cruza_recta": {},
+   "peso_ok": true
+  },
+  {
+   "a": "Clínicas Odontológicas",
+   "b": "Punto Seguro Parqueo Oeste",
+   "peso": 79,
+   "recta_m": 83.5,
+   "a_pie_m": 94.6,
+   "seg_a_pie": 79,
+   "rodeo": 1.13,
+   "cruza": {},
+   "cruza_recta": {
+    "Edificio O": 13.6
+   },
+   "peso_ok": true
+  },
+  {
+   "a": "Clínicas Odontológicas",
+   "b": "Punto Seguro Parqueo Sur",
+   "peso": 24,
+   "recta_m": 28.9,
+   "a_pie_m": 28.5,
+   "seg_a_pie": 24,
+   "rodeo": 0.99,
+   "cruza": {},
+   "cruza_recta": {},
+   "peso_ok": true
+  },
+  {
+   "a": "Comedor del Jaguarcito",
+   "b": "Kiosko del Jaguarcito",
+   "peso": 77,
+   "recta_m": 52.2,
+   "a_pie_m": 92.7,
+   "seg_a_pie": 77,
+   "rodeo": 1.78,
+   "cruza": {},
+   "cruza_recta": {},
+   "peso_ok": true
+  },
+  {
+   "a": "Comedor del Jaguarcito",
+   "b": "Punto Seguro Parqueo Oeste",
+   "peso": 68,
+   "recta_m": 115.8,
+   "a_pie_m": 82.1,
+   "seg_a_pie": 68,
+   "rodeo": 0.71,
+   "cruza": {},
+   "cruza_recta": {},
+   "peso_ok": true
+  },
+  {
+   "a": "Comedor del Jaguarcito",
+   "b": "Zona Segura Campo de Béisbol",
+   "peso": 19,
+   "recta_m": 82.5,
+   "a_pie_m": 23.2,
+   "seg_a_pie": 19,
+   "rodeo": 0.28,
+   "cruza": {},
+   "cruza_recta": {},
+   "peso_ok": true
+  },
+  {
+   "a": "Comedor del Jaguarcito",
+   "b": "Zona Segura Cancha de Fútbol",
+   "peso": 23,
+   "recta_m": 50.5,
+   "a_pie_m": 27.4,
+   "seg_a_pie": 23,
+   "rodeo": 0.54,
+   "cruza": {},
+   "cruza_recta": {},
+   "peso_ok": true
+  },
+  {
+   "a": "Edificio A",
+   "b": "Food Court",
+   "peso": 46,
+   "recta_m": 38.0,
+   "a_pie_m": 55.2,
+   "seg_a_pie": 46,
+   "rodeo": 1.45,
+   "cruza": {},
+   "cruza_recta": {},
+   "peso_ok": true
+  },
+  {
+   "a": "Edificio A",
+   "b": "Kioskos del Chilamate",
+   "peso": 41,
+   "recta_m": 38.1,
+   "a_pie_m": 49.3,
+   "seg_a_pie": 41,
+   "rodeo": 1.3,
+   "cruza": {},
+   "cruza_recta": {},
+   "peso_ok": true
+  },
+  {
+   "a": "Edificio A",
+   "b": "Pasarela B Este",
+   "peso": 17,
+   "recta_m": 16.8,
+   "a_pie_m": 20.0,
+   "seg_a_pie": 17,
+   "rodeo": 1.19,
+   "cruza": {},
+   "cruza_recta": {},
+   "peso_ok": true
+  },
+  {
+   "a": "Edificio A",
+   "b": "Punto Seguro Parqueo Central",
+   "peso": 47,
+   "recta_m": 49.3,
+   "a_pie_m": 56.1,
+   "seg_a_pie": 47,
+   "rodeo": 1.14,
+   "cruza": {},
+   "cruza_recta": {
+    "Edificio C": 16.1
+   },
+   "peso_ok": true
+  },
+  {
+   "a": "Edificio A",
+   "b": "Punto Seguro Parqueo Este",
+   "peso": 24,
+   "recta_m": 65.6,
+   "a_pie_m": 28.8,
+   "seg_a_pie": 24,
+   "rodeo": 0.44,
+   "cruza": {},
+   "cruza_recta": {},
+   "peso_ok": true
+  },
+  {
+   "a": "Edificio A",
+   "b": "Punto Seguro Plazoleta",
+   "peso": 46,
+   "recta_m": 60.0,
+   "a_pie_m": 54.9,
+   "seg_a_pie": 46,
+   "rodeo": 0.92,
+   "cruza": {},
+   "cruza_recta": {
+    "Edificio B": 10.1,
+    "Laguna junto al Food Court": 15.6
+   },
+   "peso_ok": true
+  },
+  {
+   "a": "Edificio D",
+   "b": "Edificio J",
+   "peso": 23,
+   "recta_m": 15.9,
+   "a_pie_m": 27.7,
+   "seg_a_pie": 23,
+   "rodeo": 1.74,
+   "cruza": {},
+   "cruza_recta": {},
+   "peso_ok": true
+  },
+  {
+   "a": "Edificio D",
+   "b": "El Chilamate",
+   "peso": 39,
+   "recta_m": 46.0,
+   "a_pie_m": 47.3,
+   "seg_a_pie": 39,
+   "rodeo": 1.03,
+   "cruza": {},
+   "cruza_recta": {},
+   "peso_ok": true
+  },
+  {
+   "a": "Edificio D",
+   "b": "Punto Seguro Parqueo Central",
+   "peso": 19,
+   "recta_m": 29.0,
+   "a_pie_m": 22.6,
+   "seg_a_pie": 19,
+   "rodeo": 0.78,
+   "cruza": {},
+   "cruza_recta": {},
+   "peso_ok": true
+  },
+  {
+   "a": "Edificio D",
+   "b": "Punto Seguro Parqueo Este",
+   "peso": 61,
+   "recta_m": 109.3,
+   "a_pie_m": 72.9,
+   "seg_a_pie": 61,
+   "rodeo": 0.67,
+   "cruza": {},
+   "cruza_recta": {},
+   "peso_ok": true
+  },
+  {
+   "a": "Edificio D",
+   "b": "Punto Seguro Parqueo Sur",
+   "peso": 41,
+   "recta_m": 49.1,
+   "a_pie_m": 48.7,
+   "seg_a_pie": 41,
+   "rodeo": 0.99,
+   "cruza": {},
+   "cruza_recta": {
+    "Clínicas Odontológicas": 16.5
+   },
+   "peso_ok": true
+  },
+  {
+   "a": "Edificio E",
+   "b": "Edificio F",
+   "peso": 18,
+   "recta_m": 21.5,
+   "a_pie_m": 21.5,
+   "seg_a_pie": 18,
+   "rodeo": 1.0,
+   "cruza": {},
+   "cruza_recta": {},
+   "peso_ok": true
+  },
+  {
+   "a": "Edificio E",
+   "b": "Punto Seguro Parqueo 20 Av",
+   "peso": 20,
+   "recta_m": 41.0,
+   "a_pie_m": 24.0,
+   "seg_a_pie": 20,
+   "rodeo": 0.59,
+   "cruza": {},
+   "cruza_recta": {
+    "Edificio F": 14.0
+   },
+   "peso_ok": true
+  },
+  {
+   "a": "Edificio E",
+   "b": "Punto Seguro Parqueo 47 Calle",
+   "peso": 57,
+   "recta_m": 70.9,
+   "a_pie_m": 68.7,
+   "seg_a_pie": 57,
+   "rodeo": 0.97,
+   "cruza": {},
+   "cruza_recta": {},
+   "peso_ok": true
+  },
+  {
+   "a": "Edificio E",
+   "b": "Punto Seguro Parqueo Norte",
+   "peso": 15,
+   "recta_m": 53.8,
+   "a_pie_m": 18.6,
+   "seg_a_pie": 15,
+   "rodeo": 0.35,
+   "cruza": {},
+   "cruza_recta": {},
+   "peso_ok": true
+  },
+  {
+   "a": "Edificio E",
+   "b": "Punto Seguro Plazoleta",
+   "peso": 8,
+   "recta_m": 29.4,
+   "a_pie_m": 9.3,
+   "seg_a_pie": 8,
+   "rodeo": 0.32,
+   "cruza": {},
+   "cruza_recta": {},
+   "peso_ok": true
+  },
+  {
+   "a": "Edificio F",
+   "b": "Punto Seguro Parqueo 20 Av",
+   "peso": 12,
+   "recta_m": 21.9,
+   "a_pie_m": 14.9,
+   "seg_a_pie": 12,
+   "rodeo": 0.68,
+   "cruza": {},
+   "cruza_recta": {},
+   "peso_ok": true
+  },
+  {
+   "a": "Edificio F",
+   "b": "Punto Seguro Plazoleta",
+   "peso": 55,
+   "recta_m": 48.5,
+   "a_pie_m": 66.4,
+   "seg_a_pie": 55,
+   "rodeo": 1.37,
+   "cruza": {},
+   "cruza_recta": {
+    "Edificio E": 11.0
+   },
+   "peso_ok": true
+  },
+  {
+   "a": "Edificio F",
+   "b": "Zona Segura Cancha de Fútbol",
+   "peso": 72,
+   "recta_m": 109.2,
+   "a_pie_m": 86.5,
+   "seg_a_pie": 72,
+   "rodeo": 0.79,
+   "cruza": {},
+   "cruza_recta": {},
+   "peso_ok": true
+  },
+  {
+   "a": "Edificio I",
+   "b": "Jaguar Center",
+   "peso": 74,
+   "recta_m": 37.9,
+   "a_pie_m": 89.3,
+   "seg_a_pie": 74,
+   "rodeo": 2.35,
+   "cruza": {},
+   "cruza_recta": {},
+   "peso_ok": true
+  },
+  {
+   "a": "Edificio I",
+   "b": "Punto Seguro Parqueo 20 Av",
+   "peso": 20,
+   "recta_m": 43.1,
+   "a_pie_m": 23.5,
+   "seg_a_pie": 20,
+   "rodeo": 0.54,
+   "cruza": {},
+   "cruza_recta": {},
+   "peso_ok": true
+  },
+  {
+   "a": "Edificio I",
+   "b": "Punto Seguro Parqueo 47 Calle",
+   "peso": 32,
+   "recta_m": 84.1,
+   "a_pie_m": 38.7,
+   "seg_a_pie": 32,
+   "rodeo": 0.46,
+   "cruza": {},
+   "cruza_recta": {},
+   "peso_ok": true
+  },
+  {
+   "a": "Edificio I",
+   "b": "Zona Segura Cancha de Fútbol",
+   "peso": 59,
+   "recta_m": 91.0,
+   "a_pie_m": 70.5,
+   "seg_a_pie": 59,
+   "rodeo": 0.77,
+   "cruza": {},
+   "cruza_recta": {
+    "Jaguar Center": 4.5
+   },
+   "peso_ok": true
+  },
+  {
+   "a": "Edificio J",
+   "b": "El Chilamate",
+   "peso": 37,
+   "recta_m": 34.2,
+   "a_pie_m": 44.1,
+   "seg_a_pie": 37,
+   "rodeo": 1.29,
+   "cruza": {},
+   "cruza_recta": {},
+   "peso_ok": true
+  },
+  {
+   "a": "Edificio J",
+   "b": "Kioskos del Chilamate",
+   "peso": 23,
+   "recta_m": 19.7,
+   "a_pie_m": 27.0,
+   "seg_a_pie": 23,
+   "rodeo": 1.37,
+   "cruza": {},
+   "cruza_recta": {},
+   "peso_ok": true
+  },
+  {
+   "a": "Edificio J",
+   "b": "Punto Seguro Parqueo Central",
+   "peso": 27,
+   "recta_m": 39.3,
+   "a_pie_m": 33.0,
+   "seg_a_pie": 27,
+   "rodeo": 0.84,
+   "cruza": {},
+   "cruza_recta": {},
+   "peso_ok": true
+  },
+  {
+   "a": "Edificio J",
+   "b": "Punto Seguro Parqueo Este",
+   "peso": 44,
+   "recta_m": 95.8,
+   "a_pie_m": 53.0,
+   "seg_a_pie": 44,
+   "rodeo": 0.55,
+   "cruza": {},
+   "cruza_recta": {},
+   "peso_ok": true
+  },
+  {
+   "a": "Edificio J",
+   "b": "Punto Seguro Parqueo Sur",
+   "peso": 38,
+   "recta_m": 55.8,
+   "a_pie_m": 45.6,
+   "seg_a_pie": 38,
+   "rodeo": 0.82,
+   "cruza": {},
+   "cruza_recta": {
+    "Clínicas Odontológicas": 19.1
+   },
+   "peso_ok": true
+  },
+  {
+   "a": "Edificio M",
+   "b": "Laboratorios",
+   "peso": 24,
+   "recta_m": 22.3,
+   "a_pie_m": 29.0,
+   "seg_a_pie": 24,
+   "rodeo": 1.3,
+   "cruza": {},
+   "cruza_recta": {},
+   "peso_ok": true
+  },
+  {
+   "a": "Edificio M",
+   "b": "Pasarela B Oeste",
+   "peso": 41,
+   "recta_m": 17.7,
+   "a_pie_m": 49.7,
+   "seg_a_pie": 41,
+   "rodeo": 2.81,
+   "cruza": {},
+   "cruza_recta": {},
+   "peso_ok": true
+  },
+  {
+   "a": "Edificio M",
+   "b": "Punto Seguro Parqueo 20 Av",
+   "peso": 30,
+   "recta_m": 67.5,
+   "a_pie_m": 36.2,
+   "seg_a_pie": 30,
+   "rodeo": 0.54,
+   "cruza": {},
+   "cruza_recta": {},
+   "peso_ok": true
+  },
+  {
+   "a": "Edificio M",
+   "b": "Punto Seguro Parqueo Central",
+   "peso": 45,
+   "recta_m": 58.7,
+   "a_pie_m": 54.0,
+   "seg_a_pie": 45,
+   "rodeo": 0.92,
+   "cruza": {},
+   "cruza_recta": {
+    "Edificio C": 8.5
+   },
+   "peso_ok": true
+  },
+  {
+   "a": "Edificio M",
+   "b": "Zona Segura Cancha de Fútbol",
+   "peso": 33,
+   "recta_m": 92.0,
+   "a_pie_m": 40.2,
+   "seg_a_pie": 33,
+   "rodeo": 0.44,
+   "cruza": {},
+   "cruza_recta": {},
+   "peso_ok": true
+  },
+  {
+   "a": "Edificio O",
+   "b": "El Ranchito",
+   "peso": 38,
+   "recta_m": 37.0,
+   "a_pie_m": 45.3,
+   "seg_a_pie": 38,
+   "rodeo": 1.22,
+   "cruza": {},
+   "cruza_recta": {
+    "edificio 1333922789": 5.5
+   },
+   "peso_ok": true
+  },
+  {
+   "a": "Edificio O",
+   "b": "P Salida Oeste",
+   "peso": 33,
+   "recta_m": 32.5,
+   "a_pie_m": 40.1,
+   "seg_a_pie": 33,
+   "rodeo": 1.23,
+   "cruza": {},
+   "cruza_recta": {},
+   "peso_ok": true
+  },
+  {
+   "a": "Edificio O",
+   "b": "Punto Seguro Parqueo Oeste",
+   "peso": 17,
+   "recta_m": 28.8,
+   "a_pie_m": 20.4,
+   "seg_a_pie": 17,
+   "rodeo": 0.71,
+   "cruza": {},
+   "cruza_recta": {},
+   "peso_ok": true
+  },
+  {
+   "a": "Edificio O",
+   "b": "Punto Seguro Parqueo Sur",
+   "peso": 16,
+   "recta_m": 55.1,
+   "a_pie_m": 19.8,
+   "seg_a_pie": 16,
+   "rodeo": 0.36,
+   "cruza": {},
+   "cruza_recta": {},
+   "peso_ok": true
+  },
+  {
+   "a": "Edificio O",
+   "b": "Zona Segura Campo de Béisbol",
+   "peso": 69,
+   "recta_m": 97.4,
+   "a_pie_m": 82.4,
+   "seg_a_pie": 69,
+   "rodeo": 0.85,
+   "cruza": {},
+   "cruza_recta": {},
+   "peso_ok": true
+  },
+  {
+   "a": "El Chilamate",
+   "b": "Kioskos del Chilamate",
+   "peso": 42,
+   "recta_m": 35.5,
+   "a_pie_m": 50.7,
+   "seg_a_pie": 42,
+   "rodeo": 1.43,
+   "cruza": {},
+   "cruza_recta": {},
+   "peso_ok": true
+  },
+  {
+   "a": "El Chilamate",
+   "b": "P Salida Este",
+   "peso": 50,
+   "recta_m": 46.9,
+   "a_pie_m": 59.7,
+   "seg_a_pie": 50,
+   "rodeo": 1.27,
+   "cruza": {},
+   "cruza_recta": {},
+   "peso_ok": true
+  },
+  {
+   "a": "El Chilamate",
+   "b": "Punto Seguro Parqueo Edificio P",
+   "peso": 56,
+   "recta_m": 82.8,
+   "a_pie_m": 67.1,
+   "seg_a_pie": 56,
+   "rodeo": 0.81,
+   "cruza": {},
+   "cruza_recta": {
+    "Edificio P": 9.5
+   },
+   "peso_ok": true
+  },
+  {
+   "a": "El Chilamate",
+   "b": "Punto Seguro Parqueo Este",
+   "peso": 51,
+   "recta_m": 98.2,
+   "a_pie_m": 61.0,
+   "seg_a_pie": 51,
+   "rodeo": 0.62,
+   "cruza": {},
+   "cruza_recta": {},
+   "peso_ok": true
+  },
+  {
+   "a": "El Chilamate",
+   "b": "Punto Seguro Parqueo Sur",
+   "peso": 20,
+   "recta_m": 55.8,
+   "a_pie_m": 24.0,
+   "seg_a_pie": 20,
+   "rodeo": 0.43,
+   "cruza": {},
+   "cruza_recta": {},
+   "peso_ok": true
+  },
+  {
+   "a": "El Ranchito",
+   "b": "Laboratorios",
+   "peso": 49,
+   "recta_m": 42.7,
+   "a_pie_m": 59.0,
+   "seg_a_pie": 49,
+   "rodeo": 1.38,
+   "cruza": {},
+   "cruza_recta": {},
+   "peso_ok": true
+  },
+  {
+   "a": "El Ranchito",
+   "b": "Punto Seguro Parqueo Central",
+   "peso": 44,
+   "recta_m": 50.6,
+   "a_pie_m": 52.4,
+   "seg_a_pie": 44,
+   "rodeo": 1.04,
+   "cruza": {},
+   "cruza_recta": {
+    "Clínicas Odontológicas": 10.0
+   },
+   "peso_ok": true
+  },
+  {
+   "a": "El Ranchito",
+   "b": "Punto Seguro Parqueo Oeste",
+   "peso": 43,
+   "recta_m": 65.7,
+   "a_pie_m": 51.9,
+   "seg_a_pie": 43,
+   "rodeo": 0.79,
+   "cruza": {},
+   "cruza_recta": {
+    "edificio 1333922789": 5.5,
+    "Edificio O": 25.1
+   },
+   "peso_ok": true
+  },
+  {
+   "a": "El Ranchito",
+   "b": "Punto Seguro Parqueo Sur",
+   "peso": 23,
+   "recta_m": 50.9,
+   "a_pie_m": 27.1,
+   "seg_a_pie": 23,
+   "rodeo": 0.53,
+   "cruza": {},
+   "cruza_recta": {
+    "Clínicas Odontológicas": 17.1
+   },
+   "peso_ok": true
+  },
+  {
+   "a": "Food Court",
+   "b": "Pasarela B Este",
+   "peso": 30,
+   "recta_m": 29.1,
+   "a_pie_m": 35.7,
+   "seg_a_pie": 30,
+   "rodeo": 1.23,
+   "cruza": {},
+   "cruza_recta": {},
+   "peso_ok": true
+  },
+  {
+   "a": "Food Court",
+   "b": "Punto Seguro Parqueo Este",
+   "peso": 39,
+   "recta_m": 85.0,
+   "a_pie_m": 46.5,
+   "seg_a_pie": 39,
+   "rodeo": 0.55,
+   "cruza": {},
+   "cruza_recta": {},
+   "peso_ok": true
+  },
+  {
+   "a": "Food Court",
+   "b": "Punto Seguro Parqueo Norte",
+   "peso": 22,
+   "recta_m": 50.7,
+   "a_pie_m": 26.7,
+   "seg_a_pie": 22,
+   "rodeo": 0.53,
+   "cruza": {},
+   "cruza_recta": {},
+   "peso_ok": true
+  },
+  {
+   "a": "Food Court",
+   "b": "Punto Seguro Plazoleta",
+   "peso": 13,
+   "recta_m": 33.5,
+   "a_pie_m": 15.1,
+   "seg_a_pie": 13,
+   "rodeo": 0.45,
+   "cruza": {},
+   "cruza_recta": {},
+   "peso_ok": true
+  },
+  {
+   "a": "Jaguar Center",
+   "b": "Punto Seguro Parqueo 20 Av",
+   "peso": 64,
+   "recta_m": 73.1,
+   "a_pie_m": 76.3,
+   "seg_a_pie": 64,
+   "rodeo": 1.04,
+   "cruza": {},
+   "cruza_recta": {
+    "Edificio I": 17.0
+   },
+   "peso_ok": true
+  },
+  {
+   "a": "Jaguar Center",
+   "b": "Punto Seguro Parqueo 47 Calle",
+   "peso": 88,
+   "recta_m": 122.0,
+   "a_pie_m": 105.6,
+   "seg_a_pie": 88,
+   "rodeo": 0.87,
+   "cruza": {},
+   "cruza_recta": {
+    "Edificio I": 23.5
+   },
+   "peso_ok": true
+  },
+  {
+   "a": "Jaguar Center",
+   "b": "Salón de Danza",
+   "peso": 32,
+   "recta_m": 32.3,
+   "a_pie_m": 37.9,
+   "seg_a_pie": 32,
+   "rodeo": 1.17,
+   "cruza": {},
+   "cruza_recta": {},
+   "peso_ok": true
+  },
+  {
+   "a": "Jaguar Center",
+   "b": "Salón de Música",
+   "peso": 27,
+   "recta_m": 24.3,
+   "a_pie_m": 32.4,
+   "seg_a_pie": 27,
+   "rodeo": 1.33,
+   "cruza": {},
+   "cruza_recta": {},
+   "peso_ok": true
+  },
+  {
+   "a": "Jaguar Center",
+   "b": "Vestidores",
+   "peso": 47,
+   "recta_m": 37.6,
+   "a_pie_m": 56.3,
+   "seg_a_pie": 47,
+   "rodeo": 1.5,
+   "cruza": {},
+   "cruza_recta": {},
+   "peso_ok": true
+  },
+  {
+   "a": "Jaguar Center",
+   "b": "Zona Segura Cancha de Fútbol",
+   "peso": 47,
+   "recta_m": 66.0,
+   "a_pie_m": 56.3,
+   "seg_a_pie": 47,
+   "rodeo": 0.85,
+   "cruza": {},
+   "cruza_recta": {},
+   "peso_ok": true
+  },
+  {
+   "a": "Jaguar Center",
+   "b": "Zona Segura Canchas de Vóley",
+   "peso": 20,
+   "recta_m": 50.1,
+   "a_pie_m": 43.4,
+   "seg_a_pie": 36,
+   "rodeo": 0.87,
+   "cruza": {},
+   "cruza_recta": {},
+   "peso_ok": false
+  },
+  {
+   "a": "Kiosko del Jaguarcito",
+   "b": "Laboratorios",
+   "peso": 51,
+   "recta_m": 54.3,
+   "a_pie_m": 60.7,
+   "seg_a_pie": 51,
+   "rodeo": 1.12,
+   "cruza": {},
+   "cruza_recta": {},
+   "peso_ok": true
+  },
+  {
+   "a": "Kiosko del Jaguarcito",
+   "b": "Punto Seguro Parqueo Oeste",
+   "peso": 24,
+   "recta_m": 81.4,
+   "a_pie_m": 28.8,
+   "seg_a_pie": 24,
+   "rodeo": 0.35,
+   "cruza": {},
+   "cruza_recta": {},
+   "peso_ok": true
+  },
+  {
+   "a": "Kiosko del Jaguarcito",
+   "b": "Zona Segura Campo de Béisbol",
+   "peso": 38,
+   "recta_m": 88.0,
+   "a_pie_m": 45.6,
+   "seg_a_pie": 38,
+   "rodeo": 0.52,
+   "cruza": {},
+   "cruza_recta": {},
+   "peso_ok": true
+  },
+  {
+   "a": "Kiosko del Jaguarcito",
+   "b": "Zona Segura Cancha de Fútbol",
+   "peso": 36,
+   "recta_m": 55.0,
+   "a_pie_m": 43.0,
+   "seg_a_pie": 36,
+   "rodeo": 0.78,
+   "cruza": {},
+   "cruza_recta": {},
+   "peso_ok": true
+  },
+  {
+   "a": "Kioskos del Chilamate",
+   "b": "Punto Seguro Parqueo Central",
+   "peso": 30,
+   "recta_m": 50.3,
+   "a_pie_m": 36.3,
+   "seg_a_pie": 30,
+   "rodeo": 0.72,
+   "cruza": {},
+   "cruza_recta": {},
+   "peso_ok": true
+  },
+  {
+   "a": "Kioskos del Chilamate",
+   "b": "Punto Seguro Parqueo Este",
+   "peso": 24,
+   "recta_m": 76.2,
+   "a_pie_m": 28.8,
+   "seg_a_pie": 24,
+   "rodeo": 0.38,
+   "cruza": {},
+   "cruza_recta": {},
+   "peso_ok": true
+  },
+  {
+   "a": "Kioskos del Chilamate",
+   "b": "Punto Seguro Parqueo Sur",
+   "peso": 43,
+   "recta_m": 73.4,
+   "a_pie_m": 52.2,
+   "seg_a_pie": 43,
+   "rodeo": 0.71,
+   "cruza": {},
+   "cruza_recta": {
+    "Edificio J": 2.5,
+    "Clínicas Odontológicas": 18.6
+   },
+   "peso_ok": true
+  },
+  {
+   "a": "Laboratorios",
+   "b": "Punto Seguro Parqueo 20 Av",
+   "peso": 35,
+   "recta_m": 87.6,
+   "a_pie_m": 41.9,
+   "seg_a_pie": 35,
+   "rodeo": 0.48,
+   "cruza": {},
+   "cruza_recta": {
+    "Edificio M": 24.0
+   },
+   "peso_ok": true
+  },
+  {
+   "a": "Laboratorios",
+   "b": "Punto Seguro Parqueo Oeste",
+   "peso": 50,
+   "recta_m": 87.4,
+   "a_pie_m": 59.7,
+   "seg_a_pie": 50,
+   "rodeo": 0.68,
+   "cruza": {},
+   "cruza_recta": {},
+   "peso_ok": true
+  },
+  {
+   "a": "Laboratorios",
+   "b": "Zona Segura Cancha de Fútbol",
+   "peso": 28,
+   "recta_m": 88.4,
+   "a_pie_m": 33.2,
+   "seg_a_pie": 28,
+   "rodeo": 0.38,
+   "cruza": {},
+   "cruza_recta": {},
+   "peso_ok": true
+  },
+  {
+   "a": "P Salida Este",
+   "b": "Punto Seguro Parqueo Edificio P",
+   "peso": 7,
+   "recta_m": 38.2,
+   "a_pie_m": 7.9,
+   "seg_a_pie": 7,
+   "rodeo": 0.21,
+   "cruza": {},
+   "cruza_recta": {},
+   "peso_ok": true
+  },
+  {
+   "a": "P Salida Este",
+   "b": "Punto Seguro Parqueo Este",
+   "peso": 100,
+   "recta_m": 143.4,
+   "a_pie_m": 119.4,
+   "seg_a_pie": 100,
+   "rodeo": 0.83,
+   "cruza": {},
+   "cruza_recta": {},
+   "peso_ok": true
+  },
+  {
+   "a": "P Salida Este",
+   "b": "Punto Seguro Parqueo Sur",
+   "peso": 12,
+   "recta_m": 44.9,
+   "a_pie_m": 14.5,
+   "seg_a_pie": 12,
+   "rodeo": 0.32,
+   "cruza": {},
+   "cruza_recta": {},
+   "peso_ok": true
+  },
+  {
+   "a": "P Salida Oeste",
+   "b": "Punto Seguro Parqueo Edificio P",
+   "peso": 27,
+   "recta_m": 60.8,
+   "a_pie_m": 32.4,
+   "seg_a_pie": 27,
+   "rodeo": 0.53,
+   "cruza": {},
+   "cruza_recta": {},
+   "peso_ok": true
+  },
+  {
+   "a": "P Salida Oeste",
+   "b": "Punto Seguro Parqueo Oeste",
+   "peso": 26,
+   "recta_m": 29.4,
+   "a_pie_m": 31.1,
+   "seg_a_pie": 26,
+   "rodeo": 1.06,
+   "cruza": {},
+   "cruza_recta": {},
+   "peso_ok": true
+  },
+  {
+   "a": "P Salida Oeste",
+   "b": "Punto Seguro Parqueo Sur",
+   "peso": 14,
+   "recta_m": 50.3,
+   "a_pie_m": 16.6,
+   "seg_a_pie": 14,
+   "rodeo": 0.33,
+   "cruza": {},
+   "cruza_recta": {},
+   "peso_ok": true
+  },
+  {
+   "a": "Pasarela B Este",
+   "b": "Pasarela Edificio B",
+   "peso": 44,
+   "recta_m": 50.8,
+   "a_pie_m": 52.3,
+   "seg_a_pie": 44,
+   "rodeo": 1.03,
+   "cruza": {},
+   "cruza_recta": {},
+   "peso_ok": true
+  },
+  {
+   "a": "Pasarela B Este",
+   "b": "Punto Seguro Parqueo Este",
+   "peso": 18,
+   "recta_m": 59.3,
+   "a_pie_m": 21.3,
+   "seg_a_pie": 18,
+   "rodeo": 0.36,
+   "cruza": {},
+   "cruza_recta": {},
+   "peso_ok": true
+  },
+  {
+   "a": "Pasarela B Este",
+   "b": "Punto Seguro Parqueo Norte",
+   "peso": 44,
+   "recta_m": 77.3,
+   "a_pie_m": 53.0,
+   "seg_a_pie": 44,
+   "rodeo": 0.68,
+   "cruza": {},
+   "cruza_recta": {},
+   "peso_ok": true
+  },
+  {
+   "a": "Pasarela B Este",
+   "b": "Punto Seguro Plazoleta",
+   "peso": 42,
+   "recta_m": 58.6,
+   "a_pie_m": 50.4,
+   "seg_a_pie": 42,
+   "rodeo": 0.86,
+   "cruza": {},
+   "cruza_recta": {
+    "Laguna junto al Food Court": 9.5
+   },
+   "peso_ok": true
+  },
+  {
+   "a": "Pasarela B Oeste",
+   "b": "Pasarela Edificio B",
+   "peso": 49,
+   "recta_m": 57.2,
+   "a_pie_m": 58.2,
+   "seg_a_pie": 49,
+   "rodeo": 1.02,
+   "cruza": {},
+   "cruza_recta": {},
+   "peso_ok": true
+  },
+  {
+   "a": "Pasarela B Oeste",
+   "b": "Punto Seguro Parqueo 20 Av",
+   "peso": 3,
+   "recta_m": 50.0,
+   "a_pie_m": 3.3,
+   "seg_a_pie": 3,
+   "rodeo": 0.07,
+   "cruza": {},
+   "cruza_recta": {},
+   "peso_ok": true
+  },
+  {
+   "a": "Pasarela B Oeste",
+   "b": "Punto Seguro Plazoleta",
+   "peso": 32,
+   "recta_m": 57.5,
+   "a_pie_m": 38.2,
+   "seg_a_pie": 32,
+   "rodeo": 0.67,
+   "cruza": {},
+   "cruza_recta": {
+    "Auditorio Central": 9.6,
+    "Edificio E": 11.1
+   },
+   "peso_ok": true
+  },
+  {
+   "a": "Pasarela B Oeste",
+   "b": "Zona Segura Cancha de Fútbol",
+   "peso": 49,
+   "recta_m": 92.0,
+   "a_pie_m": 58.8,
+   "seg_a_pie": 49,
+   "rodeo": 0.64,
+   "cruza": {},
+   "cruza_recta": {},
+   "peso_ok": true
+  },
+  {
+   "a": "Pasarela Edificio B",
+   "b": "Punto Seguro Plazoleta",
+   "peso": 3,
+   "recta_m": 19.6,
+   "a_pie_m": 3.5,
+   "seg_a_pie": 3,
+   "rodeo": 0.18,
+   "cruza": {},
+   "cruza_recta": {},
+   "peso_ok": true
+  },
+  {
+   "a": "Punto Seguro Parqueo 20 Av",
+   "b": "Punto Seguro Parqueo 47 Calle",
+   "peso": 11,
+   "recta_m": 69.6,
+   "a_pie_m": 13.2,
+   "seg_a_pie": 11,
+   "rodeo": 0.19,
+   "cruza": {},
+   "cruza_recta": {},
+   "peso_ok": true
+  },
+  {
+   "a": "Punto Seguro Parqueo 20 Av",
+   "b": "Salón Multiusos",
+   "peso": 112,
+   "recta_m": 128.1,
+   "a_pie_m": 134.6,
+   "seg_a_pie": 112,
+   "rodeo": 1.05,
+   "cruza": {},
+   "cruza_recta": {
+    "Edificio I": 11.0,
+    "Jaguar Center": 39.5
+   },
+   "peso_ok": true
+  },
+  {
+   "a": "Punto Seguro Parqueo 20 Av",
+   "b": "Salón de Contenedores",
+   "peso": 115,
+   "recta_m": 139.9,
+   "a_pie_m": 137.8,
+   "seg_a_pie": 115,
+   "rodeo": 0.99,
+   "cruza": {},
+   "cruza_recta": {
+    "Edificio I": 10.5,
+    "Jaguar Center": 39.6
+   },
+   "peso_ok": true
+  },
+  {
+   "a": "Punto Seguro Parqueo 20 Av",
+   "b": "Salón de Danza",
+   "peso": 91,
+   "recta_m": 105.4,
+   "a_pie_m": 109.6,
+   "seg_a_pie": 91,
+   "rodeo": 1.04,
+   "cruza": {},
+   "cruza_recta": {
+    "Edificio I": 17.1,
+    "Jaguar Center": 38.7
+   },
+   "peso_ok": true
+  },
+  {
+   "a": "Punto Seguro Parqueo 20 Av",
+   "b": "Salón de Música",
+   "peso": 90,
+   "recta_m": 97.4,
+   "a_pie_m": 108.3,
+   "seg_a_pie": 90,
+   "rodeo": 1.11,
+   "cruza": {},
+   "cruza_recta": {
+    "Edificio I": 17.1,
+    "Jaguar Center": 38.6
+   },
+   "peso_ok": true
+  },
+  {
+   "a": "Punto Seguro Parqueo 20 Av",
+   "b": "Vestidores",
+   "peso": 82,
+   "recta_m": 107.9,
+   "a_pie_m": 98.6,
+   "seg_a_pie": 82,
+   "rodeo": 0.91,
+   "cruza": {},
+   "cruza_recta": {
+    "Edificio I": 16.6,
+    "Jaguar Center": 38.1
+   },
+   "peso_ok": true
+  },
+  {
+   "a": "Punto Seguro Parqueo 47 Calle",
+   "b": "Punto Seguro Parqueo Norte",
+   "peso": 12,
+   "recta_m": 60.7,
+   "a_pie_m": 14.5,
+   "seg_a_pie": 12,
+   "rodeo": 0.24,
+   "cruza": {},
+   "cruza_recta": {},
+   "peso_ok": true
+  },
+  {
+   "a": "Punto Seguro Parqueo 47 Calle",
+   "b": "Salón Multiusos",
+   "peso": 102,
+   "recta_m": 167.3,
+   "a_pie_m": 122.1,
+   "seg_a_pie": 102,
+   "rodeo": 0.73,
+   "cruza": {},
+   "cruza_recta": {
+    "Edificio I": 18.5
+   },
+   "peso_ok": true
+  },
+  {
+   "a": "Punto Seguro Parqueo 47 Calle",
+   "b": "Salón de Contenedores",
+   "peso": 104,
+   "recta_m": 174.4,
+   "a_pie_m": 125.3,
+   "seg_a_pie": 104,
+   "rodeo": 0.72,
+   "cruza": {},
+   "cruza_recta": {},
+   "peso_ok": true
+  },
+  {
+   "a": "Punto Seguro Parqueo 47 Calle",
+   "b": "Salón de Danza",
+   "peso": 99,
+   "recta_m": 150.6,
+   "a_pie_m": 119.3,
+   "seg_a_pie": 99,
+   "rodeo": 0.79,
+   "cruza": {},
+   "cruza_recta": {
+    "Edificio I": 25.5,
+    "Jaguar Center": 33.0
+   },
+   "peso_ok": true
+  },
+  {
+   "a": "Punto Seguro Parqueo 47 Calle",
+   "b": "Salón de Música",
+   "peso": 97,
+   "recta_m": 142.5,
+   "a_pie_m": 116.8,
+   "seg_a_pie": 97,
+   "rodeo": 0.82,
+   "cruza": {},
+   "cruza_recta": {
+    "Edificio I": 24.6,
+    "Jaguar Center": 37.6
+   },
+   "peso_ok": true
+  },
+  {
+   "a": "Punto Seguro Parqueo Norte",
+   "b": "Punto Seguro Plazoleta",
+   "peso": 6,
+   "recta_m": 51.0,
+   "a_pie_m": 7.7,
+   "seg_a_pie": 6,
+   "rodeo": 0.15,
+   "cruza": {},
+   "cruza_recta": {},
+   "peso_ok": true
+  },
+  {
+   "a": "Punto Seguro Parqueo Oeste",
+   "b": "Zona Segura Campo de Béisbol",
+   "peso": 29,
+   "recta_m": 74.5,
+   "a_pie_m": 35.0,
+   "seg_a_pie": 29,
+   "rodeo": 0.47,
+   "cruza": {},
+   "cruza_recta": {},
+   "peso_ok": true
+  },
+  {
+   "a": "Punto Seguro Parqueo Suroeste",
+   "b": "Zona Segura Campo de Béisbol",
+   "peso": 3,
+   "recta_m": 70.7,
+   "a_pie_m": 2.5,
+   "seg_a_pie": 2,
+   "rodeo": 0.04,
+   "cruza": {},
+   "cruza_recta": {},
+   "peso_ok": true
+  },
+  {
+   "a": "Salón Multiusos",
+   "b": "Salón de Contenedores",
+   "peso": 28,
+   "recta_m": 15.6,
+   "a_pie_m": 34.1,
+   "seg_a_pie": 28,
+   "rodeo": 2.18,
+   "cruza": {},
+   "cruza_recta": {},
+   "peso_ok": true
+  },
+  {
+   "a": "Salón Multiusos",
+   "b": "Salón de Danza",
+   "peso": 24,
+   "recta_m": 24.8,
+   "a_pie_m": 28.4,
+   "seg_a_pie": 24,
+   "rodeo": 1.15,
+   "cruza": {},
+   "cruza_recta": {},
+   "peso_ok": true
+  },
+  {
+   "a": "Salón Multiusos",
+   "b": "Vestidores",
+   "peso": 35,
+   "recta_m": 35.7,
+   "a_pie_m": 41.8,
+   "seg_a_pie": 35,
+   "rodeo": 1.17,
+   "cruza": {},
+   "cruza_recta": {},
+   "peso_ok": true
+  },
+  {
+   "a": "Salón Multiusos",
+   "b": "Zona Segura Cancha de Fútbol",
+   "peso": 68,
+   "recta_m": 93.1,
+   "a_pie_m": 81.8,
+   "seg_a_pie": 68,
+   "rodeo": 0.88,
+   "cruza": {},
+   "cruza_recta": {
+    "Vestidores": 10.5
+   },
+   "peso_ok": true
+  },
+  {
+   "a": "Salón Multiusos",
+   "b": "Zona Segura Canchas de Vóley",
+   "peso": 20,
+   "recta_m": 23.9,
+   "a_pie_m": 8.7,
+   "seg_a_pie": 7,
+   "rodeo": 0.36,
+   "cruza": {},
+   "cruza_recta": {},
+   "peso_ok": false
+  },
+  {
+   "a": "Salón de Contenedores",
+   "b": "Zona Segura Cancha de Fútbol",
+   "peso": 73,
+   "recta_m": 108.6,
+   "a_pie_m": 87.9,
+   "seg_a_pie": 73,
+   "rodeo": 0.81,
+   "cruza": {},
+   "cruza_recta": {
+    "Salón Multiusos": 11.0,
+    "Vestidores": 7.5
+   },
+   "peso_ok": true
+  },
+  {
+   "a": "Salón de Contenedores",
+   "b": "Zona Segura Canchas de Vóley",
+   "peso": 20,
+   "recta_m": 38.4,
+   "a_pie_m": 31.0,
+   "seg_a_pie": 26,
+   "rodeo": 0.81,
+   "cruza": {},
+   "cruza_recta": {
+    "Salón Multiusos": 10.1
+   },
+   "peso_ok": true
+  },
+  {
+   "a": "Salón de Danza",
+   "b": "Salón de Música",
+   "peso": 7,
+   "recta_m": 8.3,
+   "a_pie_m": 8.3,
+   "seg_a_pie": 7,
+   "rodeo": 1.0,
+   "cruza": {},
+   "cruza_recta": {},
+   "peso_ok": true
+  },
+  {
+   "a": "Salón de Danza",
+   "b": "Vestidores",
+   "peso": 32,
+   "recta_m": 17.7,
+   "a_pie_m": 38.0,
+   "seg_a_pie": 32,
+   "rodeo": 2.15,
+   "cruza": {},
+   "cruza_recta": {},
+   "peso_ok": true
+  },
+  {
+   "a": "Salón de Danza",
+   "b": "Zona Segura Cancha de Fútbol",
+   "peso": 42,
+   "recta_m": 72.6,
+   "a_pie_m": 50.4,
+   "seg_a_pie": 42,
+   "rodeo": 0.69,
+   "cruza": {},
+   "cruza_recta": {},
+   "peso_ok": true
+  },
+  {
+   "a": "Salón de Danza",
+   "b": "Zona Segura Canchas de Vóley",
+   "peso": 20,
+   "recta_m": 20.4,
+   "a_pie_m": 15.1,
+   "seg_a_pie": 13,
+   "rodeo": 0.74,
+   "cruza": {},
+   "cruza_recta": {},
+   "peso_ok": true
+  },
+  {
+   "a": "Salón de Música",
+   "b": "Vestidores",
+   "peso": 34,
+   "recta_m": 21.5,
+   "a_pie_m": 40.9,
+   "seg_a_pie": 34,
+   "rodeo": 1.9,
+   "cruza": {},
+   "cruza_recta": {},
+   "peso_ok": true
+  },
+  {
+   "a": "Salón de Música",
+   "b": "Zona Segura Cancha de Fútbol",
+   "peso": 43,
+   "recta_m": 71.5,
+   "a_pie_m": 51.3,
+   "seg_a_pie": 43,
+   "rodeo": 0.72,
+   "cruza": {},
+   "cruza_recta": {},
+   "peso_ok": true
+  },
+  {
+   "a": "Salón de Música",
+   "b": "Zona Segura Canchas de Vóley",
+   "peso": 20,
+   "recta_m": 28.2,
+   "a_pie_m": 22.6,
+   "seg_a_pie": 19,
+   "rodeo": 0.8,
+   "cruza": {},
+   "cruza_recta": {
+    "Salón de Danza": 8.6
+   },
+   "peso_ok": true
+  },
+  {
+   "a": "Vestidores",
+   "b": "Zona Segura Campo de Béisbol",
+   "peso": 220,
+   "recta_m": 179.4,
+   "a_pie_m": 264.2,
+   "seg_a_pie": 220,
+   "rodeo": 1.47,
+   "cruza": {},
+   "cruza_recta": {},
+   "peso_ok": true
+  },
+  {
+   "a": "Vestidores",
+   "b": "Zona Segura Cancha de Fútbol",
+   "peso": 19,
+   "recta_m": 57.5,
+   "a_pie_m": 23.1,
+   "seg_a_pie": 19,
+   "rodeo": 0.4,
+   "cruza": {},
+   "cruza_recta": {},
+   "peso_ok": true
+  },
+  {
+   "a": "Vestidores",
+   "b": "Zona Segura Canchas de Vóley",
+   "peso": 20,
+   "recta_m": 16.3,
+   "a_pie_m": 12.8,
+   "seg_a_pie": 11,
+   "rodeo": 0.78,
+   "cruza": {},
+   "cruza_recta": {},
+   "peso_ok": false
+  },
+  {
+   "a": "Zona Segura Cancha de Fútbol",
+   "b": "Zona Segura Canchas de Vóley",
+   "peso": 10,
+   "recta_m": 71.1,
+   "a_pie_m": 14.9,
+   "seg_a_pie": 12,
+   "rodeo": 0.21,
+   "cruza": {},
+   "cruza_recta": {},
+   "peso_ok": true
+  }
+ ],
+ "grado": {
+  "Auditorio Central": 9,
+  "Banco Banpro": 6,
+  "Baño del Comedor": 4,
+  "Clínicas Odontológicas": 6,
+  "Comedor del Jaguarcito": 5,
+  "Edificio A": 9,
+  "Edificio D": 7,
+  "Edificio E": 6,
+  "Edificio F": 5,
+  "Edificio I": 4,
+  "Edificio J": 8,
+  "Edificio M": 8,
+  "Edificio O": 5,
+  "El Chilamate": 7,
+  "El Ranchito": 6,
+  "Food Court": 7,
+  "Jaguar Center": 8,
+  "Kiosko del Jaguarcito": 5,
+  "Kioskos del Chilamate": 7,
+  "Laboratorios": 7,
+  "Salón Multiusos": 7,
+  "Salón de Contenedores": 5,
+  "Salón de Danza": 8,
+  "Salón de Música": 7,
+  "Vestidores": 8,
+  "Zona Segura Cancha de Fútbol": 16,
+  "Zona Segura Campo de Béisbol": 7,
+  "Punto Seguro Parqueo Norte": 6,
+  "Punto Seguro Parqueo 47 Calle": 9,
+  "Punto Seguro Parqueo 20 Av": 16,
+  "Punto Seguro Plazoleta": 15,
+  "Punto Seguro Parqueo Este": 11,
+  "Punto Seguro Parqueo Central": 12,
+  "Punto Seguro Parqueo Sur": 9,
+  "Punto Seguro Parqueo Oeste": 9,
+  "Punto Seguro Parqueo Edificio P": 3,
+  "Punto Seguro Parqueo Suroeste": 1,
+  "B Salida Este": 6,
+  "B Salida Oeste": 7,
+  "Pasarela Edificio B": 4,
+  "C Salida Este": 8,
+  "C Salida Oeste": 7,
+  "P Salida Este": 4,
+  "P Salida Oeste": 4,
+  "Pasarela B Oeste": 7,
+  "Pasarela B Este": 7,
+  "B Salida Central": 3,
+  "Zona Segura Canchas de Vóley": 7
+ },
+ "candidatos": [
+  {
+   "a": "B Salida Central",
+   "b": "B Salida Este",
+   "recta_m": 38.7,
+   "seg_a_pie": 32
+  },
+  {
+   "a": "B Salida Central",
+   "b": "B Salida Oeste",
+   "recta_m": 38.7,
+   "seg_a_pie": 37
+  },
+  {
+   "a": "B Salida Central",
+   "b": "C Salida Este",
+   "recta_m": 44.8,
+   "seg_a_pie": 45
+  },
+  {
+   "a": "B Salida Central",
+   "b": "C Salida Oeste",
+   "recta_m": 42.7,
+   "seg_a_pie": 50
+  },
+  {
+   "a": "B Salida Este",
+   "b": "Pasarela Edificio B",
+   "recta_m": 39.7,
+   "seg_a_pie": 39
+  },
+  {
+   "a": "B Salida Oeste",
+   "b": "Pasarela Edificio B",
+   "recta_m": 39.7,
+   "seg_a_pie": 40
+  }
+ ]
+}
