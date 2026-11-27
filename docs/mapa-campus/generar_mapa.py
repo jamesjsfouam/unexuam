@@ -42,7 +42,7 @@ K = 0.58                 # inclinación (achatamiento vertical)
 CA, SA = math.cos(ANG), math.sin(ANG)
 ESC, OX, OY = 1.0, 0.0, 0.0   # se calculan con encajar()
 ALTURA = 1.45                  # exageración de las alturas para que se lea el 3D (igual que ALTURA_3D en app.js)
-CONTRASTE = .16                # cuánto se oscurecen las caras a la sombra (más volumen)
+CONTRASTE = .30                # cuánto se oscurecen las caras a la sombra (más volumen)
 
 CAMPUS = [tuple(p) for p in DATOS["campus"]]
 AFUERA = json.loads((AQUI / "alrededores.json").read_text(encoding="utf-8")) if (AQUI / "alrededores.json").exists() else None
@@ -170,7 +170,10 @@ def sombra(pol, alto, z0=0.0):
         SOMBRAS.append(f'<polygon points="{pts([(x + dx, y + dy) for x, y in pol])}"/>')
     else:
         SOMBRAS.append(f'<polygon points="{pts(casco(list(pol) + [(x + dx, y + dy) for x, y in pol]))}"/>')
-        CONTACTO.append(f'<polygon points="{pts(pol)}"/>')
+        try:
+            CONTACTO.append(f'<polygon points="{pts(ampliar(list(pol), .9))}"/>')
+        except Exception:
+            CONTACTO.append(f'<polygon points="{pts(pol)}"/>')
 
 
 # ---------------------------------------------------------------- primitivas
@@ -230,8 +233,9 @@ def paredes(poligono, z0, z1, claro, oscuro, borde):
         q = [P(*a, z0), P(*b, z0), P(*b, z1), P(*a, z1)]
         d = " ".join(f"{u:.1f},{v:.1f}" for u, v in q)
         relleno = cara(color) if z1 - z0 > 1.5 else color
+        textura = f'<polygon points="{d}" fill="url(#grano)" opacity=".5"/>' if z1 - z0 > 1.5 else ""   # repello / concreto
         caras.append((prof((a[0] + b[0]) / 2, (a[1] + b[1]) / 2),
-                      f'<polygon points="{d}" fill="{relleno}" stroke="{borde}" stroke-width=".6" stroke-linejoin="round"/>'))
+                      f'<polygon points="{d}" fill="{relleno}" stroke="{borde}" stroke-width=".6" stroke-linejoin="round"/>' + textura))
     caras.sort()
     return "".join(c for _, c in caras)
 
@@ -268,8 +272,18 @@ def fachada(poligono, alto, pisos, claro, oscuro, borde, acentos=()):
             if ac[0] == "cara_este" and c["nx"] > .7:
                 color = mezclar(mezclar(ac[1], "#33404e", .3), ac[1], c["t"])
         g.append(f'<polygon points="{tramo(c, 0, 1, 0, alto)}" fill="{cara(color)}" stroke="{borde}" stroke-width=".6" stroke-linejoin="round"/>')
+        g.append(f'<polygon points="{tramo(c, 0, 1, 0, alto)}" fill="url(#grano)" opacity=".5"/>')
         largo = math.dist(c["a"], c["b"])
         tipos = {ac[0] for ac in acentos}
+        if "zocalo" not in tipos:
+            g.append(f'<polygon points="{tramo(c, 0, 1, 0, .55)}" fill="{mezclar(color, "#2b3440", .38)}" opacity=".85"/>')
+        if largo > 9 and alto > 4:
+            n_pil = int(largo // 7)
+            (ax, ay), (bx, by) = c["a"], c["b"]
+            for k in range(1, n_pil):
+                t = k / n_pil
+                g.append(f'<polygon points="{tramo(c, t - .18 / largo, t + .18 / largo, 0, alto)}" fill="{mezclar(color, "#ffffff", .35)}" opacity=".55"/>')
+                g.append(f'<polygon points="{tramo(c, t + .18 / largo, t + .32 / largo, 0, alto)}" fill="#0d1f33" opacity=".12"/>')
         if "sur_lisa" in tipos and c["ny"] > .7:
             # muro liso casi sin ventanas, con aires acondicionados y tuberías (foto de Google Maps)
             (ax, ay), (bx, by) = c["a"], c["b"]
@@ -279,6 +293,8 @@ def fachada(poligono, alto, pisos, claro, oscuro, borde, acentos=()):
                 u, v = P(ax + (bx - ax) * t0, ay + (by - ay) * t0, .2), P(ax + (bx - ax) * t0, ay + (by - ay) * t0, alto - 1.5)
                 g.append(f'<line x1="{u[0]:.1f}" y1="{u[1]:.1f}" x2="{v[0]:.1f}" y2="{v[1]:.1f}" stroke="#9aa6b3" stroke-width=".8"/>')
             g.append(f'<polygon points="{tramo(c, .12, .2, 4.5, 5.6)}" fill="#3a4552"/>')
+        elif any(ac[0] == "galeria" and c["nx"] * ac[1] + c["ny"] * ac[2] > .6 for ac in acentos) and largo > 4:
+            g.append(galeria(c, tramo, color, alto, pisos, largo))
         elif largo > 2.5:
             vidrio = ("url(#vidrioD)" if "vidrio_oscuro" in tipos else "url(#vidrioV)" if "vidrio_verde" in tipos
                       else "url(#vidrio%d)" % min(2, int(c["t"] * 3)))
@@ -290,6 +306,9 @@ def fachada(poligono, alto, pisos, claro, oscuro, borde, acentos=()):
                     break
                 # hilera de ventanas del piso (parteluces verticales en el patrón) y alféizar claro
                 g.append(f'<polygon points="{tramo(c, .06, .94, z0, z0 + 1.5)}" fill="{vidrio}"/>')
+                g.append(f'<polygon points="{tramo(c, .06, .94, z0, z0 + 1.5)}" fill="url(#reflejo)"/>')
+                g.append(f'<polygon points="{tramo(c, .06, .94, z0 + 1.32, z0 + 1.5)}" fill="#0d1f33" opacity=".28"/>')
+                g.append(f'<polygon points="{tramo(c, .05, .95, z0 - .12, z0)}" fill="{mezclar(color, "#ffffff", .7)}"/>')
                 if f:
                     u, v = P(ax, ay, f * PISO), P(bx, by, f * PISO)
                     g.append(f'<line x1="{u[0]:.1f}" y1="{u[1]:.1f}" x2="{v[0]:.1f}" y2="{v[1]:.1f}" stroke="{losa}" stroke-width=".9"/>')
@@ -331,6 +350,59 @@ def fachada(poligono, alto, pisos, claro, oscuro, borde, acentos=()):
     return "".join(g)
 
 
+def galeria(c, tramo, color, alto, pisos, largo):
+    """Pasillo exterior abierto de cada piso con PROFUNDIDAD: las losas salen 1,8 m del muro, las
+    columnas y la baranda van en el borde exterior y el alero del techo lo cubre; al fondo, en sombra,
+    las puertas y ventanas de las aulas (fachada de B, C y P hacia la plazoleta)."""
+    d = 1.8
+    (ax, ay), (bx, by) = c["a"], c["b"]
+    nx, ny = c["nx"], c["ny"]
+
+    def Q(t, z, o=0.0):
+        return P(ax + (bx - ax) * t + nx * o, ay + (by - ay) * t + ny * o, z)
+
+    def poli(puntos, extra):
+        return f'<polygon points="{" ".join(f"{u:.1f},{v:.1f}" for u, v in puntos)}" {extra}/>'
+
+    g = []
+    fondo = mezclar(color, "#1b2533", .52)
+    paso_col = max(1, int(largo // 4.5))
+    # 1) muro del fondo en sombra, con puertas y ventanas de aula, piso por piso
+    for f in range(pisos):
+        z0, z1 = f * PISO + .3, min((f + 1) * PISO, alto - .2)
+        if z1 - z0 < 1.2:
+            break
+        g.append(poli([Q(0, z0), Q(1, z0), Q(1, z1), Q(0, z1)], f'fill="{fondo}"'))
+        g.append(poli([Q(0, z1 - .6), Q(1, z1 - .6), Q(1, z1), Q(0, z1)], 'fill="#0d1f33" opacity=".35"'))   # sombra de la losa de arriba
+        for k in range(paso_col):
+            t = (k + .3) / paso_col
+            g.append(f'<polygon points="{tramo(c, t, t + .9 / largo, z0, z0 + 2.1)}" fill="#55697f" stroke="#26333f" stroke-width=".3"/>')
+            g.append(f'<polygon points="{tramo(c, t + 1.4 / largo, t + 3.0 / largo, z0 + .9, z0 + 2.0)}" fill="url(#vidrio1)"/>')
+            g.append(f'<polygon points="{tramo(c, t + 1.4 / largo, t + 3.0 / largo, z0 + .9, z0 + 2.0)}" fill="url(#reflejo)"/>')
+    # 2) losas que salen del muro (piso del pasillo) con su canto, y la baranda en el borde exterior
+    losa_top = mezclar(color, "#ffffff", .5)
+    canto = mezclar(color, "#5b6b7d", .25)
+    for f in range(pisos):
+        z = f * PISO + (.12 if f == 0 else .3)
+        g.append(poli([Q(0, z), Q(1, z), Q(1, z, d), Q(0, z, d)], f'fill="{losa_top}" stroke="#8d97a2" stroke-width=".3"'))
+        g.append(poli([Q(0, z, d), Q(1, z, d), Q(1, z - .38, d), Q(0, z - .38, d)], f'fill="{canto}"'))
+        if f:
+            g.append(poli([Q(.005, z, d), Q(.995, z, d), Q(.995, z + .95, d), Q(.005, z + .95, d)], 'fill="url(#baranda)"'))
+            g.append(poli([Q(0, z + .9, d), Q(1, z + .9, d), Q(1, z + 1.04, d), Q(0, z + 1.04, d)], 'fill="#eef1f4" stroke="#6b7785" stroke-width=".3"'))
+    # 3) columnas cuadradas en el borde exterior (cara frontal clara y costado en sombra)
+    for k in range(paso_col + 1):
+        t = min(.99, max(.01, k / paso_col))
+        w = .22 / largo
+        g.append(poli([Q(t - w, 0, d - .05), Q(t + w, 0, d - .05), Q(t + w, alto, d - .05), Q(t - w, alto, d - .05)],
+                      f'fill="{mezclar(color, "#ffffff", .45)}" stroke="#8d97a2" stroke-width=".25"'))
+        g.append(poli([Q(t + w, 0, d - .05), Q(t + w, 0, d - .45), Q(t + w, alto, d - .45), Q(t + w, alto, d - .05)],
+                      'fill="#0d1f33" opacity=".25"'))
+    # 4) alero del techo sobre el pasillo
+    g.append(poli([Q(0, alto), Q(1, alto), Q(1, alto, d + .25), Q(0, alto, d + .25)], f'fill="{mezclar(color, "#ffffff", .6)}" stroke="#8d97a2" stroke-width=".4"'))
+    g.append(poli([Q(0, alto, d + .25), Q(1, alto, d + .25), Q(1, alto - .45, d + .25), Q(0, alto - .45, d + .25)], f'fill="{canto}"'))
+    return "".join(g)
+
+
 def losa_techo(color):
     """Degradado diagonal compartido del techo: más claro hacia el noroeste (lado del sol)."""
     if color.startswith("url"):
@@ -364,8 +436,20 @@ def edificio(poligono, alto, techo, claro, oscuro, borde, pisos=0, acentos=(), s
     muros = fachada(poligono, alto, pisos, claro, oscuro, borde, acentos) if pisos else paredes(poligono, 0, alto, claro, oscuro, borde)
     if sombra_:
         sombra(poligono, alto)
+    # losa de concreto con manchas de intemperie y grano (no en las celdas solares, que son vidrio)
+    patina = "" if techo == "url(#solar)" else (f'<polygon points="{pts(poligono, alto)}" fill="url(#patina)" opacity=".55"/>'
+                                                f'<polygon points="{pts(poligono, alto)}" fill="url(#grano)" opacity=".45"/>')
+    pretil = ""
+    if techo != "url(#solar)" and len(poligono) >= 3:
+        try:
+            interior = ampliar(poligono, -.55)
+            pretil = (f'<polygon points="{pts(interior, alto)}" fill="#0d1f33" opacity=".07"/>'
+                      f'<polygon points="{pts(interior, alto)}" fill="none" stroke="#0d1f33" stroke-width="1.1" opacity=".18" transform="translate(.5,.6)"/>'
+                      f'<polygon points="{pts(interior, alto)}" fill="none" stroke="#ffffff" stroke-width=".5" opacity=".5"/>')
+        except Exception:
+            pretil = ""
     return muros + (f'<polygon points="{pts(poligono, alto)}" fill="{losa_techo(techo)}" stroke="{borde}" stroke-width=".9" stroke-linejoin="round"/>'
-                    + brillo(poligono, alto, techo) +
+                    + patina + pretil + brillo(poligono, alto, techo) +
                     f'<polygon points="{pts(poligono, alto)}" fill="none" stroke="#ffffff" stroke-width=".7" opacity=".7" transform="translate(-.6,-.5)"/>')
 
 
@@ -563,10 +647,23 @@ def arbol(x, y, r=3.2):
     SOMBRAS.append(f'<ellipse cx="{s0:.1f}" cy="{s1:.1f}" rx="{r * ESC * 1.05:.1f}" ry="{r * ESC * .62:.1f}"/>')
     r *= ESC
     sx, sy = P(x, y)
-    copa = "url(#copa%d)" % (int(var * 10) % 2)
-    return (f'<rect x="{sx - 1:.1f}" y="{sy - r * 1.1:.1f}" width="2" height="{r * 1.1:.1f}" fill="#6b4a2e"/>'
-            f'<circle cx="{sx + r * .35:.1f}" cy="{sy - r * 1.35:.1f}" r="{r * .7:.1f}" fill="{copa}"/>'
-            f'<circle cx="{sx:.1f}" cy="{sy - r * 1.65:.1f}" r="{r:.1f}" fill="{copa}"/>')
+    k = int(x * 3 + y * 5) % 3
+    copa = "url(#copa%d)" % k
+    oscuro = ("#0f3d1a", "#1a4416", "#0c3416")[k]
+    cy = sy - r * 1.6
+    tronco = (f'<path d="M{sx - 1.3:.1f} {sy:.1f}L{sx - .6:.1f} {cy + r * .4:.1f}L{sx + .6:.1f} {cy + r * .4:.1f}'
+              f'L{sx + 1.3:.1f} {sy:.1f}Z" fill="#6b4a2e"/>')
+    # lóbulos alrededor del centro (deterministas por posición) para que la copa no sea un círculo
+    lob = []
+    for i in range(4):
+        a = (i * 1.7 + x * .37 + y * .21) % 6.283
+        lob.append((sx + math.cos(a) * r * .5, cy + math.sin(a) * r * .32, r * (.58 + .08 * ((i + k) % 3))))
+    sombra_copa = f'<ellipse cx="{sx + r * .12:.1f}" cy="{cy + r * .32:.1f}" rx="{r * 1.02:.1f}" ry="{r * .7:.1f}" fill="{oscuro}"/>'
+    lobulos = "".join(f'<circle cx="{lx:.1f}" cy="{ly:.1f}" r="{lr:.1f}" fill="{copa}"/>' for lx, ly, lr in lob)
+    centro_ = f'<circle cx="{sx - r * .08:.1f}" cy="{cy - r * .12:.1f}" r="{r * .78:.1f}" fill="{copa}"/>'
+    brillos = (f'<circle cx="{sx - r * .38:.1f}" cy="{cy - r * .42:.1f}" r="{r * .2:.1f}" fill="#ffffff" opacity=".16"/>'
+               f'<circle cx="{sx + r * .05:.1f}" cy="{cy - r * .55:.1f}" r="{r * .12:.1f}" fill="#ffffff" opacity=".12"/>')
+    return tronco + sombra_copa + lobulos + centro_ + brillos
 
 
 def insignia(x, y, z, texto, color=AZUL, letra=BLANCO, r=11):
@@ -622,6 +719,10 @@ ACENTOS = {
     "Edificio A": [("cornisa", "#8d97a2", 1.3), ("vidrio_oscuro",), ("sur_lisa",)],
     # Auditorio (foto de James): crema, ventanas oscuras en bandas
     "Auditorio Central": [("vidrio_oscuro",)],
+    # B, C y P (James): pasillos abiertos en cada piso, con baranda y columnas, del lado de la plazoleta
+    "Edificio B": [("galeria", 0, -1)],
+    "Edificio C": [("galeria", 0, -1)],
+    "Edificio P": [("galeria", 0, -1)],
 }
 # Hileras de ventanas que se ven en las fotos, solo para el dibujo (no cambia «pisos» de lugares.json):
 # el A muestra 3 hileras aunque James lo cuenta de 2 pisos; el Auditorio tiene 2 niveles.
@@ -914,6 +1015,18 @@ def union_bc():
         g.append(f'<line x1="{a[0]:.1f}" y1="{a[1]:.1f}" x2="{b[0]:.1f}" y2="{b[1]:.1f}" stroke="{AZUL_OSC}" stroke-width="1.1"/>')
     g.append(f'<polygon points="{pts(pol, h)}" fill="#f3f8ff" stroke="{AMARILLO}" stroke-width="1.6" stroke-linejoin="round"/>')
     sombra(pol, h)
+    # pasillo techado de planta baja que cruza de B a C junto a la escalera (andén, losa y columnas)
+    px0, px1 = x1, x1 + 4.2
+    piso = caja_r(px0, y0, px1, y1)
+    g.insert(0, f'<polygon points="{pts(piso, .06)}" fill="#e9e6de" stroke="#b9b3a5" stroke-width=".4"/>')
+    for x in (px0 + .3, px1 - .3):
+        for y in (y0 + .3, y1 - .3):
+            a, b = P(x, y, 0), P(x, y, PISO)
+            g.append(f'<line x1="{a[0]:.1f}" y1="{a[1]:.1f}" x2="{b[0]:.1f}" y2="{b[1]:.1f}" stroke="#eef1f4" stroke-width="2"/>'
+                     f'<line x1="{a[0] + .9:.1f}" y1="{a[1]:.1f}" x2="{b[0] + .9:.1f}" y2="{b[1]:.1f}" stroke="#8d97a2" stroke-width=".6"/>')
+    g.append(paredes(piso, PISO, PISO + .35, "#f4f6f8", "#aab4bf", "#7d8a99")
+             + f'<polygon points="{pts(piso, PISO + .35)}" fill="#f7f9fb" stroke="#7d8a99" stroke-width=".5"/>')
+    sombra(piso, PISO + .35, z0=PISO)
     return "".join(g)
 
 
@@ -1277,6 +1390,61 @@ def carro(x, y, ang, color):
             + f'<polygon points="{pts(techo, 1.4)}" fill="{mezclar(color, "#ffffff", .25)}"/>')
 
 
+def carros_en(pol, semilla, tope=40, colores=("#f4f6f8", "#c8ced6", "#2f3b4a", "#b23a3a", "#3c6fb6", "#e8e2d4", "#7c8794")):
+    """Carros en fila siguiendo el lado más largo del parqueo (no todos los espacios ocupados)."""
+    lados = [(math.dist(pol[i], pol[(i + 1) % len(pol)]), pol[i], pol[(i + 1) % len(pol)]) for i in range(len(pol))]
+    _, a, b = max(lados)
+    ang = math.atan2(b[1] - a[1], b[0] - a[0]) + math.pi / 2
+    xs, ys = [p[0] for p in pol], [p[1] for p in pol]
+    out = []
+    for gx in range(int(min(xs)) + 2, int(max(xs)) - 1, 3):
+        for gy in range(int(min(ys)) + 3, int(max(ys)) - 2, 6):
+            if (dentro((gx, gy), pol) and dentro((gx + 2, gy), pol) and dentro((gx - 2, gy), pol)
+                    and (gx * 13 + gy * 7 + semilla) % 5 < 2 and len(out) < tope):
+                out.append((prof(gx, gy), carro(gx, gy, ang, colores[(gx + gy + semilla) % len(colores)])))
+    return out
+
+
+def farola(x, y, h=4.4):
+    """Poste de alumbrado con brazo corto y luminaria de luz cálida."""
+    b, t = P(x, y, 0), P(x, y, h)
+    s = P(x + .9, y, h - .1)
+    return (f'<line x1="{b[0]:.1f}" y1="{b[1]:.1f}" x2="{t[0]:.1f}" y2="{t[1]:.1f}" stroke="#5f6b78" stroke-width="1.1" stroke-linecap="round"/>'
+            f'<line x1="{t[0]:.1f}" y1="{t[1]:.1f}" x2="{s[0]:.1f}" y2="{s[1]:.1f}" stroke="#5f6b78" stroke-width=".9" stroke-linecap="round"/>'
+            f'<circle cx="{s[0]:.1f}" cy="{s[1]:.1f}" r="2.6" fill="#ffe7a3" opacity=".35"/>'
+            f'<circle cx="{s[0]:.1f}" cy="{s[1]:.1f}" r="1.05" fill="#fff6d8" stroke="#c9a54a" stroke-width=".4"/>')
+
+
+def banca(x, y, largo=1.8, vertical=False):
+    """Banca de concreto con asiento de madera."""
+    dx, dy = (.3, largo / 2) if vertical else (largo / 2, .3)
+    asiento = caja_r(x - dx, y - dy, x + dx, y + dy)
+    return (paredes(asiento, 0, .45, "#b98a5a", "#8d6438", "#6e4c28")
+            + f'<polygon points="{pts(asiento, .45)}" fill="#c99b68" stroke="#6e4c28" stroke-width=".3"/>')
+
+
+def bandera(x, y, h=9.0):
+    """Asta con la bandera de Nicaragua (franjas azul, blanca y azul) a la entrada del A (video, seg. 164)."""
+    dx, dy = desplazo(h * .7)
+    s0, s1 = P(x + dx, y + dy)
+    SOMBRAS.append(f'<ellipse cx="{s0:.1f}" cy="{s1:.1f}" rx="{.6 * ESC:.1f}" ry="{.35 * ESC:.1f}"/>')
+    b, t = P(x, y, 0), P(x, y, h)
+    w, a = 3.4 * ESC, 2.1 * ESC        # ancho y alto de la tela en pantalla
+    x0, y0 = t[0] + .6, t[1] + 1.2
+    franjas = []
+    for k, col in enumerate(("#0067c6", "#ffffff", "#0067c6")):
+        ya, yb = y0 + a * k / 3, y0 + a * (k + 1) / 3
+        franjas.append(f'<path d="M{x0:.1f} {ya:.1f}Q{x0 + w * .5:.1f} {ya - 1.6:.1f} {x0 + w:.1f} {ya + .6:.1f}'
+                       f'L{x0 + w:.1f} {yb + .6:.1f}Q{x0 + w * .5:.1f} {yb - 1.6:.1f} {x0:.1f} {yb:.1f}Z" fill="{col}"/>')
+    cx, cy = x0 + w * .5, y0 + a * .5 - .5
+    return (f'<line x1="{b[0]:.1f}" y1="{b[1]:.1f}" x2="{t[0]:.1f}" y2="{t[1]:.1f}" stroke="#c9ced4" stroke-width="1.3"/>'
+            f'<circle cx="{t[0]:.1f}" cy="{t[1]:.1f}" r="1" fill="#e6c15a"/>'
+            + "".join(franjas)
+            + f'<path d="M{x0:.1f} {y0:.1f}Q{x0 + w * .5:.1f} {y0 - 1.6:.1f} {x0 + w:.1f} {y0 + .6:.1f}'
+              f'L{x0 + w:.1f} {y0 + a + .6:.1f}Q{x0 + w * .5:.1f} {y0 + a - 1.6:.1f} {x0:.1f} {y0 + a:.1f}Z" fill="none" stroke="#1d3b4d" stroke-width=".35"/>'
+            + f'<circle cx="{cx:.1f}" cy="{cy:.1f}" r="{a * .13:.1f}" fill="#e6c15a"/>')
+
+
 def afuera():
     """Lo que rodea al campus según OpenStreetMap: suelo, parqueos con carros, áreas verdes, calles,
     casas (prismas bajos en tonos apagados) y árboles donde la foto satelital se ve verde.
@@ -1285,9 +1453,9 @@ def afuera():
     if not AFUERA:
         return "", []
     g = [suelo([(-420, -420), (800, -420), (800, 800), (-420, 800)], "url(#cesped)"),
-         suelo([(-420, -420), (800, -420), (800, 800), (-420, 800)], "#eef0e8").replace("<polygon ", '<polygon opacity=".42" ')]
+         suelo([(-420, -420), (800, -420), (800, 800), (-420, 800)], "#e9efe0").replace("<polygon ", '<polygon opacity=".14" ')]
     for pol in AFUERA["verdes"]:
-        g.append(suelo([tuple(p) for p in pol], "#cfe2bf", borde="#bcd3a8"))
+        g.append(suelo([tuple(p) for p in pol], "#7fb456", borde="#6a9c46"))
     objetos = []
     colores = ("#f4f6f8", "#c8ced6", "#2f3b4a", "#b23a3a", "#3c6fb6", "#e8e2d4", "#7c8794")
     for k, pol in enumerate(AFUERA["parqueos"]):
@@ -1344,7 +1512,7 @@ def construir(eds):
         if (cara[0][1] + cara[1][1]) / 2 < P(*centro(CAMPUS))[1]:
             continue
         S.append(f'<polygon points="{" ".join(f"{u:.1f},{v:.1f}" for u, v in cara)}" fill="url(#losa)" stroke="#6f8a5c" stroke-width=".8"/>')
-    S.append(suelo(CAMPUS, "url(#cesped)", borde="#b9c99f"))
+    S.append(suelo(CAMPUS, "url(#cesped)", borde="#6f9f4a"))
     S.append(suelo(CAMPUS, "url(#luzsuelo)"))
 
     # Parqueos y plazoleta (puntos seguros con contorno verde discontinuo)
@@ -1509,6 +1677,10 @@ def construir(eds):
             alto += 1.4
         else:
             techo, claro, oscuro, borde = MURO_B if nombre in MUROS_CREMA else MURO
+            k_var = sum(map(ord, nombre or e["id"])) % 4
+            techo = ("#fbfcfd", "#eef1f4", "#f4f0e7", "#e7ebef")[k_var]
+            if nombre not in MUROS_CREMA:
+                claro = ("#e6eaef", "#eceae4", "#e1e7ee", "#efefec")[k_var]
             svg = edificio(pol, alto, "url(#solar)" if solar else techo, claro, oscuro, borde,
                            pisos=pisos if area >= MIN_AREA else 0, acentos=ACENTOS.get(nombre, ()))
             if nombre in TECHO_LAMINA:
@@ -1564,6 +1736,32 @@ def construir(eds):
     # Árboles grandes de copa ancha alrededor del M (video de James)
     for x, y in ((153.0, 127.0), (153.5, 141.0), (166.0, 152.0)):
         OB.append((prof(x, y), arbol(x, y, r=4.6)))
+    # Detalles: farolas a lo largo de los andenes (cada ~16 m, a un lado), bancas en la plazoleta,
+    # carros en los parqueos del campus y la bandera a la entrada del A
+    puestas = []
+    for a in ANDENES:
+        if a["tipo"] != "anden":
+            continue
+        linea = [tuple(p) for p in a["p"]]
+        resto = 8.0
+        for (x1, y1), (x2, y2) in zip(linea, linea[1:]):
+            l = math.hypot(x2 - x1, y2 - y1) or 1
+            nx, ny = -(y2 - y1) / l * 1.9, (x2 - x1) / l * 1.9
+            d = resto
+            while d < l:
+                x, y = x1 + (x2 - x1) * d / l + nx, y1 + (y2 - y1) * d / l + ny
+                if (dentro((x, y), CAMPUS) and not any(dentro((x, y), pol) or cerca_de(x, y, pol, 1.2) for pol in ocupado)
+                        and all(math.dist((x, y), q) > 10 for q in puestas)):
+                    puestas.append((x, y))
+                    OB.append((prof(x, y), farola(x, y)))
+                d += 16
+            resto = d - l
+    for x in (211.5, 216.5, 221.5):
+        OB.append((prof(x, 101.0), banca(x, 101.0)))
+    for k, p in enumerate(DATOS["parqueos"]):
+        if p["id"] not in CARPORTS:
+            OB.extend(carros_en([tuple(q) for q in p["pol"]], k + 3, tope=24))
+    OB.append((prof(275.6, 128.6), bandera(275.6, 128.6)))
     OB.sort(key=lambda t: t[0])
     # Rayos X: la pasarela y la unión B–C quedan casi ocultas tras el B y el C desde este ángulo;
     # se marcan encima con un contorno fantasma para que se lean en el mapa.
@@ -1674,7 +1872,7 @@ def documento():
         for i, c in enumerate(("#4d7fb3", "#6a9dd0", "#8fbde8")))
     defs = f'''<defs>
   <linearGradient id="cielo" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#d6e9ff"/><stop offset=".55" stop-color="#eaf4ff"/><stop offset="1" stop-color="#f6faff"/></linearGradient>
-  <radialGradient id="resplandor" cx=".12" cy=".08" r=".7"><stop offset="0" stop-color="#fffbe8" stop-opacity=".9"/><stop offset="1" stop-color="#fffbe8" stop-opacity="0"/></radialGradient>
+  <radialGradient id="resplandor" cx=".12" cy=".08" r=".7"><stop offset="0" stop-color="#fff1c9" stop-opacity=".95"/><stop offset="1" stop-color="#fffbe8" stop-opacity="0"/></radialGradient>
   <radialGradient id="vineta" cx=".5" cy=".52" r=".72"><stop offset=".62" stop-color="#0b2545" stop-opacity="0"/><stop offset="1" stop-color="#0b2545" stop-opacity=".2"/></radialGradient>
   <radialGradient id="luzsuelo" cx=".3" cy=".25" r=".9"><stop offset="0" stop-color="#ffffff" stop-opacity=".22"/><stop offset=".6" stop-color="#ffffff" stop-opacity="0"/><stop offset="1" stop-color="#20402a" stop-opacity=".12"/></radialGradient>
   <linearGradient id="losa" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#9fbb84"/><stop offset=".22" stop-color="#8c7557"/><stop offset="1" stop-color="#5f4c38"/></linearGradient>
@@ -1682,13 +1880,28 @@ def documento():
   <linearGradient id="brillo" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffffff" stop-opacity=".42"/><stop offset=".38" stop-color="#ffffff" stop-opacity="0"/><stop offset=".7" stop-color="#ffffff" stop-opacity=".08"/><stop offset="1" stop-color="#ffffff" stop-opacity="0"/></linearGradient>
   <linearGradient id="laminaN" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e9eef3"/><stop offset=".55" stop-color="#d3dbe3"/><stop offset="1" stop-color="#f2f5f8"/></linearGradient>
   <linearGradient id="laminaS" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#c3ccd5"/><stop offset=".4" stop-color="#d9e0e7"/><stop offset="1" stop-color="#a7b2bd"/></linearGradient>
-  <radialGradient id="copa0" cx=".36" cy=".3" r=".75"><stop offset="0" stop-color="#a6e39a"/><stop offset=".45" stop-color="#4cb25f"/><stop offset="1" stop-color="#22703a"/></radialGradient>
-  <radialGradient id="copa1" cx=".36" cy=".3" r=".75"><stop offset="0" stop-color="#bfe58e"/><stop offset=".45" stop-color="#62b44e"/><stop offset="1" stop-color="#2f7232"/></radialGradient>
+  <radialGradient id="copa0" cx=".34" cy=".28" r=".78"><stop offset="0" stop-color="#b5dd6a"/><stop offset=".42" stop-color="#3f9a3a"/><stop offset="1" stop-color="#14501f"/></radialGradient>
+  <radialGradient id="copa1" cx=".34" cy=".28" r=".78"><stop offset="0" stop-color="#cfe27a"/><stop offset=".45" stop-color="#5a9e33"/><stop offset="1" stop-color="#22551a"/></radialGradient>
   <radialGradient id="domo" cx=".35" cy=".3" r=".85"><stop offset="0" stop-color="#ffffff"/><stop offset=".5" stop-color="#f1f4f7"/><stop offset=".85" stop-color="#cdd5dd"/><stop offset="1" stop-color="#aab5c0"/></radialGradient>
   <linearGradient id="tambor" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#cfd8e0"/><stop offset=".4" stop-color="#f4f7fa"/><stop offset="1" stop-color="#9fadbb"/></linearGradient>
-  <radialGradient id="copa2" cx=".35" cy=".3" r=".8"><stop offset="0" stop-color="#d8ee8c"/><stop offset=".5" stop-color="#8cc63f"/><stop offset="1" stop-color="#4d8a2a"/></radialGradient>
-  <pattern id="cesped" width="6" height="6" {plano}><rect width="6" height="6" fill="#d5e8c1"/><circle cx="1" cy="1.5" r=".35" fill="#c4dcac"/><circle cx="4.2" cy="3.6" r=".4" fill="#e2f0d2"/><circle cx="2.6" cy="5" r=".3" fill="#bfd8a6"/><circle cx="5.2" cy=".6" r=".25" fill="#c9e0b2"/></pattern>
-  <pattern id="asfalto" width="4" height="4" {plano}><rect width="4" height="4" fill="#9ba4af"/><circle cx="1" cy="1" r=".18" fill="#8a939e"/><circle cx="3" cy="2.6" r=".2" fill="#aab2bc"/></pattern>
+  <filter id="fgrano" x="0" y="0" width="100%" height="100%"><feTurbulence type="fractalNoise" baseFrequency=".9" numOctaves="2" seed="17" stitchTiles="stitch"/><feColorMatrix values="0 0 0 0 .2  0 0 0 0 .22  0 0 0 0 .26  0 0 0 .9 -.38"/></filter>
+  <filter id="fmanchas" x="0" y="0" width="100%" height="100%"><feTurbulence type="fractalNoise" baseFrequency=".035" numOctaves="3" seed="23" stitchTiles="stitch"/><feColorMatrix values="0 0 0 0 .32  0 0 0 0 .33  0 0 0 0 .3  0 0 0 1.8 -.95"/></filter>
+  <pattern id="grano" width="48" height="48" patternUnits="userSpaceOnUse"><rect width="48" height="48" filter="url(#fgrano)"/></pattern>
+  <pattern id="patina" width="160" height="160" patternUnits="userSpaceOnUse"><rect width="160" height="160" filter="url(#fmanchas)"/></pattern>
+  <linearGradient id="solcalido" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffcf6b" stop-opacity=".16"/><stop offset=".55" stop-color="#ffe2a0" stop-opacity="0"/><stop offset="1" stop-color="#2a4f8a" stop-opacity=".14"/></linearGradient>
+  <pattern id="baranda" width="1.1" height="10" patternUnits="userSpaceOnUse"><rect width="1.1" height="10" fill="#1b2533" opacity=".25"/><rect width=".35" height="10" fill="#dfe5eb"/></pattern>
+  <filter id="ao" x="-3%" y="-3%" width="106%" height="106%"><feGaussianBlur stdDeviation="2.2"/></filter>
+  <linearGradient id="reflejo" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffffff" stop-opacity=".42"/><stop offset=".35" stop-color="#dff0ff" stop-opacity=".1"/><stop offset=".5" stop-color="#ffffff" stop-opacity=".3"/><stop offset=".62" stop-color="#ffffff" stop-opacity="0"/><stop offset="1" stop-color="#0b2545" stop-opacity=".18"/></linearGradient>
+  <filter id="suave" x="-3%" y="-3%" width="106%" height="106%"><feGaussianBlur stdDeviation="1.5"/></filter>
+  <linearGradient id="bruma" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e6f0fa" stop-opacity=".38"/><stop offset=".22" stop-color="#e6f0fa" stop-opacity=".12"/><stop offset=".45" stop-color="#eef5fc" stop-opacity="0"/></linearGradient>
+  <pattern id="manchas" width="140" height="110" patternUnits="userSpaceOnUse"><ellipse cx="30" cy="25" rx="34" ry="18" fill="#3f6d24" opacity=".16"/><ellipse cx="102" cy="72" rx="40" ry="20" fill="#c9c27a" opacity=".16"/><ellipse cx="88" cy="18" rx="16" ry="9" fill="#2f5c1c" opacity=".14"/><ellipse cx="22" cy="88" rx="24" ry="12" fill="#b9d37a" opacity=".18"/></pattern>
+  <radialGradient id="copa2" cx=".34" cy=".28" r=".8"><stop offset="0" stop-color="#9fd06a"/><stop offset=".5" stop-color="#2f7d34"/><stop offset="1" stop-color="#0f3f1a"/></radialGradient>
+  <filter id="fpasto" x="0" y="0" width="100%" height="100%"><feTurbulence type="fractalNoise" baseFrequency=".55" numOctaves="3" seed="7" stitchTiles="stitch"/><feColorMatrix values="0 0 0 0 .36  0 0 0 0 .56  0 0 0 0 .2  1.1 -.7 0 0 .12"/></filter>
+  <filter id="fbrizna" x="0" y="0" width="100%" height="100%"><feTurbulence type="fractalNoise" baseFrequency="2.2 .9" numOctaves="2" seed="3" stitchTiles="stitch"/><feColorMatrix values="0 0 0 0 .62  0 0 0 0 .8  0 0 0 0 .36  0 1.6 0 0 -.7"/></filter>
+  <pattern id="cesped" width="24" height="24" {plano}><rect width="24" height="24" fill="#86bd5a"/><rect width="24" height="24" filter="url(#fpasto)"/><rect width="24" height="24" filter="url(#fbrizna)"/></pattern>
+  <filter id="fasfalto" x="0" y="0" width="100%" height="100%"><feTurbulence type="fractalNoise" baseFrequency="1.6" numOctaves="2" seed="11" stitchTiles="stitch"/><feColorMatrix values="0 0 0 0 .38  0 0 0 0 .41  0 0 0 0 .45  0 0 0 1.3 -.45"/></filter>
+  <filter id="fdesgaste" x="0" y="0" width="100%" height="100%"><feTurbulence type="fractalNoise" baseFrequency=".12" numOctaves="2" seed="5" stitchTiles="stitch"/><feColorMatrix values="0 0 0 0 .78  0 0 0 0 .8  0 0 0 0 .82  0 0 0 2.4 -1.25"/></filter>
+  <pattern id="asfalto" width="16" height="16" {plano}><rect width="16" height="16" fill="#8f99a4"/><rect width="16" height="16" filter="url(#fasfalto)"/><rect width="16" height="16" filter="url(#fdesgaste)"/></pattern>
   <pattern id="estac" width="2.6" height="16" {plano}><path d="M0 0V5M0 11V16M0 5H2.6M0 11H2.6" stroke="#ffffff" stroke-width=".16" opacity=".85"/><path d="M1.3 7.6h.01" stroke="#fcd222" stroke-width=".3"/></pattern>
   <pattern id="adoquin" width="1.2" height="1.2" {plano}><path d="M0 0H1.2M0 0V1.2" stroke="#d9c595" stroke-width=".08"/></pattern>
   <pattern id="solar" width="1.1" height="1.8" {plano}><rect width="1.1" height="1.8" fill="#1d3c6b"/><rect x=".08" y=".08" width=".94" height="1.64" fill="#2a5590"/><path d="M.08 .9H1.02M.55 .08V1.72" stroke="#5f8cc8" stroke-width=".04"/></pattern>
@@ -1719,11 +1932,15 @@ def documento():
         x += 26 + len(txt) * 8.9 + 30
     ley.append(f'<text x="{W - 100}" y="23" font-size="12" font-weight="600" fill="{AZUL}" opacity=".8" text-anchor="end" dominant-baseline="central">Plano © OpenStreetMap contributors</text></g>')
 
-    sombras = (f'<g fill="#16304d" opacity=".26">{"".join(SOMBRAS)}</g>'
-               f'<g fill="#0e2238" opacity=".28">{"".join(CONTACTO)}</g>')
+    # sombras con borde suave (penumbra) y oclusión de contacto más nítida al pie de cada edificio
+    sombras = (f'<g fill="#13261c" opacity=".42" filter="url(#suave)">{"".join(SOMBRAS)}</g>'
+               f'<g fill="#0b1a12" opacity=".34" filter="url(#ao)">{"".join(CONTACTO)}</g>')
     principal = round(math.degrees(ANG)) == 16
     pildoras = "".join(rotulos(eds)) if principal else ""   # las píldoras van acomodadas a mano para la vista principal
-    cuerpo = "\n".join([f'<g>{"".join(suelo_)}</g>', "".join(planos), sombras, "".join(objetos),
+    cuerpo = "\n".join([f'<g>{"".join(suelo_)}</g>', f'<rect width="{W}" height="{H}" fill="url(#manchas)"/>',
+                        "".join(planos), sombras, "".join(objetos),
+                        f'<rect width="{W}" height="{H}" fill="url(#solcalido)" style="mix-blend-mode:soft-light"/>',
+                        f'<rect width="{W}" height="{H}" fill="url(#bruma)"/>',
                         f'<rect width="{W}" height="{H}" fill="url(#vineta)"/>',
                         rosa(1490, 190), pildoras, "".join(insignias), lista_codigos()])
     svg = f'''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {W} {H}" width="{W}" height="{H}" font-family="{FUENTE}" shape-rendering="geometricPrecision">

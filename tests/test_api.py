@@ -47,7 +47,7 @@ class TestApiYParidad(unittest.TestCase):
         self.assertTrue(data["ok"])
         self.assertEqual(len(data["estado"]["campus"]["vertices"]), 158)
         self.assertEqual(len(data["estado"]["campus"]["aristas"]), 604)
-        self.assertEqual(len(data["estado"]["mesh"]["vertices"]), 8)
+        self.assertEqual(len(data["estado"]["mesh"]["vertices"]), 9)   # 8 simulados + el operador, que también es un teléfono
 
     def test_validacion_payloads_invalidos(self):
         self.assertFalse(self.client.post("/api/campus/vertice", json=["no-dict"]).get_json()["ok"])
@@ -87,8 +87,8 @@ class TestApiYParidad(unittest.TestCase):
 
     def test_flujo_red_mesh_ttl(self):
         self.assertEqual(len(self.client.post("/api/mesh/alerta", json={"origen": "Tel-Ana", "ttl": 0}).get_json()["alcanzados"]), 1)
-        self.assertEqual(len(self.client.post("/api/mesh/alerta", json={"origen": "Tel-Ana", "ttl": 2}).get_json()["alcanzados"]), 5)
-        self.assertEqual(len(self.client.post("/api/mesh/alerta", json={"origen": "Tel-Ana", "ttl": 5}).get_json()["alcanzados"]), 8)
+        self.assertEqual(len(self.client.post("/api/mesh/alerta", json={"origen": "Tel-Ana", "ttl": 2}).get_json()["alcanzados"]), 8)
+        self.assertEqual(len(self.client.post("/api/mesh/alerta", json={"origen": "Tel-Ana", "ttl": 5}).get_json()["alcanzados"]), 9)
 
     def test_flujo_admin_crud_case_insensitive(self):
         self.assertTrue(self.client.post("/api/campus/vertice", json={"accion": "insertar", "nombre": "Aula 203"}).get_json()["ok"])
@@ -101,7 +101,7 @@ class TestApiYParidad(unittest.TestCase):
         with self.client.get("/sw.js") as r:
             self.assertEqual(r.status_code, 200)
             self.assertEqual(r.headers.get("Service-Worker-Allowed"), "/")
-            self.assertIn(b"unexuam-v43", r.data)
+            self.assertIn(b"unexuam-v45", r.data)
 
     def test_operador_real_puede_iniciar_sesion(self):
         resultado = servidor.app.test_cli_runner().invoke(
@@ -179,16 +179,18 @@ class TestSesionYMensajes(unittest.TestCase):
         self.assertFalse(c.get("/api/yo").get_json()["sesion"])
         self.assertTrue(c.get("/api/lugares").get_json()["ok"])
 
-    def test_canal_general_invitado_solo_lectura_y_sos(self):
+    def test_canal_general_invitado_escribe_y_su_sos_es_alerta(self):
         c = servidor.app.test_client()
         r_get = c.get("/api/mensajes/general")
         self.assertEqual(r_get.status_code, 200)
         self.assertTrue(r_get.get_json()["ok"])
-        r_chat = c.post("/api/mensajes/general", json={"texto": "hola a todos"})
-        self.assertEqual(r_chat.status_code, 401)
-        r_sos = c.post("/api/mensajes/general", json={"texto": "SOS · ayuda en Edificio P"})
+        r_chat = c.post("/api/mensajes/general", json={"texto": "hola a todos", "guestId": "INV-0A0B0C0D0E0F"})
+        self.assertEqual(r_chat.status_code, 200)
+        self.assertEqual(r_chat.get_json()["enviado"]["tipo"], "texto")
+        r_sos = c.post("/api/mensajes/general", json={"texto": "SOS · ayuda en Edificio P", "guestId": "INV-0A0B0C0D0E0F"})
         self.assertEqual(r_sos.status_code, 200)
         self.assertTrue(r_sos.get_json()["ok"])
+        self.assertEqual(r_sos.get_json()["enviado"]["tipo"], "alerta")
 
     def test_reintentar_envio_con_la_misma_clave(self):
         cliente, _ = self.nuevo("PRUEBAID1", "Prueba envío", "C-101")
@@ -414,7 +416,7 @@ class TestSesionYMensajes(unittest.TestCase):
         with patch.object(servidor, "publicar_emergencia_campus") as publicar:
             res = cliente.post("/api/emergencia/declarar", json={"tipo": "sismo", "publicarDesdeWeb": True}).json
             self.assertTrue(res["ok"])
-            self.assertIsNone(res["nube"])
+            self.assertFalse(res["publicando"])
             cierre = cliente.post("/api/emergencia/finalizar", json={
                 "incidente": res["estado"]["emergencia"]["id"], "publicarDesdeWeb": True,
             }).json
@@ -431,11 +433,12 @@ class TestSesionYMensajes(unittest.TestCase):
                 patch("google.oauth2.service_account.Credentials.from_service_account_file"), \
                 patch.object(servidor, "firebase_rest", return_value=True) as transporte:
             declarada = cliente.post("/api/emergencia/declarar", json={"tipo": "incendio"}).json
-            self.assertTrue(declarada["nube"])
-            self.assertTrue(declarada["push"])
+            self.assertTrue(declarada["publicando"])          # se publica en segundo plano, fuera del candado
+            servidor.PUBLICACIONES[-1].join(5)
             id_alerta = declarada["estado"]["emergencia"]["id"]
             cierre = cliente.post("/api/emergencia/finalizar", json={"incidente": id_alerta}).json
-            self.assertTrue(cierre["nube"])
+            self.assertTrue(cierre["publicando"])
+            servidor.PUBLICACIONES[-1].join(5)
 
         escritura, push, limpieza = [llamada.args for llamada in transporte.call_args_list]
         self.assertTrue(escritura[0].endswith("/documents/campus/estado"))

@@ -1,6 +1,7 @@
 """Servidor de producción de Unexuam (waitress).
 
-Uso:  python servir.py            (escucha en 0.0.0.0:$PORT, por defecto 8080)
+Uso:  python servir.py            (escucha en $HOST:$PORT, por defecto 0.0.0.0:8080)
+      En producción: deploy/iniciar-produccion.ps1 (HOST=127.0.0.1 detrás de Caddy con HTTPS).
 
 Corre en UN solo proceso con varios hilos: las sesiones en línea, la emergencia activa y los
 límites de intentos viven en memoria, así que no se debe lanzar con varios procesos/workers.

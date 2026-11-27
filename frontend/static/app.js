@@ -474,7 +474,7 @@ let emergenciaNubeInvitado;
 function aplicarEstado(est) {
   if (!window.__UNEXUAM_OFFLINE__ && document.body.classList.contains("modo-invitado") &&
       emergenciaNubeInvitado !== undefined) {
-    est = { ...est, emergencia: emergenciaNubeInvitado };
+    est = { ...est, emergencia: est.emergencia || emergenciaNubeInvitado };
   }
   E = est;
   window.__UNEXUAM_ESTADO__ = est;
@@ -523,7 +523,7 @@ function sparklineSvg(vals, label, color = "#0062cc") {
 
 function renderInicio() {
   const m = E.mesh, c = E.campus, ua = E.ultimaAlerta;
-  const tels = m.vertices.length;
+  const tels = m.total ?? m.vertices.length;
   const alc = ua ? new Set(ua.alcanzados.map(x => x[0]).concat(ua.origen)).size : null;
   const nCong = Object.keys(c.congestion).length;
   const r = miRuta;
@@ -557,7 +557,7 @@ function renderInicio() {
   if (nCong) partes.push(`${nCong} lugar(es) con congestión`);
   $("#hero-texto").textContent = partes.length ? partes.join(" · ").replace(/^./, s => s.toUpperCase()) : "No hay alertas activas en la red ni en el campus.";
   const btnFin = $("#btn-fin-emergencia");
-  if (btnFin) btnFin.hidden = !(emergencia && document.body.classList.contains("es-admin"));
+  if (btnFin) btnFin.hidden = !((emObj || ua) && document.body.classList.contains("es-admin"));
 
   $("#historial").innerHTML = E.historial.length
     ? E.historial.map(h =>
@@ -1934,7 +1934,7 @@ const PASOS_EMERGENCIA = {
 function mostrarModalEmergencia(opts = {}) {
   const capa = $("#modal-emergencia");
   const carta = $("#modal-em-carta");
-  if (!capa || !carta || document.body.classList.contains("sin-sesion")) return;
+  if (!capa || !carta) return;
   const clave = opts.clave || (opts.forzar ? `prueba:${Date.now()}` : `${opts.tipo || "general"}:${opts.titulo || ""}:${opts.texto || ""}`);
   if (clave === claveModalEmergencia && !opts.forzar) return;
   claveModalEmergencia = clave;
@@ -1978,7 +1978,7 @@ function cerrarModalEmergencia() {
 window.cerrarModalEmergencia = cerrarModalEmergencia;
 
 function evaluarEmergenciaAutomatica() {
-  if (!E || document.body.classList.contains("sin-sesion")) return;
+  if (!E) return;
   const em = E.emergencia;
   if (!em) {
     if (claveModalEmergencia.startsWith("prueba:")) return;
@@ -1987,8 +1987,11 @@ function evaluarEmergenciaAutomatica() {
     return;
   }
   const claveNueva = `em:${em.id || em.hora}:${em.tipo}`;
-  if (claveNueva !== claveModalEmergencia && window.activarGpsEmergencia) {
-    window.activarGpsEmergencia();
+  if (claveNueva !== claveModalEmergencia) {
+    bannerEmergenciaOculto = false;            // una emergencia nueva vuelve a mostrar el aviso
+    if (window.activarGpsEmergencia) window.activarGpsEmergencia();
+    // con la pestaña en segundo plano o la pantalla bloqueada: notificación del sistema
+    window.notificarEmergencia?.(em);
   }
   mostrarModalEmergencia({
     clave: claveNueva,
@@ -2401,6 +2404,10 @@ function eventos() {
   const btnModalEmIr = $("#modal-em-ir");
   if (btnModalEmIr) btnModalEmIr.addEventListener("click", () => {
     cerrarModalEmergencia();
+    if (document.body.classList.contains("sin-sesion") && !document.body.classList.contains("modo-invitado")) {
+      $("#btn-evacuar-invitado")?.click();
+      return;
+    }
     if (location.hash === "#campus") irA("campus");
     else location.hash = "#campus";
   });
@@ -2866,11 +2873,35 @@ async function accion(a) {
 
 let sondeoTimer = 0;
 let sondeoDelay = 4000;
+let ultimoSondeoOculto = 0;
 async function sondeo() {
   if (window.__UNEXUAM_OFFLINE__) return;
-  if (!document.hidden && !document.body.classList.contains("sin-sesion") && !document.body.classList.contains("modo-invitado") && !animando) {
+  const invitado = document.body.classList.contains("modo-invitado");
+  const enLogin = !invitado && document.body.classList.contains("sin-sesion");
+  if (!animando && (!document.hidden || Date.now() - ultimoSondeoOculto > 12000)) {
+    if (document.hidden) ultimoSondeoOculto = Date.now();
+    if (enLogin) {
+      // en la pantalla de inicio de sesión solo se consulta el estado público (alarma oficial)
+      try {
+        const r = await fetch("/api/campus/publico");
+        const j = r.ok ? await r.json() : null;
+        if (j && j.estado && j.estado.emergencia) aplicarEstado(j.estado);
+        else if (j && j.estado && E && E.emergencia) aplicarEstado({ ...E, emergencia: null });
+      } catch (_) { /* sin red */ }
+      sondeoTimer = setTimeout(sondeo, sondeoDelay);
+      return;
+    }
     try {
-      const r = await fetch("/api/estado");
+      // el invitado consulta el estado público: así también le llega la alarma que declara el administrador
+      if (invitado) {
+        // el teléfono del invitado entra (y se mantiene) en la red Mesh del campus
+        const p = window.perfilActivoUnexuam?.();
+        if (p && p.cif) fetch("/api/invitado/presencia", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: p.cif, lugar: p.lugar }),
+        }).catch(() => {});
+      }
+      const r = await fetch(invitado ? "/api/campus/publico" : "/api/estado");
       if (r.status === 401) { if (window.mostrarLogin) window.mostrarLogin(); sondeoDelay = 4000; sondeoTimer = setTimeout(sondeo, sondeoDelay); return; }
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       const j = await r.json();
@@ -2913,6 +2944,14 @@ if (!window.__UNEXUAM_OFFLINE__ && "serviceWorker" in navigator) {
 }
 
 eventos();
+if (!window.__UNEXUAM_OFFLINE__) {
+  sondeoTimer = setTimeout(sondeo, 1500);
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) return;
+    clearTimeout(sondeoTimer);
+    sondeoTimer = setTimeout(sondeo, 50);
+  });
+}
 // La app arranca cuando hay sesión iniciada (ver cuenta.js).
 let appIniciada = false;
 window.refrescarEstado = function () {
@@ -2959,6 +2998,10 @@ window.entrarModoEvacuacionInvitado = async function () {
   if (j.ok) {
     if (location.hash !== "#campus") history.replaceState(history.state, "", "#campus");
     irA("campus");
+    if (!window.__UNEXUAM_OFFLINE__) {
+      clearTimeout(sondeoTimer);
+      sondeoTimer = setTimeout(sondeo, 4000);
+    }
     aviso(j.offline
       ? "Mapa descargado. Los bloqueos recientes pueden faltar."
       : "Modo evacuación rápido: elige tu aula o usa GPS.", !j.offline);

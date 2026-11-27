@@ -1,0 +1,22 @@
+[Unit]
+Description=Unexuam (evacuación del campus UAM) con waitress
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=unexuam
+Group=unexuam
+WorkingDirectory=/opt/unexuam
+EnvironmentFile=/etc/unexuam/unexuam.env
+# Un solo proceso con hilos: las sesiones en línea y la emergencia activa viven en memoria
+ExecStart=/opt/unexuam/venv/bin/python servir.py
+Restart=always
+RestartSec=3
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/var/lib/unexuam
+
+[Install]
+WantedBy=multi-user.target

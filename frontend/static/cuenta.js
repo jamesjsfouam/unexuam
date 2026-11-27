@@ -19,8 +19,9 @@
         method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(cuerpo),
       });
       if (r.status === 401) {
+        const j401 = await r.json().catch(() => ({}));
         if (!document.body.classList.contains("modo-invitado")) mostrarLogin();
-        return { ok: false, sesion: false };
+        return { ok: false, sesion: false, mensaje: j401.mensaje };
       }
       return await r.json();
     } catch (e) {
@@ -164,10 +165,10 @@
   function obtenerIdInvitado() {
     try {
       let id = localStorage.getItem(INV_ID_KEY);
-      if (id && /^INV-[0-9A-F]{4}$/.test(id)) return id;
-      const bytes = new Uint8Array(2);
+      if (id && /^INV-[0-9A-F]{12}$/.test(id)) return id;
+      const bytes = new Uint8Array(6);
       if (window.crypto?.getRandomValues) window.crypto.getRandomValues(bytes);
-      else { bytes[0] = (Math.random() * 256) | 0; bytes[1] = (Math.random() * 256) | 0; }
+      else { for (let i = 0; i < bytes.length; i++) bytes[i] = (Math.random() * 256) | 0; }
       id = "INV-" + Array.from(bytes, b => b.toString(16).padStart(2, "0")).join("").toUpperCase();
       localStorage.setItem(INV_ID_KEY, id);
       return id;
@@ -185,6 +186,8 @@
       invitado: true,
     };
   }
+
+  window.perfilActivoUnexuam = perfilActivo;
 
   function aplicarRol() {
     const admin = !!(YO && YO.admin);
@@ -676,6 +679,7 @@
     const firma = JSON.stringify(j);
     if (firma === firmaMsj) return;
     firmaMsj = firma;
+    avisarAlertasNuevas(j.mensajes || [], j.yo && j.yo.cif);
     CONV = j;
     YO = j.yo;
     aplicarRol();
@@ -685,11 +689,28 @@
     else if (vistaActual() === "mensajes") renderMensajes();
   }
 
+  // Alertas nuevas (SOS de cualquiera, también de invitados): sonido, vibración y notificación.
+  let idsVistos = null;
+  function avisarAlertasNuevas(mensajes, miCif) {
+    const nuevos = idsVistos ? mensajes.filter(m => !idsVistos.has(m.id)) : [];
+    idsVistos = new Set(mensajes.map(m => m.id));
+    for (const m of nuevos) {
+      if (m.de === miCif) continue;
+      if (m.tipo === "alerta" || /^SOS\b/i.test(String(m.texto || ""))) {
+        sonarAlerta(true);
+        try { navigator.vibrate?.([300, 120, 300, 120, 600]); } catch (_) {}
+        notificarPush(`SOS · ${m.deNombre || "Alguien"}`, String(m.texto || "").slice(0, 140), "emergencia");
+        window.actualizarBannerEmergencia?.(String(m.texto || "SOS en el campus"));
+        break;
+      }
+    }
+  }
+
   function noLeidos(cif) {
     if (!YO) return 0;
     const l = leidos();
     return CONV.mensajes.filter(m => {
-      if (m.estado !== "entregado" || l.has(m.id) || m.de === YO.cif) return false;
+      if (l.has(m.id) || m.de === YO.cif) return false;
       const esMio = m.para === YO.cif || m.para === "TODOS";
       if (!esMio) return false;
       if (!cif) return true;
@@ -711,7 +732,8 @@
     async function sondear(inicial = false) {
       if (inicial || !document.hidden) await cargarMensajes();
       if (generacion === generacionSondeoMsj && !window.__UNEXUAM_OFFLINE__) {
-        sondeoMsj = setTimeout(sondear, 2500);
+        const chatAbierto = !$("#chat").hidden || vistaActual() === "mensajes";
+        sondeoMsj = setTimeout(sondear, chatAbierto ? 2500 : 8000);
       }
     }
     sondear(true);
@@ -1034,7 +1056,7 @@
         intentoMsj = { para, texto, idempotencia };
       }
       const endpoint = (!YO && conContacto === "TODOS") ? "/api/mensajes/general" : "/api/mensajes/enviar";
-      const j = await pedir(endpoint, intentoMsj);
+      const j = await pedir(endpoint, YO ? intentoMsj : { ...intentoMsj, guestId: perfilActivo().cif });
       if (j.ok) intentoMsj = null;
       if (!j.ok) { actualizarActividadChat(false, []); t.value = texto; avisar(j.mensaje, false); return; }
       if (j.enviado && j.enviado.estado !== "entregado") avisar(j.mensaje, false);
@@ -1486,6 +1508,7 @@
         icon: "/static/img/icono-192.png",
         badge: "/static/img/icono-192.png",
         tag: "unexuam-" + tipo,
+        requireInteraction: tipo === "emergencia",     // la alarma no desaparece sola
         vibrate: window.__UNEXUAM_PREFS__?.vibrar !== false ? [240, 100, 240] : undefined,
       };
       if (navigator.serviceWorker && navigator.serviceWorker.ready) {
@@ -1501,6 +1524,11 @@
       return false;
     }
   }
+
+  window.notificarEmergencia = (em) => {
+    if (!em) return;
+    notificarPush(em.titulo || "Emergencia en el campus", em.texto || "Abre Unexuam y sigue tu ruta de evacuación.", "emergencia");
+  };
 
   let audioCtxGlobal = null;
   function desbloquearAudioUsuario() {
@@ -1616,6 +1644,7 @@
         let enviados = 0;
         try { enviados = Number(window.UnexuamNativo?.enviarPaqueteMesh?.(JSON.stringify(pkt)) || 0); } catch (_) {}
         let okLocal = false;
+        let jInv = null;
         try {
           let r = await fetch("/api/mensajes/enviar", {
             method: "POST",
@@ -1628,28 +1657,34 @@
             r = await fetch("/api/mensajes/general", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ texto }),
+              body: JSON.stringify({ texto, guestId: invId }),
             });
           }
-          const jInv = await r.json().catch(() => ({}));
+          jInv = await r.json().catch(() => ({}));
           okLocal = Boolean(jInv && jInv.ok);
         } catch (_) {}
-        if (enviados > 0 || okLocal) {
-          avisar(enviados > 0 ? "SOS enviado a teléfonos cercanos por Mesh." : "SOS guardado para envío en cuanto haya conexión.", true);
-        } else {
-          avisar("SOS emitido como invitado. Activa Bluetooth para difundir a teléfonos cercanos.", false);
+        if (okLocal) {
+          avisar(enviados > 0 ? `SOS enviado al campus y a ${enviados} teléfono(s) cercano(s).` : "SOS enviado a todo el campus.", true);
+          return true;
         }
-        return;
+        if (enviados > 0) {
+          avisar(`SOS enviado a ${enviados} teléfono(s) cercano(s) por Mesh.`, true);
+          return true;
+        }
+        avisar((jInv && jInv.mensaje) || "No se pudo enviar el SOS. Llama al 115 (Bomberos) o al 128 (Cruz Blanca).", false);
+        return false;
       }
       const j = await pedir("/api/mensajes/enviar", { para: "TODOS", texto });
       const enCola = j.ok && j.enviado && j.enviado.estado !== "entregado";
-      avisar(!j.ok ? (j.mensaje || "No se pudo enviar el SOS.") : enCola ? (j.mensaje || "SOS guardado: saldrá al conectar un teléfono cercano.") : "SOS enviado al Canal General.", j.ok && !enCola);
+      avisar(!j.ok ? (j.mensaje || "No se pudo enviar el SOS. Llama al 115 (Bomberos) o al 128 (Cruz Blanca).") : enCola ? (j.mensaje || "SOS guardado: saldrá al conectar un teléfono cercano.") : "SOS enviado al Canal General.", j.ok && !enCola);
+      if (!j.ok) return false;
       firmaMsj = "";
       await cargarMensajes();
       abriendoChatIntencional = true;
       location.hash = "#mensajes";
       abrirChat("TODOS");
       setTimeout(() => { abriendoChatIntencional = false; }, 120);
+      return true;
     } finally {
       setTimeout(() => { enviandoSos = false; }, 3000);
     }
@@ -1679,7 +1714,7 @@
     window.abrirHoja(
       "Reportar pasillo bloqueado",
       window.UnexuamNativo
-        ? "El bloqueo se guarda en este teléfono y se intenta compartir por Mesh."
+        ? "Tu reporte queda guardado en este teléfono y la brigada lo revisará."
         : "El administrador revisará el reporte antes de actualizar las rutas.",
       pasos.map(p => ({
         txt: p.txt,
@@ -1888,9 +1923,15 @@
           thumb.style.transform = `translateX(${maxDx || Math.max(80, el.clientWidth - thumb.offsetWidth - 8)}px)`;
           thumb.innerHTML = "<b>✓ OK</b>";
         }
-        if (txtB) txtB.textContent = "SOS enviado";
-        if (smallEl) smallEl.textContent = "Bloqueado 2 s anti-spam";
-        onActivar();
+        if (txtB) txtB.textContent = "Enviando SOS…";
+        if (smallEl) smallEl.textContent = "Un momento";
+        Promise.resolve(onActivar()).then((ok) => {
+          const fallo = ok === false;
+          if (thumb) thumb.innerHTML = fallo ? "<b>✕</b>" : "<b>✓ OK</b>";
+          if (txtB) txtB.textContent = fallo ? "No se envió" : "SOS enviado";
+          if (smallEl) smallEl.textContent = fallo ? "Llama al 115 o al 128" : "Bloqueado 2 s anti-spam";
+          el.classList.toggle("fallo", fallo);
+        }).catch(() => {});
         if (timerBloqueo) clearTimeout(timerBloqueo);
         timerBloqueo = setTimeout(() => {
           bloqueadoHasta = 0;

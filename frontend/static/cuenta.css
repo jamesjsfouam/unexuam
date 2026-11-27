@@ -2393,3 +2393,69 @@ html[data-tema="oscuro"] .em-ni-card {
     font-size: 11px;
   }
 }
+
+/* =====================================================================
+   Detalles finos (sin cambiar la estructura): entrada suave de cada vista,
+   tarjetas con profundidad, estado «en calma» que respira, brillo en el SOS,
+   pasos de la guía con acento, burbujas que aparecen y foco más claro.
+   El bloque global de prefers-reduced-motion (app.css) los apaga si el
+   teléfono pide menos movimiento.
+   ===================================================================== */
+html { -webkit-tap-highlight-color: transparent; }
+::selection { background: rgba(0, 128, 255, .22); }
+
+@keyframes det-entrar { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@keyframes det-respira { 0%, 100% { box-shadow: 0 0 0 0 rgba(28, 160, 90, .28); } 50% { box-shadow: 0 0 0 9px rgba(28, 160, 90, 0); } }
+@keyframes det-brillo { 0% { transform: translateX(-120%) skewX(-18deg); } 55%, 100% { transform: translateX(320%) skewX(-18deg); } }
+@keyframes det-burbuja { from { opacity: 0; transform: translateY(6px) scale(.97); } to { opacity: 1; transform: none; } }
+@keyframes det-anillo { 0% { box-shadow: 0 0 0 0 rgba(0, 98, 204, .35); } 100% { box-shadow: 0 0 0 10px rgba(0, 98, 204, 0); } }
+
+/* cada vista entra con una cascada corta (máx. 6 elementos con retraso) */
+.vista:not([hidden]) > * { animation: det-entrar .38s cubic-bezier(.22, 1, .36, 1) both; }
+.vista:not([hidden]) > *:nth-child(2) { animation-delay: .03s; }
+.vista:not([hidden]) > *:nth-child(3) { animation-delay: .06s; }
+.vista:not([hidden]) > *:nth-child(4) { animation-delay: .09s; }
+.vista:not([hidden]) > *:nth-child(5) { animation-delay: .12s; }
+.vista:not([hidden]) > *:nth-child(n+6) { animation-delay: .15s; }
+
+/* tarjetas con profundidad suave y un filo de luz arriba */
+.tarjeta { box-shadow: 0 1px 0 rgba(255, 255, 255, .9) inset, 0 8px 22px rgba(0, 58, 140, .08); }
+html[data-tema="oscuro"] .tarjeta { box-shadow: 0 8px 22px rgba(0, 0, 0, .32); }
+
+/* tarjetas que se tocan: elevan al pasar y se hunden al tocar */
+.acceso-item, .em-ni-card { transition: transform .16s ease, box-shadow .2s ease; }
+.acceso-item:hover, .em-ni-card:hover { transform: translateY(-2px); box-shadow: 0 10px 22px rgba(0, 58, 140, .14); }
+.acceso-item:active, .em-ni-card:active { transform: scale(.98); }
+
+/* «Todo en calma»: el ícono respira despacio */
+.hero.calma .hero-icono { border-radius: 50%; animation: det-respira 3.2s ease-in-out infinite; }
+
+/* SOS: un destello recorre el botón cada pocos segundos para invitar a deslizar */
+.fila-sos { position: relative; overflow: hidden; }
+.fila-sos::after {
+  content: ""; position: absolute; top: 0; bottom: 0; left: 0; width: 34%; pointer-events: none;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0), rgba(255, 255, 255, .28), rgba(255, 255, 255, 0));
+  animation: det-brillo 4.2s ease-in-out 1.2s infinite;
+}
+
+/* pasos de la guía: acento lateral y número con brillo; el paso activo late una vez */
+.paso { position: relative; transition: box-shadow .2s ease, transform .2s ease; }
+.paso::before {
+  content: ""; position: absolute; left: 0; top: 14px; bottom: 14px; width: 4px; border-radius: 0 4px 4px 0;
+  background: linear-gradient(180deg, var(--azul-btn, #0062cc), #38b6ff); opacity: .55;
+}
+.paso.t-zona::before { background: linear-gradient(180deg, #1ca05a, #6bd38f); }
+.paso.activa { box-shadow: 0 10px 26px rgba(0, 98, 204, .18); }
+.paso.activa::before { opacity: 1; }
+.paso-n { background-image: linear-gradient(145deg, rgba(255, 255, 255, .25), rgba(255, 255, 255, 0) 60%); }
+.paso.activa .paso-n { animation: det-anillo .9s ease-out 1; }
+
+/* chat: el último mensaje aparece con un pequeño salto */
+#chat-lista > li:last-child { animation: det-burbuja .28s cubic-bezier(.22, 1, .36, 1) both; }
+
+/* campos: el foco se ilumina con transición */
+input, textarea, select { transition: border-color .15s ease, box-shadow .2s ease; }
+input:focus-visible, textarea:focus-visible, select:focus-visible { box-shadow: 0 0 0 4px rgba(0, 128, 255, .18); }
+
+/* barras de desplazamiento finas en escritorio */
+* { scrollbar-width: thin; scrollbar-color: rgba(0, 98, 204, .35) transparent; }

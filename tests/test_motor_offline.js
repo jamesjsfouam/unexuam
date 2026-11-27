@@ -141,9 +141,11 @@ async function main() {
     method: "POST",
     body: JSON.stringify({ origen: arista0.origen, destino: arista0.destino, ambos: true }),
   });
-  assert.equal(resBloq.status, 403, "Estudiante no-admin debe recibir 403 en /api/campus/bloquear");
+  // el estudiante sí puede reportar, pero queda pendiente para la brigada y no cambia las rutas
   const jBloq = await resBloq.json();
-  assert.equal(jBloq.ok, false);
+  assert.equal(jBloq.ok, true);
+  assert.equal(jBloq.pendiente, true);
+  assert.equal(jBloq.estado.campus.bloqueados.length, 0, "El reporte de un estudiante no bloquea el pasillo");
 
   // REM-09b: paquete Mesh de bloqueo con deAdmin: false debe ser ignorado
   await sandbox.__unexuamMeshEvento({
@@ -186,7 +188,7 @@ async function main() {
   assert.equal(resSos.status, 200);
   const jSos = await resSos.json();
   assert.equal(jSos.ok, true, "SOS de invitado debe permitirse offline");
-  assert.match(jSos.enviado.de, /^INV-[0-9A-F]{4}$/, "El remitente invitado debe usar INV-<4HEX>");
+  assert.match(jSos.enviado.de, /^INV-[0-9A-F]{4,12}$/, "El remitente invitado debe usar INV-<4HEX>");
 
   // 6) Ya no existe un administrador sembrado con contraseña fija en el código
   const resAdmSemilla = await sandbox.fetch("/api/login", {

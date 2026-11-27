@@ -43,5 +43,18 @@ class TestRegistro(unittest.TestCase):
             servidor.MODO_DEMO = antes
 
 
+    def test_cambiar_clave_desde_la_terminal(self):
+        from werkzeug.security import check_password_hash, generate_password_hash
+        cif = "CLAVE001"
+        if servidor.DB.usuario(cif) is None:
+            servidor.DB.crear_usuario(cif, "Admin Prueba", generate_password_hash("vieja-clave-123"),
+                                      servidor.nombre_telefono(cif, "Admin Prueba"), servidor.LUGAR_INICIAL, admin=True)
+        r = servidor.app.test_cli_runner().invoke(args=["cambiar-clave", cif], input="nueva-clave-segura\nnueva-clave-segura\n")
+        self.assertEqual(r.exit_code, 0, r.output)
+        u = servidor.DB.usuario(cif)
+        self.assertTrue(check_password_hash(u["hash"], "nueva-clave-segura"))
+        self.assertTrue(u["admin"])
+
+
 if __name__ == "__main__":
     unittest.main()

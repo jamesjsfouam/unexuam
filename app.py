@@ -277,14 +277,25 @@ def calcular_ruta():
 
 
 def estado():
+    purgar_invitados()          # los invitados que dejaron de avisar salen de la red
+    purgar_inactivos()
+    ua = S.get("ultimaAlerta")
+    if ua and time.time() - ua.get("ts", time.time()) > 600:   # una alerta de usuario caduca a los 10 min
+        S["ultimaAlerta"] = None
     usuario = usuario_sesion() if request else None
     try:
         ruta = calcular_ruta()
     except Exception as e:  # el backend puede estar a medias
         app.logger.exception("No se pudo calcular la ruta compartida: %s", e)
         ruta = {"origen": S["ubicacion"], "ruta": [], "tiempo": None}
+    if usuario and usuario["admin"]:
+        mesh = serializar(S["red"])
+    else:
+        # Sin nombres de teléfonos ni topología para estudiantes: solo cuántos hay y tus vecinos.
+        v = S["red"].buscarVertice(usuario["telefono"]) if usuario else None
+        mesh = {"vertices": [], "aristas": [], "total": len(S["red"].vertexs), "vecinos": len(v.neig) if v else 0}
     return {
-        "mesh": serializar(S["red"]),
+        "mesh": mesh,
         "campus": {
             **serializar(S["campus"]),
             "zonasSeguras": S["zonas"],
@@ -301,6 +312,12 @@ def estado():
     }
 
 
+def purgar_inactivos():
+    ahora_s = time.time()
+    for cif in [c for c in EN_LINEA if ahora_s - ULTIMO_VISTO.get(c, ahora_s) > INACTIVO_SALE]:
+        desconectar_usuario(cif)       # vuelve a entrar sola en su próxima petición (exigir_sesion)
+
+
 def historial_visible():
     u = usuario_sesion() if request else None
     if u and u["admin"]:
@@ -312,7 +329,8 @@ def responder(ok, mensaje, **extra):
     if ok:
         repartir_cola()        # la red pudo cambiar: los mensajes en cola prueban de nuevo
     if mensaje:
-        registrar(mensaje, "ok" if ok else "error")
+        u = usuario_sesion() if request else None
+        registrar(mensaje, "ok" if ok else "error", privado=not (u and u["admin"]))
     return jsonify({"ok": ok, "mensaje": mensaje, "estado": estado(), **extra})
 
 
@@ -372,7 +390,7 @@ def error_backend(e):
 # Inicio de sesión (CIF + contraseña) y mensajería por la red Mesh
 # ----------------------------------------------------------------------------
 
-LIBRES = {"/api/capacidades", "/api/yo", "/api/login", "/api/registro", "/api/registro/disponible", "/api/lugares", "/api/campus/publico", "/api/campus/ruta", "/descargar", "/descargar/apk"}
+LIBRES = {"/api/invitado/presencia", "/api/capacidades", "/api/yo", "/api/login", "/api/registro", "/api/registro/disponible", "/api/lugares", "/api/campus/publico", "/api/campus/ruta", "/descargar", "/descargar/apk"}
 # Reportar un pasillo bloqueado (/api/campus/bloquear) es una función de emergencia para todos;
 # reabrir, congestionar, reiniciar y editar los grafos es solo del administrador.
 SOLO_ADMIN = ("/api/reiniciar", "/api/mesh/vertice", "/api/mesh/arista", "/api/mesh/alerta",
@@ -385,9 +403,30 @@ CIFS_RESERVADOS = {"ADMIN", "TODOS", "INVITADO"}   # nombres internos del chat y
 CIF_TODOS = "TODOS"     # Canal General: un "usuario" especial que representa a todo el campus
 
 
+def origen_permitido():
+    """Defensa CSRF: los POST de la API llegan como JSON y desde la propia página."""
+    if not request.is_json:
+        return False
+    if request.headers.get("Sec-Fetch-Site") not in (None, "same-origin", "none"):
+        return False
+    origen = request.headers.get("Origin")
+    if origen:
+        anfitrion = origen.split("://", 1)[-1].rstrip("/")
+        propios = {request.host, request.headers.get("X-Forwarded-Host", request.host)}
+        return anfitrion in propios
+    return True
+
+
 def usuario_sesion():
     cif = session.get("cif")
-    return DB.usuario(cif) if cif else None
+    u = DB.usuario(cif) if cif else None
+    if u and session.get("ver", 0) != (u.get("sesion_ver") or 0):
+        return None                  # cookie de una sesión cerrada o de antes de cambiar la contraseña
+    return u
+
+
+ULTIMO_VISTO = {}                   # cif -> última petición (quien no pide nada en 5 min sale de la red)
+INACTIVO_SALE = 300
 
 
 @app.before_request
@@ -395,15 +434,18 @@ def exigir_sesion():
     if request.path.startswith("/api/") or request.path == "/campus-offline.json":
         with lock:
             cargar_campus_compartido()
+    if request.method == "POST" and request.path.startswith("/api/") and not origen_permitido():
+        return jsonify({"ok": False, "mensaje": "Petición rechazada (origen no permitido)."}), 403
     if request.path.startswith("/api/") and request.path not in LIBRES and request.path != "/api/mensajes/general":
         u = usuario_sesion()
         if u is None:
             return jsonify({"ok": False, "mensaje": "Inicia sesión con tu CIF y tu contraseña.", "sesion": False}), 401
+        ULTIMO_VISTO[u["cif"]] = time.time()
         if request.path in SOLO_ADMIN and not u["admin"]:
             return jsonify({"ok": False, "mensaje": "Solo el administrador puede hacer esto."}), 403
-        if u["cif"] not in EN_LINEA or (not u["admin"] and S["red"].buscarVertice(u["telefono"]) is None):
+        if u["cif"] not in EN_LINEA or S["red"].buscarVertice(u["telefono"]) is None:
             with lock:
-                if u["cif"] not in EN_LINEA or (not u["admin"] and S["red"].buscarVertice(u["telefono"]) is None):
+                if u["cif"] not in EN_LINEA or S["red"].buscarVertice(u["telefono"]) is None:
                     conectar_usuario(u["cif"], u["lugar"])
                     repartir_cola()
 
@@ -455,12 +497,7 @@ def conectar_usuario(cif, lugar):
     lugar = canonico(S["campus"], lugar) if isinstance(lugar, str) else None
     if lugar is None:
         lugar = canonico(S["campus"], LUGAR_INICIAL) or S["campus"].vertexs[0].nombre
-    if u["admin"]:
-        # El administrador gestiona los grafos: su teléfono no entra a la red Mesh
-        # para no alterar las rutas ni los saltos de los demás.
-        DB.mover_usuario(cif, lugar)
-        EN_LINEA.add(cif)
-        return []
+    # Toda cuenta con sesión (también el administrador) es un teléfono más de la red Mesh.
     if red.buscarVertice(u["telefono"]) is not None:
         desconectarTelefono(red, u["telefono"])
     S["ubicaciones"].pop(u["telefono"], None)
@@ -478,6 +515,40 @@ def desconectar_usuario(cif):
     desconectarTelefono(S["red"], u["telefono"])
     S["ubicaciones"].pop(u["telefono"], None)
     EN_LINEA.discard(cif)
+
+
+# --- Invitados en la red Mesh -------------------------------------------------
+# Quien evacúa sin cuenta también es un teléfono de la red: avisa su presencia cada pocos segundos
+# (POST /api/invitado/presencia) y, si deja de hacerlo, su teléfono sale de la red.
+INVITADOS = {}                 # id del invitado -> {"telefono", "lugar", "visto"}
+INVITADO_VIGENCIA = 90         # segundos sin avisar para salir de la red
+MAX_INVITADOS = int(os.environ.get("UNEXUAM_MAX_INVITADOS", "3000"))
+
+
+def purgar_invitados(ahora=None):
+    ahora = ahora or time.time()
+    for ident in [i for i, g in INVITADOS.items() if ahora - g["visto"] > INVITADO_VIGENCIA]:
+        g = INVITADOS.pop(ident)
+        desconectarTelefono(S["red"], g["telefono"])
+        S["ubicaciones"].pop(g["telefono"], None)
+
+
+def conectar_invitado(ident, lugar):
+    purgar_invitados()
+    tel = "Tel-" + ident
+    actual = INVITADOS.get(ident)
+    if actual is None and len(INVITADOS) >= MAX_INVITADOS:
+        return None
+    if actual and actual["lugar"] == lugar and S["red"].buscarVertice(tel) is not None:
+        actual["visto"] = time.time()
+        return actual
+    if S["red"].buscarVertice(tel) is not None:
+        desconectarTelefono(S["red"], tel)
+    S["ubicaciones"].pop(tel, None)
+    conectarTelefono(S["red"], S["campus"], tel, lugar, S["ubicaciones"])
+    S["ubicaciones"][tel] = lugar
+    INVITADOS[ident] = {"telefono": tel, "lugar": lugar, "visto": time.time()}
+    return INVITADOS[ident]
 
 
 def repartir_cola():
@@ -525,11 +596,31 @@ def abrir_sesion(cif, lugar=None):
         lugar = u["lugar"] or LUGAR_INICIAL
     session.clear()
     session["cif"] = cif
+    session["ver"] = u.get("sesion_ver") or 0
     session.permanent = True
+    ULTIMO_VISTO[cif] = time.time()
     vecinos = conectar_usuario(cif, lugar)
     registrar(f"{u['nombre']} entró a la red desde {lugar}: {len(vecinos)} teléfono(s) a su alcance.", "ok", privado=True)
     repartir_cola()
     return jsonify({"ok": True, "usuario": datos_usuario(cif)})
+
+
+@app.post("/api/invitado/presencia")
+def api_presencia_invitado():
+    d = cuerpo_json()
+    ident = str(d.get("id", "")).strip().upper()
+    if not re.fullmatch(r"INV-[0-9A-F]{4,12}", ident):
+        return jsonify({"ok": False, "mensaje": "Identificador de invitado inválido."}), 400
+    with lock:
+        lugar = d.get("lugar")
+        lugar = canonico(S["campus"], lugar) if isinstance(lugar, str) and S["campus"].buscarVertice(lugar) else None
+        lugar = lugar or (INVITADOS.get(ident) or {}).get("lugar") or canonico(S["campus"], LUGAR_INICIAL)
+        g = conectar_invitado(ident, lugar)
+        if g is None:
+            return jsonify({"ok": False, "mensaje": "La red está llena; sigue tu ruta de evacuación."})
+        return jsonify({"ok": True, "telefono": g["telefono"], "lugar": g["lugar"],
+                        "vecinos": len(S["red"].buscarVertice(g["telefono"]).neig),
+                        "emergencia": DB.emergencia_actual()})
 
 
 @app.get("/api/lugares")
@@ -551,6 +642,7 @@ def campus_publico():
         },
         "ultimaAlerta": None,
         "historial": [],
+        "emergencia": DB.emergencia_actual(),   # la alarma oficial llega también a quien evacúa sin cuenta
     }
 
 
@@ -564,7 +656,11 @@ def api_campus_publico():
 def campus_offline():
     with lock:
         rutas = {v.nombre: obtener_ruta_campus(v.nombre)[0] for v in S["campus"].vertexs}
-        respuesta = jsonify({"estado": campus_publico(), "rutas": rutas, "capturado": int(time.time())})
+        estado_pub = campus_publico()
+        # una foto vieja no debe hacer sonar (ni callar) la alarma sin conexión
+        estado_pub["emergenciaCapturada"] = estado_pub.pop("emergencia", None)
+        estado_pub["emergencia"] = None
+        respuesta = jsonify({"estado": estado_pub, "rutas": rutas, "capturado": int(time.time())})
         respuesta.headers["Cache-Control"] = "no-store"
         return respuesta
 
@@ -583,6 +679,8 @@ def api_yo():
 
 @app.post("/api/registro/disponible")
 def api_registro_disponible():
+    if registrar_evento_ip(CONSULTAS_IP, ip_cliente(), limite=240):
+        return jsonify({"ok": False, "disponible": False, "mensaje": "Demasiadas consultas. Espera un minuto."}), 429
     d = cuerpo_json()
     cif = leer_cif(d)
     if not re.fullmatch(r"[0-9A-Z-]{4,15}", cif) or cif in CIFS_RESERVADOS:
@@ -596,7 +694,7 @@ def api_registro_disponible():
 @app.post("/api/registro")
 def api_registro():
     ip = ip_cliente()
-    if registrar_evento_ip(REGISTROS_IP, ip, limite=60):
+    if registrar_evento_ip(REGISTROS_IP, ip, limite=300):
         return jsonify({"ok": False, "mensaje": "Demasiados registros desde esta red. Espera un minuto."})
     d = cuerpo_json()
     cif = leer_cif(d)
@@ -630,12 +728,17 @@ RATE_LOCK = threading.Lock()
 # en el campus cientos de personas comparten la misma IP del Wi-Fi.
 FALLOS_CUENTA_RED = 8      # misma cuenta desde la misma red
 FALLOS_CUENTA = 50         # misma cuenta desde cualquier red (ataque repartido)
-FALLOS_RED = 100           # toda una red (p. ej. el Wi-Fi del campus)
+FALLOS_RED = 600           # toda una red (p. ej. el Wi-Fi del campus: cientos de personas tras una IP)
 INTENTOS = {}          # (cif, ip) -> [marcas de tiempo de fallos recientes]
 INTENTOS_CIF = {}      # cif -> [marcas de tiempo de fallos recientes, desde cualquier red]
 INTENTOS_IP = {}       # ip -> [marcas de tiempo de fallos recientes]
 REGISTROS_IP = {}      # ip -> [marcas de tiempo de registros recientes]
 SOS_INV_IP = {}        # ip -> [marcas de tiempo de SOS de invitados]
+SOS_INV_ID = {}        # id del invitado -> [marcas de tiempo de sus SOS]
+ENVIOS_CIF = {}        # cif -> [marcas de tiempo de mensajes enviados]
+ALERTAS_CIF = {}       # cif -> [marcas de tiempo de alertas a la red]
+REPORTES_CIF = {}      # cif -> [marcas de tiempo de reportes de bloqueo]
+CONSULTAS_IP = {}      # ip -> [consultas públicas (Canal General, disponibilidad de CIF)]
 BUSQUEDAS = {}         # cif -> [marcas de tiempo de búsquedas de contacto]
 MAX_ENTRADAS_RATE = 2000
 
@@ -759,6 +862,21 @@ def crear_admin(cif, nombre):
     click.echo(f"Cuenta de administrador creada para {cif}.")
 
 
+@app.cli.command("cambiar-clave")
+@click.argument("cif")
+def cambiar_clave(cif):
+    """Cambia la contraseña de una cuenta (p. ej. la del administrador). La pide oculta."""
+    cif = cif.strip().upper()
+    if not DB.usuario(cif):
+        raise click.ClickException("No existe una cuenta con ese CIF.")
+    contrasena = click.prompt("Contraseña nueva", hide_input=True, confirmation_prompt=True)
+    if not 12 <= len(contrasena) <= 64:
+        raise click.ClickException("Usa una contraseña de 12 a 64 caracteres.")
+    with lock:
+        DB.cambiar_clave(cif, generate_password_hash(contrasena))
+    click.echo(f"Contraseña de {cif} cambiada. Las sesiones abiertas siguen activas hasta que cierren sesión.")
+
+
 @app.get("/api/capacidades")
 def api_capacidades():
     return jsonify({"ok": True, "demo": False})
@@ -770,6 +888,7 @@ def api_logout():
     with lock:
         if u:
             desconectar_usuario(u["cif"])
+            DB.subir_sesion_ver(u["cif"])        # la cookie anterior deja de servir
             registrar(f"{u['nombre']} salió: su teléfono dejó la red (eliminarVertice).", privado=True)
     session.clear()
     return jsonify({"ok": True})
@@ -821,11 +940,15 @@ def api_agregar_contacto():
 def api_mensajes_general():
     u_actual = usuario_sesion()
     if request.method == "GET":
+        if u_actual is None and registrar_evento_ip(CONSULTAS_IP, ip_cliente(), limite=240):
+            return jsonify({"ok": False, "mensaje": "Demasiadas consultas. Espera un minuto."}), 429
         with lock:
             todos = DB.usuarios()
             lista = DB.mensajes_generales(limite=200 if u_actual else 50)
             for m in lista:
                 m["deNombre"] = todos[m["de"]]["nombre"] if m["de"] in todos else m["de"]
+                if u_actual is None:
+                    m["de"] = "OCULTO" if m["de"] != "INVITADO" else "INVITADO"   # el CIF es el usuario de login
             return jsonify({"ok": True, "mensajes": lista})
     d = cuerpo_json()
     valor = d.get("texto")
@@ -833,18 +956,24 @@ def api_mensajes_general():
     if not 1 <= len(texto_msj) <= 500:
         return jsonify({"ok": False, "mensaje": "Escribe entre 1 y 500 caracteres."})
     if u_actual is None:
-        if not re.match(r"^SOS\b", texto_msj, re.I):
-            return jsonify({"ok": False, "sesion": False, "mensaje": "Inicia sesión para chatear; como invitado puedes enviar alertas SOS."}), 401
-        if registrar_evento_ip(SOS_INV_IP, ip_cliente(), limite=6):
-            return jsonify({"ok": False, "mensaje": "Demasiadas alertas seguidas. Espera un minuto."}), 429
+        # Quien evacúa sin cuenta también puede escribir en el Canal General (con tope anti-spam:
+        # por red alto, porque cientos comparten el Wi-Fi, y bajo por cada invitado).
+        inv = str(d.get("guestId") or d.get("id") or "").strip().upper()
+        inv = inv if re.fullmatch(r"INV-[0-9A-F]{4,12}", inv) else ""
+        if registrar_evento_ip(SOS_INV_IP, ip_cliente(), limite=180) or \
+                (inv and registrar_evento_ip(SOS_INV_ID, inv, limite=6)):
+            return jsonify({"ok": False, "mensaje": "Ya enviaste varios mensajes seguidos. Espera un minuto; si es grave llama al 115 o al 128."}), 429
     with lock:
         u = u_actual
         de = u["cif"] if u else "INVITADO"
         tel = u["telefono"] if u else "Tel-Visitante"
         nom = u["nombre"] if u else "Visitante UAM"
-        m = entregar(de, CIF_TODOS, texto_msj, ruta=[tel, "Todos"], retardo=0.5)
+        if u and registrar_evento_ip(ENVIOS_CIF, u["cif"], limite=20):
+            return jsonify({"ok": False, "mensaje": "Estás enviando muy rápido. Espera unos segundos."}), 429
+        es_sos = bool(re.match(r"^SOS\b", texto_msj, re.I))
+        m = entregar(de, CIF_TODOS, texto_msj, tipo="alerta" if es_sos else "texto", ruta=[tel, "Todos"], retardo=0.5)
         m["deNombre"] = nom
-        return jsonify({"ok": True, "mensaje": "Difundido en el Canal General del campus.", "enviado": m})
+        return jsonify({"ok": True, "mensaje": "SOS difundido a todo el campus." if es_sos else "Difundido en el Canal General del campus.", "enviado": m})
 
 
 @app.get("/api/mensajes")
@@ -854,6 +983,8 @@ def api_mensajes():
         mios = DB.mensajes_de(cif)
         cifs = list(DB.contactos_de(cif))
         for m in mios:                         # quien te escribió aparece aunque no lo hayas agregado
+            if m["para"] == CIF_TODOS:         # escribir en el Canal General no te vuelve contacto de todos
+                continue
             otro = m["para"] if m["de"] == cif else m["de"]
             if otro not in cifs and otro not in (CIF_TODOS, "INVITADO"):
                 cifs.append(otro)
@@ -885,9 +1016,11 @@ def api_enviar():
     para = leer_cif({"cif": d.get("para", "")})
     valor_mensaje = d.get("texto")
     texto_msj = valor_mensaje.strip() if isinstance(valor_mensaje, str) else ""
+    if not 1 <= len(texto_msj) <= 500:
+        return jsonify({"ok": False, "mensaje": "Escribe entre 1 y 500 caracteres."})
+    if registrar_evento_ip(ENVIOS_CIF, cif, limite=20):
+        return jsonify({"ok": False, "mensaje": "Estás enviando muy rápido. Espera unos segundos."}), 429
     with lock:
-        if not 1 <= len(texto_msj) <= 500:
-            return jsonify({"ok": False, "mensaje": "Escribe entre 1 y 500 caracteres."})
         yo = DB.usuario(cif)
         clave = d.get("idempotencia")
         ident = None
@@ -903,16 +1036,24 @@ def api_enviar():
                 return jsonify({"ok": True, "mensaje": "Mensaje registrado.", "enviado": existente})
         if para == CIF_TODOS:
             # Canal General: difusión a toda la red del campus.
-            m = entregar(cif, CIF_TODOS, texto_msj, ruta=[yo["telefono"], "Todos"], retardo=0.5, ident=ident)
+            es_sos = bool(re.match(r"^SOS\b", texto_msj, re.I))
+            m = entregar(cif, CIF_TODOS, texto_msj, tipo="alerta" if es_sos else "texto",
+                         ruta=[yo["telefono"], "Todos"], retardo=0.5, ident=ident)
             m["deNombre"] = yo["nombre"]
             registrar(f"{yo['nombre']} escribió en el Canal General.", "ok", privado=True)
             return jsonify({"ok": True, "mensaje": "Difundido en el Canal General del campus.", "enviado": m})
-        if yo["admin"]:
-            return jsonify({"ok": False, "mensaje": "El administrador escribe a todos por el Canal General."})
         destino = DB.usuario(para)
-        if destino is None or para == cif or destino["admin"]:
+        if destino is None or para == cif:
             return jsonify({"ok": False, "mensaje": "Elige a quién enviarle el mensaje."})
         ruta, retardo = rutaMensaje(S["red"], yo["telefono"], destino["telefono"])
+        if not ruta and (yo["admin"] or destino["admin"] or not MODO_DEMO):
+            # Sin camino en la Mesh simulada: quien usa la web tiene internet, así que el mensaje
+            # viaja por el servidor del campus y se entrega al instante (la cola DTN real es la del
+            # teléfono, en la app nativa).
+            m = entregar(cif, para, texto_msj, ruta=[yo["telefono"], "Servidor", destino["telefono"]], retardo=0.5, ident=ident)
+            m["deNombre"] = yo["nombre"]
+            registrar(f"Mensaje {yo['telefono']} → {destino['telefono']} por el servidor.", "ok", privado=True)
+            return jsonify({"ok": True, "mensaje": "Entregado por el servidor del campus.", "enviado": m})
         m = entregar(cif, para, texto_msj, ruta=ruta, retardo=retardo, ident=ident)
         m["deNombre"] = yo["nombre"]
         if ruta:
@@ -934,6 +1075,8 @@ def api_alerta_red():
         yo = DB.usuario(cif)
         if ttl is None:
             return jsonify({"ok": False, "mensaje": "El alcance debe estar entre 1 y 10 saltos."})
+        if registrar_evento_ip(ALERTAS_CIF, cif, limite=3):
+            return jsonify({"ok": False, "mensaje": "Ya enviaste varias alertas. Espera un minuto."}), 429
         alcanzados = B["propagarAlerta"](S["red"], yo["telefono"], int(ttl))
         por_tel = {u["telefono"]: c for c, u in DB.usuarios().items() if c in EN_LINEA}
         avisados = []
@@ -944,9 +1087,9 @@ def api_alerta_red():
                 entregar(cif, otro, f"{texto_msj} · desde {yo['lugar']}", tipo="alerta", ruta=ruta, retardo=retardo)
                 avisados.append(DB.usuario(otro)["nombre"])
         S["ultimaAlerta"] = {"origen": yo["telefono"], "ttl": int(ttl), "hora": time.strftime("%H:%M:%S"),
-                             "alcanzados": [[c, int(s)] for c, s in alcanzados]}
+                             "alcanzados": [[c, int(s)] for c, s in alcanzados], "ts": time.time()}
         reenviaron = max(0, len(alcanzados) - 1)
-        registrar(f"Alerta de {yo['nombre']} (TTL {int(ttl)}): {reenviaron} teléfono(s) la recibieron.", "ok")
+        registrar(f"Alerta de {yo['nombre']} (TTL {int(ttl)}): {reenviaron} teléfono(s) la recibieron.", "ok", privado=True)
         n = len(avisados)
         return jsonify({"ok": True, "alcanzados": S["ultimaAlerta"]["alcanzados"], "avisados": avisados,
                         "mensaje": f"Alerta propagada a {reenviaron} teléfono(s); {n} persona(s) la recibieron."})
@@ -992,7 +1135,7 @@ def api_estado():
 @app.post("/api/reiniciar")
 def api_reiniciar():
     d = cuerpo_json()
-    cual = d.get("grafo") or "ambos"
+    cual = d.get("grafo")
     if cual not in ("mesh", "campus", "ambos"):
         with lock:
             return responder(False, "Grafo desconocido.")
@@ -1109,6 +1252,27 @@ def publicar_emergencia_campus(emergencia):
         return publicado, False
 
 
+PUBLICACIONES = []      # hilos de publicación en Firebase (las pruebas pueden esperarlos)
+
+
+def firebase_configurado():
+    return bool(os.environ.get("FIREBASE_SERVICE_ACCOUNT_FILE") or os.environ.get("GOOGLE_APPLICATION_CREDENTIALS"))
+
+
+def publicar_en_segundo_plano(emergencia):
+    """Publica en Firebase sin frenar al servidor: la red puede ser lenta o no existir en el campus,
+    y todas las peticiones comparten el candado global."""
+    def tarea():
+        nube, push = publicar_emergencia_campus(emergencia)
+        if nube is False or push is False:
+            app.logger.warning("Firebase: publicación %s, push %s.", nube, push)
+
+    hilo = threading.Thread(target=tarea, daemon=True)
+    del PUBLICACIONES[:-10]
+    PUBLICACIONES.append(hilo)
+    hilo.start()
+
+
 @app.post("/api/emergencia/declarar")
 def api_declarar_emergencia():
     d = cuerpo_json()
@@ -1124,31 +1288,34 @@ def api_declarar_emergencia():
         "texto": texto_em,
         "hora": time.strftime("%H:%M:%S"),
     }
+    publicando = d.get("publicarDesdeWeb") is not True and firebase_configurado()
     with lock:
-        DB.guardar_emergencia(em)
-        publicar_desde_web = d.get("publicarDesdeWeb") is True
-        nube, push = (None, None) if publicar_desde_web else publicar_emergencia_campus(em)
-        mensaje = f"Emergencia declarada: {titulo_def}."
-        if nube is False:
-            mensaje += " No se pudo publicar en Firebase. Conecta Firebase Admin para publicar desde la web."
-        elif push is False:
-            mensaje += " Publicada en Firebase. El envío push falló."
-        return responder(True, mensaje, nube=nube, push=push)
+        DB.guardar_emergencia(em)          # desde aquí cada sondeo (cuentas e invitados) ya la recibe
+        respuesta = responder(True, f"Emergencia declarada: {titulo_def}." + (" Publicando en Firebase…" if publicando else ""),
+                              publicando=publicando)
+    if publicando:
+        publicar_en_segundo_plano(em)
+    return respuesta
 
 
 @app.post("/api/emergencia/finalizar")
 def api_finalizar_emergencia():
+    d = cuerpo_json()
+    incidente = d.get("incidente")
     with lock:
-        d = cuerpo_json()
-        incidente = d.get("incidente")
-        if not DB.finalizar_emergencia(incidente):
+        if not incidente:
+            if DB.emergencia_actual() is not None:
+                return responder(False, "Actualiza la pantalla e inténtalo de nuevo.")
+            S["ultimaAlerta"] = None            # solo había una alerta de la red: se apaga
+            return responder(True, "Alerta finalizada.")
+        if not DB.finalizar_emergencia(str(incidente)):
             return responder(False, "La emergencia activa cambió. Actualiza e inténtalo de nuevo.")
         S["ultimaAlerta"] = None
-        nube, _ = (None, None) if d.get("publicarDesdeWeb") is True else publicar_emergencia_campus(None)
-        mensaje = "Emergencia finalizada."
-        if nube is False:
-            mensaje += " No se pudo publicar el cierre en Firebase."
-        return responder(True, mensaje, nube=nube)
+        publicando = d.get("publicarDesdeWeb") is not True and firebase_configurado()
+        respuesta = responder(True, "Emergencia finalizada.", publicando=publicando)
+    if publicando:
+        publicar_en_segundo_plano(None)
+    return respuesta
 
 
 # --- Capa 1: red Mesh --------------------------------------------------------
@@ -1235,6 +1402,8 @@ def api_bloquear():
         usuario = usuario_sesion()
         if usuario["admin"]:
             return responder(True, bloquear_tramos(tramos))
+        if registrar_evento_ip(REPORTES_CIF, usuario["cif"], limite=5):
+            return responder(False, "Ya enviaste varios reportes. Espera un minuto.")
         ident = secrets.token_hex(12)
         DB.crear_reporte_bloqueo({"id": ident, "autor": usuario["cif"], "origen": o, "destino": dst,
                                 "ambos": ambos, "creado": int(time.time())})

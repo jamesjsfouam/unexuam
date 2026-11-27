@@ -112,6 +112,15 @@ class BaseDatos:
                 CREATE INDEX IF NOT EXISTS ix_mensajes_para_enviado ON mensajes(para_cif, enviado DESC);
                 PRAGMA user_version = 1;
             """)
+            ver = 1
+        if ver < 2:
+            # versión de sesión: cerrar sesión o cambiar la contraseña invalida las cookies anteriores
+            try:
+                self.con.execute("ALTER TABLE usuarios ADD COLUMN sesion_ver INTEGER NOT NULL DEFAULT 0")
+            except sqlite3.OperationalError:
+                pass
+            self.con.execute("PRAGMA user_version = 2")
+            self.con.commit()
 
     def cerrar(self):
         with self.lock:
@@ -199,6 +208,15 @@ class BaseDatos:
                     (cif, nombre, hash_, telefono, lugar, ahora()),
                 )
 
+    def cambiar_clave(self, cif, hash_):
+        """Reemplaza la contraseña (su hash) de una cuenta. Devuelve True si la cuenta existe."""
+        with self.lock, self.con:
+            return self.con.execute("UPDATE usuarios SET hash = ?, sesion_ver = sesion_ver + 1 WHERE cif = ?",
+                                    (hash_, cif)).rowcount > 0
+
+    def subir_sesion_ver(self, cif):
+        self._x("UPDATE usuarios SET sesion_ver = sesion_ver + 1 WHERE cif = ?", (cif,))
+
     def mover_usuario(self, cif, lugar):
         self._x("UPDATE usuarios SET lugar = ? WHERE cif = ?", (lugar, cif))
 
@@ -253,18 +271,21 @@ class BaseDatos:
         filas = self._q("SELECT * FROM mensajes WHERE id = ?", (ident,))
         return self._msj(filas[0]) if filas else None
 
-    def mensajes_de(self, cif, limite=400):
-        filas = self._q(
+    def mensajes_de(self, cif, limite=300, limite_general=100):
+        # Dos bandejas con tope propio: una avalancha en el Canal General no debe esconder los
+        # mensajes directos ni las alertas personales.
+        directos = self._q(
             "SELECT *, rowid AS _rid FROM ("
-            "  SELECT *, rowid FROM mensajes WHERE de_cif = ? "
+            "  SELECT *, rowid FROM mensajes WHERE de_cif = ? AND para_cif != 'TODOS' "
             "  UNION "
-            "  SELECT *, rowid FROM mensajes WHERE para_cif = ? "
-            "  UNION "
-            "  SELECT *, rowid FROM mensajes WHERE para_cif = 'TODOS'"
+            "  SELECT *, rowid FROM mensajes WHERE para_cif = ?"
             ") ORDER BY enviado DESC, _rid DESC LIMIT ?",
             (cif, cif, limite),
         )
-        return [self._msj(f) for f in reversed(filas)]
+        generales = self._q("SELECT *, rowid AS _rid FROM mensajes WHERE para_cif = 'TODOS' "
+                            "ORDER BY enviado DESC, rowid DESC LIMIT ?", (limite_general,))
+        filas = sorted(list(directos) + list(generales), key=lambda f: (f["enviado"], f["_rid"]))
+        return [self._msj(f) for f in filas]
 
     def mensajes_generales(self, limite=200):
         filas = self._q("SELECT * FROM mensajes WHERE para_cif = 'TODOS' "

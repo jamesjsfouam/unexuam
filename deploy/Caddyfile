@@ -1,0 +1,9 @@
+# Proxy HTTPS de Unexuam (Caddy saca y renueva el certificado de Let's Encrypt solo).
+# Requisitos: un dominio que apunte a este servidor (registro A) y los puertos 80 y 443 abiertos.
+# Uso:  caddy run --config deploy/Caddyfile   (con la variable UNEXUAM_DOMINIO definida)
+{$UNEXUAM_DOMINIO} {
+	encode zstd gzip
+	# Flask/waitress escucha solo en la máquina; Caddy agrega X-Forwarded-For y X-Forwarded-Proto
+	reverse_proxy 127.0.0.1:{$PORT:8080}
+	header -Server
+}

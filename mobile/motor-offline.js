@@ -453,13 +453,12 @@
   function obtenerIdInvitado() {
     try {
       let id = window.localStorage.getItem(INV_ID_KEY);
-      if (id && /^INV-[0-9A-F]{4}$/.test(id)) return id;
-      const bytes = new Uint8Array(2);
+      if (id && /^INV-[0-9A-F]{12}$/.test(id)) return id;
+      const bytes = new Uint8Array(6);
       if (window.crypto && typeof window.crypto.getRandomValues === "function") {
         window.crypto.getRandomValues(bytes);
       } else {
-        bytes[0] = (Math.random() * 256) | 0;
-        bytes[1] = (Math.random() * 256) | 0;
+        for (let i = 0; i < bytes.length; i++) bytes[i] = (Math.random() * 256) | 0;
       }
       id = "INV-" + Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("").toUpperCase();
       window.localStorage.setItem(INV_ID_KEY, id);
@@ -471,7 +470,7 @@
 
   function perfilInvitadoOffline(d) {
     const idReq = texto(d, "guestId", 15).toUpperCase();
-    const id = /^INV-[0-9A-F]{4}$/.test(idReq) ? idReq : obtenerIdInvitado();
+    const id = /^INV-[0-9A-F]{4,12}$/.test(idReq) ? idReq : obtenerIdInvitado();
     let lugar = "Edificio E";
     try {
       const g = window.localStorage.getItem("mi-lugar");
@@ -670,11 +669,11 @@
 
   async function despacharApi(ruta, d, searchParams) {
     const LIBRES = ["/api/yo", "/api/login", "/api/registro", "/api/registro/disponible", "/api/lugares", "/api/campus/publico", "/api/campus/ruta"];
-    const SOLO_ADMIN = ["/api/reiniciar", "/api/mesh/vertice", "/api/mesh/arista", "/api/mesh/alerta", "/api/campus/vertice", "/api/campus/arista", "/api/campus/ubicacion", "/api/campus/bloquear", "/api/campus/desbloquear", "/api/campus/congestionar", "/api/algoritmo", "/api/campus/cuellos", "/api/emergencia/declarar", "/api/emergencia/finalizar"];
+    const SOLO_ADMIN = ["/api/reiniciar", "/api/mesh/vertice", "/api/mesh/arista", "/api/mesh/alerta", "/api/campus/vertice", "/api/campus/arista", "/api/campus/ubicacion", "/api/campus/desbloquear", "/api/campus/congestionar", "/api/algoritmo", "/api/campus/cuellos", "/api/emergencia/declarar", "/api/emergencia/finalizar"];
     if (!LIBRES.includes(ruta)) {
       const yo = cuentaActual();
       const txtPost = String((d && d.texto) || "").trim();
-      const esGeneralInvitado = ruta === "/api/mensajes/general" && (!txtPost || /^SOS\b/i.test(txtPost));
+      const esGeneralInvitado = ruta === "/api/mensajes/general";   // el invitado lee y escribe en el Canal General
       const esSosInvitado = (ruta === "/api/mensajes/enviar"
         && String((d && d.para) || "").trim().toUpperCase() === "TODOS"
         && /^SOS\b/i.test(txtPost)) || esGeneralInvitado;
@@ -803,6 +802,19 @@
       return responder(true, `Ruta desde ${lugar}: ${r.ruta.join(" → ")} (${r.tiempo} s).`);
     }
 
+    if (ruta === "/api/campus/bloquear" && !(cuentaActual() && cuentaActual().u.admin)) {
+      // Estudiante o invitado: el reporte queda pendiente para la brigada (como en el servidor);
+      // no cambia las rutas de nadie hasta que un administrador lo confirme.
+      const o = texto(d, "origen");
+      const dst = texto(d, "destino");
+      if (!S.campus.vertexs.some((v) => v.nombre === o) || !S.campus.vertexs.some((v) => v.nombre === dst)) {
+        return responder(false, `No existe el paso ${o} → ${dst}.`);
+      }
+      const pendientes = JSON.parse(window.localStorage.getItem("unexuam-reportes-pendientes") || "[]");
+      pendientes.push({ origen: o, destino: dst, creado: Date.now() });
+      window.localStorage.setItem("unexuam-reportes-pendientes", JSON.stringify(pendientes.slice(-50)));
+      return responder(true, "Reporte guardado. La brigada lo revisará cuando haya conexión.", { pendiente: true });
+    }
     if (ruta === "/api/campus/bloquear") {
       const o = texto(d, "origen");
       const dst = texto(d, "destino");
@@ -1084,9 +1096,6 @@
       if (!textoMsj) {
         return { ok: true, mensajes: C.mensajes.filter((m) => m.para === "TODOS").slice(-200) };
       }
-      if (!yo && !/^SOS\b/i.test(textoMsj)) {
-        return { _status: 401, ok: false, sesion: false, mensaje: "Inicia sesión para chatear; como invitado puedes enviar alertas SOS." };
-      }
       const ahora = horaActual();
       const id = generarId();
       const idInv = yo ? "" : obtenerIdInvitado();
@@ -1131,6 +1140,14 @@
         const enLinea = !!(u && (u.real ? vecinosRealesCount() > 0 : S.red.buscarVertice(u.telefono)));
         return { cif, nombre: u.nombre, telefono: u.telefono, enLinea, lugar: null };
       };
+      // Sin internet no hay directorio: a un CIF válido que nadie ha visto todavía se le puede escribir
+      // igual (el paquete viaja por la red hasta encontrarlo); su nombre real llega con su primer mensaje.
+      const reservarDesconocido = (C, cif) => {
+        if (C.usuarios[cif] || cif === yo.cif || ["TODOS", "ADMIN", "INVITADO"].includes(cif) || !/^[0-9A-Z-]{4,15}$/.test(cif)) return C.usuarios[cif];
+        C.usuarios[cif] = { nombre: `CIF ${cif}`, telefono: `Tel-${cif}`, lugar: "Por la red Mesh", real: true, sinVerificar: true };
+        guardarCuentas(C);
+        return C.usuarios[cif];
+      };
       if (ruta === "/api/contactos/buscar" || ruta === "/api/contactos/agregar") {
         const C = cuentas();
         const cif = texto(d, "cif", 20).replace(/\s+/g, "").toUpperCase();
@@ -1148,6 +1165,7 @@
             u = C.usuarios[cif];
           }
         }
+        if (!u && navigator.onLine === false) u = reservarDesconocido(C, cif);
         if (!u || u.admin || cif === yo.cif) return { ok: false, mensaje: "No hay nadie con ese CIF en la nube ni cerca por la red Mesh." };
         C.contactos = C.contactos || {};
         const lista = C.contactos[yo.cif] || (C.contactos[yo.cif] = []);
@@ -1178,7 +1196,8 @@
           const otro = m.de === yo.cif ? m.para : m.de;
           if (otro !== "TODOS" && !cifs.includes(otro)) cifs.push(otro);
         }
-        const contactos = cifs.filter((c) => C.usuarios[c] && !C.usuarios[c].admin).map((c) => ficha(C, c));
+        // el administrador aparece si ya hay conversación con él (para poder responderle)
+        const contactos = cifs.filter((c) => C.usuarios[c]).map((c) => ficha(C, c));
         const reales = vecinosRealesCount();
         contactos.unshift({
           cif: "TODOS", nombre: "Canal General · Campus", telefono: "Mesh-Todos",
@@ -1194,6 +1213,7 @@
         const para = texto(d, "para", 15).toUpperCase();
         const textoMsj = typeof d.texto === "string" ? d.texto.trim() : "";
         const esTodos = para === "TODOS";
+        if (!esTodos && !C.usuarios[para]) reservarDesconocido(C, para);
         if ((!esTodos && !C.usuarios[para]) || para === yo.cif) return { ok: false, mensaje: "Elige a quién enviarle el mensaje." };
         if (!textoMsj || textoMsj.length > 500) return { ok: false, mensaje: "Escribe entre 1 y 500 caracteres." };
         const clave = d.idempotencia;
@@ -1554,7 +1574,7 @@
         if (recalcularRuta || /^SOS\b/.test(String(pq.texto))) {
           try { window.UnexuamNativo && window.UnexuamNativo.vibrarAlerta && window.UnexuamNativo.vibrarAlerta(); } catch (_) {}
         }
-        if (!C.usuarios[de]) {
+        if (!C.usuarios[de] || C.usuarios[de].sinVerificar) {
           C.usuarios[de] = {
             nombre: String(pq.deNombre || de).slice(0, 40),
             telefono: String(pq.deTel || `Tel-${de}`).slice(0, 30),
